@@ -37,7 +37,7 @@ body {
     radial-gradient(1px 1px at 50% 50%, rgba(255,255,255,.6) 50%, transparent 50%),
     radial-gradient(1px 1px at 90% 10%, rgba(255,255,255,.7) 50%, transparent 50%),
     radial-gradient(1.5px 1.5px at 35% 90%, rgba(255,255,255,.5) 50%, transparent 50%);
-  animation: drift-slow 60s ease-in-out infinite;
+  animation: star-fall-slow 40s linear infinite;
 }
 
 .stars-layer.layer-2 {
@@ -50,7 +50,7 @@ body {
     radial-gradient(1px 1px at 95% 40%, rgba(255,255,255,.3) 50%, transparent 50%),
     radial-gradient(1px 1px at 30% 65%, rgba(255,255,255,.35) 50%, transparent 50%),
     radial-gradient(1px 1px at 80% 80%, rgba(255,255,255,.3) 50%, transparent 50%);
-  animation: drift-medium 45s ease-in-out infinite;
+  animation: star-fall-medium 30s linear infinite;
 }
 
 .stars-layer.layer-3 {
@@ -60,28 +60,76 @@ body {
     radial-gradient(2.5px 2.5px at 88% 72%, rgba(200,200,255,.7) 50%, transparent 50%),
     radial-gradient(2px 2px at 42% 58%, rgba(255,255,240,.6) 50%, transparent 50%),
     radial-gradient(2px 2px at 72% 92%, rgba(220,220,255,.8) 50%, transparent 50%);
-  animation: twinkle 3s ease-in-out infinite, drift-slow 80s ease-in-out infinite reverse;
+  animation: twinkle 3s ease-in-out infinite, star-fall-slow 50s linear infinite reverse;
 }
 
-@keyframes drift-slow {
-  0% { transform: translateY(0) translateX(0) rotate(0deg); }
-  25% { transform: translateY(-60px) translateX(40px) rotate(.5deg); }
-  50% { transform: translateY(-30px) translateX(80px) rotate(0deg); }
-  75% { transform: translateY(-90px) translateX(30px) rotate(-.5deg); }
-  100% { transform: translateY(0) translateX(0) rotate(0deg); }
+@keyframes star-fall-slow {
+  from { transform: translateY(-100%) translateX(0); }
+  to { transform: translateY(100%) translateX(50px); }
 }
 
-@keyframes drift-medium {
-  0% { transform: translateY(0) translateX(0); }
-  33% { transform: translateY(-50px) translateX(-60px); }
-  66% { transform: translateY(-20px) translateX(-30px); }
-  100% { transform: translateY(0) translateX(0); }
+@keyframes star-fall-medium {
+  from { transform: translateY(-100%) translateX(0); }
+  to { transform: translateY(100%) translateX(-30px); }
 }
 
 @keyframes twinkle {
   0% { opacity: .3; }
   50% { opacity: 1; }
   100% { opacity: .3; }
+}
+
+/* ── Black hole ── */
+.black-hole {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(circle,
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,.95) 15%,
+    rgba(0,0,0,.7) 30%,
+    transparent 60%
+  );
+}
+
+.black-hole::before {
+  content: '';
+  position: absolute;
+  inset: -40px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    transparent 30%,
+    rgba(80,60,200,.08) 45%,
+    rgba(120,80,255,.12) 55%,
+    rgba(80,60,200,.06) 65%,
+    transparent 75%
+  );
+  animation: black-hole-pulse 8s ease-in-out infinite;
+}
+
+.black-hole::after {
+  content: '';
+  position: absolute;
+  inset: -80px;
+  border-radius: 50%;
+  border: 1px solid rgba(120,100,255,.06);
+  animation: black-hole-ring 12s linear infinite;
+}
+
+@keyframes black-hole-pulse {
+  0%, 100% { opacity: .6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes black-hole-ring {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* ── Glow effects ── */

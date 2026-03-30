@@ -6,6 +6,7 @@ export default function Home() {
         <div className="stars-layer layer-1" />
         <div className="stars-layer layer-2" />
         <div className="stars-layer layer-3" />
+        <div className="black-hole" />
         <div className="glow-orb" style={{ width: 600, height: 600, top: '10%', left: '-10%', background: 'radial-gradient(circle, rgba(100,80,255,.3), transparent 70%)' }} />
         <div className="glow-orb" style={{ width: 500, height: 500, top: '60%', right: '-5%', background: 'radial-gradient(circle, rgba(60,120,255,.2), transparent 70%)' }} />
       </div>
@@ -13,10 +14,11 @@ export default function Home() {
       {/* ── Navbar ── */}
       <nav className="navbar">
         <a href="/" className="navbar-logo" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/logo.jpg" alt="Varium" style={{ height: 28, width: 28, borderRadius: 6, objectFit: 'cover' }} />
+          <img src="/logo.jpg" alt="Varium" style={{ height: 36, width: 36, borderRadius: 8, objectFit: 'cover' }} />
           Varium
         </a>
         <ul className="navbar-links">
+          <li><a href="/variumbook">VariumBook</a></li>
           <li><a href="#products">Products</a></li>
           <li><a href="#features">Features</a></li>
           <li><a href="#contact">Contact</a></li>
