@@ -5,8 +5,15 @@ export default function VariumBook() {
   useEffect(() => {
     function onScroll() {
       const y = window.scrollY
+      const layers = document.querySelectorAll('.stars-layer') as NodeListOf<HTMLElement>
+      if (layers[0]) layers[0].style.transform = `translateY(${y * 0.1}px)`
+      if (layers[1]) layers[1].style.transform = `translateY(${y * 0.25}px)`
+      if (layers[2]) layers[2].style.transform = `translateY(${y * 0.45}px)`
       const container = document.querySelector('.stars-container') as HTMLElement
-      if (container) container.style.transform = `translateY(${y * 0.3}px)`
+      if (container) {
+        const scale = 1 + y * 0.0001
+        container.style.transform = `scale(${Math.min(scale, 1.15)})`
+      }
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
@@ -20,8 +27,14 @@ export default function VariumBook() {
         <div className="stars-layer layer-2" />
         <div className="stars-layer layer-3" />
         <div className="black-hole" />
-        <div className="planet" />
+        <div className="galaxy" />
+        <div className="shooting-star shooting-star-1" />
+        <div className="shooting-star shooting-star-2" />
+        <div className="shooting-star shooting-star-3" />
       </div>
+
+      <div className="nebula" style={{ width: 700, height: 350, top: '130vh', left: '-5%', background: 'rgba(60,100,220,.35)' }} />
+      <div className="nebula" style={{ width: 500, height: 250, top: '280vh', right: '-8%', background: 'rgba(150,60,180,.25)' }} />
 
       {/* ── Navbar ── */}
       <nav className="navbar">

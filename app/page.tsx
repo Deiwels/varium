@@ -2,12 +2,21 @@
 import { useEffect } from 'react'
 
 export default function Home() {
-  // Parallax: shift stars on scroll for "flying through space" feel
+  // Multi-layer parallax + zoom on scroll
   useEffect(() => {
     function onScroll() {
       const y = window.scrollY
+      const layers = document.querySelectorAll('.stars-layer') as NodeListOf<HTMLElement>
+      // Each layer moves at different speed — depth illusion
+      if (layers[0]) layers[0].style.transform = `translateY(${y * 0.1}px)` // far stars — slow
+      if (layers[1]) layers[1].style.transform = `translateY(${y * 0.25}px)` // mid stars
+      if (layers[2]) layers[2].style.transform = `translateY(${y * 0.45}px)` // close stars — fast
+      // Slight zoom — flying forward feel
       const container = document.querySelector('.stars-container') as HTMLElement
-      if (container) container.style.transform = `translateY(${y * 0.3}px)`
+      if (container) {
+        const scale = 1 + y * 0.0001
+        container.style.transform = `scale(${Math.min(scale, 1.15)})`
+      }
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
@@ -21,10 +30,18 @@ export default function Home() {
         <div className="stars-layer layer-2" />
         <div className="stars-layer layer-3" />
         <div className="black-hole" />
-        <div className="planet" />
-        <div className="glow-orb" style={{ width: 600, height: 600, top: '10%', left: '-10%', background: 'radial-gradient(circle, rgba(100,80,255,.3), transparent 70%)' }} />
-        <div className="glow-orb" style={{ width: 500, height: 500, top: '60%', right: '-5%', background: 'radial-gradient(circle, rgba(60,120,255,.2), transparent 70%)' }} />
+        <div className="galaxy" />
+        <div className="shooting-star shooting-star-1" />
+        <div className="shooting-star shooting-star-2" />
+        <div className="shooting-star shooting-star-3" />
+        <div className="glow-orb" style={{ width: 600, height: 600, top: '10%', left: '-10%', background: 'radial-gradient(circle, rgba(100,80,255,.25), transparent 70%)' }} />
+        <div className="glow-orb" style={{ width: 500, height: 500, top: '60%', right: '-5%', background: 'radial-gradient(circle, rgba(60,120,255,.15), transparent 70%)' }} />
       </div>
+
+      {/* ── Nebula clouds — change color as you scroll deeper ── */}
+      <div className="nebula" style={{ width: 800, height: 400, top: '120vh', left: '-10%', background: 'rgba(100,60,200,.4)' }} />
+      <div className="nebula" style={{ width: 600, height: 300, top: '250vh', right: '-5%', background: 'rgba(60,150,200,.3)' }} />
+      <div className="nebula" style={{ width: 700, height: 350, top: '380vh', left: '20%', background: 'rgba(200,80,120,.25)' }} />
 
       {/* ── Navbar ── */}
       <nav className="navbar">

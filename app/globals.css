@@ -10,58 +10,72 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── Stars background — parallax on scroll ── */
+/* ── Stars background ── */
 .stars-container {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
+  will-change: transform;
 }
 
 .stars-layer {
   position: absolute;
-  inset: -100% 0;
-  height: 300%;
+  inset: -50% -10%;
+  width: 120%;
+  height: 200%;
   background: transparent;
+  will-change: transform;
 }
 
+/* Layer 1 — далекі маленькі зірки (повільний parallax) */
 .stars-layer.layer-1 {
   background-image:
-    radial-gradient(1px 1px at 10% 7%, rgba(255,255,255,.8) 50%, transparent 50%),
-    radial-gradient(1px 1px at 25% 15%, rgba(255,255,255,.6) 50%, transparent 50%),
-    radial-gradient(1.5px 1.5px at 40% 5%, rgba(255,255,255,.9) 50%, transparent 50%),
-    radial-gradient(1px 1px at 55% 23%, rgba(255,255,255,.5) 50%, transparent 50%),
-    radial-gradient(1px 1px at 70% 12%, rgba(255,255,255,.7) 50%, transparent 50%),
-    radial-gradient(1.5px 1.5px at 85% 20%, rgba(255,255,255,.8) 50%, transparent 50%),
-    radial-gradient(1px 1px at 15% 27%, rgba(255,255,255,.4) 50%, transparent 50%),
-    radial-gradient(1px 1px at 50% 17%, rgba(255,255,255,.6) 50%, transparent 50%),
-    radial-gradient(1px 1px at 90% 3%, rgba(255,255,255,.7) 50%, transparent 50%),
-    radial-gradient(1.5px 1.5px at 35% 30%, rgba(255,255,255,.5) 50%, transparent 50%),
-    radial-gradient(1px 1px at 8% 35%, rgba(255,255,255,.6) 50%, transparent 50%),
-    radial-gradient(1px 1px at 62% 40%, rgba(255,255,255,.4) 50%, transparent 50%),
-    radial-gradient(1.5px 1.5px at 78% 45%, rgba(255,255,255,.7) 50%, transparent 50%),
-    radial-gradient(1px 1px at 22% 50%, rgba(255,255,255,.5) 50%, transparent 50%),
-    radial-gradient(1px 1px at 45% 55%, rgba(255,255,255,.6) 50%, transparent 50%);
-  animation: star-fall-slow 35s linear infinite;
+    radial-gradient(1px 1px at 10% 7%, rgba(255,255,255,.7) 50%, transparent 50%),
+    radial-gradient(1px 1px at 25% 15%, rgba(255,255,255,.5) 50%, transparent 50%),
+    radial-gradient(1px 1px at 40% 5%, rgba(255,255,255,.8) 50%, transparent 50%),
+    radial-gradient(1px 1px at 55% 23%, rgba(255,255,255,.4) 50%, transparent 50%),
+    radial-gradient(1px 1px at 70% 12%, rgba(255,255,255,.6) 50%, transparent 50%),
+    radial-gradient(1px 1px at 85% 20%, rgba(255,255,255,.7) 50%, transparent 50%),
+    radial-gradient(1px 1px at 15% 27%, rgba(255,255,255,.3) 50%, transparent 50%),
+    radial-gradient(1px 1px at 50% 17%, rgba(255,255,255,.5) 50%, transparent 50%),
+    radial-gradient(1px 1px at 90% 3%, rgba(255,255,255,.6) 50%, transparent 50%),
+    radial-gradient(1px 1px at 35% 30%, rgba(255,255,255,.4) 50%, transparent 50%),
+    radial-gradient(1px 1px at 8% 35%, rgba(255,255,255,.5) 50%, transparent 50%),
+    radial-gradient(1px 1px at 62% 40%, rgba(255,255,255,.3) 50%, transparent 50%),
+    radial-gradient(1px 1px at 78% 45%, rgba(255,255,255,.6) 50%, transparent 50%),
+    radial-gradient(1px 1px at 22% 50%, rgba(255,255,255,.4) 50%, transparent 50%),
+    radial-gradient(1px 1px at 45% 55%, rgba(255,255,255,.5) 50%, transparent 50%),
+    radial-gradient(1px 1px at 3% 62%, rgba(255,255,255,.3) 50%, transparent 50%),
+    radial-gradient(1px 1px at 68% 58%, rgba(255,255,255,.4) 50%, transparent 50%),
+    radial-gradient(1px 1px at 33% 66%, rgba(255,255,255,.5) 50%, transparent 50%),
+    radial-gradient(1px 1px at 82% 70%, rgba(255,255,255,.3) 50%, transparent 50%),
+    radial-gradient(1px 1px at 17% 75%, rgba(255,255,255,.6) 50%, transparent 50%);
+  animation: star-fall-slow 50s linear infinite;
 }
 
+/* Layer 2 — середні зірки (середній parallax) */
 .stars-layer.layer-2 {
   background-image:
-    radial-gradient(1px 1px at 5% 18%, rgba(255,255,255,.4) 50%, transparent 50%),
-    radial-gradient(1px 1px at 20% 10%, rgba(255,255,255,.3) 50%, transparent 50%),
-    radial-gradient(1px 1px at 45% 28%, rgba(255,255,255,.5) 50%, transparent 50%),
-    radial-gradient(1px 1px at 60% 7%, rgba(255,255,255,.3) 50%, transparent 50%),
-    radial-gradient(1px 1px at 75% 18%, rgba(255,255,255,.4) 50%, transparent 50%),
-    radial-gradient(1px 1px at 95% 13%, rgba(255,255,255,.3) 50%, transparent 50%),
-    radial-gradient(1px 1px at 30% 22%, rgba(255,255,255,.35) 50%, transparent 50%),
-    radial-gradient(1px 1px at 80% 27%, rgba(255,255,255,.3) 50%, transparent 50%),
-    radial-gradient(1px 1px at 12% 33%, rgba(255,255,255,.4) 50%, transparent 50%),
-    radial-gradient(1px 1px at 55% 38%, rgba(255,255,255,.3) 50%, transparent 50%),
-    radial-gradient(1px 1px at 88% 42%, rgba(255,255,255,.35) 50%, transparent 50%);
-  animation: star-fall-medium 25s linear infinite;
+    radial-gradient(1.2px 1.2px at 5% 18%, rgba(255,255,255,.5) 50%, transparent 50%),
+    radial-gradient(1.2px 1.2px at 20% 10%, rgba(255,255,255,.4) 50%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 45% 28%, rgba(255,255,255,.6) 50%, transparent 50%),
+    radial-gradient(1.2px 1.2px at 60% 7%, rgba(255,255,255,.4) 50%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 75% 18%, rgba(255,255,255,.5) 50%, transparent 50%),
+    radial-gradient(1.2px 1.2px at 95% 13%, rgba(255,255,255,.4) 50%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 30% 22%, rgba(255,255,255,.45) 50%, transparent 50%),
+    radial-gradient(1.2px 1.2px at 80% 27%, rgba(255,255,255,.4) 50%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 12% 33%, rgba(255,255,255,.5) 50%, transparent 50%),
+    radial-gradient(1.2px 1.2px at 55% 38%, rgba(255,255,255,.4) 50%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 88% 42%, rgba(255,255,255,.45) 50%, transparent 50%),
+    radial-gradient(1.2px 1.2px at 42% 48%, rgba(255,255,255,.5) 50%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 15% 55%, rgba(255,255,255,.4) 50%, transparent 50%),
+    radial-gradient(1.2px 1.2px at 70% 60%, rgba(255,255,255,.5) 50%, transparent 50%);
+  animation: star-fall-medium 35s linear infinite;
 }
 
+/* Layer 3 — яскраві близькі зірки (швидкий parallax + мерехтіння) */
 .stars-layer.layer-3 {
   background-image:
     radial-gradient(2px 2px at 12% 14%, rgba(200,220,255,.9) 50%, transparent 50%),
@@ -70,18 +84,67 @@ body {
     radial-gradient(2px 2px at 42% 19%, rgba(255,255,240,.6) 50%, transparent 50%),
     radial-gradient(2px 2px at 72% 31%, rgba(220,220,255,.8) 50%, transparent 50%),
     radial-gradient(2.5px 2.5px at 28% 38%, rgba(240,220,255,.7) 50%, transparent 50%),
-    radial-gradient(2px 2px at 55% 45%, rgba(200,240,255,.6) 50%, transparent 50%);
-  animation: twinkle 3s ease-in-out infinite, star-fall-slow 45s linear infinite reverse;
+    radial-gradient(2px 2px at 55% 45%, rgba(200,240,255,.6) 50%, transparent 50%),
+    radial-gradient(2.5px 2.5px at 8% 52%, rgba(255,230,220,.7) 50%, transparent 50%),
+    radial-gradient(2px 2px at 85% 58%, rgba(220,200,255,.6) 50%, transparent 50%);
+  animation: twinkle 3s ease-in-out infinite, star-fall-fast 25s linear infinite;
+}
+
+/* Shooting stars */
+.shooting-star {
+  position: fixed;
+  width: 80px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,.8), transparent);
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+}
+
+.shooting-star-1 {
+  top: 15%;
+  left: 20%;
+  transform: rotate(-35deg);
+  animation: shoot 6s 2s ease-out infinite;
+}
+
+.shooting-star-2 {
+  top: 40%;
+  left: 60%;
+  width: 60px;
+  transform: rotate(-40deg);
+  animation: shoot 8s 5s ease-out infinite;
+}
+
+.shooting-star-3 {
+  top: 65%;
+  left: 35%;
+  width: 100px;
+  transform: rotate(-30deg);
+  animation: shoot 10s 0s ease-out infinite;
+}
+
+@keyframes shoot {
+  0% { opacity: 0; transform: rotate(-35deg) translateX(0); }
+  2% { opacity: 1; }
+  8% { opacity: 0; transform: rotate(-35deg) translateX(300px); }
+  100% { opacity: 0; }
 }
 
 @keyframes star-fall-slow {
-  from { transform: translateY(-33.33%); }
+  from { transform: translateY(-25%); }
   to { transform: translateY(0%); }
 }
 
 @keyframes star-fall-medium {
-  from { transform: translateY(-33.33%) translateX(10px); }
-  to { transform: translateY(0%) translateX(-10px); }
+  from { transform: translateY(-30%) translateX(5px); }
+  to { transform: translateY(0%) translateX(-5px); }
+}
+
+@keyframes star-fall-fast {
+  from { transform: translateY(-35%) translateX(-8px); }
+  to { transform: translateY(0%) translateX(8px); }
 }
 
 @keyframes twinkle {
@@ -90,20 +153,20 @@ body {
   100% { opacity: .3; }
 }
 
-/* ── Black hole — off-center, in the distance ── */
+/* ── Black hole — in the distance ── */
 .black-hole {
   position: fixed;
-  top: 25%;
-  right: 8%;
-  width: 200px;
-  height: 200px;
+  top: 22%;
+  right: 10%;
+  width: 180px;
+  height: 180px;
   border-radius: 50%;
   pointer-events: none;
   z-index: 0;
   background: radial-gradient(circle,
     rgba(0,0,0,1) 0%,
     rgba(0,0,0,.97) 20%,
-    rgba(0,0,0,.6) 40%,
+    rgba(0,0,0,.5) 40%,
     transparent 65%
   );
 }
@@ -111,13 +174,13 @@ body {
 .black-hole::before {
   content: '';
   position: absolute;
-  inset: -30px;
+  inset: -25px;
   border-radius: 50%;
   background: radial-gradient(circle,
     transparent 25%,
-    rgba(100,60,220,.06) 40%,
-    rgba(140,80,255,.10) 50%,
-    rgba(100,60,220,.05) 60%,
+    rgba(100,60,220,.05) 40%,
+    rgba(140,80,255,.08) 50%,
+    rgba(100,60,220,.04) 60%,
     transparent 70%
   );
   animation: black-hole-pulse 8s ease-in-out infinite;
@@ -126,9 +189,9 @@ body {
 .black-hole::after {
   content: '';
   position: absolute;
-  inset: -50px;
+  inset: -40px;
   border-radius: 50%;
-  border: 1px solid rgba(140,100,255,.05);
+  border: 1px solid rgba(140,100,255,.04);
   animation: black-hole-ring 20s linear infinite;
 }
 
@@ -142,54 +205,68 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* ── Planet with ring ── */
-.planet {
+/* ── Distant galaxy (spiral) ── */
+.galaxy {
   position: fixed;
-  bottom: 15%;
-  left: 6%;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
+  bottom: 18%;
+  left: 8%;
+  width: 100px;
+  height: 100px;
   pointer-events: none;
   z-index: 0;
-  background: radial-gradient(circle at 35% 35%,
-    rgba(180,160,140,.4) 0%,
-    rgba(120,100,80,.3) 40%,
-    rgba(60,50,40,.4) 70%,
-    rgba(30,25,20,.5) 100%
-  );
-  box-shadow: inset -8px -4px 12px rgba(0,0,0,.6), 0 0 20px rgba(180,160,140,.05);
-  animation: planet-float 30s ease-in-out infinite;
+  animation: galaxy-float 40s ease-in-out infinite;
 }
 
-.planet::before {
+.galaxy::before {
   content: '';
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 120px;
-  height: 20px;
-  transform: translate(-50%, -50%) rotateX(75deg) rotateZ(-20deg);
+  inset: 0;
   border-radius: 50%;
-  border: 1.5px solid rgba(200,180,160,.2);
-  box-shadow: 0 0 8px rgba(200,180,160,.05);
+  background:
+    radial-gradient(ellipse at center,
+      rgba(180,160,255,.15) 0%,
+      rgba(140,120,220,.08) 25%,
+      rgba(100,80,180,.04) 45%,
+      transparent 65%
+    );
+  transform: rotate(-30deg) scaleY(.6);
+  filter: blur(2px);
 }
 
-.planet::after {
+.galaxy::after {
   content: '';
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 140px;
-  height: 24px;
-  transform: translate(-50%, -50%) rotateX(75deg) rotateZ(-20deg);
+  inset: 10px;
   border-radius: 50%;
-  border: 1px solid rgba(200,180,160,.08);
+  background:
+    radial-gradient(ellipse at center,
+      rgba(220,200,255,.2) 0%,
+      rgba(180,160,240,.1) 20%,
+      transparent 50%
+    );
+  transform: rotate(-30deg) scaleY(.5);
+  filter: blur(1px);
+  animation: galaxy-glow 6s ease-in-out infinite alternate;
 }
 
-@keyframes planet-float {
+@keyframes galaxy-float {
   0%, 100% { transform: translateY(0) translateX(0); }
-  50% { transform: translateY(-15px) translateX(8px); }
+  50% { transform: translateY(-10px) translateX(5px); }
+}
+
+@keyframes galaxy-glow {
+  from { opacity: .6; }
+  to { opacity: 1; }
+}
+
+/* ── Nebula clouds (colored areas per section depth) ── */
+.nebula {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: .06;
+  z-index: 0;
 }
 
 /* ── Glow effects ── */
@@ -251,15 +328,23 @@ section {
   z-index: 1;
 }
 
+/* ── Page transition ── */
+.page-fade-in {
+  animation: fadeIn .6s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .navbar { padding: 0 20px; }
   .navbar-links { gap: 20px; }
   .navbar-links a { font-size: 12px; }
-  .black-hole { width: 120px; height: 120px; top: 20%; right: 5%; }
-  .planet { width: 40px; height: 40px; bottom: 12%; left: 4%; }
-  .planet::before { width: 80px; height: 14px; }
-  .planet::after { width: 100px; height: 18px; }
+  .black-hole { width: 100px; height: 100px; top: 18%; right: 5%; }
+  .galaxy { width: 60px; height: 60px; bottom: 15%; left: 5%; }
 }
 
 /* ── Scrollbar ── */
