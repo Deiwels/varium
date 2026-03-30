@@ -1,4 +1,17 @@
+'use client'
+import { useEffect } from 'react'
+
 export default function VariumBook() {
+  useEffect(() => {
+    function onScroll() {
+      const y = window.scrollY
+      const container = document.querySelector('.stars-container') as HTMLElement
+      if (container) container.style.transform = `translateY(${y * 0.3}px)`
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   return (
     <>
       {/* ── Stars ── */}
@@ -7,6 +20,7 @@ export default function VariumBook() {
         <div className="stars-layer layer-2" />
         <div className="stars-layer layer-3" />
         <div className="black-hole" />
+        <div className="planet" />
       </div>
 
       {/* ── Navbar ── */}

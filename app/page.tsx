@@ -1,4 +1,18 @@
+'use client'
+import { useEffect } from 'react'
+
 export default function Home() {
+  // Parallax: shift stars on scroll for "flying through space" feel
+  useEffect(() => {
+    function onScroll() {
+      const y = window.scrollY
+      const container = document.querySelector('.stars-container') as HTMLElement
+      if (container) container.style.transform = `translateY(${y * 0.3}px)`
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   return (
     <>
       {/* ── Stars ── */}
@@ -7,6 +21,7 @@ export default function Home() {
         <div className="stars-layer layer-2" />
         <div className="stars-layer layer-3" />
         <div className="black-hole" />
+        <div className="planet" />
         <div className="glow-orb" style={{ width: 600, height: 600, top: '10%', left: '-10%', background: 'radial-gradient(circle, rgba(100,80,255,.3), transparent 70%)' }} />
         <div className="glow-orb" style={{ width: 500, height: 500, top: '60%', right: '-5%', background: 'radial-gradient(circle, rgba(60,120,255,.2), transparent 70%)' }} />
       </div>
