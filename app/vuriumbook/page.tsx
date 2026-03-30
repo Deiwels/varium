@@ -1,7 +1,7 @@
 'use client'
 import { useEffect } from 'react'
 
-export default function VariumBook() {
+export default function VuriumBook() {
   useEffect(() => {
     function onScroll() {
       const y = window.scrollY
@@ -31,6 +31,9 @@ export default function VariumBook() {
         <div className="shooting-star shooting-star-1" />
         <div className="shooting-star shooting-star-2" />
         <div className="shooting-star shooting-star-3" />
+        <div className="comet comet-1" />
+        <div className="comet comet-2" />
+        <div className="comet comet-3" />
       </div>
 
       <div className="nebula" style={{ width: 700, height: 350, top: '130vh', left: '-5%', background: 'rgba(60,100,220,.35)' }} />
@@ -39,11 +42,11 @@ export default function VariumBook() {
       {/* ── Navbar ── */}
       <nav className="navbar">
         <a href="/" className="navbar-logo" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/logo.jpg" alt="Varium" style={{ height: 36, width: 36, borderRadius: 8, objectFit: 'cover' }} />
-          Varium
+          <img src="/logo.jpg" alt="Vurium" style={{ height: 36, width: 36, borderRadius: 8, objectFit: 'cover' }} />
+          Vurium
         </a>
         <ul className="navbar-links">
-          <li><a href="/variumbook" style={{ color: '#fff' }}>VariumBook</a></li>
+          <li><a href="/vuriumbook" style={{ color: '#fff' }}>VuriumBook</a></li>
           <li><a href="/#products">Products</a></li>
           <li><a href="/#features">Features</a></li>
           <li><a href="/#contact">Contact</a></li>
@@ -57,7 +60,7 @@ export default function VariumBook() {
           <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: '.12em', textTransform: 'uppercase', color: '#8b9aff' }}>Booking Platform</span>
         </div>
         <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 500, letterSpacing: '-.03em', lineHeight: 1.1, maxWidth: 800, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-          VariumBook
+          VuriumBook
         </h1>
         <p style={{ fontSize: 'clamp(16px, 2.5vw, 20px)', fontWeight: 300, color: 'rgba(255,255,255,.55)', maxWidth: 600, marginTop: 20, lineHeight: 1.5 }}>
           The all-in-one booking system for barbershops, salons, and service businesses. Manage appointments, team schedules, payments, and clients — beautifully.
@@ -143,14 +146,14 @@ export default function VariumBook() {
         <p style={{ fontSize: 16, fontWeight: 300, color: 'rgba(255,255,255,.45)', maxWidth: 480, margin: '0 auto 40px', lineHeight: 1.5 }}>
           Request a demo or sign up today. We&apos;ll have you up and running in minutes.
         </p>
-        <a href="mailto:hello@varium.com?subject=VariumBook Demo Request" style={{ display: 'inline-flex', alignItems: 'center', height: 52, padding: '0 36px', borderRadius: 999, background: '#fff', color: '#000', fontSize: 16, fontWeight: 600, textDecoration: 'none' }}>
+        <a href="mailto:hello@vurium.com?subject=VuriumBook Demo Request" style={{ display: 'inline-flex', alignItems: 'center', height: 52, padding: '0 36px', borderRadius: 999, background: '#fff', color: '#000', fontSize: 16, fontWeight: 600, textDecoration: 'none' }}>
           Request a Demo
         </a>
       </section>
 
       {/* ── Footer ── */}
       <footer style={{ borderTop: '1px solid rgba(255,255,255,.06)', padding: '24px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
-        <span style={{ fontSize: 12, color: 'rgba(255,255,255,.3)' }}>&copy; 2026 Varium. All rights reserved.</span>
+        <span style={{ fontSize: 12, color: 'rgba(255,255,255,.3)' }}>&copy; 2026 Vurium. All rights reserved.</span>
         <div style={{ display: 'flex', gap: 24 }}>
           <a href="#" style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', textDecoration: 'none' }}>Privacy</a>
           <a href="#" style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', textDecoration: 'none' }}>Terms</a>

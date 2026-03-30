@@ -165,6 +165,78 @@ body {
   100% { opacity: 0; }
 }
 
+/* Comets — larger with glowing tail */
+.comet {
+  position: fixed;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+}
+
+.comet::before {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.95);
+  box-shadow: 0 0 8px 2px rgba(200,220,255,.6), 0 0 20px 4px rgba(150,180,255,.3);
+}
+
+.comet::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 6px;
+  width: 150px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(180,200,255,.6), rgba(140,160,255,.2) 40%, transparent);
+  border-radius: 999px;
+  filter: blur(0.5px);
+}
+
+.comet-1 {
+  top: 12%;
+  left: -5%;
+  transform: rotate(-25deg);
+  animation: comet-fly 12s 3s ease-in-out infinite;
+}
+
+.comet-1::after { width: 180px; }
+
+.comet-2 {
+  top: 55%;
+  left: -8%;
+  transform: rotate(-18deg);
+  animation: comet-fly 16s 9s ease-in-out infinite;
+}
+
+.comet-2::before {
+  width: 5px; height: 5px;
+  box-shadow: 0 0 6px 2px rgba(255,220,180,.5), 0 0 16px 4px rgba(255,180,100,.2);
+}
+
+.comet-2::after {
+  width: 120px;
+  background: linear-gradient(90deg, rgba(255,220,180,.5), rgba(255,180,100,.15) 40%, transparent);
+}
+
+.comet-3 {
+  top: 78%;
+  left: -3%;
+  transform: rotate(-32deg);
+  animation: comet-fly 20s 0s ease-in-out infinite;
+}
+
+.comet-3::after { width: 200px; }
+
+@keyframes comet-fly {
+  0% { opacity: 0; transform: rotate(-25deg) translateX(0); }
+  3% { opacity: .9; }
+  15% { opacity: 0; transform: rotate(-25deg) translateX(110vw); }
+  100% { opacity: 0; }
+}
+
 @keyframes star-fall-slow {
   from { transform: translateY(-25%); }
   to { transform: translateY(0%); }
@@ -186,56 +258,70 @@ body {
   100% { opacity: .3; }
 }
 
-/* ── Black hole — in the distance ── */
+/* ── Black hole — stylized with accretion disk ── */
 .black-hole {
   position: fixed;
   top: 22%;
   right: 10%;
-  width: 180px;
-  height: 180px;
+  width: 160px;
+  height: 160px;
   border-radius: 50%;
   pointer-events: none;
   z-index: 0;
   background: radial-gradient(circle,
     rgba(0,0,0,1) 0%,
-    rgba(0,0,0,.97) 20%,
-    rgba(0,0,0,.5) 40%,
-    transparent 65%
+    rgba(0,0,0,1) 18%,
+    rgba(0,0,0,.85) 30%,
+    rgba(0,0,0,.3) 45%,
+    transparent 60%
   );
 }
 
+/* Accretion disk — glowing ring */
 .black-hole::before {
   content: '';
   position: absolute;
-  inset: -25px;
+  top: 50%;
+  left: 50%;
+  width: 220px;
+  height: 60px;
+  transform: translate(-50%, -50%) rotateX(75deg);
   border-radius: 50%;
-  background: radial-gradient(circle,
-    transparent 25%,
-    rgba(100,60,220,.05) 40%,
-    rgba(140,80,255,.08) 50%,
-    rgba(100,60,220,.04) 60%,
-    transparent 70%
+  background: radial-gradient(ellipse,
+    transparent 30%,
+    rgba(180,120,255,.08) 40%,
+    rgba(140,80,255,.15) 48%,
+    rgba(200,140,255,.1) 55%,
+    rgba(120,60,220,.06) 65%,
+    transparent 75%
   );
-  animation: black-hole-pulse 8s ease-in-out infinite;
+  animation: black-hole-pulse 6s ease-in-out infinite;
 }
 
+/* Outer glow halo */
 .black-hole::after {
   content: '';
   position: absolute;
-  inset: -40px;
+  inset: -30px;
   border-radius: 50%;
-  border: 1px solid rgba(140,100,255,.04);
-  animation: black-hole-ring 20s linear infinite;
+  background: radial-gradient(circle,
+    transparent 40%,
+    rgba(120,80,255,.04) 55%,
+    rgba(80,40,200,.06) 65%,
+    rgba(60,30,180,.03) 75%,
+    transparent 85%
+  );
+  animation: black-hole-glow 8s ease-in-out infinite alternate;
 }
 
 @keyframes black-hole-pulse {
-  0%, 100% { opacity: .5; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.08); }
+  0%, 100% { opacity: .5; transform: translate(-50%, -50%) rotateX(75deg) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) rotateX(75deg) scale(1.06); }
 }
 
-@keyframes black-hole-ring {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+@keyframes black-hole-glow {
+  from { opacity: .4; transform: scale(1) rotate(0deg); }
+  to { opacity: .8; transform: scale(1.05) rotate(8deg); }
 }
 
 /* ── Distant galaxy (spiral) ── */

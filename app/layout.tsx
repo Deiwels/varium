@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Varium — Software That Works',
+  title: 'Vurium — Software That Works',
   description: 'We build modern software solutions. Our first product: a powerful booking system for barbershops and salons.',
   icons: { icon: '/favicon.ico' },
 }

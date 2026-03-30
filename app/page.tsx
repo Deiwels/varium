@@ -34,6 +34,9 @@ export default function Home() {
         <div className="shooting-star shooting-star-1" />
         <div className="shooting-star shooting-star-2" />
         <div className="shooting-star shooting-star-3" />
+        <div className="comet comet-1" />
+        <div className="comet comet-2" />
+        <div className="comet comet-3" />
         <div className="glow-orb" style={{ width: 600, height: 600, top: '10%', left: '-10%', background: 'radial-gradient(circle, rgba(100,80,255,.25), transparent 70%)' }} />
         <div className="glow-orb" style={{ width: 500, height: 500, top: '60%', right: '-5%', background: 'radial-gradient(circle, rgba(60,120,255,.15), transparent 70%)' }} />
       </div>
@@ -46,11 +49,11 @@ export default function Home() {
       {/* ── Navbar ── */}
       <nav className="navbar">
         <a href="/" className="navbar-logo" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/logo.jpg" alt="Varium" style={{ height: 36, width: 36, borderRadius: 8, objectFit: 'cover' }} />
-          Varium
+          <img src="/logo.jpg" alt="Vurium" style={{ height: 36, width: 36, borderRadius: 8, objectFit: 'cover' }} />
+          Vurium
         </a>
         <ul className="navbar-links">
-          <li><a href="/variumbook">VariumBook</a></li>
+          <li><a href="/vuriumbook">VuriumBook</a></li>
           <li><a href="#products">Products</a></li>
           <li><a href="#features">Features</a></li>
           <li><a href="#contact">Contact</a></li>
@@ -123,7 +126,7 @@ export default function Home() {
       {/* ── Features ── */}
       <section id="features" style={{ padding: '100px 24px', maxWidth: 1100, margin: '0 auto' }}>
         <p style={{ fontSize: 13, fontWeight: 500, letterSpacing: '.15em', textTransform: 'uppercase', color: 'rgba(140,160,255,.6)', textAlign: 'center', marginBottom: 12 }}>
-          Why Varium
+          Why Vurium
         </p>
         <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 500, letterSpacing: '-.02em', textAlign: 'center', marginBottom: 60, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
           Built different.
@@ -154,14 +157,14 @@ export default function Home() {
         <p style={{ fontSize: 17, fontWeight: 300, color: 'rgba(255,255,255,.45)', maxWidth: 480, margin: '0 auto 40px', lineHeight: 1.5 }}>
           Interested in our products or want to work together? We&apos;d love to hear from you.
         </p>
-        <a href="mailto:hello@varium.com" style={{ display: 'inline-flex', alignItems: 'center', height: 52, padding: '0 36px', borderRadius: 999, background: '#fff', color: '#000', fontSize: 16, fontWeight: 600, textDecoration: 'none' }}>
-          hello@varium.com
+        <a href="mailto:hello@vurium.com" style={{ display: 'inline-flex', alignItems: 'center', height: 52, padding: '0 36px', borderRadius: 999, background: '#fff', color: '#000', fontSize: 16, fontWeight: 600, textDecoration: 'none' }}>
+          hello@vurium.com
         </a>
       </section>
 
       {/* ── Footer ── */}
       <footer style={{ borderTop: '1px solid rgba(255,255,255,.06)', padding: '24px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
-        <span style={{ fontSize: 12, color: 'rgba(255,255,255,.3)' }}>&copy; 2026 Varium. All rights reserved.</span>
+        <span style={{ fontSize: 12, color: 'rgba(255,255,255,.3)' }}>&copy; 2026 Vurium. All rights reserved.</span>
         <div style={{ display: 'flex', gap: 24 }}>
           <a href="#" style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', textDecoration: 'none' }}>Privacy</a>
           <a href="#" style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', textDecoration: 'none' }}>Terms</a>
