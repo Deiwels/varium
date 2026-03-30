@@ -12,7 +12,10 @@ export default function Home() {
 
       {/* ── Navbar ── */}
       <nav className="navbar">
-        <a href="/" className="navbar-logo">Varium</a>
+        <a href="/" className="navbar-logo" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img src="/logo.jpg" alt="Varium" style={{ height: 28, width: 28, borderRadius: 6, objectFit: 'cover' }} />
+          Varium
+        </a>
         <ul className="navbar-links">
           <li><a href="#products">Products</a></li>
           <li><a href="#features">Features</a></li>
@@ -25,7 +28,7 @@ export default function Home() {
         <p style={{ fontSize: 14, fontWeight: 500, letterSpacing: '.15em', textTransform: 'uppercase', color: 'rgba(140,160,255,.7)', marginBottom: 20 }}>
           Software Company
         </p>
-        <h1 style={{ fontSize: 'clamp(40px, 8vw, 80px)', fontWeight: 700, letterSpacing: '-.03em', lineHeight: 1.05, maxWidth: 900, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+        <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 500, letterSpacing: '-.03em', lineHeight: 1.1, maxWidth: 800, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
           We build software<br />that works.
         </h1>
         <p style={{ fontSize: 'clamp(16px, 2.5vw, 21px)', fontWeight: 300, color: 'rgba(255,255,255,.55)', maxWidth: 580, marginTop: 24, lineHeight: 1.5 }}>
@@ -46,7 +49,7 @@ export default function Home() {
         <p style={{ fontSize: 13, fontWeight: 500, letterSpacing: '.15em', textTransform: 'uppercase', color: 'rgba(140,160,255,.6)', textAlign: 'center', marginBottom: 12 }}>
           Products
         </p>
-        <h2 style={{ fontSize: 'clamp(32px, 5vw, 52px)', fontWeight: 700, letterSpacing: '-.02em', textAlign: 'center', marginBottom: 60, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+        <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 500, letterSpacing: '-.02em', textAlign: 'center', marginBottom: 60, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
           What we&apos;re building
         </h2>
 
@@ -57,7 +60,7 @@ export default function Home() {
             <span style={{ width: 10, height: 10, borderRadius: 999, background: '#8b9aff', display: 'inline-block' }} />
             <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: '#8b9aff' }}>Coming Soon</span>
           </div>
-          <h3 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 700, letterSpacing: '-.02em', marginBottom: 16 }}>
+          <h3 style={{ fontSize: 'clamp(24px, 3.5vw, 36px)', fontWeight: 500, letterSpacing: '-.02em', marginBottom: 16 }}>
             Booking System
           </h3>
           <p style={{ fontSize: 17, fontWeight: 300, color: 'rgba(255,255,255,.55)', maxWidth: 560, lineHeight: 1.6, marginBottom: 32 }}>
@@ -88,7 +91,7 @@ export default function Home() {
         <p style={{ fontSize: 13, fontWeight: 500, letterSpacing: '.15em', textTransform: 'uppercase', color: 'rgba(140,160,255,.6)', textAlign: 'center', marginBottom: 12 }}>
           Why Varium
         </p>
-        <h2 style={{ fontSize: 'clamp(32px, 5vw, 52px)', fontWeight: 700, letterSpacing: '-.02em', textAlign: 'center', marginBottom: 60, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+        <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 500, letterSpacing: '-.02em', textAlign: 'center', marginBottom: 60, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
           Built different.
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
@@ -99,7 +102,7 @@ export default function Home() {
           ].map((f, i) => (
             <div key={i} style={{ padding: '32px 28px', borderRadius: 20, border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(180deg, rgba(255,255,255,.03), transparent)', position: 'relative', overflow: 'hidden' }}>
               <div style={{ width: 40, height: 3, borderRadius: 2, background: f.accent, marginBottom: 20, opacity: .7 }} />
-              <h3 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-.01em', marginBottom: 12 }}>{f.title}</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 500, letterSpacing: '-.01em', marginBottom: 12 }}>{f.title}</h3>
               <p style={{ fontSize: 15, fontWeight: 300, color: 'rgba(255,255,255,.45)', lineHeight: 1.6 }}>{f.desc}</p>
             </div>
           ))}
@@ -111,7 +114,7 @@ export default function Home() {
         <p style={{ fontSize: 13, fontWeight: 500, letterSpacing: '.15em', textTransform: 'uppercase', color: 'rgba(140,160,255,.6)', marginBottom: 12 }}>
           Contact
         </p>
-        <h2 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 700, letterSpacing: '-.02em', marginBottom: 20, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+        <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 500, letterSpacing: '-.02em', marginBottom: 20, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
           Let&apos;s talk.
         </h2>
         <p style={{ fontSize: 17, fontWeight: 300, color: 'rgba(255,255,255,.45)', maxWidth: 480, margin: '0 auto 40px', lineHeight: 1.5 }}>
