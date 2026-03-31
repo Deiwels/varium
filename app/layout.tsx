@@ -65,9 +65,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {/* Load fonts non-blocking via preload + swap */}
-        <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800&family=Julius+Sans+One&display=swap" as="style" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800&family=Julius+Sans+One&display=swap" rel="stylesheet" />
+        {/* Load fonts — swap shows fallback font immediately, then swaps when ready */}
+        <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Julius+Sans+One&display=swap" as="style" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Julius+Sans+One&display=swap" rel="stylesheet" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <style dangerouslySetInnerHTML={{ __html: `
           @keyframes starBreathe {
@@ -81,13 +81,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             75% { transform: translate(-2px,-1px); }
             100% { transform: translate(0,0); }
           }
-          /* Lighten effects on mobile */
+          /* Mobile: hide heavy elements entirely to save GPU */
           @media (max-width: 768px) {
-            #vurium-cosmos .nebula-glow {
-              filter: none !important;
-              opacity: .5;
-            }
-            #vurium-cosmos .glow-star { animation-duration: 10s !important; box-shadow: none !important; }
+            #vurium-cosmos .nebula-glow { display: none !important; }
+            #vurium-cosmos .glow-star { display: none !important; }
+            #v-stars-mid { opacity: .6 !important; }
+            #v-stars-near { opacity: .5 !important; }
           }
         ` }} />
       </head>

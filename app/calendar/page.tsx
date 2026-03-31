@@ -1263,10 +1263,12 @@ export default function CalendarPage() {
   useEffect(() => {
     // Only show full loading overlay on first load — subsequent date changes keep old data visible
     if (isFirstLoad.current) setLoading(true)
-    Promise.all([loadBarbers(), loadServices()]).then(async ([b, s]) => {
+    // Fire all independent fetches in parallel
+    const mainP = Promise.all([loadBarbers(), loadServices()])
+    loadStudents(); loadWaitlist(); loadPendingBlocks()
+    mainP.then(async ([b, s]) => {
       setBarbers(b); setServices(s)
       setEvents(await loadBookings(b, s)); setLoading(false); isFirstLoad.current = false
-      loadStudents(); loadWaitlist(); loadPendingBlocks()
     }).catch(e => { console.warn(e); setLoading(false); isFirstLoad.current = false })
   }, [todayStr])
 

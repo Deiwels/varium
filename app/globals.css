@@ -706,16 +706,14 @@ section { position: relative; z-index: 2; }
     transition: none !important;
   }
 
-  /* Slow down star animations (3x slower = 3x less GPU work) */
-  .stars-wrap-far  { animation-duration: 270s !important; }
-  .stars-wrap-mid  { animation-duration: 195s !important; }
-  .stars-wrap-near { animation-duration: 150s !important; }
-  .stars-far  { animation-duration: 270s !important; }
-  .stars-mid  { animation-duration: 195s !important; }
-  .stars-near { animation-duration: 150s !important; }
+  /* Stop star animations on mobile — static stars save GPU/battery */
+  .stars-wrap-far, .stars-wrap-mid, .stars-wrap-near,
+  .stars-far, .stars-mid, .stars-near {
+    animation: none !important;
+  }
 
-  /* Glow stars — keep breathing but slower and simpler (no box-shadow) */
-  .star-glow  { animation-duration: 12s !important; box-shadow: none !important; }
+  /* Glow stars — hidden on mobile (done in layout.tsx too) */
+  .star-glow  { display: none !important; }
 
   /* Orb — keep rotation but much slower */
   .orb-container { animation-duration: 360s !important; }
@@ -744,13 +742,8 @@ section { position: relative; z-index: 2; }
     -webkit-backdrop-filter: blur(8px) !important;
   }
 
-  /* Nebula glow — replace 140px blur with simpler opacity fade (no filter) */
-  .nebula-layer {
-    filter: none !important;
-    opacity: .4 !important;
-    border-radius: 50%;
-    background: radial-gradient(ellipse, var(--nebula-color, rgba(30,45,110,.05)) 0%, transparent 70%) !important;
-  }
+  /* Nebula glow — hidden on mobile (blur(140px) is extremely GPU heavy) */
+  .nebula-layer { display: none !important; }
 
   /* Hide noise overlay (SVG feTurbulence is expensive) */
   .noise-overlay { display: none !important; }
