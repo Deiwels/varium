@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { DialogWrapper } from './DialogWrapper'
 import CosmosParallax from '@/components/CosmosParallax'
+import { PlanProvider } from '@/components/PlanProvider'
 
 export const metadata: Metadata = {
   title: 'Vurium — Software That Works',
@@ -114,7 +115,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
 
         <CosmosParallax />
-        <DialogWrapper>{children}</DialogWrapper>
+        <PlanProvider>
+          <DialogWrapper>{children}</DialogWrapper>
+        </PlanProvider>
       </body>
     </html>
   )
