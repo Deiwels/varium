@@ -292,20 +292,20 @@ export default function DashboardPage() {
   const maxCount = Math.max(...Object.values(byBarber), 1)
 
   // Tools — plan-based access
-  // Starter: Calendar, Clients, Payments, Settings
-  // Pro: + Waitlist, Messages, Portfolio, Cash, Membership
-  // Enterprise: + Expenses, Payroll
+  // Individual: Calendar, Clients, Payments, Settings
+  // Salon: + Waitlist, Messages, Portfolio, Cash, Membership, Attendance
+  // Custom: + Expenses, Payroll
   const actions = [
-    { label: 'Calendar', desc: 'Bookings & schedule', href: '/calendar', color: 'rgba(255,255,255,.4)' },
-    { label: 'Clients', desc: 'Your client base', href: '/clients', color: 'rgba(255,255,255,.35)' },
-    { label: 'Payments', desc: 'Transactions', href: '/payments', color: 'rgba(255,255,255,.35)' },
-    { label: 'Waitlist', desc: 'Queue & notify', href: '/waitlist', color: 'rgba(255,255,255,.3)', pro: true },
-    { label: 'Portfolio', desc: 'Work gallery', href: '/portfolio', color: 'rgba(255,255,255,.3)', pro: true },
-    { label: 'Cash', desc: 'Daily register', href: '/cash', color: 'rgba(255,255,255,.3)', pro: true },
-    { label: 'Membership', desc: 'Recurring clients', href: '/membership', color: 'rgba(255,255,255,.3)', pro: true },
+    { label: 'Calendar', desc: 'Bookings & schedule', href: '/calendar', color: 'rgba(255,255,255,.4)', feature: 'calendar' },
+    { label: 'Clients', desc: 'Your client base', href: '/clients', color: 'rgba(255,255,255,.35)', feature: 'clients' },
+    { label: 'Payments', desc: 'Transactions', href: '/payments', color: 'rgba(255,255,255,.35)', feature: 'payments' },
+    { label: 'Waitlist', desc: 'Queue & notify', href: '/waitlist', color: 'rgba(255,255,255,.3)', feature: 'waitlist', salon: true },
+    { label: 'Portfolio', desc: 'Work gallery', href: '/portfolio', color: 'rgba(255,255,255,.3)', feature: 'portfolio', salon: true },
+    { label: 'Cash', desc: 'Daily register', href: '/cash', color: 'rgba(255,255,255,.3)', feature: 'cash_register', salon: true },
+    { label: 'Membership', desc: 'Recurring clients', href: '/membership', color: 'rgba(255,255,255,.3)', feature: 'membership', salon: true },
     ...(role === 'owner' ? [
-      { label: 'Expenses', desc: 'Track costs', href: '/expenses', color: 'rgba(255,255,255,.25)', enterprise: true },
-      { label: 'Payroll', desc: 'Commission + tips', href: '/payroll', color: 'rgba(255,255,255,.25)', enterprise: true },
+      { label: 'Expenses', desc: 'Track costs', href: '/expenses', color: 'rgba(255,255,255,.25)', feature: 'expenses', custom: true },
+      { label: 'Payroll', desc: 'Commission + tips', href: '/payroll', color: 'rgba(255,255,255,.25)', feature: 'payroll', custom: true },
     ] : []),
     { label: 'Settings', desc: 'Config & team', href: '/settings', color: 'rgba(255,255,255,.25)' },
   ].filter(item => {

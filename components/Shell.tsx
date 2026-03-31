@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import ImageCropper from '@/components/ImageCropper'
 import { hasPinSetup, verifyPin, getCredentials, getPinUsername } from '@/lib/pin'
+import { usePlan } from '@/components/PlanProvider'
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
 
@@ -615,6 +616,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
     return <div style={{ background: 'transparent', minHeight: '100vh' }} />
   }
 
+  const { hasFeature: planHasFeature } = usePlan()
   const role = user?.role || 'barber'
   const isBarber = role === 'barber'
   const isStudent = role === 'student'
@@ -811,12 +813,14 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
             {[
               { id: 'dashboard', href: '/dashboard', label: 'Home' },
               { id: 'calendar', href: '/calendar', label: 'Calendar' },
-              { id: 'messages', href: '/messages', label: 'Messages' },
+              { id: 'messages', href: '/messages', label: 'Messages', feature: 'messages' },
               { id: 'clients', href: '/clients', label: 'Clients' },
               { id: 'settings', href: '/settings', label: 'Settings' },
             ].filter(item => {
               if (isStudent && item.id !== 'calendar' && item.id !== 'messages') return false
               if (isBarber && (item.id === 'clients' || item.id === 'settings')) return false
+              // Plan-based: hide items whose feature is not in current plan
+              if ((item as any).feature && !planHasFeature((item as any).feature)) return false
               return true
             }).map(item => {
               const active = pathname === item.href || (item.id === 'settings' && ['/settings', '/billing', '/waitlist', '/portfolio', '/attendance', '/cash', '/membership', '/expenses', '/payroll', '/payments'].some(p => pathname.startsWith(p)))

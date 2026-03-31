@@ -93,7 +93,7 @@ export default function VuriumBook() {
           The all-in-one booking system for barbershops, salons, and service businesses. Manage appointments, team schedules, payments, and clients.
         </p>
         <div className="fade-up fade-up-d3" style={{ marginTop: 40, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <a href="/signup?plan=pro" className="btn-primary">Start Free Trial</a>
+          <a href="/signup?plan=salon" className="btn-primary">Start Free Trial</a>
           <a href="#features" className="btn-secondary">See Features</a>
         </div>
       </section>
@@ -130,9 +130,9 @@ export default function VuriumBook() {
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
           {[
-            { name: 'Starter', price: '$29', period: '/mo', desc: 'For solo barbers and small shops', features: ['Up to 2 team members', 'Online booking page', 'Basic calendar', 'Client management'], featured: false, plan: 'starter' },
-            { name: 'Pro', price: '$79', period: '/mo', desc: 'For growing barbershops and salons', features: ['Unlimited team members', 'Custom booking page', 'Payments & tips', 'Analytics & payroll', 'Priority support'], featured: true, plan: 'pro' },
-            { name: 'Enterprise', price: 'Custom', period: '', desc: 'For multi-location businesses', features: ['Everything in Pro', 'Multiple locations', 'API access', 'Dedicated support', 'Custom integrations'], featured: false, plan: 'enterprise' },
+            { name: 'Individual', price: '$29', period: '/mo', desc: 'For solo specialists and freelancers', features: ['1 user — your own calendar', 'Online booking page', 'Client management', 'Payments', 'Basic analytics'], featured: false, plan: 'individual' },
+            { name: 'Salon', price: '$79', period: '/mo', desc: 'For teams, salons, and studios', features: ['Up to 10 team members', 'Team management & roles', 'Waitlist & Messages', 'Portfolio & Membership', 'Advanced analytics'], featured: true, plan: 'salon' },
+            { name: 'Custom', price: 'Custom', period: '', desc: 'For networks and enterprises', features: ['Everything in Salon', 'Unlimited team members', 'Multi-location', 'API access', 'Expenses & Payroll'], featured: false, plan: 'custom' },
           ].map((p, i) => (
             <div key={i} className="glass-card" style={{ borderColor: p.featured ? 'rgba(130,150,220,.2)' : undefined, background: p.featured ? 'rgba(130,150,220,.03)' : undefined }}>
               {p.featured && <div style={{ position: 'absolute', top: 14, right: 18, fontSize: 9, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(130,150,220,.7)', background: 'rgba(130,150,220,.1)', padding: '3px 10px', borderRadius: 999 }}>Popular</div>}
@@ -166,7 +166,7 @@ export default function VuriumBook() {
           Request a demo or sign up today. We&apos;ll have you running in minutes.
         </p>
         <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <a href="/signup?plan=pro" className="btn-primary">Start Free Trial</a>
+          <a href="/signup?plan=salon" className="btn-primary">Start Free Trial</a>
           <a href="mailto:hello@vurium.com?subject=VuriumBook Demo" className="btn-secondary">Request a Demo</a>
         </div>
       </section>

@@ -14,19 +14,19 @@ interface BillingStatus {
 
 const PLANS = [
   {
-    id: 'starter', name: 'Starter', price: 29, period: '/mo',
-    features: ['Up to 2 team members', 'Online booking page', 'Basic calendar', 'Client management'],
-    color: 'rgba(130,150,220,.6)',
+    id: 'individual', name: 'Individual', price: 29, period: '/mo',
+    features: ['1 user (owner only)', 'Calendar & Bookings', 'Client management', 'Payments', 'Basic analytics', '1 booking page'],
+    color: 'rgba(255,255,255,.4)',
   },
   {
-    id: 'pro', name: 'Pro', price: 79, period: '/mo', featured: true,
-    features: ['Unlimited team members', 'Custom booking page', 'Payments & tips', 'Analytics & payroll', 'Priority support'],
-    color: 'rgba(130,220,170,.6)',
+    id: 'salon', name: 'Salon', price: 79, period: '/mo', featured: true,
+    features: ['Everything in Individual', 'Up to 10 team members', 'Team management & roles', 'Waitlist & Messages', 'Portfolio & Membership', 'Cash register', 'Attendance tracking', 'Advanced analytics'],
+    color: 'rgba(255,255,255,.5)',
   },
   {
-    id: 'enterprise', name: 'Enterprise', price: null, period: '',
-    features: ['Everything in Pro', 'Multiple locations', 'API access', 'Dedicated support', 'Custom integrations'],
-    color: 'rgba(220,170,100,.6)',
+    id: 'custom', name: 'Custom', price: null, period: '',
+    features: ['Everything in Salon', 'Unlimited team members', 'Multi-location', 'API access', 'Expenses & Payroll', 'Dedicated support'],
+    color: 'rgba(255,255,255,.35)',
   },
 ]
 
@@ -175,7 +175,7 @@ export default function BillingPage() {
                         </li>
                       ))}
                     </ul>
-                    {p.id !== 'enterprise' ? (
+                    {p.id !== 'custom' ? (
                       <button
                         onClick={() => handleCheckout(p.id)}
                         disabled={isCurrent || !!checkoutLoading}

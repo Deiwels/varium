@@ -107,10 +107,14 @@ export default function SignupPage() {
   }
 
   const planLabels: Record<string, { label: string; color: string }> = {
-    free: { label: 'Free Trial', color: 'rgba(130,220,170,.8)' },
-    starter: { label: 'Starter — $29/mo', color: 'rgba(130,150,220,.8)' },
-    pro: { label: 'Pro — $79/mo', color: 'rgba(180,140,220,.8)' },
-    enterprise: { label: 'Enterprise', color: 'rgba(220,170,100,.8)' },
+    free: { label: '30-Day Free Trial', color: 'rgba(255,255,255,.6)' },
+    individual: { label: 'Individual — $29/mo', color: 'rgba(255,255,255,.6)' },
+    salon: { label: 'Salon — $79/mo', color: 'rgba(255,255,255,.6)' },
+    custom: { label: 'Custom Plan', color: 'rgba(255,255,255,.6)' },
+    // Legacy fallbacks
+    starter: { label: 'Individual — $29/mo', color: 'rgba(255,255,255,.6)' },
+    pro: { label: 'Salon — $79/mo', color: 'rgba(255,255,255,.6)' },
+    enterprise: { label: 'Custom Plan', color: 'rgba(255,255,255,.6)' },
   }
 
   const planInfo = planLabels[plan] || planLabels.free
