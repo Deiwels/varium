@@ -1797,7 +1797,7 @@ export default function CalendarPage() {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
 
         {/* Topbar */}
-        <div className="cal-topbar-wrap" style={{ padding: '6px 14px', background: 'rgba(5,5,12,.6)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,.05)', flexShrink: 0 }}>
+        <div className="cal-topbar-wrap" style={{ padding: '6px 14px', background: 'rgba(8,8,18,.5)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,.05)', flexShrink: 0 }}>
           <div className="cal-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
             {false && (
               <div className="cal-topbar-left">
@@ -1886,7 +1886,7 @@ export default function CalendarPage() {
         <div className={`cal-container${dayTransition === 'out' ? ' day-transition-out' : dayTransition === 'in' ? ' day-transition-in' : ''}`} style={{ flex: 1, position: 'relative', overflowY: (drag || blockDrag) ? 'hidden' : 'auto', overflowX: 'hidden', touchAction: (drag || blockDrag) ? 'none' : 'pan-x pan-y', transformOrigin: 'center 40%' }} ref={scrollContainerRef} onTouchStart={onPinchStart} onTouchMove={onPinchMove} onTouchEnd={onPinchEnd}>
           <div style={{ minWidth: timeColW + pageBarbers.length * colMin }}>
             {/* Header */}
-            <div style={{ display: 'grid', gridTemplateColumns: `${timeColW}px repeat(${pageBarbers.length}, minmax(${colMin}px,1fr))`, borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(5,5,12,.7)', backdropFilter: 'blur(20px)', position: 'sticky', top: 0, zIndex: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `${timeColW}px repeat(${pageBarbers.length}, minmax(${colMin}px,1fr))`, borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(8,8,18,.6)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', position: 'sticky', top: 0, zIndex: 10 }}>
               <div style={{ padding: isMobile ? '10px 2px' : '10px 12px', borderRight: '1px solid rgba(255,255,255,.10)', color: 'rgba(255,255,255,.40)', fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', textAlign: 'center' }}>{isMobile ? '' : 'Time'}</div>
               {pageBarbers.map((b, i) => {
                 const attachedStudents = studentUsers.filter(s => s.mentorIds.includes(b.id))
@@ -1918,7 +1918,7 @@ export default function CalendarPage() {
             {/* Body */}
             <div style={{ display: 'grid', gridTemplateColumns: `${timeColW}px repeat(${pageBarbers.length}, minmax(${colMin}px,1fr))`, height: totalH, position: 'relative' }}>
               {/* Time labels */}
-              <div style={{ borderRight: '1px solid rgba(255,255,255,.04)', background: 'rgba(5,5,12,.3)', position: 'relative' }}>
+              <div style={{ borderRight: '1px solid rgba(255,255,255,.04)', background: 'rgba(8,8,18,.4)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', position: 'relative' }}>
                 {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => {
                   const h = START_HOUR + i
                   const label = _is24h ? `${pad2(h)}` : (() => { const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h; return String(h12) })()
@@ -2276,7 +2276,7 @@ export default function CalendarPage() {
                       }
                       return (
                         <div key={ev.id} className={`cal-event${isArrived ? ' arrived-pulse' : ''}${isPaid ? ' cal-event-paid' : ''}${isAtRisk ? ' at-risk-pulse' : ''}${isVip ? ' vip-pulse' : ''}${drag?.eventId===ev.id ? ' cal-event-dragging' : ''}`}
-                          style={{ position: 'absolute', left: tinyCol ? 2 : 6, right: tinyCol ? 2 : 6, top, height: height-2, borderRadius: tinyCol ? 8 : 12, ...(isArrived || isAtRisk || isVip ? {} : drag?.eventId===ev.id ? {} : { border: `1px solid ${isPaid ? 'rgba(130,220,170,.15)' : isNoshow ? 'rgba(255,107,107,.12)' : 'rgba(255,255,255,.08)'}`, background: isNoshow ? 'rgba(255,107,107,.04)' : isPaid ? 'rgba(130,220,170,.04)' : 'rgba(255,255,255,.03)', backdropFilter: 'blur(8px)', boxShadow: isPaid ? '0 0 12px rgba(130,220,170,.06)' : isNoshow ? 'none' : '0 0 8px rgba(255,255,255,.02)' }), ...(isNoshow ? { opacity: 0.3 } : {}), padding: tinyCol ? '3px 4px' : '7px 10px', cursor: canDrag ? (drag ? 'grabbing' : 'grab') : 'pointer', userSelect: 'none', overflow: 'hidden', zIndex: drag?.eventId===ev.id ? 50 : isNoshow ? 2 : 5, transition: 'all .2s ease' }}
+                          style={{ position: 'absolute', left: tinyCol ? 2 : 6, right: tinyCol ? 2 : 6, top, height: height-2, borderRadius: tinyCol ? 8 : 12, ...(isArrived || isAtRisk || isVip ? {} : drag?.eventId===ev.id ? {} : { border: `1px solid ${isPaid ? 'rgba(130,220,170,.15)' : isNoshow ? 'rgba(255,107,107,.12)' : 'rgba(255,255,255,.08)'}`, background: isNoshow ? 'rgba(255,107,107,.04)' : isPaid ? 'rgba(130,220,170,.04)' : 'rgba(255,255,255,.03)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', boxShadow: isPaid ? '0 0 12px rgba(130,220,170,.06)' : isNoshow ? 'none' : '0 0 8px rgba(255,255,255,.02)' }), ...(isNoshow ? { opacity: 0.3 } : {}), padding: tinyCol ? '3px 4px' : '7px 10px', cursor: canDrag ? (drag ? 'grabbing' : 'grab') : 'pointer', userSelect: 'none', overflow: 'hidden', zIndex: drag?.eventId===ev.id ? 50 : isNoshow ? 2 : 5, transition: 'all .2s ease' }}
                           onMouseDown={e => { if (!canDrag || e.button!==0) return; startDrag(e, ev, bi) }}
                           onTouchStart={e => { if (!canDrag) return; e.stopPropagation(); clearTimeout(eventLongPressTimer.current); const touch = e.touches[0]; const evCopy = ev; const biCopy = bi; eventLongPressTimer.current = setTimeout(() => { const fakeEvt = { preventDefault(){}, stopPropagation(){}, touches: [touch] } as any; startDrag(fakeEvt, evCopy, biCopy) }, 400) }}
                           onTouchEnd={() => clearTimeout(eventLongPressTimer.current)}

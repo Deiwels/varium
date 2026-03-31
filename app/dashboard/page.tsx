@@ -71,7 +71,7 @@ function Chip({ label, type }: { label: string; type: string }) {
 function KpiCard({ title, value, sub, color }: { title: string; value: string; sub: string; color?: string }) {
   const dots: Record<string, string> = { ok: 'rgba(130,220,170,.6)', bad: '#ff6b6b', blue: 'rgba(255,255,255,.4)', gold: 'rgba(220,190,100,.6)' }
   return (
-    <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.04)', background: 'rgba(255,255,255,.02)', padding: '12px 14px' }}>
+    <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.025)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', padding: '12px 14px' }}>
       <div style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.3)', marginBottom: 6 }}>{title}</div>
       <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-.02em', lineHeight: 1, color: '#e8e8ed' }}>{value}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,.25)' }}>
@@ -761,7 +761,7 @@ export default function DashboardPage() {
 
             {/* ── Booking Link (compact) ── */}
             {!isBarber && user?.workspace_id && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.015)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', flexShrink: 0 }}>Booking</div>
                 <code style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,.45)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>vurium.com/book/{user.workspace_id}</code>
                 <button onClick={() => navigator.clipboard.writeText(`https://vurium.com/book/${user.workspace_id}`)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.45)', flexShrink: 0 }}>Copy</button>
@@ -788,7 +788,7 @@ export default function DashboardPage() {
             {/* ── Core Navigation (minimal) ── */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
               {actions.slice(0, 4).map(item => (
-                <a key={item.href} href={item.href} style={{ flex: '1 1 120px', padding: '12px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.015)', textDecoration: 'none', transition: 'border-color .2s' }}>
+                <a key={item.href} href={item.href} style={{ flex: '1 1 120px', padding: '12px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', textDecoration: 'none', transition: 'border-color .2s' }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.6)' }}>{item.label}</div>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>{item.desc}</div>
                 </a>
@@ -809,7 +809,7 @@ export default function DashboardPage() {
                     const sched = b.schedule
                     const workDays: number[] = Array.isArray(sched?.days) ? sched.days : [1,2,3,4,5,6]
                     return (
-                      <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.04)', background: 'rgba(255,255,255,.015)' }}>
+                      <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
                         {b.photo_url
                           ? <img src={b.photo_url} alt={b.name} style={{ width: 34, height: 34, borderRadius: 9, objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)', flexShrink: 0 }} onError={e => (e.currentTarget.style.display='none')} />
                           : <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.4)', flexShrink: 0 }}>{(b.name||'?')[0]}</div>
