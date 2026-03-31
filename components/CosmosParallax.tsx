@@ -29,9 +29,9 @@ export default function CosmosParallax() {
 
       const sy = scrollY * 0.0003 // subtle scroll parallax
 
-      if (f) f.style.transform = `translate(${cx * 4}px, ${cy * 4 + scrollY * 0.02}px)`
-      if (m) m.style.transform = `translate(${cx * 10}px, ${cy * 10 + scrollY * 0.05}px)`
-      if (n) n.style.transform = `translate(${cx * 18}px, ${cy * 18 + scrollY * 0.1}px)`
+      if (f) f.style.transform = `translate(${cx * 8}px, ${cy * 8 + scrollY * 0.03}px)`
+      if (m) m.style.transform = `translate(${cx * 20}px, ${cy * 20 + scrollY * 0.08}px)`
+      if (n) n.style.transform = `translate(${cx * 35}px, ${cy * 35 + scrollY * 0.15}px)`
 
       raf = requestAnimationFrame(tick)
     }

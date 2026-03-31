@@ -79,21 +79,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div id="v-stars-far" style={{
             position: 'absolute', inset: '-5%', width: '110%', height: '110%', opacity: 1,
             backgroundImage: farStars,
-            animation: 'slowDrift 120s ease-in-out infinite',
+            willChange: 'transform',
           }} />
 
           {/* Mid stars — medium, fewer, faster parallax */}
           <div id="v-stars-mid" style={{
             position: 'absolute', inset: '-3%', width: '106%', height: '106%', opacity: 1,
             backgroundImage: midStars,
-            animation: 'slowDrift 80s ease-in-out infinite reverse',
+            willChange: 'transform',
           }} />
 
           {/* Near stars — large, sparse, fastest parallax */}
           <div id="v-stars-near" style={{
             position: 'absolute', inset: 0, opacity: 1,
             backgroundImage: nearStars,
-            animation: 'slowDrift 60s ease-in-out infinite',
+            willChange: 'transform',
           }} />
 
           {/* Breathing glow stars */}
