@@ -70,13 +70,13 @@ export default function VuriumBook() {
       {/* ── Navbar ── */}
       <nav className="navbar">
         <a href="/" className="navbar-logo">
-          <img src="/logo.jpg" alt="Vurium" />
-          Vurium
+          <img src="/logo.jpg" alt="VuriumBook" />
+          VuriumBook
         </a>
         <ul className="navbar-links">
-          <li><a href="/vuriumbook" style={{ color: 'rgba(255,255,255,.85)' }}>VuriumBook</a></li>
           <li><a href="/#products">Products</a></li>
           <li><a href="/#about">About</a></li>
+          <li><a href="/signin" className="btn-nav-cta" style={{ background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)', color: '#fff', padding: '6px 16px', borderRadius: 999, fontSize: 13, fontWeight: 500 }}>Sign In</a></li>
         </ul>
       </nav>
 
