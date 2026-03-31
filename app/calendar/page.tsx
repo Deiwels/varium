@@ -1276,7 +1276,7 @@ export default function CalendarPage() {
   useEffect(() => {
     if (modal.open) return // Don't poll while booking modal is open
     const interval = setInterval(() => {
-      loadBookings(barbers, services).then(evs => setEvents(evs.map(e => { if ((e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id)) clearArrived(e.id); return !(e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id) ? { ...e, status: 'arrived' } : e }))).catch(console.warn)
+      loadBookings(barbers, services).then(evs => setEvents(evs.map((e: any) => { if ((e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id)) clearArrived(e.id); return !(e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id) ? { ...e, status: 'arrived' } : e }))).catch(console.warn)
       loadPendingBlocks().catch(() => {})
     }, 15000)
     return () => clearInterval(interval)
