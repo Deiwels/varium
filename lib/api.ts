@@ -1,6 +1,8 @@
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
 
-export { API }
+const API_KEY = ''
+
+export { API, API_KEY }
 
 export async function apiFetch(path: string, opts?: RequestInit) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('VURIUMBOOK_TOKEN') || '' : ''
