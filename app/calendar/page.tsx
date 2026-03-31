@@ -1797,42 +1797,23 @@ export default function CalendarPage() {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
 
         {/* Topbar */}
-        <div className="cal-topbar-wrap" style={{ padding: '6px 14px', background: 'rgba(8,8,18,.5)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,.05)', flexShrink: 0 }}>
-          <div className="cal-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
-            {false && (
-              <div className="cal-topbar-left">
-              </div>
-            )}
-            <div className="cal-topbar-btns" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              {/* Date picker — desktop only */}
-              <button className="cal-btn-date" onClick={() => setDatePickerOpen(true)} style={{ height: 30, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>Date</button>
+        {/* Apple-style thin topbar — centered controls */}
+        <div className="cal-topbar-wrap" style={{ padding: '4px 14px', background: 'rgba(8,8,18,.5)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,.04)', flexShrink: 0 }}>
+          <div className="cal-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <div className="cal-topbar-btns" style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              {/* Date picker */}
+              <button className="cal-btn-date" onClick={() => setDatePickerOpen(true)} style={{ height: 26, padding: '0 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 500, fontSize: 12, fontFamily: 'inherit' }}>Date</button>
 
-              {/* Nav arrows + date — hidden on mobile, shown on desktop */}
-              <div className="cal-nav-arrows" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <button onClick={() => animateDayChange(-1)} style={{ height: 28, width: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 15, fontFamily: 'inherit', flexShrink: 0 }}>‹</button>
-                <button onClick={() => { if (dayTransition !== 'idle') return; setDayTransition('out'); setTimeout(() => { const d=new Date(); d.setHours(0,0,0,0); setAnchor(d); setDayTransition('in'); setTimeout(() => setDayTransition('idle'), 220) }, 180) }} style={{ height: 28, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', flexShrink: 0 }}>Today</button>
-                <button onClick={() => animateDayChange(1)} style={{ height: 28, width: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 15, fontFamily: 'inherit', flexShrink: 0 }}>›</button>
+              {/* Nav: ‹ Today › */}
+              <div className="cal-nav-arrows" style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <button onClick={() => animateDayChange(-1)} style={{ height: 26, width: 26, borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', flexShrink: 0 }}>‹</button>
+                <button onClick={() => { if (dayTransition !== 'idle') return; setDayTransition('out'); setTimeout(() => { const d=new Date(); d.setHours(0,0,0,0); setAnchor(d); setDayTransition('in'); setTimeout(() => setDayTransition('idle'), 220) }, 180) }} style={{ height: 26, padding: '0 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 500, fontSize: 11, fontFamily: 'inherit', flexShrink: 0 }}>Today</button>
+                <button onClick={() => animateDayChange(1)} style={{ height: 26, width: 26, borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', flexShrink: 0 }}>›</button>
               </div>
 
-              {/* Search — full on desktop */}
-              <input className="cal-search-full" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} style={{ height: 28, width: 'min(160px,30vw)', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', padding: '0 14px', outline: 'none', fontSize: 13 }} />
-
-              {/* Search — icon on mobile, expands on tap */}
-              <div className="cal-search-icon" style={{ display: 'none', position: 'relative', alignItems: 'center' }}>
-                {search
-                  ? <input autoFocus placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} onBlur={() => { if (!search) {} }} style={{ height: 36, width: 130, borderRadius: 999, border: '1px solid rgba(255,255,255,.20)', background: 'rgba(255,255,255,.08)', color: '#fff', padding: '0 14px 0 32px', outline: 'none', fontSize: 12 }} />
-                  : <button onClick={() => setSearch(' ')} style={{ height: 28, width: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                    </button>
-                }
-              </div>
-
-              {/* Settings — desktop only */}
-              {isOwnerOrAdmin && <button className="cal-settings-btn" onClick={() => setSettingsOpen(true)} style={{ height: 28, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>Settings</button>}
-
-              {/* Settings icon — mobile */}
-              {(isOwnerOrAdmin || isStudent || isBarber) && <button onClick={() => setSettingsOpen(true)} style={{ height: 28, width: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} className="cal-settings-icon">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              {/* Settings */}
+              {(isOwnerOrAdmin || isStudent || isBarber) && <button onClick={() => setSettingsOpen(true)} style={{ height: 26, width: 26, borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} className="cal-settings-icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               </button>}
 
               {/* New booking */}
@@ -1857,17 +1838,8 @@ export default function CalendarPage() {
                   setSlotPicker(freeSlots)
                 }} className="cal-student-btn" style={{ height: 36, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(168,107,255,.80)', background: 'rgba(0,0,0,.75)', color: 'rgba(180,140,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', boxShadow: '0 0 14px rgba(168,107,255,.20)', whiteSpace: 'nowrap', flexShrink: 0 }}>+ Model</button>
               ) : (
-                <button className="cal-new-btn" onClick={() => openCreate(isBarber ? myBarberId : (barbers[0]?.id || ''), clamp(new Date().getHours()*60))} style={{ height: 30, padding: '0 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>+ New</button>
+                <button className="cal-new-btn" onClick={() => openCreate(isBarber ? myBarberId : (barbers[0]?.id || ''), clamp(new Date().getHours()*60))} style={{ height: 26, padding: '0 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 500, fontSize: 11, fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>+ New</button>
               )}
-
-              {/* Zoom +/- — desktop only */}
-              {!isMobile && <>
-                <button onClick={() => setSlotH(h => Math.max(6, h-2))} style={{ height: 28, width: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontSize: 17, fontWeight: 700, flexShrink: 0, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{'\u2212'}</button>
-                <button onClick={() => setSlotH(h => Math.min(22, h+2))} style={{ height: 28, width: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontSize: 17, fontWeight: 700, flexShrink: 0, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
-              </>}
-
-              {/* Reload — desktop only */}
-              {!isMobile && <button onClick={reload} style={{ height: 28, width: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontSize: 15, flexShrink: 0 }}>↻</button>}
             </div>
           </div>
         </div>
