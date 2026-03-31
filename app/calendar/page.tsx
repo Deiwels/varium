@@ -88,31 +88,27 @@ function DatePickerModal({ current, onSelect, onClose }: {
   const start = new Date(month); start.setDate(1 - offset)
   const days: Date[] = []
   for (let i = 0; i < 42; i++) { const d = new Date(start); d.setDate(start.getDate() + i); days.push(d) }
-  const btn: React.CSSProperties = { height: 44, borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit' }
+  const btn: React.CSSProperties = { height: 40, borderRadius: 999, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.40)', color: 'rgba(255,255,255,.70)', cursor: 'pointer', fontWeight: 600, fontSize: 13, fontFamily: 'inherit' }
   return (
-    <div className="cal-picker-bg" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.50)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 100, padding: '16px 12px max(16px, env(safe-area-inset-bottom, 16px))' }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="cal-picker-card" style={{ width: 'min(460px,100%)', borderRadius: 24, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(8,8,12,.85)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', padding: 18, color: '#e8e8ed', fontFamily: 'Inter,sans-serif', boxShadow: '0 -8px 60px rgba(0,0,0,.50), inset 0 1px 0 rgba(255,255,255,.06)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid rgba(255,255,255,.10)' }}>
-          <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 13 }}>Choose date</div>
-          <button onClick={onClose} style={{ height: 32, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 12 }}>Close</button>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => { const m = new Date(month); m.setMonth(m.getMonth()-1); setMonth(m) }} style={{ height: 36, width: 36, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit' }}>←</button>
-            <button onClick={() => { const m = new Date(month); m.setMonth(m.getMonth()+1); setMonth(m) }} style={{ height: 36, width: 36, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit' }}>→</button>
+    <div className="cal-picker-bg" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.70)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 100, padding: '16px 12px max(16px, env(safe-area-inset-bottom, 16px))' }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="cal-picker-card" style={{ width: 'min(400px,100%)', borderRadius: 22, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(2,2,6,.95)', padding: 16, color: '#e8e8ed', fontFamily: 'Inter,sans-serif', boxShadow: '0 -8px 60px rgba(0,0,0,.70)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => { const m = new Date(month); m.setMonth(m.getMonth()-1); setMonth(m) }} style={{ height: 30, width: 30, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.50)', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 12 }}>&lsaquo;</button>
+            <button onClick={() => { const m = new Date(month); m.setMonth(m.getMonth()+1); setMonth(m) }} style={{ height: 30, width: 30, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.50)', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 12 }}>&rsaquo;</button>
           </div>
-          <div style={{ fontWeight: 900, fontSize: 15 }}>{month.toLocaleDateString([], { month: 'long', year: 'numeric' })}</div>
-          <button onClick={() => { const t = new Date(); t.setDate(1); t.setHours(0,0,0,0); setMonth(t) }} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>Today</button>
+          <div style={{ fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,.80)' }}>{month.toLocaleDateString([], { month: 'long', year: 'numeric' })}</div>
+          <button onClick={() => { const t = new Date(); t.setDate(1); t.setHours(0,0,0,0); setMonth(t) }} style={{ height: 30, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.50)', cursor: 'pointer', fontWeight: 600, fontSize: 11, fontFamily: 'inherit' }}>Today</button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 6 }}>
-          {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => <div key={d} style={{ textAlign: 'center', fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', padding: '4px 0' }}>{d}</div>)}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 4 }}>
+          {['Mo','Tu','We','Th','Fr','Sa','Su'].map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,.25)', padding: '4px 0' }}>{d}</div>)}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
           {days.map((d, i) => {
             const inMonth = d.getMonth() === month.getMonth()
             const isToday = +d === +today
             const isSel = d.toDateString() === current.toDateString()
-            return <button key={i} onClick={() => { onSelect(d); onClose() }} style={{ ...btn, opacity: inMonth ? 1 : 0.3, borderColor: isSel ? 'rgba(255,255,255,.40)' : isToday ? 'rgba(255,207,63,.55)' : 'rgba(255,255,255,.09)', background: isSel ? 'rgba(255,255,255,.14)' : 'rgba(255,255,255,.04)' }}>{d.getDate()}</button>
+            return <button key={i} onClick={() => { onSelect(d); onClose() }} style={{ ...btn, opacity: inMonth ? 1 : 0.2, borderColor: isSel ? 'rgba(255,255,255,.30)' : isToday ? 'rgba(255,255,255,.20)' : 'rgba(255,255,255,.04)', background: isSel ? 'rgba(255,255,255,.12)' : isToday ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.30)', color: isSel ? '#fff' : isToday ? 'rgba(255,255,255,.90)' : 'rgba(255,255,255,.50)' }}>{d.getDate()}</button>
           })}
         </div>
       </div>
@@ -2392,18 +2388,13 @@ export default function CalendarPage() {
           }
           return (
             <>
-            {/* Bottom bar — settings, date dots with numbers, + button — above pill nav */}
+            {/* Date dots with numbers — centered above pill nav */}
             <div style={{ position: 'fixed', bottom: 50, left: 0, right: 0, zIndex: 61, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 5, padding: '3px 0', pointerEvents: 'auto' }}>
-              {/* Settings gear */}
-              <button onClick={() => setSettingsOpen(true)} style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.80)', color: 'rgba(255,255,255,.40)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-              </button>
-              {/* Date dots with numbers — outer dots bigger, inner dots smaller */}
               {dots.slice(1, -1).map((dot, i, arr) => {
-                const distFromEdge = Math.min(i, arr.length - 1 - i)
-                // Outer (edge) = bigger, inner (center neighbors) = smaller, current = pill
-                const dotSize = dot.isCurrent ? 0 : distFromEdge === 0 ? 20 : distFromEdge === 1 ? 16 : 14
-                const fontSize = dot.isCurrent ? 9 : distFromEdge === 0 ? 9 : distFromEdge === 1 ? 8 : 7
+                const distFromCenter = Math.abs(i - Math.floor(arr.length / 2))
+                // Center neighbors = biggest, edges = smallest
+                const dotSize = dot.isCurrent ? 0 : distFromCenter <= 0 ? 22 : distFromCenter === 1 ? 18 : 15
+                const fontSize = dot.isCurrent ? 9 : distFromCenter <= 0 ? 9 : distFromCenter === 1 ? 8 : 7
                 return (
                 <button key={dot.day + '-' + dot.date.getMonth()}
                   className={`date-dot${dot.isCurrent ? ' date-dot-current' : ''}`}
@@ -2434,7 +2425,12 @@ export default function CalendarPage() {
                   {dot.isCurrent ? <span>{dot.dayName} {dot.day}</span> : <span>{dot.day}</span>}
                 </button>
               )})}
-              {/* + New button */}
+            </div>
+            {/* Gear left + Plus right — on pill nav level */}
+            <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 62, padding: '0 12px max(8px, env(safe-area-inset-bottom, 8px))', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none', height: 46 }}>
+              <button onClick={() => setSettingsOpen(true)} style={{ width: 30, height: 30, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.85)', color: 'rgba(255,255,255,.40)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              </button>
               <button onClick={() => {
                 if (isStudent) {
                   const freeSlots: { min: number; mentorId: string; mentorName: string }[] = []
@@ -2455,8 +2451,8 @@ export default function CalendarPage() {
                 } else {
                   openCreate(isBarber ? myBarberId : (barbers[0]?.id || ''), clamp(new Date().getHours()*60))
                 }
-              }} style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.80)', color: 'rgba(255,255,255,.40)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              }} style={{ width: 30, height: 30, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.85)', color: 'rgba(255,255,255,.40)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               </button>
             </div>
           </>
