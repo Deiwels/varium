@@ -549,9 +549,9 @@ section { position: relative; z-index: 2; }
   height: 50px;
   padding: 0 32px;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.07);
-  background: #070709;
-  color: rgba(255,255,255,.82);
+  border: 1px solid rgba(255,255,255,.10);
+  background: #000;
+  color: rgba(255,255,255,.85);
   font-size: 15px;
   font-weight: 600;
   font-family: inherit;
@@ -567,28 +567,28 @@ section { position: relative; z-index: 2; }
 .btn-primary::before {
   content: '';
   position: absolute;
-  inset: -6px;
+  inset: -8px;
   border-radius: 999px;
-  background: rgba(160,175,220,.14);
-  filter: blur(14px);
-  animation: glow-breathe 3s ease-in-out infinite;
+  background: rgba(140,160,230,.28);
+  filter: blur(18px);
+  animation: glow-breathe 2.8s ease-in-out infinite;
   z-index: -1;
 }
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  color: rgba(255,255,255,.95);
+  color: #fff;
+}
+
+@keyframes glow-breathe {
+  0%, 100% { opacity: .3; transform: scale(.96); }
+  50%       { opacity: 1;  transform: scale(1.08); }
 }
 
 /* keep old name as alias for any stray usage */
 .btn-dark-glow { position: relative; height: 50px; padding: 0 32px; border-radius: 999px; border: 1px solid rgba(255,255,255,.07); background: #070709; color: rgba(255,255,255,.82); font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; transition: transform .25s, color .3s; text-decoration: none; display: inline-flex; align-items: center; overflow: visible; z-index: 0; }
 .btn-dark-glow::before { content: ''; position: absolute; inset: -6px; border-radius: 999px; background: rgba(160,175,220,.14); filter: blur(14px); animation: glow-breathe 3s ease-in-out infinite; z-index: -1; }
 .btn-dark-glow:hover { transform: translateY(-1px); color: rgba(255,255,255,.95); }
-
-@keyframes glow-breathe {
-  0%, 100% { opacity: .35; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.1); }
-}
 
 .btn-secondary {
   height: 50px;
