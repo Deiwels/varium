@@ -1,9 +1,10 @@
 'use client'
-import React, { useEffect, useState, useRef, useCallback } from 'react'
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
+import dynamic from 'next/dynamic'
 import Shell from '@/components/Shell'
-import { BookingModal } from '@/app/calendar/booking-modal'
-import ImageCropper from '@/components/ImageCropper'
+const BookingModal = dynamic(() => import('@/app/calendar/booking-modal').then(m => m.BookingModal), { ssr: false })
+const ImageCropper = dynamic(() => import('@/components/ImageCropper'), { ssr: false })
 
 import { apiFetch, API } from '@/lib/api'
 
@@ -979,11 +980,11 @@ export default function CalendarPage() {
     id: '__student__', name: currentUser?.name || currentUser?.username || 'My Schedule',
     color: 'rgba(180,140,220,.8)', schedule: undefined,
   } : null
-  const visibleBarbers = isStudent
+  const visibleBarbers = useMemo(() => isStudent
     ? (studentColumn ? [studentColumn] : [])
     : isBarber
       ? (myBarberObj ? [myBarberObj] : barbers)
-      : barbers
+      : barbers, [isStudent, studentColumn, isBarber, myBarberObj, barbers])
   const totalPages = Math.ceil(visibleBarbers.length / BARBERS_PER_PAGE)
 
   // Animated day change — gravity lens effect
@@ -1287,15 +1288,14 @@ export default function CalendarPage() {
   const isToday = (() => { const t = new Date(); return todayStr === isoDate(t) })()
   const showNow = isToday && nowMin >= START_HOUR * 60 && nowMin <= END_HOUR * 60
 
-  const todayEvents = events.filter(e => {
+  const todayEvents = useMemo(() => events.filter(e => {
     if (e.date !== todayStr) return false
     if (e.status === 'cancelled') return false
     if (isBarber && myBarberId && e.type !== 'block' && e.barberId !== myBarberId) return false
-    // Student: show model + training bookings
     if (isStudent) return e._raw?.booking_type === 'model' || e._raw?.booking_type === 'training'
     return true
-  })
-  const filtered = search ? todayEvents.filter(e => [e.clientName, e.barberName, e.serviceName].join(' ').toLowerCase().includes(search.toLowerCase())) : todayEvents
+  }), [events, todayStr, isBarber, myBarberId, isStudent])
+  const filtered = useMemo(() => search ? todayEvents.filter(e => [e.clientName, e.barberName, e.serviceName].join(' ').toLowerCase().includes(search.toLowerCase())) : todayEvents, [todayEvents, search])
 
   // ── Drag ──────────────────────────────────────────────────────────────────
   function startDrag(e: React.MouseEvent | React.TouchEvent, ev: CalEvent, barberIdx: number) {

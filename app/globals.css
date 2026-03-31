@@ -680,6 +680,58 @@ section { position: relative; z-index: 2; }
   .orb-parallax { display: none; }
 }
 
+/* ── Mobile performance: disable heavy effects ── */
+@media (max-width: 768px) {
+  /* Kill all continuous CSS animations on mobile — saves battery & GPU */
+  .stars-wrap-far,
+  .stars-wrap-mid,
+  .stars-wrap-near { animation: none !important; }
+  .stars-far  { animation: none !important; }
+  .stars-mid  { animation: none !important; }
+  .stars-near { animation: none !important; opacity: .7; }
+  .star-glow  { animation: none !important; opacity: .4; }
+  .orb-container { animation: none !important; }
+  .orb-halo   { animation: none !important; }
+  .shimmer-text { animation: none !important; background: none !important; -webkit-text-fill-color: #fff !important; }
+  .btn-primary { animation: none !important; }
+  .btn-dark-glow::before { animation: none !important; }
+  .shooting-star-1,
+  .shooting-star-2 { display: none !important; }
+
+  /* Remove expensive backdrop-filter blur on mobile */
+  .glass-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(12, 12, 18, .85) !important;
+  }
+
+  /* Reduce nebula blur filters (very GPU heavy) */
+  .nebula-layer {
+    display: none !important;
+  }
+
+  /* Simplify horizon grid */
+  .horizon-grid { display: none !important; }
+
+  /* Reduce will-change usage (reserves GPU memory) */
+  .stars, .space-bg { will-change: auto !important; }
+
+  /* Kill ALL backdrop-filter on mobile — biggest perf win */
+  * {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* Respect prefers-reduced-motion globally */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }

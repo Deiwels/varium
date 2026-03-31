@@ -79,6 +79,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             75% { transform: translate(-2px,-1px); }
             100% { transform: translate(0,0); }
           }
+          /* Hide heavy elements on mobile via CSS to avoid rendering them */
+          @media (max-width: 768px) {
+            #vurium-cosmos .nebula-glow { display: none !important; }
+            #vurium-cosmos .glow-star { animation: none !important; opacity: .3; }
+          }
         ` }} />
       </head>
       <body>
@@ -89,26 +94,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div id="v-stars-far" style={{
             position: 'absolute', inset: '-5%', width: '110%', height: '110%', opacity: 1,
             backgroundImage: farStars,
-            willChange: 'transform',
           }} />
 
           {/* Mid stars — medium, fewer, faster parallax */}
           <div id="v-stars-mid" style={{
             position: 'absolute', inset: '-3%', width: '106%', height: '106%', opacity: 1,
             backgroundImage: midStars,
-            willChange: 'transform',
           }} />
 
           {/* Near stars — large, sparse, fastest parallax */}
           <div id="v-stars-near" style={{
             position: 'absolute', inset: 0, opacity: 1,
             backgroundImage: nearStars,
-            willChange: 'transform',
           }} />
 
           {/* Breathing glow stars */}
           {glowStars.map((s, i) => (
-            <div key={i} style={{
+            <div key={i} className="glow-star" style={{
               position: 'absolute', left: `${s.x}%`, top: `${s.y}%`,
               width: s.size, height: s.size, borderRadius: '50%',
               background: 'rgba(220,230,255,.9)',
@@ -116,11 +118,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }} />
           ))}
 
-          {/* Nebula glow effects */}
-          <div style={{ position: 'absolute', width: 800, height: 450, top: '0%', left: '-12%', background: 'rgba(30,45,110,.05)', borderRadius: '50%', filter: 'blur(140px)' }} />
-          <div style={{ position: 'absolute', width: 600, height: 350, bottom: '5%', right: '-8%', background: 'rgba(55,35,100,.04)', borderRadius: '50%', filter: 'blur(140px)' }} />
-          <div style={{ position: 'absolute', width: 400, height: 280, top: '40%', left: '20%', background: 'rgba(40,30,80,.025)', borderRadius: '50%', filter: 'blur(120px)' }} />
-          <div style={{ position: 'absolute', width: 300, height: 200, top: '15%', right: '15%', background: 'rgba(25,50,100,.02)', borderRadius: '50%', filter: 'blur(100px)' }} />
+          {/* Nebula glow effects — hidden on mobile via CSS */}
+          <div className="nebula-glow" style={{ position: 'absolute', width: 800, height: 450, top: '0%', left: '-12%', background: 'rgba(30,45,110,.05)', borderRadius: '50%', filter: 'blur(140px)' }} />
+          <div className="nebula-glow" style={{ position: 'absolute', width: 600, height: 350, bottom: '5%', right: '-8%', background: 'rgba(55,35,100,.04)', borderRadius: '50%', filter: 'blur(140px)' }} />
+          <div className="nebula-glow" style={{ position: 'absolute', width: 400, height: 280, top: '40%', left: '20%', background: 'rgba(40,30,80,.025)', borderRadius: '50%', filter: 'blur(120px)' }} />
+          <div className="nebula-glow" style={{ position: 'absolute', width: 300, height: 200, top: '15%', right: '15%', background: 'rgba(25,50,100,.02)', borderRadius: '50%', filter: 'blur(100px)' }} />
         </div>
 
         <CosmosParallax />
