@@ -243,7 +243,7 @@ export default function PublicBookingPage() {
         {/* Step 1: Barbers (salon mode only) */}
         {step === 1 && !isSolo && (
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, color: 'rgba(255,255,255,.7)' }}>Choose your specialist</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, color: 'rgba(255,255,255,.7)' }}>Choose your team member</h2>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${barbers.length <= 3 ? '140px' : '120px'}, 1fr))`, gap: 12 }}>
               {barbers.map(b => (
                 <div key={b.id} onClick={() => selectBarber(b)} style={{ ...card, textAlign: 'center', padding: '24px 12px' }}>

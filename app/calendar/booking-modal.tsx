@@ -778,7 +778,7 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
         </div>
       )}
       {method === 'cash' && (
-        <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(143,240,177,.06)', border: '1px solid rgba(143,240,177,.18)', fontSize: 12, color: 'rgba(143,240,177,.85)', marginBottom: 8 }}>Cash collected by barber directly</div>
+        <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(143,240,177,.06)', border: '1px solid rgba(143,240,177,.18)', fontSize: 12, color: 'rgba(143,240,177,.85)', marginBottom: 8 }}>Cash collected directly</div>
       )}
       {method !== 'terminal' && (
         <button onClick={handleManual} style={{ width: '100%', height: 40, borderRadius: 12, border: '1px solid rgba(255,255,255,.22)', background: 'rgba(255,255,255,.10)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>
@@ -935,7 +935,7 @@ export function BookingModal({
             {/* Booking fields */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
-                <label style={lbl}>Barber</label>
+                <label style={lbl}>Team member</label>
                 <select value={selBarberId} onChange={e => setSelBarberId(e.target.value)}
                   disabled={!isOwnerOrAdmin}
                   style={{ ...inp, opacity: isOwnerOrAdmin ? 1 : 0.6, cursor: isOwnerOrAdmin ? 'auto' : 'not-allowed' }}>

@@ -581,7 +581,7 @@ export default function ClientsPage() {
               <table style={{ width:'100%', borderCollapse:'collapse', tableLayout:'fixed' }}>
                 <thead>
                   <tr>
-                    {[['Client','38%'],['Status','14%'],['Last visit','16%'],['Barber','16%'],['Tags','16%']].map(([h,w]) => (
+                    {[['Client','38%'],['Status','14%'],['Last visit','16%'],['Team member','16%'],['Tags','16%']].map(([h,w]) => (
                       <th key={h} style={{ padding:'10px 14px', fontSize:10, letterSpacing:'.12em', textTransform:'uppercase', color:'rgba(255,255,255,.55)', background:'rgba(0,0,0,.90)', position:'sticky', top:0, textAlign:'left', borderBottom:'1px solid rgba(255,255,255,.08)', width:w }}>{h}</th>
                     ))}
                   </tr>

@@ -329,7 +329,7 @@ function BarberEditCard({ b, onDelete, onSaved, onError, isBarberSelf }: {
             <div style={{ fontWeight: 900, fontSize: 14 }}>{b.name}</div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', letterSpacing: '.06em', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
               {(() => {
-                const lvl = (b.level || 'Barber').toLowerCase()
+                const lvl = (b.level || 'Team member').toLowerCase()
                 const badgeColors = lvl.includes('ambassador')
                   ? { border: 'rgba(255,207,63,.45)', bg: 'rgba(255,207,63,.10)', color: 'rgba(220,190,130,.5)', shadow: '0 0 8px rgba(255,207,63,.20)' }
                   : lvl.includes('senior')
@@ -337,7 +337,7 @@ function BarberEditCard({ b, onDelete, onSaved, onError, isBarberSelf }: {
                   : lvl.includes('expert')
                   ? { border: 'rgba(143,240,177,.45)', bg: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)', shadow: '0 0 8px rgba(143,240,177,.20)' }
                   : { border: 'rgba(255,255,255,.16)', bg: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.55)', shadow: 'none' }
-                return <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', fontWeight: 900, border: `1px solid ${badgeColors.border}`, background: badgeColors.bg, color: badgeColors.color, boxShadow: badgeColors.shadow }}>{b.level || 'Barber'}</span>
+                return <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', fontWeight: 900, border: `1px solid ${badgeColors.border}`, background: badgeColors.bg, color: badgeColors.color, boxShadow: badgeColors.shadow }}>{b.level || 'Team member'}</span>
               })()}
               {b.basePrice ? <span>· ${b.basePrice}</span> : null}
             </div>
@@ -439,7 +439,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
         schedule: schedPayload, work_schedule: schedPayload,
         public_off_days: DAY_NAMES.filter((_, i) => !bSchedule[i].enabled)
       })})
-      setMsg('Barber added ✓')
+      setMsg('Team member added ✓')
       setBName(''); setBLevel(''); setBUsername(''); setBPassword(''); setBPrice('')
       setBAbout(''); setBPublicRole(''); setBPhotoPreview('')
       setBSchedule(DAY_DEFAULTS.map(d => ({...d}))); onReload()
@@ -449,7 +449,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
 
   async function deleteBarber(id: string, name: string) {
     if (!confirm(`Remove ${name}?`)) return
-    try { await apiFetch(`/api/barbers/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ active: false }) }); setMsg('Barber removed'); onReload() }
+    try { await apiFetch(`/api/barbers/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ active: false }) }); setMsg('Team member removed'); onReload() }
     catch (e: any) { setMsg('Error: ' + e.message) }
   }
 
@@ -490,7 +490,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
           {tab === 'barbers' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)' }}>{isBarber ? 'My profile' : `Current barbers (${barbers.length})`}</div>
+                <div style={{ fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)' }}>{isBarber ? 'My profile' : `Team members (${barbers.length})`}</div>
                 {(isBarber ? barbers.filter(b => b.id === myBarberId) : barbers).map(b => (
                   <BarberEditCard key={b.id} b={b} onDelete={isBarber ? undefined as any : deleteBarber} isBarberSelf={isBarber}
                     onSaved={() => { setMsg(isBarber ? 'Changes sent for approval ✓' : 'Saved ✓ — updated on website'); onReload() }}
@@ -499,7 +499,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
               </div>
 
               {!isBarber && <div style={{ borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: 16 }}>
-                <div style={{ fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 12 }}>Add new barber</div>
+                <div style={{ fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 12 }}>Add team member</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   {[['Name *', bName, setBName, 'Nazar'], ['Level', bLevel, setBLevel, 'Senior'], ['Login', bUsername, setBUsername, 'nazar'], ['Password *', bPassword, setBPassword, '1234'], ['Base price', bPrice, setBPrice, '55.99'], ['Public role', bPublicRole, setBPublicRole, 'Ambassador']].map(([l, v, s, p]) => (
                     <div key={l as string}><label style={lbl}>{l as string}</label><input value={v as string} onChange={e => (s as any)(e.target.value)} placeholder={p as string} style={inp} /></div>
@@ -543,7 +543,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                   </div>
                 </div>
                 <button onClick={addBarber} disabled={saving} style={{ width: '100%', height: 42, borderRadius: 12, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.10)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', marginTop: 12 }}>
-                  {saving ? 'Saving…' : '+ Add barber'}
+                  {saving ? 'Saving…' : '+ Add team member'}
                 </button>
               </div>}
             </div>
@@ -571,7 +571,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                           {/* Barbers assigned */}
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 5 }}>
                             {assignedBarbers.length === 0
-                              ? <span style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', letterSpacing: '.06em' }}>All barbers</span>
+                              ? <span style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', letterSpacing: '.06em' }}>All team members</span>
                               : assignedBarbers.map(b => (
                                 <span key={b.id} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)', color: 'rgba(255,255,255,.65)' }}>{b.name}</span>
                               ))
@@ -615,7 +615,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                             </div>
                           </div>}
                           {!isBarber && <div style={{ marginTop: 10 }}>
-                            <label style={lbl}>Assigned barbers</label>
+                            <label style={lbl}>Assigned team members</label>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                               {barbers.map(b => {
                                 const on = sBarbers.includes(b.id)

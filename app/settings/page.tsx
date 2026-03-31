@@ -329,7 +329,7 @@ function UsersTab() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* Create new account */}
       <SectionCard title="Create account">
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginBottom: 4 }}>Owner, Admin or Barber — each person gets their own login</div>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginBottom: 4 }}>Owner, Admin or Team member — each person gets their own login</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 10 }}>
           <Field label="Display name"><input value={name} onChange={e => setName(e.target.value)} placeholder="Nazar" style={inp} /></Field>
           <Field label="Username (login)"><input value={username} onChange={e => setUsername(e.target.value)} placeholder="nazar" style={inp} /></Field>
@@ -339,13 +339,13 @@ function UsersTab() {
             <select value={role} onChange={e => setRole(e.target.value as any)} style={inp}>
               <option value="owner">Owner — full access</option>
               <option value="admin">Admin — all except payroll/settings</option>
-              <option value="barber">Barber — own bookings only</option>
+              <option value="barber">Team member — own bookings only</option>
               <option value="student">Student — calendar only, no payments</option>
             </select>
           </Field>
           {role === 'barber' && (
             <div style={{ gridColumn: '1 / -1' }}>
-              <Field label="Link to barber profile">
+              <Field label="Link to team member profile">
                 <select value={barberId} onChange={e => setBarberId(e.target.value)} style={inp}>
                   <option value="">— Not linked —</option>
                   {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -355,9 +355,9 @@ function UsersTab() {
           )}
           {role === 'student' && (
             <div style={{ gridColumn: '1 / -1' }}>
-              <Field label="Mentor barbers (select one or more)">
+              <Field label="Mentors (select one or more)">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.14)' }}>
-                  {barbers.length === 0 && <div style={{ fontSize: 12, color: 'rgba(255,255,255,.30)' }}>No barbers found</div>}
+                  {barbers.length === 0 && <div style={{ fontSize: 12, color: 'rgba(255,255,255,.30)' }}>No team members found</div>}
                   {barbers.map(b => (
                     <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, color: '#e8e8ed' }}>
                       <input type="checkbox"
@@ -372,7 +372,7 @@ function UsersTab() {
                     </label>
                   ))}
                   {mentorBarberIds.length === 0 && barbers.length > 0 && (
-                    <div style={{ fontSize: 11, color: 'rgba(255,207,63,.70)', marginTop: 4 }}>⚠ Select at least one mentor barber</div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,207,63,.70)', marginTop: 4 }}>⚠ Select at least one mentor</div>
                   )}
                 </div>
               </Field>
@@ -434,13 +434,13 @@ function UsersTab() {
             <thead>
               <tr>
                 <th style={{ padding: '8px 12px', textAlign: 'left', ...lbl }}>Feature</th>
-                {['Owner', 'Admin', 'Barber', 'Student'].map(r => <th key={r} style={{ padding: '8px 12px', textAlign: 'center', ...lbl, color: roleColors[r.toLowerCase()]?.color }}>{r}</th>)}
+                {['Owner', 'Admin', 'Team member', 'Student'].map(r => <th key={r} style={{ padding: '8px 12px', textAlign: 'center', ...lbl, color: roleColors[r.toLowerCase()]?.color }}>{r}</th>)}
               </tr>
             </thead>
             <tbody>
               {[
                 ['Dashboard', true, true, true, false],
-                ['Calendar — all barbers', true, true, false, false],
+                ['Calendar — all team members', true, true, false, false],
                 ['Calendar — mentor columns', true, true, true, true],
                 ['Book models (practice)', false, false, false, true],
                 ['Clients', true, true, false, false],
@@ -767,9 +767,9 @@ export default function SettingsPage() {
             {tab === 'payroll' && (
               <div style={{ maxWidth: 600 }}>
                 <SectionCard title="Payroll defaults">
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)' }}>Default rates for new barbers. Override per-barber in Payroll → Commission rules.</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)' }}>Default rates for new team members. Override per-member in Payroll → Commission rules.</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 10 }}>
-                    <Field label="Default barber commission %">
+                    <Field label="Default commission %">
                       <input type="number" min={0} max={100} value={payroll.default_barber_pct ?? 60} onChange={e => { const v = Number(e.target.value); setNested('payroll','default_barber_pct',v) }} style={inp} />
                     </Field>
                     <Field label="Owner share % (auto)">
@@ -777,7 +777,7 @@ export default function SettingsPage() {
                     </Field>
                     <Field label="Tips go to">
                       <select value={String(payroll.tips_pct ?? 100)} onChange={e => setNested('payroll','tips_pct',Number(e.target.value))} style={inp}>
-                        <option value="100">100% to barber</option>
+                        <option value="100">100% to team member</option>
                         <option value="50">50/50 split</option>
                         <option value="0">100% to owner</option>
                       </select>

@@ -528,7 +528,7 @@ export default function PayrollPage() {
   }
 
   function exportCSV() {
-    const rows = [['Barber','Rate%','Services Gross','Barber Share','Owner Share','Tips','Total Payout','Clients','Bookings']]
+    const rows = [['Team member','Rate%','Services Gross','Member Share','Owner Share','Tips','Total Payout','Clients','Bookings']]
     visible.forEach(b => rows.push([b.barber_name, String(b.effective_pct), b.service_total.toFixed(2), b.barber_service_share.toFixed(2), b.owner_service_share.toFixed(2), b.tips_total.toFixed(2), b.barber_total.toFixed(2), String(b.client_count), String(b.bookings_count)]))
     const csv = rows.map(r => r.join(',')).join('\n')
     const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv)
@@ -646,7 +646,7 @@ export default function PayrollPage() {
           {/* Left — table */}
           <div style={card}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.12)' }}>
-              <div style={{ ...lbl }}>Barbers payout summary</div>
+              <div style={{ ...lbl }}>Team payout summary</div>
               <div style={{ ...lbl, border: '1px solid rgba(255,255,255,.12)', padding: '4px 10px', borderRadius: 999 }}>{visible.length} barbers</div>
             </div>
 
@@ -664,7 +664,7 @@ export default function PayrollPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      {['Barber','Hours','Rate','Services','Barber share','Owner share','Tips','Total payout',''].map(h => (
+                      {['Team member','Hours','Rate','Services','Member share','Owner share','Tips','Total payout',''].map(h => (
                         <th key={h} style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.08)', textAlign: 'left', ...lbl, background: 'rgba(0,0,0,.10)', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
@@ -846,7 +846,7 @@ export default function PayrollPage() {
                           <div style={{ ...lbl, color: 'rgba(220,190,130,.5)', marginBottom: 8 }}>Owner net profit</div>
                           <div className="owner-net-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 12, marginBottom: 8 }}>
                             <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Gross revenue: </span><span>{fmtMoney(totalServices)}</span></div>
-                            <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Barbers payout: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(barbersTotalPayout)}</span></div>
+                            <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Team payout: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(barbersTotalPayout)}</span></div>
                             <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Owner share: </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(ownerShare)}</span></div>
                             {adminUsers.length > 0 && <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Admin pay: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(totalAdminPay)}</span></div>}
                             {expensesTotal > 0 && <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Expenses: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(expensesTotal)}</span></div>}

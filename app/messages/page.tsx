@@ -66,7 +66,7 @@ const TAB_COLORS: Record<string, string> = {
 
 const TABS: { id: Tab; label: string; roles: string[] }[] = [
   { id: 'general',  label: 'General',  roles: ['owner','admin','barber','student'] },
-  { id: 'barbers',  label: 'Barbers',  roles: ['owner','admin','barber'] },
+  { id: 'barbers',  label: 'Team',  roles: ['owner','admin','barber'] },
   { id: 'admins',   label: 'Admins',   roles: ['owner','admin'] },
   { id: 'students', label: 'Students', roles: ['owner','admin','student'] },
   { id: 'requests',     label: 'Requests',     roles: ['owner','admin','barber'] },
