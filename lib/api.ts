@@ -1,58 +1,49 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app';
+const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
 
-export async function apiFetch(path: string, options: RequestInit = {}) {
-  const url = `${API_BASE}${path}`;
-  const res = await fetch(url, {
-    ...options,
+export { API }
+
+export async function apiFetch(path: string, opts?: RequestInit) {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('VURIUMBOOK_TOKEN') || '' : ''
+  const res = await fetch(API + path, {
+    credentials: 'include',
+    ...opts,
     headers: {
       'Content-Type': 'application/json',
-      ...options.headers,
+      Authorization: `Bearer ${token}`,
+      ...(opts?.headers || {}),
     },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || 'API error');
+  })
+  if (res.status === 401) {
+    if (typeof window !== 'undefined' && !path.includes('/auth/login')) {
+      localStorage.removeItem('VURIUMBOOK_TOKEN')
+      if (localStorage.getItem('VURIUMBOOK_PIN_HASH')) {
+        window.dispatchEvent(new CustomEvent('vuriumbook-pin-required'))
+      } else {
+        localStorage.removeItem('VURIUMBOOK_USER')
+        window.location.href = '/signin'
+      }
+    }
   }
-  return res.json();
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status)
+  return data
 }
 
+// Public API helpers (no auth needed)
 export async function getPublicBarbers(workspaceId: string) {
-  return apiFetch(`/public/barbers/${workspaceId}`);
+  return apiFetch(`/public/barbers/${workspaceId}`)
 }
 
 export async function getPublicServices(workspaceId: string) {
-  return apiFetch(`/public/services/${workspaceId}`);
+  return apiFetch(`/public/services/${workspaceId}`)
 }
 
 export async function getPublicAvailability(workspaceId: string, body: {
-  barber_id: string;
-  start_at: string;
-  end_at: string;
-  duration_minutes?: number;
+  barber_id: string; start_at: string; end_at: string; duration_minutes?: number;
 }) {
-  return apiFetch(`/public/availability/${workspaceId}`, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
+  return apiFetch(`/public/availability/${workspaceId}`, { method: 'POST', body: JSON.stringify(body) })
 }
 
-export async function createPublicBooking(workspaceId: string, body: {
-  barber_id: string;
-  start_at: string;
-  client_name: string;
-  client_phone?: string;
-  service_id?: string;
-  service_name?: string;
-  barber_name?: string;
-  duration_minutes?: number;
-  customer_note?: string;
-}) {
-  return apiFetch(`/public/bookings/${workspaceId}`, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
-}
-
-export async function getPublicConfig(workspaceId: string) {
-  return apiFetch(`/public/config/${workspaceId}`);
+export async function createPublicBooking(workspaceId: string, body: Record<string, unknown>) {
+  return apiFetch(`/public/bookings/${workspaceId}`, { method: 'POST', body: JSON.stringify(body) })
 }
