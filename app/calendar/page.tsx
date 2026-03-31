@@ -397,7 +397,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
   studentSchedule?: DaySchedule[]; onStudentScheduleChange?: (s: DaySchedule[]) => void
 }) {
   const _isOwnerOrAdmin = !isStudent && !isBarber
-  const [tab, setTab] = useState<'team'|'services'|'account'>(isStudent ? 'account' : (isBarber ? 'barbers' : 'barbers'))
+  const [tab, setTab] = useState<'team'|'services'|'account'>(isStudent ? 'account' : 'team')
   const [msg, setMsg] = useState('')
   const [saving, setSaving] = useState(false)
 
