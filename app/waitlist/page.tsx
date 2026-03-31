@@ -1,6 +1,7 @@
 'use client'
 import React, { useState, useEffect, useCallback } from 'react'
 import Shell from '../../components/Shell'
+import FeatureGate from '@/components/FeatureGate'
 
 import { apiFetch } from '@/lib/api'
 
@@ -188,7 +189,8 @@ export default function WaitlistPage() {
   const lbl: React.CSSProperties = { fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', display: 'block', marginBottom: 5 }
 
   return (
-    <Shell page="Waitlist">
+    <Shell page="Waitlist"><FeatureGate feature="waitlist" label="Waitlist" requiredPlan="salon">
+
       <style>{`
         @media (max-width: 768px) {
           .wl-form-grid { grid-template-columns: 1fr !important; }
@@ -494,6 +496,6 @@ export default function WaitlistPage() {
           </div>
         )}
       </div>
-    </Shell>
+    </FeatureGate></Shell>
   )
 }

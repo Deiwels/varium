@@ -1,5 +1,6 @@
 'use client'
 import Shell from '@/components/Shell'
+import FeatureGate from '@/components/FeatureGate'
 import { useEffect, useState, useCallback, useRef } from 'react'
 
 import { apiFetch } from '@/lib/api'
@@ -163,7 +164,8 @@ export default function CashPage() {
   const totalDiff = reportsCount > 0 ? totalActual - days.filter(d => d.report).reduce((s, d) => s + d.cashTotal + d.cashTips, 0) : 0
 
   return (
-    <Shell page="cash">
+    <Shell page="cash"><FeatureGate feature="cash_register" label="Cash Register" requiredPlan="salon">
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=Julius+Sans+One&display=swap');
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
@@ -372,6 +374,6 @@ export default function CashPage() {
       )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-    </Shell>
+    </FeatureGate></Shell>
   )
 }

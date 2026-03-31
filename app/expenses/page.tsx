@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Shell from '@/components/Shell'
+import FeatureGate from '@/components/FeatureGate'
 import { apiFetch } from '@/lib/api'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -214,7 +215,8 @@ export default function ExpensesPage() {
   const pill = (active: boolean): React.CSSProperties => ({ height: 32, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontWeight: 800, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', fontFamily: 'inherit', border: `1px solid ${active ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.08)'}`, background: active ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.03)', color: active ? '#fff' : 'rgba(255,255,255,.40)', transition: 'all .2s' })
 
   return (
-    <Shell page="expenses">
+    <Shell page="expenses"><FeatureGate feature="expenses" label="Expenses" requiredPlan="custom">
+
       {/* Loading overlay */}
       {loading && expenses.length === 0 && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 70, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(1,1,1,.8)', gap: 16 }}>
@@ -423,6 +425,6 @@ export default function ExpensesPage() {
         @keyframes calPopIn { 0%{opacity:0;transform:translateY(-6px) scale(.97)} 100%{opacity:1;transform:translateY(0) scale(1)} }
         select option { background: #111; }
       `}</style>
-    </Shell>
+    </FeatureGate></Shell>
   )
 }

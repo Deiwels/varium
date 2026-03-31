@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import Shell from '@/components/Shell'
+import FeatureGate from '@/components/FeatureGate'
 import { apiFetch } from '@/lib/api'
 
 interface Membership {
@@ -152,7 +153,8 @@ export default function MembershipPage() {
   for (let h = 6; h <= 21; h++) for (let m = 0; m < 60; m += 30) timeOptions.push({ value: h * 60 + m, label: minToTime(h * 60 + m) })
 
   return (
-    <Shell page="membership">
+    <Shell page="membership"><FeatureGate feature="membership" label="Membership" requiredPlan="salon">
+
       {/* Loading */}
       {loading && memberships.length === 0 && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 70, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(1,1,1,.8)', gap: 16 }}>
@@ -360,6 +362,6 @@ export default function MembershipPage() {
         @keyframes memModalIn { 0% { opacity: 0; transform: scale(.96) translateY(8px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
         select option { background: #111; }
       `}</style>
-    </Shell>
+    </FeatureGate></Shell>
   )
 }

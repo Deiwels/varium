@@ -1,6 +1,7 @@
 'use client'
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import Shell from '@/components/Shell'
+import FeatureGate from '@/components/FeatureGate'
 
 import { apiFetch } from '@/lib/api'
 
@@ -805,7 +806,8 @@ export default function MessagesPage() {
   const fmtDur = (s: number) => { const m = Math.floor(s / 60); const sec = s % 60; return `${m}:${sec.toString().padStart(2, '0')}` }
 
   return (
-    <Shell page="Messages">
+    <Shell page="Messages"><FeatureGate feature="messages" label="Messages" requiredPlan="salon">
+
       {/* Loading — inline spinner, no fullscreen overlay */}
       {loading && messages.length === 0 && requests.length === 0 && applications.length === 0 && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(1,1,1,.8)' }}>
@@ -1088,6 +1090,6 @@ export default function MessagesPage() {
 
       {/* New request modal */}
       {showNewRequest && <NewRequestModal onClose={() => setShowNewRequest(false)} onCreated={() => { setShowNewRequest(false); loadRequests() }} />}
-    </Shell>
+    </FeatureGate></Shell>
   )
 }

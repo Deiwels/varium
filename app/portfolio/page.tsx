@@ -1,5 +1,6 @@
 'use client'
 import Shell from '@/components/Shell'
+import FeatureGate from '@/components/FeatureGate'
 import { useEffect, useState, useCallback, useRef } from 'react'
 
 import { apiFetch } from '@/lib/api'
@@ -452,7 +453,8 @@ export default function PortfolioPage() {
   }
 
   return (
-    <Shell page="portfolio">
+    <Shell page="portfolio"><FeatureGate feature="portfolio" label="Portfolio" requiredPlan="salon">
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=Julius+Sans+One&display=swap');
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
@@ -607,6 +609,6 @@ export default function PortfolioPage() {
           {toast}
         </div>
       )}
-    </Shell>
+    </FeatureGate></Shell>
   )
 }

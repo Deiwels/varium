@@ -1,5 +1,6 @@
 'use client'
 import Shell from '@/components/Shell'
+import FeatureGate from '@/components/FeatureGate'
 import { useEffect, useState, useCallback, useRef } from 'react'
 
 import { apiFetch } from '@/lib/api'
@@ -582,7 +583,8 @@ export default function PayrollPage() {
   }
 
   return (
-    <Shell page="payroll">
+    <Shell page="payroll"><FeatureGate feature="payroll" label="Payroll" requiredPlan="custom">
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Julius+Sans+One&display=swap');
         ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
@@ -974,7 +976,7 @@ export default function PayrollPage() {
       )}
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-    </Shell>
+    </FeatureGate></Shell>
   )
 }
 // fixed

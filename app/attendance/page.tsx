@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import Shell from '@/components/Shell'
+import FeatureGate from '@/components/FeatureGate'
 
 import { apiFetch, API } from '@/lib/api'
 
@@ -172,7 +173,8 @@ export default function AttendancePage() {
   const inp: React.CSSProperties = { height: 36, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(0,0,0,.22)', color: '#fff', padding: '0 10px', outline: 'none', fontSize: 12, colorScheme: 'dark' as any }
 
   return (
-    <Shell page="attendance">
+    <Shell page="attendance"><FeatureGate feature="attendance" label="Attendance" requiredPlan="salon">
+
       <div style={{ padding: '18px 18px 40px', maxWidth: 1400, margin: '0 auto', overflowY: 'auto', height: '100vh', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif' }}>
         <style>{`
           @keyframes latePulse { 0%,100%{opacity:.7} 50%{opacity:1} }
@@ -325,6 +327,6 @@ export default function AttendancePage() {
           </div>
         </div>
       </div>
-    </Shell>
+    </FeatureGate></Shell>
   )
 }
