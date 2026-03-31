@@ -1735,13 +1735,13 @@ export default function CalendarPage() {
         }
         /* Date dot morph + glow animations */
         @keyframes dotPillGlow {
-          0%, 100% { box-shadow: 0 0 6px rgba(130,150,220,.15), 0 0 12px rgba(130,150,220,.05); border-color: rgba(130,150,220,.30); }
-          50% { box-shadow: 0 0 12px rgba(130,150,220,.30), 0 0 24px rgba(130,150,220,.10); border-color: rgba(130,150,220,.50); }
+          0%, 100% { box-shadow: 0 0 4px rgba(130,150,220,.12); border-color: rgba(130,150,220,.25); }
+          50% { box-shadow: 0 0 8px rgba(130,150,220,.25); border-color: rgba(130,150,220,.40); }
         }
         .date-dot {
-          transition: all .3s cubic-bezier(.4,0,.2,1);
+          transition: all .25s cubic-bezier(.4,0,.2,1);
         }
-        .date-dot:active { transform: scale(.88) }
+        .date-dot:active { transform: scale(.85) }
         .date-dot-current {
           animation: dotPillGlow 3s ease-in-out infinite;
         }
@@ -2391,14 +2391,10 @@ export default function CalendarPage() {
             })
           }
           return (
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 15, padding: '8px 12px 6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'auto', background: 'linear-gradient(180deg, rgba(4,4,12,.95) 0%, rgba(4,4,12,.7) 70%, transparent 100%)' }}>
-              {/* Settings button */}
-              <button onClick={() => setSettingsOpen(true)} style={{ width: 26, height: 26, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.35)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-              </button>
-              {/* Date dots — Apple style */}
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              {dots.slice(1, -1).map((dot, i) => (
+            <>
+            {/* Date dots — bottom, above pill nav, Apple home screen style */}
+            <div style={{ position: 'fixed', bottom: 52, left: 0, right: 0, zIndex: 61, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6, padding: '4px 0', pointerEvents: 'auto' }}>
+              {dots.slice(1, -1).map((dot) => (
                 <button key={dot.day + '-' + dot.date.getMonth()}
                   className={`date-dot${dot.isCurrent ? ' date-dot-current' : ''}`}
                   onClick={() => {
@@ -2409,31 +2405,34 @@ export default function CalendarPage() {
                     setTimeout(() => { setAnchor(targetDate); setDayTransition('in'); setTimeout(() => setDayTransition('idle'), 220) }, 180)
                   }}
                   style={{
-                    height: dot.isCurrent ? 36 : 8,
-                    padding: dot.isCurrent ? '2px 14px' : '0',
-                    width: dot.isCurrent ? 'auto' : 8,
-                    minWidth: dot.isCurrent ? 90 : 8,
+                    height: dot.isCurrent ? 18 : 6,
+                    padding: dot.isCurrent ? '0 8px' : '0',
+                    width: dot.isCurrent ? 'auto' : 6,
+                    minWidth: dot.isCurrent ? 'auto' : 6,
                     borderRadius: 999,
-                    border: `1px solid ${dot.isCurrent ? 'rgba(130,150,220,.35)' : dot.isToday ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.12)'}`,
-                    background: dot.isCurrent ? 'rgba(10,10,30,.90)' : dot.isToday ? 'rgba(255,255,255,.30)' : 'rgba(255,255,255,.12)',
-                    color: dot.isCurrent ? '#fff' : 'transparent',
+                    border: 'none',
+                    background: dot.isCurrent ? 'rgba(0,0,0,.95)' : dot.isToday ? 'rgba(255,255,255,.45)' : 'rgba(255,255,255,.18)',
+                    color: dot.isCurrent ? 'rgba(255,255,255,.7)' : 'transparent',
                     cursor: 'pointer',
-                    fontWeight: 800,
-                    fontSize: 11,
+                    fontWeight: 600,
+                    fontSize: 9,
                     fontFamily: 'inherit',
                     letterSpacing: '.02em',
-                    display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
                     flexShrink: 0,
-                    position: 'relative',
+                    boxShadow: dot.isCurrent ? '0 0 6px rgba(130,150,220,.15)' : 'none',
                   }}>
-                  {dot.isCurrent && (<><div style={{ fontSize: 13, fontWeight: 900, lineHeight: 1, letterSpacing: '.03em' }}>{dot.dayName} {dot.day}</div><div style={{ fontSize: 8, opacity: .4, lineHeight: 1, marginTop: 2, textTransform: 'uppercase', letterSpacing: '.08em' }}>{dot.date.toLocaleDateString('en-US', { month: 'long' })}</div></>)}
+                  {dot.isCurrent && <span>{dot.dayName} {dot.day}</span>}
                 </button>
               ))}
-              </div>
-              {/* + button */}
+            </div>
+            {/* Floating action buttons — top corners */}
+            <div style={{ position: 'absolute', top: 6, left: 8, right: 8, zIndex: 16, display: 'flex', justifyContent: 'space-between', pointerEvents: 'none' }}>
+              <button onClick={() => setSettingsOpen(true)} style={{ width: 24, height: 24, borderRadius: 999, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.50)', color: 'rgba(255,255,255,.30)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto' }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              </button>
               <button onClick={() => {
                 if (isStudent) {
-                  // Student: trigger slot picker
                   const freeSlots: { min: number; mentorId: string; mentorName: string }[] = []
                   for (let m = START_HOUR * 60; m <= END_HOUR * 60 - 90; m += 5) {
                     const mid = studentSlotMentorMap.get(m)
@@ -2452,10 +2451,11 @@ export default function CalendarPage() {
                 } else {
                   openCreate(isBarber ? myBarberId : (barbers[0]?.id || ''), clamp(new Date().getHours()*60))
                 }
-              }} style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(0,0,0,.50)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              }} style={{ width: 24, height: 24, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.50)', color: 'rgba(130,150,220,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               </button>
             </div>
+          </>
           )
         })()}
 
