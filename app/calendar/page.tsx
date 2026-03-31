@@ -1283,7 +1283,7 @@ export default function CalendarPage() {
   }, [barbers, services, loadBookings, modal.open])
 
   const reload = useCallback(() => {
-    loadBookings(barbers, services).then(evs => setEvents(evs.map(e => { if ((e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id)) clearArrived(e.id); return !(e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id) ? { ...e, status: 'arrived' } : e }))).catch(console.warn)
+    loadBookings(barbers, services).then(evs => setEvents(evs.map((e: any) => { if ((e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id)) clearArrived(e.id); return !(e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id) ? { ...e, status: 'arrived' } : e }))).catch(console.warn)
   }, [barbers, services, loadBookings])
 
   const totalH = (END_HOUR - START_HOUR) * 12 * slotH
@@ -1373,7 +1373,7 @@ export default function CalendarPage() {
     const newDurMin = remappedSvcs.length > 0 ? remappedSvcs.reduce((sum, s) => sum + (s!.durationMin || 30), 0) : ev.durMin
     const newSvcNames = remappedSvcs.length > 0 ? remappedSvcs.map(s => s!.name).join(' + ') : ev.serviceName
     const updated = { ...ev, barberId: dragConfirm.newBarberId, barberName: newBarber?.name || ev.barberName, startMin: dragConfirm.newMin, serviceIds: remappedSvcIds, serviceId: remappedSvcIds[0] || ev.serviceId, serviceName: newSvcNames, durMin: newDurMin }
-    setEvents(prev => prev.map(e => e.id === ev.id ? updated : e)); setDragConfirm(null)
+    setEvents(prev => prev.map((e: any) => e.id === ev.id ? updated : e)); setDragConfirm(null)
     if (ev._raw?.id) {
       try {
         const startAt = new Date(updated.date + 'T' + minToHHMM(updated.startMin) + ':00')
@@ -1480,7 +1480,7 @@ export default function CalendarPage() {
     try {
       const res = await apiFetch('/api/bookings', { method: 'POST', body: JSON.stringify({ barber_id: barberId, type: 'block', status: 'confirmed', client_name: 'BLOCKED', service_id: '', start_at: startAt.toISOString(), end_at: new Date(startAt.getTime() + duration*60000).toISOString(), notes: 'Blocked by manager' }) })
       const savedId = res?.booking?.id || res?.id
-      if (savedId) setEvents(prev => prev.map(e => e.id === id ? { ...e, _raw: { id: savedId } } : e))
+      if (savedId) setEvents(prev => prev.map((e: any) => e.id === id ? { ...e, _raw: { id: savedId } } : e))
       showToast('Block saved')
     } catch (e: any) {
       setEvents(prev => prev.filter(e => e.id !== id))
@@ -1511,7 +1511,7 @@ export default function CalendarPage() {
       // 1 no-show = immediately at_risk
       ...(patch.status === 'noshow' ? { _raw: { ...ev._raw, client_status: 'at_risk' } } : {})
     }
-    setEvents(prev => prev.map(e => e.id === ev.id ? updated : e))
+    setEvents(prev => prev.map((e: any) => e.id === ev.id ? updated : e))
     // Track arrived + send notification BEFORE save (so it works even if save fails)
     // _forceArrivedNotify bypasses dedup — user explicitly changed status to arrived
     const shouldNotifyArrived = patch.status === 'arrived' && (patch._forceArrivedNotify || (!arrivedIdsRef.current.has(ev.id) && !arrivedIdsRef.current.has(String(ev._raw?.id || ''))))
@@ -1542,7 +1542,7 @@ export default function CalendarPage() {
         if (isStudent) { postBody.booking_type = 'model'; postBody.student_id = currentUser?.uid || '' }
         const res = await apiFetch('/api/bookings', { method: 'POST', body: JSON.stringify(postBody) })
         const savedId = res?.booking?.id || res?.id
-        if (savedId) setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, _raw: { ...e._raw, ...res, id: savedId }, id: String(savedId) } : e))
+        if (savedId) setEvents(prev => prev.map((e: any) => e.id === ev.id ? { ...e, _raw: { ...e._raw, ...res, id: savedId }, id: String(savedId) } : e))
       } else {
         const patchStart = new Date(updated.date + 'T' + minToHHMM(updated.startMin) + ':00')
         const patchEnd = new Date(patchStart.getTime() + (updated.durMin || 30) * 60000)
@@ -1562,10 +1562,10 @@ export default function CalendarPage() {
     setModal({ open: false, eventId: null, isNew: false })
     // Reload bookings to get fresh data from server (2s delay to ensure server committed)
     setTimeout(() => { loadBookings(barbers, services).then(evs => {
-      const serverIds = new Set(evs.map(e => e.id))
+      const serverIds = new Set(evs.map((e: any) => e.id))
       setEvents(prev => {
         // Merge: keep recently-saved events that server might not have returned yet
-        const merged = evs.map(e => { if ((e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id)) clearArrived(e.id); return !(e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id) ? { ...e, status: 'arrived' } : e })
+        const merged = evs.map((e: any) => { if ((e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id)) clearArrived(e.id); return !(e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id) ? { ...e, status: 'arrived' } : e })
         // Keep any event from prev that has a real server ID but wasn't in the reload (saved < 5s ago)
         const kept = prev.filter(pe => pe._raw?.id && !serverIds.has(pe.id) && !pe.id.startsWith('e_'))
         return [...merged, ...kept]
@@ -1593,7 +1593,7 @@ export default function CalendarPage() {
         }).catch(e => console.warn('Payment PATCH failed:', e))
       }
     }
-    setEvents(prev => prev.map(e => e.id === modal.eventId ? { ...e, paid: true, status: 'done', paymentMethod: method, tipAmount: tip, _raw: { ...(e._raw || {}), tip, tip_amount: tip, paid: true, payment_method: method } } : e))
+    setEvents(prev => prev.map((e: any) => e.id === modal.eventId ? { ...e, paid: true, status: 'done', paymentMethod: method, tipAmount: tip, _raw: { ...(e._raw || {}), tip, tip_amount: tip, paid: true, payment_method: method } } : e))
     // Reload bookings after payment to sync tips from server
     setTimeout(() => { loadBookings(barbers, services).then((evs: CalEvent[]) => {
       setEvents(prev => {
@@ -2618,7 +2618,7 @@ export default function CalendarPage() {
             try {
               const res = await apiFetch('/api/bookings', { method: 'POST', body: JSON.stringify({ barber_id: trainingModal.barberId, client_name: clientName, start_at: startAt.toISOString(), end_at: endAt.toISOString(), notes: tNotes || tt.label, status: 'booked', booking_type: 'training', student_id: studentId, training_type: trainingType }) })
               const savedId = res?.id || res?.booking?.id
-              if (savedId) setEvents(prev => prev.map(e => e.id === id ? { ...e, _raw: { ...e._raw, id: savedId }, id: String(savedId) } : e))
+              if (savedId) setEvents(prev => prev.map((e: any) => e.id === id ? { ...e, _raw: { ...e._raw, id: savedId }, id: String(savedId) } : e))
             } catch (e: any) { console.warn('training save:', e.message) }
             setTSaving(false); setTrainingModal(null)
           }
@@ -2794,7 +2794,7 @@ export default function CalendarPage() {
               const r = selectedEvent._raw
               return r?.reference_photo_url || r?.photo_url || r?.client_photo || r?.client_photo_url || r?.attachment_url || r?.image_url || r?.photo || r?.haircut_photo || r?.style_photo || ''
             })(), _raw: { ...selectedEvent._raw, start_min: selectedEvent.startMin, date: selectedEvent.date } } : null}
-          allEvents={events.map(e => ({ id: e.id, barberId: e.barberId, startMin: e.startMin, durMin: e.durMin, status: e.status, paid: e.paid, clientName: e.clientName, date: e.date, paymentStatus: (e._raw as any)?.payment_status || '' }))}
+          allEvents={events.map((e: any) => ({ id: e.id, barberId: e.barberId, startMin: e.startMin, durMin: e.durMin, status: e.status, paid: e.paid, clientName: e.clientName, date: e.date, paymentStatus: (e._raw as any)?.payment_status || '' }))}
           onClose={() => { if (modal.isNew) setEvents(prev => prev.filter(e => e.id !== modal.eventId)); setModal({ open: false, eventId: null, isNew: false }) }}
           onSave={handleSave} onDelete={handleDelete} onPayment={handlePayment}
           onOpenEvent={(eventId) => { setModal({ open: false, eventId: null, isNew: false }); setTimeout(() => setModal({ open: true, eventId, isNew: false }), 100) }}
