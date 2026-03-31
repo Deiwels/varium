@@ -163,35 +163,50 @@ export default function DashboardPage() {
     const range = getDateRange(earningsPeriod, earningsOffset)
     if (!bookings.length && !myPayroll) setLoading(true) // only show loading on first load
     try {
-      // Load barbers for name lookup — bookings for today (calendar), payroll for selected period
-      const [bkRes, brRes] = await Promise.all([
-        fetch(`${API}/api/bookings?from=${today}T00:00:00.000Z&to=${today}T23:59:59.999Z`, { headers }),
-        fetch(`${API}/api/barbers`, { headers }),
-      ])
-      const bkData = await bkRes.json()
-      const brData = await brRes.json()
+      // Fire ALL requests in parallel instead of sequentially
+      const fetches: Record<string, Promise<any>> = {
+        bookings: fetch(`${API}/api/bookings?from=${today}T00:00:00.000Z&to=${today}T23:59:59.999Z`, { headers }).then(r => r.json()).catch(() => null),
+        barbers: fetch(`${API}/api/barbers`, { headers }).then(r => r.json()).catch(() => null),
+        reviews: fetch(`${API}/api/reviews`, { headers }).then(r => r.json()).catch(() => null),
+        attStatus: fetch(`${API}/api/attendance/status`, { credentials: 'include', headers }).then(r => r.json()).catch(() => null),
+      }
+      if (!isBarber) {
+        fetches.settings = fetch(`${API}/api/settings`, { credentials: 'include', headers }).then(r => r.json()).catch(() => null)
+        fetches.staff = fetch(`${API}/api/attendance?from=${today}&to=${today}`, { credentials: 'include', headers }).then(r => r.json()).catch(() => null)
+      }
+      if (isBarber && myBarberId) {
+        fetches.payroll = fetch(`${API}/api/payroll?from=${range.from}T00:00:00.000Z&to=${range.to}T23:59:59.999Z`, { credentials: 'include', headers }).then(r => r.json()).catch(() => null)
+      }
+      if (role === 'owner') {
+        fetches.phoneLog = fetch(`${API}/api/admin/phone-access-log?limit=20`, { credentials: 'include', headers }).then(r => r.json()).catch(() => null)
+      }
+
+      const results = await Promise.all(
+        Object.entries(fetches).map(async ([key, promise]) => [key, await promise] as const)
+      )
+      const data: Record<string, any> = Object.fromEntries(results)
+
+      // Process barbers
+      const brData = data.barbers
       const barberList = Array.isArray(brData) ? brData : (brData?.barbers || [])
       const barberMap: Record<string, string> = {}
       barberList.forEach((b: any) => { if (b.id && b.name) barberMap[String(b.id)] = String(b.name) })
 
+      // Process bookings
+      const bkData = data.bookings
       let bks: Booking[] = Array.isArray(bkData?.bookings) ? bkData.bookings : Array.isArray(bkData) ? bkData : []
-
-      // Enrich with barber names
       bks = bks.map(b => {
         const bn = b.barber_name || b.barber || ''
-        // If barber_name looks like an ID (long alphanum) — replace with real name
         const isId = bn.length > 16 && /^[A-Za-z0-9]+$/.test(bn)
         const realName = b.barber_id ? barberMap[String(b.barber_id)] : undefined
         return { ...b, barber_name: (isId || !bn) ? (realName || bn) : bn }
       })
-
-      // Extra client-side filter for barbers (safety)
       if (isBarber && myBarberId) {
         bks = bks.filter(b => String(b.barber_id || '') === myBarberId)
       }
       setBookings(bks)
 
-      // Parse barbers schedule same as calendar — flat {startMin, endMin, days} from server
+      // Parse barbers schedule
       const parsedBarbers = barberList.map((b: any) => {
         const raw = b.schedule || b.work_schedule
         let schedule = null
@@ -199,7 +214,6 @@ export default function DashboardPage() {
           if (Array.isArray(raw)) {
             schedule = { startMin: raw[1]?.startMin ?? 10*60, endMin: raw[1]?.endMin ?? 20*60, days: raw.map((d: any, i: number) => d.enabled ? i : -1).filter((i: number) => i >= 0) }
           } else if (raw.startMin !== undefined) {
-            // Flat object — what server normalizeSchedule returns
             schedule = {
               startMin: Number(raw.startMin ?? 10*60),
               endMin: Number(raw.endMin ?? 20*60),
@@ -211,61 +225,42 @@ export default function DashboardPage() {
       })
       setBarbers(parsedBarbers)
 
-      // Load shop settings for owner/admin
-      if (!isBarber) {
-        try {
-          const settRes = await fetch(`${API}/api/settings`, { credentials: 'include', headers })
-          const settData = await settRes.json()
-          if (settData.shopStatusMode) setShopStatus(settData.shopStatusMode)
-          if (settData.banner) {
-            setBannerEnabled(!!settData.banner.enabled)
-            setBannerText(settData.banner.text || '')
-          }
-        } catch {}
+      // Settings
+      if (data.settings) {
+        if (data.settings.shopStatusMode) setShopStatus(data.settings.shopStatusMode)
+        if (data.settings.banner) {
+          setBannerEnabled(!!data.settings.banner.enabled)
+          setBannerText(data.settings.banner.text || '')
+        }
       }
 
-      // Payroll for barber — load their personal stats for selected period
-      if (isBarber && myBarberId) {
-        try {
-          const pr = await fetch(`${API}/api/payroll?from=${range.from}T00:00:00.000Z&to=${range.to}T23:59:59.999Z`, { credentials: 'include', headers })
-          const prData = await pr.json()
-          const mine = (prData?.barbers || []).find((b: BarberPayroll) => b.barber_id === myBarberId)
-          setMyPayroll(mine || null)
-        } catch { setMyPayroll(null) }
+      // Payroll
+      if (data.payroll) {
+        const mine = (data.payroll?.barbers || []).find((b: BarberPayroll) => b.barber_id === myBarberId)
+        setMyPayroll(mine || null)
+      }
+
+      // Reviews
+      setReviews(data.reviews?.reviews || [])
+
+      // Attendance
+      if (data.attStatus) {
+        setClockedIn(!!data.attStatus.clocked_in)
+        setClockInTime(data.attStatus.clock_in || null)
+        setTodayMinutes(data.attStatus.today_minutes || 0)
+      }
+
+      // Staff on clock
+      if (data.staff) {
+        const records = data.staff?.attendance || []
+        setStaffOnClock(records.filter((r: any) => !r.clock_out))
+      }
+
+      // Phone access log
+      if (data.phoneLog) {
+        setPhoneAccessLog(data.phoneLog?.logs || [])
       }
     } catch {}
-    // Load reviews
-    try {
-      const rvRes = await fetch(`${API}/api/reviews`, { headers })
-      const rvData = await rvRes.json()
-      setReviews(rvData?.reviews || [])
-    } catch { setReviews([]) }
-    // Load attendance status
-    try {
-      const attStatusRes = await fetch(`${API}/api/attendance/status`, { credentials: 'include', headers })
-      const attStatus = await attStatusRes.json()
-      setClockedIn(!!attStatus.clocked_in)
-      setClockInTime(attStatus.clock_in || null)
-      setTodayMinutes(attStatus.today_minutes || 0)
-    } catch { /* don't reset clock status on fetch error */ }
-    // Admin: load who's on clock today
-    if (!isBarber) {
-      try {
-        const staffRes = await fetch(`${API}/api/attendance?from=${today}&to=${today}`, { credentials: 'include', headers })
-        const staffData = await staffRes.json()
-        const records = staffData?.attendance || []
-        // Currently clocked in = clock_out is null
-        setStaffOnClock(records.filter((r: any) => !r.clock_out))
-      } catch { setStaffOnClock([]) }
-    }
-    // Owner: load phone access log
-    if (role === 'owner') {
-      try {
-        const palRes = await fetch(`${API}/api/admin/phone-access-log?limit=20`, { credentials: 'include', headers })
-        const palData = await palRes.json()
-        setPhoneAccessLog(palData?.logs || [])
-      } catch { setPhoneAccessLog([]) }
-    }
     setLoading(false)
   }, [isBarber, myBarberId, earningsPeriod, earningsOffset])
 
