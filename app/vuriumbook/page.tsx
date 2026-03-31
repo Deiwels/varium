@@ -75,6 +75,7 @@ export default function VuriumBook() {
         </a>
         <ul className="navbar-links">
           <li><a href="/vuriumbook" style={{ color: 'rgba(255,255,255,.85)' }}>VuriumBook</a></li>
+          <li><a href="/booking">Book Now</a></li>
           <li><a href="/#products">Products</a></li>
           <li><a href="/#about">About</a></li>
         </ul>
