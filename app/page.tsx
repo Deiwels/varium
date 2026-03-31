@@ -121,7 +121,6 @@ export default function Home() {
         </a>
         <ul className="navbar-links">
           <li><a href="/vuriumbook">VuriumBook</a></li>
-          <li><a href="/booking">Book Now</a></li>
           <li><a href="#products">Products</a></li>
           <li><a href="#about">About</a></li>
         </ul>
