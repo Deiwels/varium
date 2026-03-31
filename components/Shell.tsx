@@ -31,7 +31,7 @@ const NAV = [
 
 // ─── SVG icons ────────────────────────────────────────────────────────────────
 function Icon({ id, color }: { id: string; color: string }) {
-  const s = { stroke: color, strokeWidth: 1.7, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' }
+  const s = { stroke: color, strokeWidth: 1.4, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' }
   switch (id) {
     case 'dashboard':
       return <svg width="17" height="17" viewBox="0 0 24 24" {...{}}>
@@ -709,34 +709,33 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         /* ── Content ── */
         .content{
           flex:1;min-height:0;overflow:auto;background:transparent;
-          padding-bottom:74px; /* space for bottom bar */
+          padding-bottom:56px; /* space for thin bottom bar */
           position:relative;z-index:1;
         }
 
-        /* ── Bottom Pill Nav Bar — Vurium Cosmic ── */
+        /* ── Bottom Pill Nav — Vurium thin ── */
         .pill-bar{
           position:fixed;bottom:0;left:0;right:0;z-index:60;
           display:flex;align-items:center;justify-content:center;
-          padding:12px 16px max(12px, env(safe-area-inset-bottom, 12px));
-          background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.8) 25%, rgba(1,1,1,.97) 100%);
+          padding:8px 16px max(8px, env(safe-area-inset-bottom, 8px));
+          background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(1,1,1,.9) 60%);
           pointer-events:none;
         }
         .pill-inner{
           pointer-events:auto;
-          display:flex;align-items:center;gap:3px;
-          padding:5px 6px;border-radius:20px;
-          background:rgba(8,8,14,.75);
-          backdrop-filter:saturate(180%) blur(40px);
-          -webkit-backdrop-filter:saturate(180%) blur(40px);
-          border:1px solid rgba(255,255,255,.08);
-          box-shadow:0 4px 30px rgba(0,0,0,.5), inset 0 0.5px 0 rgba(255,255,255,.05);
+          display:flex;align-items:center;gap:2px;
+          padding:4px 6px;border-radius:16px;
+          background:rgba(8,8,14,.65);
+          backdrop-filter:saturate(180%) blur(30px);
+          -webkit-backdrop-filter:saturate(180%) blur(30px);
+          border:1px solid rgba(255,255,255,.06);
+          box-shadow:0 2px 20px rgba(0,0,0,.4);
         }
         .pill-item{
-          display:flex;flex-direction:column;align-items:center;gap:3px;
-          padding:10px 20px;border-radius:15px;
+          display:flex;align-items:center;justify-content:center;
+          padding:10px 18px;border-radius:12px;
           cursor:pointer;transition:all .2s ease;
           border:1px solid transparent;
-          min-width:58px;
           text-decoration:none!important;
           position:relative;
         }
@@ -744,26 +743,18 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
           background:rgba(255,255,255,.04);
         }
         .pill-item.active{
-          background:rgba(255,255,255,.07);
-          border-color:rgba(255,255,255,.10);
-          box-shadow:0 0 16px rgba(255,255,255,.03);
+          background:rgba(255,255,255,.06);
+          border-color:rgba(255,255,255,.08);
         }
         .pill-item .pill-ico{
-          width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+          width:20px;height:20px;display:flex;align-items:center;justify-content:center;
           position:relative;
-          transition:transform .15s;
+          transition:opacity .15s;
+          opacity:0.35;
         }
-        .pill-item.active .pill-ico{transform:scale(1.05);}
-        .pill-item .pill-label{
-          font-size:10px;font-weight:400;
-          color:rgba(255,255,255,.25);
-          letter-spacing:.02em;
-          transition:color .2s;
-        }
-        .pill-item.active .pill-label{
-          color:rgba(255,255,255,.85);
-          font-weight:500;
-        }
+        .pill-item.active .pill-ico{opacity:0.9;}
+        .pill-item:hover .pill-ico{opacity:0.6;}
+        .pill-label{display:none!important;}
 
         @keyframes cosmicPulse {
           0%, 100% { box-shadow: 0 0 0 rgba(130,220,170,0); transform:scale(1); }
@@ -833,7 +824,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
               return (
                 <Link key={item.id} href={item.href} className={`pill-item${active ? ' active' : ''}`}>
                   <div className={`pill-ico${hasUnread ? ' has-unread' : ''}`}>
-                    <Icon id={item.id} color={active ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.3)'} />
+                    <Icon id={item.id} color="#fff" />
                     {hasUnread && <div className="pill-unread-dot" />}
                   </div>
                   <span className="pill-label">{item.label}</span>
