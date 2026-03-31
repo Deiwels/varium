@@ -21,6 +21,10 @@ export default function Home() {
   const spaceRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    // Skip parallax RAF loop on mobile — no mouse, saves CPU/battery
+    const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window
+    if (isMobile) return
+
     let tx = 0, ty = 0, cx = 0, cy = 0
     let raf: number
 
@@ -30,7 +34,6 @@ export default function Home() {
     }
 
     function tick() {
-      // Lerp — very smooth, lag-behind feel
       cx += (tx - cx) * 0.04
       cy += (ty - cy) * 0.04
 

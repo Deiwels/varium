@@ -388,8 +388,17 @@ function ProfileModal({ user, onClose, onUpdated }: {
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 export default function Shell({ children, page }: { children: React.ReactNode; page: string }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [status, setStatus] = useState<'loading' | 'ok' | 'noauth'>('loading')
+  // Read auth state synchronously from localStorage to avoid blank screen flash
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window === 'undefined') return null
+    try { return JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || 'null') } catch { return null }
+  })
+  const [status, setStatus] = useState<'loading' | 'ok' | 'noauth'>(() => {
+    if (typeof window === 'undefined') return 'loading'
+    const token = localStorage.getItem('VURIUMBOOK_TOKEN')
+    if (!token) return 'noauth'
+    return 'ok'
+  })
   const [showProfile, setShowProfile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [unreadChat, setUnreadChat] = useState<string | null>(null)
@@ -487,10 +496,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
   useEffect(() => {
     const token = localStorage.getItem('VURIUMBOOK_TOKEN')
     if (!token) { setStatus('noauth'); return }
-    const stored = localStorage.getItem('VURIUMBOOK_USER')
-    if (stored) { try { setUser(JSON.parse(stored)); setStatus('ok') } catch { setStatus('ok') } }
-    else setStatus('ok')
-
+    // User and status already initialized from localStorage in useState — just refresh in background
     fetch(`${API}/api/auth/me`, { credentials: 'include', headers: { Authorization: `Bearer ${token}` } })
       .then(r => {
         if (r.status === 401) {
@@ -555,37 +561,54 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
       if (!token) return
       const lastSeen = localStorage.getItem(lastSeenKey) || ''
       try {
+        // Fire ALL chat checks in parallel instead of sequentially
+        const chatPromises = chatTypes.map(ct =>
+          fetch(`${API}/api/messages?chatType=${ct}&limit=1`, { credentials: 'include', headers: hdrs })
+            .then(r => r.ok ? r.json() : null).catch(() => null)
+            .then(data => ({ ct, data }))
+        )
+        const extraPromises: Promise<{ type: string; data: any }>[] = []
+        if (isOwnerAdmin) {
+          extraPromises.push(
+            fetch(`${API}/api/applications?status=new&limit=1`, { credentials: 'include', headers: hdrs })
+              .then(r => r.ok ? r.json() : null).catch(() => null)
+              .then(data => ({ type: 'applications', data }))
+          )
+          extraPromises.push(
+            fetch(`${API}/api/requests`, { credentials: 'include', headers: hdrs })
+              .then(r => r.ok ? r.json() : null).catch(() => null)
+              .then(data => ({ type: 'requests', data }))
+          )
+        }
+
+        const [chatResults, ...extraResults] = await Promise.all([
+          Promise.all(chatPromises), ...extraPromises
+        ])
+
         // Check chat messages
-        for (const ct of chatTypes) {
-          const res = await fetch(`${API}/api/messages?chatType=${ct}&limit=1`, { credentials: 'include', headers: hdrs })
-          if (!res.ok) continue
-          const data = await res.json()
+        for (const { ct, data } of chatResults as { ct: string; data: any }[]) {
+          if (!data) continue
           const msgs = data?.messages || []
           if (msgs.length && msgs[msgs.length - 1]?.createdAt > lastSeen && msgs[msgs.length - 1]?.senderId !== user.uid) {
             setUnreadChat(CHAT_COLORS[ct] || 'rgba(130,150,220,.6)')
             return
           }
         }
-        // Check new applications (owner/admin only)
+        // Check applications
         if (isOwnerAdmin) {
-          const lastSeenApps = localStorage.getItem(lastSeenAppsKey) || ''
-          const appsRes = await fetch(`${API}/api/applications?status=new&limit=1`, { credentials: 'include', headers: hdrs })
-          if (appsRes.ok) {
-            const appsData = await appsRes.json()
-            const apps = appsData?.applications || []
+          const appsResult = extraResults.find((r: any) => r?.type === 'applications')
+          if (appsResult) {
+            const lastSeenApps = localStorage.getItem(lastSeenAppsKey) || ''
+            const apps = appsResult.data?.applications || []
             if (apps.length && apps[0]?.created_at > lastSeenApps) {
               setUnreadChat(CHAT_COLORS.applications)
               return
             }
           }
-        }
-        // Check pending requests
-        if (isOwnerAdmin) {
-          const lastSeenReq = localStorage.getItem(lastSeenReqKey) || ''
-          const reqRes = await fetch(`${API}/api/requests`, { credentials: 'include', headers: hdrs })
-          if (reqRes.ok) {
-            const reqData = await reqRes.json()
-            const pending = (reqData?.requests || []).filter((r: any) => r.status === 'pending')
+          const reqResult = extraResults.find((r: any) => r?.type === 'requests')
+          if (reqResult) {
+            const lastSeenReq = localStorage.getItem(lastSeenReqKey) || ''
+            const pending = (reqResult.data?.requests || []).filter((r: any) => r.status === 'pending')
             if (pending.length && pending[0]?.createdAt > lastSeenReq) {
               setUnreadChat(CHAT_COLORS.requests)
               return
@@ -597,7 +620,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
     }
 
     checkUnread()
-    const interval = setInterval(checkUnread, 8000)
+    const interval = setInterval(checkUnread, 20000)
     return () => clearInterval(interval)
   }, [status, user, pathname])
 
@@ -674,7 +697,6 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         </div>
       )}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
         html,body{height:100%;background:#000;color:#e8e8ed;font-family:Inter,system-ui,sans-serif;}
         a{color:#fff!important;text-decoration:none!important;}

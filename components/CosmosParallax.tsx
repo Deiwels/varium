@@ -3,6 +3,11 @@ import { useEffect } from 'react'
 
 export default function CosmosParallax() {
   useEffect(() => {
+    // Skip parallax entirely on mobile/tablet — no mouse, saves CPU/GPU
+    const isMobile = window.matchMedia('(max-width: 768px)').matches
+      || 'ontouchstart' in window
+    if (isMobile) return
+
     let tx = 0, ty = 0, cx = 0, cy = 0
     let scrollY = 0
     let raf: number
@@ -14,7 +19,6 @@ export default function CosmosParallax() {
 
     function onScroll() {
       scrollY = window.scrollY || document.documentElement.scrollTop || 0
-      // Also check for scroll inside .content divs (CRM pages)
       const content = document.querySelector('.content')
       if (content) scrollY = content.scrollTop || 0
     }
@@ -27,8 +31,6 @@ export default function CosmosParallax() {
       const m = document.getElementById('v-stars-mid')
       const n = document.getElementById('v-stars-near')
 
-      const sy = scrollY * 0.0003 // subtle scroll parallax
-
       if (f) f.style.transform = `translate(${cx * 8}px, ${cy * 8 + scrollY * 0.03}px)`
       if (m) m.style.transform = `translate(${cx * 20}px, ${cy * 20 + scrollY * 0.08}px)`
       if (n) n.style.transform = `translate(${cx * 35}px, ${cy * 35 + scrollY * 0.15}px)`
@@ -38,7 +40,6 @@ export default function CosmosParallax() {
 
     window.addEventListener('mousemove', onMouse, { passive: true })
     window.addEventListener('scroll', onScroll, { passive: true })
-    // Listen for scroll on .content elements too (CRM uses overflow:auto)
     const content = document.querySelector('.content')
     if (content) content.addEventListener('scroll', () => {
       scrollY = content.scrollTop || 0

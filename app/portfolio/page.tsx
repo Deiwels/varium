@@ -456,7 +456,6 @@ export default function PortfolioPage() {
     <Shell page="portfolio"><FeatureGate feature="portfolio" label="Portfolio" requiredPlan="salon">
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=Julius+Sans+One&display=swap');
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
         @keyframes photoIn { 0% { opacity:0; transform:scale(.9) } 100% { opacity:1; transform:scale(1) } }
         @keyframes emptyFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
