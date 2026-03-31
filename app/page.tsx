@@ -1,25 +1,68 @@
 'use client'
 import { useEffect, useRef } from 'react'
 
+// Breathing glow stars — varied sizes and pulse timings
+const GLOW_STARS = [
+  { x: '6%',  y: '8%',   s: 3,   dur: 3.8, del: 0    },
+  { x: '18%', y: '3%',   s: 2,   dur: 5.2, del: 1.2  },
+  { x: '33%', y: '11%',  s: 4.5, dur: 4.0, del: 0.4  },
+  { x: '47%', y: '6%',   s: 2.5, dur: 3.5, del: 2.0  },
+  { x: '62%', y: '14%',  s: 3.5, dur: 4.8, del: 0.8  },
+  { x: '75%', y: '4%',   s: 2,   dur: 3.2, del: 1.6  },
+  { x: '88%', y: '19%',  s: 5,   dur: 5.0, del: 0.2  },
+  { x: '4%',  y: '35%',  s: 3,   dur: 4.4, del: 1.0  },
+  { x: '24%', y: '42%',  s: 2,   dur: 3.6, del: 2.4  },
+  { x: '39%', y: '38%',  s: 5.5, dur: 4.2, del: 0.6  },
+  { x: '55%', y: '48%',  s: 2.5, dur: 3.8, del: 1.8  },
+  { x: '70%', y: '35%',  s: 3,   dur: 5.5, del: 0.3  },
+  { x: '91%', y: '44%',  s: 2,   dur: 4.0, del: 2.2  },
+  { x: '12%', y: '62%',  s: 4,   dur: 3.4, del: 0.9  },
+  { x: '28%', y: '70%',  s: 2,   dur: 4.6, del: 1.5  },
+  { x: '50%', y: '65%',  s: 3.5, dur: 3.8, del: 0.1  },
+  { x: '66%', y: '72%',  s: 2.5, dur: 5.2, del: 2.8  },
+  { x: '82%', y: '60%',  s: 4,   dur: 4.0, del: 1.1  },
+  { x: '8%',  y: '82%',  s: 2,   dur: 3.6, del: 1.9  },
+  { x: '44%', y: '88%',  s: 3,   dur: 4.8, del: 0.7  },
+  { x: '96%', y: '70%',  s: 2,   dur: 3.4, del: 1.3  },
+  { x: '57%', y: '28%',  s: 5,   dur: 4.6, del: 0.5  },
+  { x: '2%',  y: '20%',  s: 3,   dur: 3.9, del: 2.1  },
+  { x: '93%', y: '88%',  s: 2.5, dur: 4.3, del: 0.6  },
+]
+
 export default function Home() {
   const spaceRef = useRef<HTMLDivElement>(null)
-  const orbRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Mouse parallax
+    let tx = 0, ty = 0, cx = 0, cy = 0
+    let raf: number
+
     function onMouse(e: MouseEvent) {
-      const cx = (e.clientX / window.innerWidth - 0.5) * 2
-      const cy = (e.clientY / window.innerHeight - 0.5) * 2
-      const far = document.querySelector('.stars-far') as HTMLElement
-      const mid = document.querySelector('.stars-mid') as HTMLElement
-      const near = document.querySelector('.stars-near') as HTMLElement
-      if (far) far.style.transform = `translate(${cx * 4}px, ${cy * 4}px)`
-      if (mid) mid.style.transform = `translate(${cx * 8}px, ${cy * 8}px)`
-      if (near) near.style.transform = `translate(${cx * 14}px, ${cy * 14}px)`
-      if (orbRef.current) orbRef.current.style.transform = `translate(${cx * -10}px, ${cy * -10}px)`
+      tx = (e.clientX / window.innerWidth - 0.5) * 2
+      ty = (e.clientY / window.innerHeight - 0.5) * 2
     }
 
-    // Scroll zoom + parallax
+    function tick() {
+      // Lerp — very smooth, lag-behind feel
+      cx += (tx - cx) * 0.04
+      cy += (ty - cy) * 0.04
+
+      const far  = document.querySelector('.stars-far')   as HTMLElement
+      const mid  = document.querySelector('.stars-mid')   as HTMLElement
+      const near = document.querySelector('.stars-near')  as HTMLElement
+      const orb  = document.querySelector('.orb-parallax') as HTMLElement
+      const neb1 = document.querySelector('.neb-1')        as HTMLElement
+      const neb2 = document.querySelector('.neb-2')        as HTMLElement
+
+      if (far)  far.style.transform  = `translate(${cx * 3}px, ${cy * 3}px)`
+      if (mid)  mid.style.transform  = `translate(${cx * 7}px, ${cy * 7}px)`
+      if (near) near.style.transform = `translate(${cx * 12}px, ${cy * 12}px)`
+      if (orb)  orb.style.transform  = `translate(${cx * -8}px, ${cy * -8}px)`
+      if (neb1) neb1.style.transform = `translate(${cx * 2}px, ${cy * 2}px)`
+      if (neb2) neb2.style.transform = `translate(${cx * -3}px, ${cy * -3}px)`
+
+      raf = requestAnimationFrame(tick)
+    }
+
     function onScroll() {
       const y = window.scrollY
       const scale = 1 + y * 0.00008
@@ -28,9 +71,12 @@ export default function Home() {
 
     window.addEventListener('mousemove', onMouse, { passive: true })
     window.addEventListener('scroll', onScroll, { passive: true })
+    raf = requestAnimationFrame(tick)
+
     return () => {
       window.removeEventListener('mousemove', onMouse)
       window.removeEventListener('scroll', onScroll)
+      cancelAnimationFrame(raf)
     }
   }, [])
 
@@ -41,18 +87,39 @@ export default function Home() {
         <div className="stars stars-far" />
         <div className="stars stars-mid" />
         <div className="stars stars-near" />
-        <div className="orb-container" ref={orbRef}>
-          <div className="orb-halo" />
-          <div className="orb-ring-2" />
-          <div className="orb-ring" />
-          <div className="orb-ring-3" />
-          <div className="orb-core" />
+
+        {/* Breathing glow stars — individual divs with varied sizes */}
+        {GLOW_STARS.map((star, i) => (
+          <div
+            key={i}
+            className="star-glow"
+            style={{
+              left: star.x,
+              top: star.y,
+              width: star.s,
+              height: star.s,
+              '--dur': `${star.dur}s`,
+              '--delay': `${star.del}s`,
+            } as React.CSSProperties}
+          />
+        ))}
+
+        {/* Black hole — parallax wrapper keeps orb-container free for rotation */}
+        <div className="orb-parallax">
+          <div className="orb-container">
+            <div className="orb-halo" />
+            <div className="orb-ring-2" />
+            <div className="orb-ring" />
+            <div className="orb-ring-3" />
+            <div className="orb-core" />
+          </div>
         </div>
+
         <div className="shooting-star shooting-star-1" />
         <div className="shooting-star shooting-star-2" />
-        <div className="nebula-layer" style={{ width: 900, height: 500, top: '5%', left: '-18%', background: 'rgba(30,40,100,.07)', animationDelay: '.2s' }} />
-        <div className="nebula-layer" style={{ width: 700, height: 400, top: '20%', right: '-12%', background: 'rgba(60,40,110,.05)', animationDelay: '.6s' }} />
-        <div className="nebula-layer" style={{ width: 500, height: 300, bottom: '15%', left: '25%', background: 'rgba(25,50,90,.05)', animationDelay: '1s' }} />
+        <div className="nebula-layer neb-1" style={{ width: 900, height: 500, top: '5%', left: '-18%', background: 'rgba(15,20,50,.06)', animationDelay: '.2s' }} />
+        <div className="nebula-layer neb-2" style={{ width: 700, height: 400, top: '20%', right: '-12%', background: 'rgba(30,20,55,.04)', animationDelay: '.6s' }} />
+        <div className="nebula-layer" style={{ width: 500, height: 300, bottom: '15%', left: '25%', background: 'rgba(12,25,45,.04)', animationDelay: '1s' }} />
       </div>
       <div className="horizon-grid" />
       <div className="noise-overlay" />

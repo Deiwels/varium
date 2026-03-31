@@ -40,7 +40,28 @@ body {
   width: 140%;
   height: 140%;
   will-change: transform;
-  transition: transform .2s ease-out;
+}
+
+/* ── Individual breathing glow star ── */
+.star-glow {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,.92);
+  pointer-events: none;
+  animation: star-breathe var(--dur, 4s) ease-in-out var(--delay, 0s) infinite alternate;
+}
+
+@keyframes star-breathe {
+  0% {
+    transform: scale(0.65);
+    box-shadow: 0 0 2px 1px rgba(210,225,255,.15);
+    opacity: 0.45;
+  }
+  100% {
+    transform: scale(1.35);
+    box-shadow: 0 0 6px 3px rgba(200,218,255,.55), 0 0 16px 7px rgba(180,205,255,.18);
+    opacity: 1;
+  }
 }
 
 .stars-far {
@@ -293,17 +314,21 @@ body {
   to { opacity: 1; }
 }
 
-/* ── Energy Orb — enhanced ── */
-.orb-container {
+/* ── Black hole parallax wrapper (JS lerp applies transform here) ── */
+.orb-parallax {
   position: fixed;
   top: 28%;
   right: 8%;
-  width: 300px;
-  height: 300px;
   pointer-events: none;
   z-index: 0;
   will-change: transform;
-  transition: transform .4s ease-out;
+}
+
+/* ── Black hole container (rotation lives here) ── */
+.orb-container {
+  position: relative;
+  width: 300px;
+  height: 300px;
   animation: orb-slow-rotate 120s linear infinite;
 }
 
@@ -311,45 +336,57 @@ body {
   position: absolute;
   inset: 70px;
   border-radius: 50%;
-  background: #000;
+  /* Glass lens: blurs + darkens stars behind — creates distortion illusion */
+  backdrop-filter: blur(6px) brightness(0.06) saturate(2);
+  -webkit-backdrop-filter: blur(6px) brightness(0.06) saturate(2);
+  /* Fresnel highlight: faint glass reflection at top-left */
+  background: radial-gradient(circle at 30% 26%,
+    rgba(255,255,255,.028) 0%,
+    rgba(220,230,255,.014) 16%,
+    transparent 40%,
+    rgba(0,0,0,.6) 100%
+  );
   box-shadow:
-    0 0 0 1px rgba(255,255,255,.025),
-    0 0 18px 6px rgba(180,190,220,.06),
-    0 0 50px 20px rgba(120,130,160,.03),
-    inset 0 0 30px #000;
+    0 0 0 0.5px rgba(255,255,255,.09),
+    0 0 0 2px rgba(190,205,235,.025),
+    0 0 22px 7px rgba(160,178,225,.09),
+    0 0 55px 20px rgba(110,125,170,.04),
+    inset 0 0 50px rgba(0,0,0,1);
 }
 
 .orb-ring {
   position: absolute;
   inset: 30px;
   border-radius: 50%;
-  border: .5px solid rgba(200,210,230,.05);
+  border: .5px solid rgba(215,225,250,.10);
 }
 
 .orb-ring-2 {
   position: absolute;
   inset: 10px;
   border-radius: 50%;
-  border: .5px solid rgba(180,190,210,.03);
+  border: .5px solid rgba(190,205,240,.06);
 }
 
 .orb-ring-3 {
   position: absolute;
   inset: 50px;
   border-radius: 50%;
-  border: .5px solid rgba(210,218,235,.04);
+  border: .5px solid rgba(225,232,255,.08);
 }
 
 .orb-halo {
   position: absolute;
   inset: -30px;
   border-radius: 50%;
+  /* Gravitational lensing ring: bright at the Schwarzschild edge, fades out */
   background: radial-gradient(circle,
-    transparent 45%,
-    rgba(210,218,240,.04) 55%,
-    rgba(180,190,220,.06) 60%,
-    rgba(140,150,180,.03) 68%,
-    transparent 78%
+    transparent 43%,
+    rgba(235,242,255,.04) 49%,
+    rgba(215,228,255,.10) 53%,
+    rgba(195,212,248,.08) 57%,
+    rgba(170,185,225,.05) 63%,
+    transparent 72%
   );
   animation: orb-pulse 12s ease-in-out infinite 3s;
 }
@@ -626,7 +663,8 @@ section { position: relative; z-index: 2; }
   .navbar-links { gap: 14px; }
   .navbar-links a { font-size: 12px; }
   .btn-nav-cta { height: 30px; padding: 0 14px; font-size: 11px; }
-  .orb-container { width: 180px; height: 180px; top: 18%; right: 2%; }
+  .orb-parallax { top: 18%; right: 2%; }
+  .orb-container { width: 180px; height: 180px; }
   .orb-core { inset: 40px; }
   .orb-ring { inset: 12px; }
   .orb-ring-2 { inset: 0; }
@@ -638,7 +676,7 @@ section { position: relative; z-index: 2; }
 }
 
 @media (max-width: 480px) {
-  .orb-container { display: none; }
+  .orb-parallax { display: none; }
 }
 
 /* ── Scrollbar ── */
