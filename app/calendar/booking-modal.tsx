@@ -81,10 +81,12 @@ interface BookingModalProps {
     clientName: string
     clientPhone?: string
     serviceId: string
+    serviceIds?: string[]
     status: string
     notes?: string
     paid: boolean
     paymentMethod?: string
+    isModelEvent?: boolean
     photoUrl?: string
     _raw: any
   } | null
