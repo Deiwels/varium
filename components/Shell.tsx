@@ -793,7 +793,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
             <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.55)', letterSpacing: '.04em', textTransform: 'uppercase' }}>{page}</span>
           </div>
           {/* Center slot — used by calendar for controls */}
-          <div id="topbar-center" style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 4 }} />
+          <div id="topbar-center" style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 4 }}></div>
           <button className="top-bar-user" onClick={() => setShowProfile(true)}>
             {(user as any)?.photo
               ? <img src={(user as any).photo} alt="" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'cover', border: '1px solid rgba(255,255,255,.12)' }}

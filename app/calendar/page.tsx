@@ -729,7 +729,17 @@ export default function CalendarPage() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [datePickerOpen, setDatePickerOpen] = useState(false)
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
-  useEffect(() => { setPortalTarget(document.getElementById('topbar-center')) }, [])
+  useEffect(() => {
+    // Retry finding the portal target — Shell may render after Calendar
+    const find = () => {
+      const el = document.getElementById('topbar-center')
+      if (el) { setPortalTarget(el); return true }
+      return false
+    }
+    if (find()) return
+    const interval = setInterval(() => { if (find()) clearInterval(interval) }, 100)
+    return () => clearInterval(interval)
+  }, [])
   const [dayTransition, setDayTransition] = useState<'idle' | 'out' | 'in'>('idle')
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; barberId: string; min: number } | null>(null)
   const [blockDrag, setBlockDrag] = useState<{ barberId: string; barberIdx: number; startMin: number; endMin: number } | null>(null)
