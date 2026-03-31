@@ -34,6 +34,21 @@ body {
 }
 
 /* ── Starfield ── */
+/* ── Forward-flight zoom wrappers ── */
+.stars-wrap {
+  position: absolute;
+  inset: 0;
+}
+/* Each layer zooms at its own speed — near stars fastest, far slowest */
+.stars-wrap-far  { animation: zoom-fwd 90s linear 0s infinite; }
+.stars-wrap-mid  { animation: zoom-fwd 65s linear -20s infinite; }
+.stars-wrap-near { animation: zoom-fwd 50s linear -10s infinite; }
+
+@keyframes zoom-fwd {
+  from { transform: scale(1); }
+  to   { transform: scale(1.12); }
+}
+
 .stars {
   position: absolute;
   inset: -20%;
@@ -53,14 +68,14 @@ body {
 
 @keyframes star-breathe {
   0% {
-    transform: scale(0.65);
-    box-shadow: 0 0 2px 1px rgba(210,225,255,.15);
-    opacity: 0.45;
+    transform: scale(0.7);
+    box-shadow: 0 0 1px 0px rgba(210,225,255,.08);
+    opacity: 0.28;
   }
   100% {
-    transform: scale(1.35);
-    box-shadow: 0 0 6px 3px rgba(200,218,255,.55), 0 0 16px 7px rgba(180,205,255,.18);
-    opacity: 1;
+    transform: scale(1.2);
+    box-shadow: 0 0 4px 2px rgba(200,218,255,.22), 0 0 10px 4px rgba(180,205,255,.08);
+    opacity: 0.65;
   }
 }
 
@@ -336,21 +351,23 @@ body {
   position: absolute;
   inset: 70px;
   border-radius: 50%;
+  /* Always black from the start — prevents any flash before backdrop-filter renders */
+  background-color: #000;
   /* Glass lens: blurs + darkens stars behind — creates distortion illusion */
   backdrop-filter: blur(6px) brightness(0.06) saturate(2);
   -webkit-backdrop-filter: blur(6px) brightness(0.06) saturate(2);
   /* Fresnel highlight: faint glass reflection at top-left */
-  background: radial-gradient(circle at 30% 26%,
+  background-image: radial-gradient(circle at 30% 26%,
     rgba(255,255,255,.028) 0%,
     rgba(220,230,255,.014) 16%,
     transparent 40%,
-    rgba(0,0,0,.6) 100%
+    rgba(0,0,0,.5) 100%
   );
   box-shadow:
-    0 0 0 0.5px rgba(255,255,255,.09),
-    0 0 0 2px rgba(190,205,235,.025),
-    0 0 22px 7px rgba(160,178,225,.09),
-    0 0 55px 20px rgba(110,125,170,.04),
+    0 0 0 0.5px rgba(255,255,255,.07),
+    0 0 0 2px rgba(190,205,235,.018),
+    0 0 22px 7px rgba(160,178,225,.07),
+    0 0 55px 20px rgba(110,125,170,.03),
     inset 0 0 50px rgba(0,0,0,1);
 }
 
@@ -358,21 +375,21 @@ body {
   position: absolute;
   inset: 30px;
   border-radius: 50%;
-  border: .5px solid rgba(215,225,250,.10);
+  border: .5px solid rgba(215,225,250,.04);
 }
 
 .orb-ring-2 {
   position: absolute;
   inset: 10px;
   border-radius: 50%;
-  border: .5px solid rgba(190,205,240,.06);
+  border: .5px solid rgba(190,205,240,.025);
 }
 
 .orb-ring-3 {
   position: absolute;
   inset: 50px;
   border-radius: 50%;
-  border: .5px solid rgba(225,232,255,.08);
+  border: .5px solid rgba(225,232,255,.032);
 }
 
 .orb-halo {
@@ -382,13 +399,16 @@ body {
   /* Gravitational lensing ring: bright at the Schwarzschild edge, fades out */
   background: radial-gradient(circle,
     transparent 43%,
-    rgba(235,242,255,.04) 49%,
-    rgba(215,228,255,.10) 53%,
-    rgba(195,212,248,.08) 57%,
-    rgba(170,185,225,.05) 63%,
+    rgba(235,242,255,.03) 49%,
+    rgba(215,228,255,.07) 53%,
+    rgba(195,212,248,.05) 57%,
+    rgba(170,185,225,.03) 63%,
     transparent 72%
   );
-  animation: orb-pulse 12s ease-in-out infinite 3s;
+  /* backwards fill = starts at 0% keyframe (opacity .6) — no bright-then-dark flash */
+  opacity: .6;
+  animation: orb-pulse 12s ease-in-out infinite;
+  animation-fill-mode: backwards;
 }
 
 @keyframes orb-pulse {

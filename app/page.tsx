@@ -1,32 +1,20 @@
 'use client'
 import { useEffect, useRef } from 'react'
 
-// Breathing glow stars — varied sizes and pulse timings
+// Breathing glow stars — fewer, subtler
 const GLOW_STARS = [
-  { x: '6%',  y: '8%',   s: 3,   dur: 3.8, del: 0    },
-  { x: '18%', y: '3%',   s: 2,   dur: 5.2, del: 1.2  },
-  { x: '33%', y: '11%',  s: 4.5, dur: 4.0, del: 0.4  },
-  { x: '47%', y: '6%',   s: 2.5, dur: 3.5, del: 2.0  },
-  { x: '62%', y: '14%',  s: 3.5, dur: 4.8, del: 0.8  },
-  { x: '75%', y: '4%',   s: 2,   dur: 3.2, del: 1.6  },
-  { x: '88%', y: '19%',  s: 5,   dur: 5.0, del: 0.2  },
-  { x: '4%',  y: '35%',  s: 3,   dur: 4.4, del: 1.0  },
-  { x: '24%', y: '42%',  s: 2,   dur: 3.6, del: 2.4  },
-  { x: '39%', y: '38%',  s: 5.5, dur: 4.2, del: 0.6  },
-  { x: '55%', y: '48%',  s: 2.5, dur: 3.8, del: 1.8  },
-  { x: '70%', y: '35%',  s: 3,   dur: 5.5, del: 0.3  },
-  { x: '91%', y: '44%',  s: 2,   dur: 4.0, del: 2.2  },
-  { x: '12%', y: '62%',  s: 4,   dur: 3.4, del: 0.9  },
-  { x: '28%', y: '70%',  s: 2,   dur: 4.6, del: 1.5  },
-  { x: '50%', y: '65%',  s: 3.5, dur: 3.8, del: 0.1  },
-  { x: '66%', y: '72%',  s: 2.5, dur: 5.2, del: 2.8  },
-  { x: '82%', y: '60%',  s: 4,   dur: 4.0, del: 1.1  },
-  { x: '8%',  y: '82%',  s: 2,   dur: 3.6, del: 1.9  },
-  { x: '44%', y: '88%',  s: 3,   dur: 4.8, del: 0.7  },
-  { x: '96%', y: '70%',  s: 2,   dur: 3.4, del: 1.3  },
-  { x: '57%', y: '28%',  s: 5,   dur: 4.6, del: 0.5  },
-  { x: '2%',  y: '20%',  s: 3,   dur: 3.9, del: 2.1  },
-  { x: '93%', y: '88%',  s: 2.5, dur: 4.3, del: 0.6  },
+  { x: '8%',  y: '9%',   s: 2.5, dur: 4.2, del: 0    },
+  { x: '33%', y: '12%',  s: 3,   dur: 5.0, del: 1.4  },
+  { x: '62%', y: '7%',   s: 2,   dur: 3.8, del: 0.6  },
+  { x: '88%', y: '18%',  s: 3.5, dur: 4.6, del: 2.0  },
+  { x: '18%', y: '40%',  s: 2.5, dur: 4.8, del: 0.3  },
+  { x: '50%', y: '35%',  s: 3,   dur: 3.5, del: 1.8  },
+  { x: '78%', y: '45%',  s: 2,   dur: 5.2, del: 0.9  },
+  { x: '6%',  y: '65%',  s: 2.5, dur: 4.0, del: 2.5  },
+  { x: '38%', y: '70%',  s: 2,   dur: 3.6, del: 0.4  },
+  { x: '65%', y: '62%',  s: 3,   dur: 4.4, del: 1.2  },
+  { x: '90%', y: '75%',  s: 2,   dur: 5.0, del: 1.7  },
+  { x: '44%', y: '88%',  s: 2.5, dur: 4.2, del: 0.7  },
 ]
 
 export default function Home() {
@@ -84,9 +72,10 @@ export default function Home() {
     <>
       {/* ── Background ── */}
       <div className="space-bg" ref={spaceRef}>
-        <div className="stars stars-far" />
-        <div className="stars stars-mid" />
-        <div className="stars stars-near" />
+        {/* Zoom wrappers give each layer independent forward-flight speed */}
+        <div className="stars-wrap stars-wrap-far"><div className="stars stars-far" /></div>
+        <div className="stars-wrap stars-wrap-mid"><div className="stars stars-mid" /></div>
+        <div className="stars-wrap stars-wrap-near"><div className="stars stars-near" /></div>
 
         {/* Breathing glow stars — individual divs with varied sizes */}
         {GLOW_STARS.map((star, i) => (
