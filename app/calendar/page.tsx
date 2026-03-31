@@ -420,28 +420,19 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
 
   async function addBarber() {
     if (!bName.trim()) { setMsg('Name required'); return }
-    if (!bPassword.trim()) { setMsg('Password required'); return }
     setSaving(true); setMsg('')
     try {
       const enabledDays = bSchedule.map((d, i) => d.enabled ? i : -1).filter(i => i >= 0)
       const schedPayload = { startMin: 10*60, endMin: 20*60, days: enabledDays, perDay: bSchedule }
-      const rLabels = bRadarLabels.split(',').map(s => s.trim()).filter(Boolean)
-      const rValues = bRadarValues.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n))
       await apiFetch('/api/barbers', { method: 'POST', body: JSON.stringify({
-        name: bName.trim(), level: bLevel.trim(),
-        username: bUsername.trim() || bName.toLowerCase().replace(/\s+/g, '.'),
-        password: bPassword.trim(), barber_pin: bPassword.trim(),
-        base_price: bPrice.trim(), public_role: bPublicRole.trim() || bLevel.trim(),
-        about: bAbout.trim(), description: bAbout.trim(), bio: bAbout.trim(),
-        radar_labels: rLabels.length ? rLabels : ['SKILL 1','SKILL 2','SKILL 3','SKILL 4','SKILL 5'],
-        radar_values: rValues.length ? rValues : [4.5,4.5,4.5,4.5,4.5],
-        photo_url: bPhotoPreview || '', active: true, public_enabled: true,
+        name: bName.trim(), level: bLevel.trim() || undefined,
+        public_role: bPublicRole.trim() || bLevel.trim() || undefined,
+        photo_url: bPhotoPreview || '', active: true,
         schedule: schedPayload, work_schedule: schedPayload,
         public_off_days: DAY_NAMES.filter((_, i) => !bSchedule[i].enabled)
       })})
-      setMsg('Team member added ✓')
-      setBName(''); setBLevel(''); setBUsername(''); setBPassword(''); setBPrice('')
-      setBAbout(''); setBPublicRole(''); setBPhotoPreview('')
+      setMsg('Team member added ✓ — now visible on booking page')
+      setBName(''); setBLevel(''); setBPublicRole(''); setBPhotoPreview('')
       setBSchedule(DAY_DEFAULTS.map(d => ({...d}))); onReload()
     } catch (e: any) { setMsg('Error: ' + e.message) }
     setSaving(false)
@@ -504,6 +495,29 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                   {[['Name *', bName, setBName, 'Jane Smith'], ['Level', bLevel, setBLevel, 'Senior'], ['Public role', bPublicRole, setBPublicRole, 'Stylist']].map(([l, v, s, p]) => (
                     <div key={l as string}><label style={lbl}>{l as string}</label><input value={v as string} onChange={e => (s as any)(e.target.value)} placeholder={p as string} style={inp} /></div>
                   ))}
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={lbl}>Photo</label>
+                    <label style={{ height: 42, padding: '0 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', fontSize: 13, fontFamily: 'inherit', gap: 8, transition: 'border-color .2s' }}>
+                      {bPhotoPreview ? <img src={bPhotoPreview} alt="" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'cover' }} /> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>}
+                      {bPhotoPreview ? 'Change photo' : 'Upload photo'}
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+                        const file = e.target.files?.[0]; if (!file) return
+                        const reader = new FileReader()
+                        reader.onload = () => {
+                          const img = new Image()
+                          img.onload = () => {
+                            const MAX = 600, scale = Math.min(1, MAX/img.width, MAX/img.height)
+                            const w = Math.round(img.width*scale), h = Math.round(img.height*scale)
+                            const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h
+                            canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+                            setBPhotoPreview(canvas.toDataURL('image/jpeg', 0.8))
+                          }
+                          img.src = reader.result as string
+                        }
+                        reader.readAsDataURL(file)
+                      }} />
+                    </label>
+                  </div>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <label style={lbl}>Working schedule</label>
                     <SchedGrid schedule={bSchedule} onChange={setBSchedule} />
