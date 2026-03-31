@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 const COOKIE_NAME = 'VURIUMBOOK_TOKEN'
 
 // Routes that don't need auth
-const PUBLIC_PATHS = ['/', '/signin', '/vuriumbook', '/booking', '/public']
+const PUBLIC_PATHS = ['/', '/signin', '/signup', '/vuriumbook', '/booking', '/public']
 
 // Routes restricted by role
 const OWNER_ADMIN_ONLY = ['/settings', '/payroll', '/payments', '/attendance', '/expenses', '/membership']
