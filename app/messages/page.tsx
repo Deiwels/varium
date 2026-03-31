@@ -816,7 +816,6 @@ export default function MessagesPage() {
         </div>
       )}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=Julius+Sans+One&display=swap');
         .msg-input:focus { border-color: rgba(10,132,255,.40) !important; box-shadow: 0 0 0 3px rgba(10,132,255,.10) !important; }
         .msg-list::-webkit-scrollbar { width: 4px; }
         .msg-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 2px; }

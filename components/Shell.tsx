@@ -674,7 +674,6 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         </div>
       )}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
         html,body{height:100%;background:#000;color:#e8e8ed;font-family:Inter,system-ui,sans-serif;}
         a{color:#fff!important;text-decoration:none!important;}

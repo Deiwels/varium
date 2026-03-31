@@ -508,7 +508,6 @@ export default function ClientsPage() {
   return (
     <Shell page="clients">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Julius+Sans+One&display=swap');
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
         select option{background:#111}
         .cl-row:hover td{background:rgba(255,255,255,.025)!important}
