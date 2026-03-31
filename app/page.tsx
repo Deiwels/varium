@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 // Breathing glow stars — fewer, subtler
 const GLOW_STARS = [
@@ -19,11 +19,13 @@ const GLOW_STARS = [
 
 export default function Home() {
   const spaceRef = useRef<HTMLDivElement>(null)
+  // On mobile, skip rendering page-level stars entirely — layout.tsx has global starfield
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
-    // Skip parallax RAF loop on mobile — no mouse, saves CPU/battery
-    const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window
-    if (isMobile) return
+    const mobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window
+    setIsMobile(mobile)
+    if (mobile) return
 
     let tx = 0, ty = 0, cx = 0, cy = 0
     let raf: number
@@ -73,48 +75,47 @@ export default function Home() {
 
   return (
     <>
-      {/* ── Background ── */}
-      <div className="space-bg" ref={spaceRef}>
-        {/* Zoom wrappers give each layer independent forward-flight speed */}
-        <div className="stars-wrap stars-wrap-far"><div className="stars stars-far" /></div>
-        <div className="stars-wrap stars-wrap-mid"><div className="stars stars-mid" /></div>
-        <div className="stars-wrap stars-wrap-near"><div className="stars stars-near" /></div>
+      {/* ── Background — on mobile, skip entirely (layout.tsx has global starfield) ── */}
+      {!isMobile && (
+        <div className="space-bg" ref={spaceRef}>
+          <div className="stars-wrap stars-wrap-far"><div className="stars stars-far" /></div>
+          <div className="stars-wrap stars-wrap-mid"><div className="stars stars-mid" /></div>
+          <div className="stars-wrap stars-wrap-near"><div className="stars stars-near" /></div>
 
-        {/* Breathing glow stars — individual divs with varied sizes */}
-        {GLOW_STARS.map((star, i) => (
-          <div
-            key={i}
-            className="star-glow"
-            style={{
-              left: star.x,
-              top: star.y,
-              width: star.s,
-              height: star.s,
-              '--dur': `${star.dur}s`,
-              '--delay': `${star.del}s`,
-            } as React.CSSProperties}
-          />
-        ))}
+          {GLOW_STARS.map((star, i) => (
+            <div
+              key={i}
+              className="star-glow"
+              style={{
+                left: star.x,
+                top: star.y,
+                width: star.s,
+                height: star.s,
+                '--dur': `${star.dur}s`,
+                '--delay': `${star.del}s`,
+              } as React.CSSProperties}
+            />
+          ))}
 
-        {/* Black hole — parallax wrapper keeps orb-container free for rotation */}
-        <div className="orb-parallax">
-          <div className="orb-container">
-            <div className="orb-halo" />
-            <div className="orb-ring-2" />
-            <div className="orb-ring" />
-            <div className="orb-ring-3" />
-            <div className="orb-core" />
+          <div className="orb-parallax">
+            <div className="orb-container">
+              <div className="orb-halo" />
+              <div className="orb-ring-2" />
+              <div className="orb-ring" />
+              <div className="orb-ring-3" />
+              <div className="orb-core" />
+            </div>
           </div>
-        </div>
 
-        <div className="shooting-star shooting-star-1" />
-        <div className="shooting-star shooting-star-2" />
-        <div className="nebula-layer neb-1" style={{ width: 900, height: 500, top: '5%', left: '-18%', background: 'rgba(15,20,50,.06)', animationDelay: '.2s' }} />
-        <div className="nebula-layer neb-2" style={{ width: 700, height: 400, top: '20%', right: '-12%', background: 'rgba(30,20,55,.04)', animationDelay: '.6s' }} />
-        <div className="nebula-layer" style={{ width: 500, height: 300, bottom: '15%', left: '25%', background: 'rgba(12,25,45,.04)', animationDelay: '1s' }} />
-      </div>
-      <div className="horizon-grid" />
-      <div className="noise-overlay" />
+          <div className="shooting-star shooting-star-1" />
+          <div className="shooting-star shooting-star-2" />
+          <div className="nebula-layer neb-1" style={{ width: 900, height: 500, top: '5%', left: '-18%', background: 'rgba(15,20,50,.06)', animationDelay: '.2s' }} />
+          <div className="nebula-layer neb-2" style={{ width: 700, height: 400, top: '20%', right: '-12%', background: 'rgba(30,20,55,.04)', animationDelay: '.6s' }} />
+          <div className="nebula-layer" style={{ width: 500, height: 300, bottom: '15%', left: '25%', background: 'rgba(12,25,45,.04)', animationDelay: '1s' }} />
+        </div>
+      )}
+      {!isMobile && <div className="horizon-grid" />}
+      {!isMobile && <div className="noise-overlay" />}
 
       {/* ── Navbar ── */}
       <nav className="navbar">
