@@ -2608,7 +2608,7 @@ export default function CalendarPage() {
           const tt = TRAINING_TYPES.find(t => t.value === trainingType) || TRAINING_TYPES[0]
           const student = barberStudents.find(s => s.id === studentId)
           async function saveTraining() {
-            if (!studentId || !student) return
+            if (!studentId || !student || !trainingModal) return
             setTSaving(true)
             const clientName = `Training · ${student.name} · ${tt.label}`
             const startAt = new Date(todayStr + 'T' + minToHHMM(trainingModal.min) + ':00')
