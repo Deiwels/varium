@@ -1,5 +1,6 @@
 'use client'
 import React, { useEffect, useState, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import Shell from '@/components/Shell'
 import { BookingModal } from '@/app/calendar/booking-modal'
 import ImageCropper from '@/components/ImageCropper'
@@ -727,6 +728,8 @@ export default function CalendarPage() {
   const [dragConfirm, setDragConfirm] = useState<{ eventId: string; newBarberId: string; newBarberName: string; newMin: number } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [datePickerOpen, setDatePickerOpen] = useState(false)
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
+  useEffect(() => { setPortalTarget(document.getElementById('topbar-center')) }, [])
   const [dayTransition, setDayTransition] = useState<'idle' | 'out' | 'in'>('idle')
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; barberId: string; min: number } | null>(null)
   const [blockDrag, setBlockDrag] = useState<{ barberId: string; barberIdx: number; startMin: number; endMin: number } | null>(null)
@@ -1796,11 +1799,9 @@ export default function CalendarPage() {
       `}</style>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
 
-        {/* Topbar */}
-        {/* Apple-style thin topbar — centered controls */}
-        <div className="cal-topbar-wrap" style={{ padding: '4px 14px', background: 'rgba(8,8,18,.5)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,.04)', flexShrink: 0 }}>
-          <div className="cal-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <div className="cal-topbar-btns" style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        {/* Calendar controls — rendered into Shell topbar via portal */}
+        {portalTarget && createPortal(
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
               {/* Date picker */}
               <button className="cal-btn-date" onClick={() => setDatePickerOpen(true)} style={{ height: 26, padding: '0 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 500, fontSize: 12, fontFamily: 'inherit' }}>Date</button>
 
@@ -1840,9 +1841,9 @@ export default function CalendarPage() {
               ) : (
                 <button className="cal-new-btn" onClick={() => openCreate(isBarber ? myBarberId : (barbers[0]?.id || ''), clamp(new Date().getHours()*60))} style={{ height: 26, padding: '0 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 500, fontSize: 11, fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>+ New</button>
               )}
-            </div>
-          </div>
-        </div>
+          </div>,
+          portalTarget
+        )}
 
         {/* Calendar grid */}
         {(() => {

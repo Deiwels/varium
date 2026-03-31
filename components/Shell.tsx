@@ -697,7 +697,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         .top-bar-brand{
           display:flex;align-items:center;gap:10px;
         }
-        .top-bar-brand img{ width:24px;height:24px;border-radius:6px; }
+        .top-bar-brand img{ width:28px;height:28px;border-radius:7px; }
         .top-bar-brand span{
           font-size:15px;font-weight:600;color:#fff;letter-spacing:-.01em;
         }
@@ -789,9 +789,11 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         {/* ── Top Header Bar ── */}
         <div className="top-bar">
           <div className="top-bar-brand">
-            <img src="/logo.jpg" alt="" />
+            <img src="/logo.jpg" alt="" style={{ width: 28, height: 28, borderRadius: 7 }} />
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.55)', letterSpacing: '.04em', textTransform: 'uppercase' }}>{page}</span>
           </div>
-          <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.45)', letterSpacing: '.06em', textTransform: 'uppercase', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>{page}</span>
+          {/* Center slot — used by calendar for controls */}
+          <div id="topbar-center" style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 4 }} />
           <button className="top-bar-user" onClick={() => setShowProfile(true)}>
             {(user as any)?.photo
               ? <img src={(user as any).photo} alt="" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'cover', border: '1px solid rgba(255,255,255,.12)' }}
