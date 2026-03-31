@@ -290,13 +290,23 @@ export default function DashboardPage() {
   }, {} as Record<string, number>)
   const maxCount = Math.max(...Object.values(byBarber), 1)
 
-  // Quick actions — filtered by role
+  // Quick actions — hub to all features, filtered by role
   const actions = [
-    { label: 'Calendar', desc: 'View & manage bookings', href: '/calendar' },
+    { label: 'Calendar', desc: 'View & manage bookings', href: '/calendar', color: 'rgba(130,150,220,.5)' },
+    { label: 'Waitlist', desc: 'Queue & notifications', href: '/waitlist', color: 'rgba(130,220,170,.5)' },
     ...(isOwnerOrAdmin ? [
-      { label: 'Payments', desc: 'Transactions & Square', href: '/payments' },
-      { label: 'Payroll',  desc: 'Commission + tips', href: '/payroll' },
-      { label: 'Settings', desc: 'Tax, fees, barbers', href: '/settings' },
+      { label: 'Payments', desc: 'Transactions & Square', href: '/payments', color: 'rgba(220,170,100,.5)' },
+      { label: 'Attendance', desc: 'Hours & clock-in', href: '/attendance', color: 'rgba(130,200,220,.5)' },
+      { label: 'Cash', desc: 'Daily register', href: '/cash', color: 'rgba(180,140,220,.5)' },
+      { label: 'Membership', desc: 'Recurring clients', href: '/membership', color: 'rgba(220,130,160,.5)' },
+    ] : []),
+    { label: 'Portfolio', desc: 'Work gallery', href: '/portfolio', color: 'rgba(130,150,220,.4)' },
+    ...(role === 'owner' ? [
+      { label: 'Expenses', desc: 'Track costs', href: '/expenses', color: 'rgba(220,170,100,.4)' },
+      { label: 'Payroll', desc: 'Commission + tips', href: '/payroll', color: 'rgba(130,220,170,.4)' },
+    ] : []),
+    ...(isOwnerOrAdmin ? [
+      { label: 'Settings', desc: 'Config & team', href: '/settings', color: 'rgba(255,255,255,.3)' },
     ] : []),
   ]
 
@@ -778,12 +788,15 @@ export default function DashboardPage() {
 
             {/* Quick actions */}
             <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.10)', background: 'linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02))', padding: 14 }}>
-              <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)', marginBottom: 12 }}>Quick actions</div>
-              <div className="dash-quick-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)', marginBottom: 12 }}>Tools</div>
+              <div className="dash-quick-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
                 {actions.map(item => (
-                  <a key={item.href} href={item.href} style={{ padding: '13px 12px', borderRadius: 14, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.14)', cursor: 'pointer', display: 'block', textDecoration: 'none' }}>
-                    <div style={{ fontWeight: 900, fontSize: 13, marginBottom: 4, color: '#fff' }}>{item.label}</div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', lineHeight: 1.4 }}>{item.desc}</div>
+                  <a key={item.href} href={item.href} style={{ padding: '13px 12px', borderRadius: 14, border: `1px solid ${(item as any).color ? (item as any).color.replace(/[\d.]+\)$/, '.12)') : 'rgba(255,255,255,.10)'}`, background: (item as any).color ? (item as any).color.replace(/[\d.]+\)$/, '.04)') : 'rgba(0,0,0,.14)', cursor: 'pointer', display: 'block', textDecoration: 'none', transition: 'all .2s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <div style={{ width: 3, height: 14, borderRadius: 2, background: (item as any).color || 'rgba(255,255,255,.3)' }} />
+                      <span style={{ fontWeight: 700, fontSize: 13, color: '#e8e8ed' }}>{item.label}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', lineHeight: 1.4, paddingLeft: 11 }}>{item.desc}</div>
                   </a>
                 ))}
               </div>
