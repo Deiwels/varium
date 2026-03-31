@@ -96,6 +96,72 @@ function checkPassword(plain, stored) {
   } catch { return false; }
 }
 
+// ============================================================
+// PLAN FEATURES — single source of truth
+// plan_type: individual | salon | custom
+// billing_status: trialing | active | past_due | canceled | inactive
+// effective_plan: during trial → salon (full access 30 days)
+// ============================================================
+const PLAN_FEATURES = {
+  individual: {
+    member_limit: 1, staff_limit: 0,
+    features: ['calendar', 'clients', 'payments', 'settings', 'booking_page', 'analytics_basic'],
+  },
+  salon: {
+    member_limit: 10, staff_limit: 10,
+    features: ['calendar', 'clients', 'payments', 'settings', 'booking_page', 'team_mgmt', 'waitlist', 'messages', 'portfolio', 'cash_register', 'membership', 'attendance', 'analytics_advanced'],
+  },
+  custom: {
+    member_limit: null, staff_limit: null, is_unlimited: true,
+    features: ['calendar', 'clients', 'payments', 'settings', 'booking_page', 'team_mgmt', 'waitlist', 'messages', 'portfolio', 'cash_register', 'membership', 'attendance', 'analytics_advanced', 'expenses', 'payroll', 'multi_location', 'api_access'],
+  },
+};
+
+function getEffectivePlan(wsData) {
+  const planType = wsData?.plan_type || wsData?.plan || 'individual';
+  const billingStatus = wsData?.billing_status || wsData?.subscription_status || 'inactive';
+  // During trial → full salon access
+  if (billingStatus === 'trialing') {
+    const trialEnd = wsData?.trial_ends_at ? new Date(wsData.trial_ends_at) : null;
+    if (trialEnd && trialEnd > new Date()) return 'salon';
+  }
+  // Map legacy plan names
+  if (planType === 'starter' || planType === 'free' || planType === 'trial') return 'individual';
+  if (planType === 'pro') return 'salon';
+  if (planType === 'enterprise') return 'custom';
+  if (['individual', 'salon', 'custom'].includes(planType)) return planType;
+  return 'individual';
+}
+
+function getPlanDef(effectivePlan) {
+  return PLAN_FEATURES[effectivePlan] || PLAN_FEATURES.individual;
+}
+
+function requirePlanFeature(...featureKeys) {
+  return async (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
+    try {
+      const wsDoc = await req.wsDoc().get();
+      const wsData = wsDoc.exists ? wsDoc.data() : {};
+      const effectivePlan = getEffectivePlan(wsData);
+      const planDef = getPlanDef(effectivePlan);
+      const missing = featureKeys.filter(f => !planDef.features.includes(f));
+      if (missing.length > 0) {
+        return res.status(403).json({
+          error: 'This feature requires a higher plan. Upgrade to unlock it.',
+          code: 'PLAN_UPGRADE_REQUIRED',
+          required_features: missing,
+          current_plan: wsData.plan_type || 'individual',
+          effective_plan: effectivePlan,
+        });
+      }
+      req.effectivePlan = effectivePlan;
+      req.planDef = planDef;
+      next();
+    } catch (e) { next(e); }
+  };
+}
+
 function getClientIp(req) {
   return safeStr(
     (req.headers['x-forwarded-for'] || '').split(',')[0] ||
@@ -944,11 +1010,11 @@ app.post('/auth/signup', async (req, res) => {
 
     // Create workspace
     const wsRef = db.collection('workspaces').doc();
-    const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30-day trial
     const wsData = {
       name: sanitizeHtml(workspace_name),
-      plan: 'trial',
-      subscription_status: 'trialing',
+      plan_type: 'individual', // default plan, NOT 'trial'
+      billing_status: 'trialing',
       trial_ends_at: toIso(trialEnd),
       trial_used: false,
       owner_username: usernameLC,
@@ -1191,13 +1257,15 @@ app.get('/api/barbers', async (req, res) => {
 
 app.post('/api/barbers', requireRole('owner', 'admin'), async (req, res) => {
   try {
-    // Plan-based team member limit: trial/starter = max 2, pro = unlimited
+    // Plan-based team member limit
     const wsDoc = await req.wsDoc().get();
-    const wsPlan = wsDoc.exists ? (wsDoc.data()?.plan || 'trial') : 'trial';
-    if (['trial', 'starter', 'free'].includes(wsPlan)) {
+    const wsData = wsDoc.exists ? wsDoc.data() : {};
+    const effectivePlan = getEffectivePlan(wsData);
+    const planDef = getPlanDef(effectivePlan);
+    if (planDef.member_limit !== null) {
       const existingSnap = await req.ws('barbers').where('active', '==', true).get();
-      if (existingSnap.size >= 1) {
-        return res.status(403).json({ error: 'Starter plan allows 1 team member. Upgrade to Pro for unlimited.' });
+      if (existingSnap.size >= planDef.member_limit) {
+        return res.status(403).json({ error: `Your plan allows ${planDef.member_limit} team member(s). Upgrade to add more.`, code: 'TEAM_LIMIT_REACHED', current_plan: wsData.plan_type || 'individual', effective_plan: effectivePlan });
       }
     }
     const b = req.body || {};
@@ -1833,14 +1901,14 @@ app.get('/api/payments', async (req, res) => {
 // ============================================================
 // MEMBERSHIPS CRUD
 // ============================================================
-app.get('/api/memberships', async (req, res) => {
+app.get('/api/memberships', requirePlanFeature('membership'), async (req, res) => {
   try {
     const snap = await req.ws('memberships').get();
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.post('/api/memberships', requireRole('owner', 'admin'), async (req, res) => {
+app.post('/api/memberships', requirePlanFeature('membership'), requireRole('owner', 'admin'), async (req, res) => {
   try {
     const b = req.body || {};
     if (!b.client_name) return res.status(400).json({ error: 'client_name required' });
@@ -1892,7 +1960,7 @@ app.delete('/api/memberships/:id', requireRole('owner', 'admin'), async (req, re
 // EXPENSES CRUD
 // ============================================================
 // NOTE: /categories and /total MUST be before /:id to avoid Express treating them as :id
-app.get('/api/expenses/categories', async (req, res) => {
+app.get('/api/expenses/categories', requirePlanFeature('expenses'), async (req, res) => {
   try {
     const snap = await req.ws('expense_categories').get();
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -1908,7 +1976,7 @@ app.post('/api/expenses/categories', requireRole('owner', 'admin'), async (req, 
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.get('/api/expenses/total', async (req, res) => {
+app.get('/api/expenses/total', requirePlanFeature('expenses'), async (req, res) => {
   try {
     const from = safeStr(req.query?.from || '');
     const to = safeStr(req.query?.to || '');
@@ -1921,14 +1989,14 @@ app.get('/api/expenses/total', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.get('/api/expenses', async (req, res) => {
+app.get('/api/expenses', requirePlanFeature('expenses'), async (req, res) => {
   try {
     const snap = await req.ws('expenses').orderBy('date', 'desc').limit(200).get();
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.post('/api/expenses', async (req, res) => {
+app.post('/api/expenses', requirePlanFeature('expenses'), async (req, res) => {
   try {
     const b = req.body || {};
     const doc = {
@@ -1972,14 +2040,14 @@ app.delete('/api/expenses/:id', async (req, res) => {
 // ============================================================
 // ATTENDANCE
 // ============================================================
-app.get('/api/attendance', async (req, res) => {
+app.get('/api/attendance', requirePlanFeature('attendance'), async (req, res) => {
   try {
     const snap = await req.ws('attendance').orderBy('date', 'desc').limit(200).get();
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.get('/api/attendance/status', async (req, res) => {
+app.get('/api/attendance/status', requirePlanFeature('attendance'), async (req, res) => {
   try {
     const userId = req.user.uid;
     const today = new Date().toISOString().slice(0, 10);
@@ -1993,7 +2061,7 @@ app.get('/api/attendance/status', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.post('/api/attendance/clock-in', async (req, res) => {
+app.post('/api/attendance/clock-in', requirePlanFeature('attendance'), async (req, res) => {
   try {
     const userId = req.user.uid;
     const now = new Date();
@@ -2026,7 +2094,7 @@ app.post('/api/attendance/clock-in', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.post('/api/attendance/clock-out', async (req, res) => {
+app.post('/api/attendance/clock-out', requirePlanFeature('attendance'), async (req, res) => {
   try {
     const userId = req.user.uid;
     const today = new Date().toISOString().slice(0, 10);
@@ -2112,7 +2180,7 @@ app.delete('/api/reviews/:id', requireRole('owner', 'admin'), async (req, res) =
 // ============================================================
 // MESSAGES
 // ============================================================
-app.get('/api/messages', async (req, res) => {
+app.get('/api/messages', requirePlanFeature('messages'), async (req, res) => {
   try {
     const chatType = safeStr(req.query?.chatType || 'general');
     const snap = await req.ws('messages').where('chatType', '==', chatType).orderBy('createdAt', 'desc').limit(100).get();
@@ -2120,7 +2188,7 @@ app.get('/api/messages', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.post('/api/messages', async (req, res) => {
+app.post('/api/messages', requirePlanFeature('messages'), async (req, res) => {
   try {
     const b = req.body || {};
     const doc = {
@@ -2144,7 +2212,7 @@ app.post('/api/messages', async (req, res) => {
 // ============================================================
 // PAYROLL
 // ============================================================
-app.get('/api/payroll', requireRole('owner'), async (req, res) => {
+app.get('/api/payroll', requirePlanFeature('payroll'), requireRole('owner'), async (req, res) => {
   try {
     const from = safeStr(req.query?.from || '');
     const to = safeStr(req.query?.to || '');
@@ -2168,7 +2236,7 @@ app.get('/api/payroll', requireRole('owner'), async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.get('/api/payroll/rules', requireRole('owner'), async (req, res) => {
+app.get('/api/payroll/rules', requirePlanFeature('payroll'), requireRole('owner'), async (req, res) => {
   try {
     const snap = await req.ws('payroll_rules').get();
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -2232,14 +2300,14 @@ app.get('/api/audit-logs', requireRole('owner'), async (req, res) => {
 // ============================================================
 // CASH REPORTS
 // ============================================================
-app.get('/api/cash-reports', async (req, res) => {
+app.get('/api/cash-reports', requirePlanFeature('cash_register'), async (req, res) => {
   try {
     const snap = await req.ws('cash_reports').orderBy('date', 'desc').limit(60).get();
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.post('/api/cash-reports', async (req, res) => {
+app.post('/api/cash-reports', requirePlanFeature('cash_register'), async (req, res) => {
   try {
     const b = req.body || {};
     const doc = {
@@ -2257,7 +2325,7 @@ app.post('/api/cash-reports', async (req, res) => {
 // ============================================================
 // WAITLIST CRUD
 // ============================================================
-app.get('/api/waitlist', async (req, res) => {
+app.get('/api/waitlist', requirePlanFeature('waitlist'), async (req, res) => {
   try {
     const date = safeStr(req.query?.date || '');
     const barberId = safeStr(req.query?.barber_id || '');
@@ -2273,7 +2341,7 @@ app.get('/api/waitlist', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.post('/api/waitlist', async (req, res) => {
+app.post('/api/waitlist', requirePlanFeature('waitlist'), async (req, res) => {
   try {
     const b = req.body || {};
     const doc = {
@@ -2299,7 +2367,7 @@ app.post('/api/waitlist', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.patch('/api/waitlist/:id', async (req, res) => {
+app.patch('/api/waitlist/:id', requirePlanFeature('waitlist'), async (req, res) => {
   try {
     const ref = req.ws('waitlist').doc(req.params.id);
     const doc = await ref.get();
@@ -3155,8 +3223,8 @@ setInterval(() => {
 const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 const STRIPE_PRICES = {
-  starter: process.env.STRIPE_PRICE_STARTER || '',
-  pro: process.env.STRIPE_PRICE_PRO || '',
+  individual: process.env.STRIPE_PRICE_INDIVIDUAL || process.env.STRIPE_PRICE_STARTER || '',
+  salon: process.env.STRIPE_PRICE_SALON || process.env.STRIPE_PRICE_PRO || '',
 };
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://vurium.com';
 
@@ -3225,14 +3293,18 @@ app.get('/api/billing/status', async (req, res) => {
     const now = new Date();
     const trialActive = trialEnd && trialEnd > now;
     const daysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / 86400000)) : 0;
+    const effectivePlan = getEffectivePlan(data);
     res.json({
-      plan: data.plan || 'trial',
+      plan_type: data.plan_type || data.plan || 'individual',
+      billing_status: data.billing_status || data.subscription_status || (trialActive ? 'trialing' : 'inactive'),
+      effective_plan: effectivePlan,
+      plan: data.plan_type || data.plan || 'individual', // legacy compat
       stripe_subscription_id: data.stripe_subscription_id || null,
       stripe_customer_id: data.stripe_customer_id || null,
       trial_active: !!trialActive,
       trial_ends_at: data.trial_ends_at || null,
       trial_days_left: daysLeft,
-      subscription_status: data.subscription_status || (trialActive ? 'trialing' : 'inactive'),
+      subscription_status: data.billing_status || data.subscription_status || (trialActive ? 'trialing' : 'inactive'),
     });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -3249,6 +3321,32 @@ app.post('/api/billing/cancel', requireRole('owner'), async (req, res) => {
     });
     await req.wsDoc().update({ subscription_status: 'cancelling', updated_at: toIso(new Date()) });
     res.json({ ok: true, status: 'cancelling' });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Account limits — returns plan info, features, limits
+app.get('/api/account/limits', async (req, res) => {
+  try {
+    const wsDoc = await req.wsDoc().get();
+    const wsData = wsDoc.exists ? wsDoc.data() : {};
+    const planType = wsData.plan_type || wsData.plan || 'individual';
+    const billingStatus = wsData.billing_status || wsData.subscription_status || 'inactive';
+    const effectivePlan = getEffectivePlan(wsData);
+    const planDef = getPlanDef(effectivePlan);
+    const trialEnd = wsData.trial_ends_at ? new Date(wsData.trial_ends_at) : null;
+    const trialActive = billingStatus === 'trialing' && trialEnd && trialEnd > new Date();
+    res.json({
+      plan_type: planType,
+      billing_status: billingStatus,
+      effective_plan: effectivePlan,
+      features: planDef.features,
+      member_limit: planDef.member_limit,
+      staff_limit: planDef.staff_limit,
+      is_unlimited: !!planDef.is_unlimited,
+      trial_active: !!trialActive,
+      trial_ends_at: wsData.trial_ends_at || null,
+      trial_days_left: trialActive ? Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / 86400000)) : 0,
+    });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
@@ -3302,22 +3400,24 @@ async function handleStripeEvent(wsId, type, obj) {
   if (type === 'checkout.session.completed') {
     if (obj.subscription) {
       patch.stripe_subscription_id = obj.subscription;
+      patch.billing_status = 'active';
       patch.subscription_status = 'active';
       patch.trial_used = true;
-      patch.plan = 'pro'; // Default, will be updated by subscription event
     }
   } else if (type === 'customer.subscription.updated' || type === 'customer.subscription.created') {
     patch.stripe_subscription_id = obj.id;
-    patch.subscription_status = obj.status; // active, trialing, past_due, canceled
+    patch.billing_status = obj.status; // active, trialing, past_due, canceled
+    patch.subscription_status = obj.status;
     if (obj.trial_end) patch.trial_ends_at = toIso(new Date(obj.trial_end * 1000));
-    // Determine plan from price
     const priceId = obj.items?.data?.[0]?.price?.id || '';
-    if (priceId === STRIPE_PRICES.starter) patch.plan = 'starter';
-    else if (priceId === STRIPE_PRICES.pro) patch.plan = 'pro';
+    if (priceId === STRIPE_PRICES.individual) patch.plan_type = 'individual';
+    else if (priceId === STRIPE_PRICES.salon) patch.plan_type = 'salon';
   } else if (type === 'customer.subscription.deleted') {
+    patch.billing_status = 'canceled';
     patch.subscription_status = 'canceled';
-    patch.plan = 'free';
+    // plan_type stays — just billing_status changes
   } else if (type === 'invoice.payment_failed') {
+    patch.billing_status = 'past_due';
     patch.subscription_status = 'past_due';
   }
   await wsRef.update(patch).catch(() => {});
