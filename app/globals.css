@@ -661,13 +661,13 @@ section { position: relative; z-index: 2; }
 /* On mobile — quick fade-in, nearly no delays */
 @media (max-width: 768px) {
   .fade-up {
-    animation-duration: 0.25s !important;
+    animation-duration: 0.15s !important;
     filter: none !important;
   }
   .fade-up-d1 { animation-delay: 0s !important; }
-  .fade-up-d2 { animation-delay: 0.05s !important; }
-  .fade-up-d3 { animation-delay: 0.08s !important; }
-  .fade-up-d4 { animation-delay: 0.12s !important; }
+  .fade-up-d2 { animation-delay: 0.03s !important; }
+  .fade-up-d3 { animation-delay: 0.05s !important; }
+  .fade-up-d4 { animation-delay: 0.08s !important; }
 }
 
 /* ── Responsive ── */
