@@ -644,18 +644,17 @@ section { position: relative; z-index: 2; }
 /* ── Fade-in animation ── */
 .fade-up {
   opacity: 0;
-  transform: translateY(20px);
-  filter: blur(3px);
-  animation: fadeUp 1s ease-out forwards;
+  transform: translateY(16px);
+  animation: fadeUp 0.5s ease-out forwards;
 }
 
-.fade-up-d1 { animation-delay: .15s; }
-.fade-up-d2 { animation-delay: .3s; }
-.fade-up-d3 { animation-delay: .5s; }
-.fade-up-d4 { animation-delay: .65s; }
+.fade-up-d1 { animation-delay: .08s; }
+.fade-up-d2 { animation-delay: .2s; }
+.fade-up-d3 { animation-delay: .35s; }
+.fade-up-d4 { animation-delay: .5s; }
 
 @keyframes fadeUp {
-  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* On mobile — headline instant, subtitle & buttons smooth */
@@ -664,13 +663,12 @@ section { position: relative; z-index: 2; }
   .fade-up {
     animation-duration: 0.01s !important;
     animation-delay: 0s !important;
-    filter: none !important;
   }
   .fade-up-d1 { animation-delay: 0s !important; animation-duration: 0.01s !important; }
   /* Subtitle + buttons: smooth and elegant */
-  .fade-up-d2 { animation-delay: 0.1s !important; animation-duration: 0.7s !important; }
-  .fade-up-d3 { animation-delay: 0.25s !important; animation-duration: 0.7s !important; }
-  .fade-up-d4 { animation-delay: 0.35s !important; animation-duration: 0.6s !important; }
+  .fade-up-d2 { animation-delay: 0.1s !important; animation-duration: 0.6s !important; }
+  .fade-up-d3 { animation-delay: 0.2s !important; animation-duration: 0.6s !important; }
+  .fade-up-d4 { animation-delay: 0.3s !important; animation-duration: 0.5s !important; }
 }
 
 /* ── Responsive ── */

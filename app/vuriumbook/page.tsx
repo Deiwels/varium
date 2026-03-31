@@ -50,29 +50,27 @@ export default function VuriumBook() {
 
   return (
     <>
-      {/* ── Background — on mobile, skip entirely (layout.tsx has global starfield) ── */}
-      {!isMobile && (
-        <div className="space-bg" ref={spaceRef}>
-          <div className="stars stars-far" />
-          <div className="stars stars-mid" />
-          <div className="stars stars-near" />
-          <div className="orb-parallax">
-            <div className="orb-container">
-              <div className="orb-halo" />
-              <div className="orb-ring-2" />
-              <div className="orb-ring" />
-              <div className="orb-ring-3" />
-              <div className="orb-core" />
-            </div>
+      {/* ── Background ── */}
+      <div className="space-bg" ref={spaceRef}>
+        <div className="stars stars-far" />
+        <div className="stars stars-mid" />
+        <div className="stars stars-near" />
+        <div className="orb-parallax">
+          <div className="orb-container">
+            <div className="orb-halo" />
+            <div className="orb-ring-2" />
+            <div className="orb-ring" />
+            <div className="orb-ring-3" />
+            <div className="orb-core" />
           </div>
-          <div className="shooting-star shooting-star-1" />
-          <div className="shooting-star shooting-star-2" />
-          <div className="nebula-layer" style={{ width: 800, height: 450, top: '6%', left: '-14%', background: 'rgba(30,45,110,.06)' }} />
-          <div className="nebula-layer" style={{ width: 550, height: 300, top: '35%', right: '-10%', background: 'rgba(55,35,100,.04)', animationDelay: '.5s' }} />
         </div>
-      )}
-      {!isMobile && <div className="horizon-grid" />}
-      {!isMobile && <div className="noise-overlay" />}
+        <div className="shooting-star shooting-star-1" />
+        <div className="shooting-star shooting-star-2" />
+        <div className="nebula-layer" style={{ width: 800, height: 450, top: '6%', left: '-14%', background: 'rgba(30,45,110,.06)' }} />
+        <div className="nebula-layer" style={{ width: 550, height: 300, top: '35%', right: '-10%', background: 'rgba(55,35,100,.04)', animationDelay: '.5s' }} />
+      </div>
+      <div className="horizon-grid" />
+      <div className="noise-overlay" />
 
       {/* ── Navbar ── */}
       <nav className="navbar">
