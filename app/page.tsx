@@ -1,173 +1,168 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 export default function Home() {
-  // Multi-layer parallax + zoom on scroll
+  const spaceRef = useRef<HTMLDivElement>(null)
+  const orbRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
+    // Mouse parallax
+    function onMouse(e: MouseEvent) {
+      const cx = (e.clientX / window.innerWidth - 0.5) * 2
+      const cy = (e.clientY / window.innerHeight - 0.5) * 2
+      const far = document.querySelector('.stars-far') as HTMLElement
+      const mid = document.querySelector('.stars-mid') as HTMLElement
+      const near = document.querySelector('.stars-near') as HTMLElement
+      if (far) far.style.transform = `translate(${cx * 4}px, ${cy * 4}px)`
+      if (mid) mid.style.transform = `translate(${cx * 8}px, ${cy * 8}px)`
+      if (near) near.style.transform = `translate(${cx * 14}px, ${cy * 14}px)`
+      if (orbRef.current) orbRef.current.style.transform = `translate(${cx * -10}px, ${cy * -10}px)`
+    }
+
+    // Scroll zoom + parallax
     function onScroll() {
       const y = window.scrollY
-      const layers = document.querySelectorAll('.stars-layer') as NodeListOf<HTMLElement>
-      // Each layer moves at different speed — depth illusion
-      if (layers[0]) layers[0].style.transform = `translateY(${y * 0.1}px)` // far stars — slow
-      if (layers[1]) layers[1].style.transform = `translateY(${y * 0.25}px)` // mid stars
-      if (layers[2]) layers[2].style.transform = `translateY(${y * 0.45}px)` // close stars — fast
-      // Slight zoom — flying forward feel
-      const container = document.querySelector('.stars-container') as HTMLElement
-      if (container) {
-        const scale = 1 + y * 0.0001
-        container.style.transform = `scale(${Math.min(scale, 1.15)})`
-      }
+      const scale = 1 + y * 0.00008
+      if (spaceRef.current) spaceRef.current.style.transform = `scale(${Math.min(scale, 1.05)})`
     }
+
+    window.addEventListener('mousemove', onMouse, { passive: true })
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    return () => {
+      window.removeEventListener('mousemove', onMouse)
+      window.removeEventListener('scroll', onScroll)
+    }
   }, [])
 
   return (
     <>
-      {/* ── Stars ── */}
-      <div className="stars-container">
-        <div className="stars-layer layer-1" />
-        <div className="stars-layer layer-2" />
-        <div className="stars-layer layer-3" />
-        <div className="black-hole" />
-        <div className="galaxy" />
-        <div className="shooting-star shooting-star-1" />
-        <div className="shooting-star shooting-star-2" />
-        <div className="shooting-star shooting-star-3" />
+      {/* ── Background ── */}
+      <div className="space-bg" ref={spaceRef}>
+        <div className="stars stars-far" />
+        <div className="stars stars-mid" />
+        <div className="stars stars-near" />
+        <div className="orb-container" ref={orbRef}>
+          <div className="orb-halo" />
+          <div className="orb-ring-2" />
+          <div className="orb-ring" />
+          <div className="orb-core" />
+        </div>
         <div className="comet comet-1" />
         <div className="comet comet-2" />
         <div className="comet comet-3" />
-        <div className="glow-orb" style={{ width: 600, height: 600, top: '10%', left: '-10%', background: 'radial-gradient(circle, rgba(100,80,255,.25), transparent 70%)' }} />
-        <div className="glow-orb" style={{ width: 500, height: 500, top: '60%', right: '-5%', background: 'radial-gradient(circle, rgba(60,120,255,.15), transparent 70%)' }} />
+        {/* Nebula glows */}
+        <div className="nebula-layer" style={{ width: 800, height: 500, top: '5%', left: '-15%', background: 'rgba(40,50,120,.08)', animationDelay: '.2s' }} />
+        <div className="nebula-layer" style={{ width: 600, height: 400, top: '15%', right: '-10%', background: 'rgba(80,50,130,.06)', animationDelay: '.5s' }} />
+        <div className="nebula-layer" style={{ width: 500, height: 300, bottom: '10%', left: '20%', background: 'rgba(30,60,100,.06)', animationDelay: '.8s' }} />
       </div>
-
-      {/* ── Nebula clouds — change color as you scroll deeper ── */}
-      <div className="nebula" style={{ width: 800, height: 400, top: '120vh', left: '-10%', background: 'rgba(100,60,200,.4)' }} />
-      <div className="nebula" style={{ width: 600, height: 300, top: '250vh', right: '-5%', background: 'rgba(60,150,200,.3)' }} />
-      <div className="nebula" style={{ width: 700, height: 350, top: '380vh', left: '20%', background: 'rgba(200,80,120,.25)' }} />
+      <div className="horizon-grid" />
+      <div className="noise-overlay" />
 
       {/* ── Navbar ── */}
       <nav className="navbar">
-        <a href="/" className="navbar-logo" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/logo.jpg" alt="Vurium" style={{ height: 36, width: 36, borderRadius: 8, objectFit: 'cover' }} />
+        <a href="/" className="navbar-logo">
+          <img src="/logo.jpg" alt="Vurium" />
           Vurium
         </a>
         <ul className="navbar-links">
           <li><a href="/vuriumbook">VuriumBook</a></li>
           <li><a href="#products">Products</a></li>
-          <li><a href="#features">Features</a></li>
-          <li><a href="#contact">Contact</a></li>
+          <li><a href="#about">About</a></li>
+          <li><a href="#contact" className="btn-nav-cta">Get Started</a></li>
         </ul>
       </nav>
 
       {/* ── Hero ── */}
-      <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '120px 24px 80px' }}>
-        <p style={{ fontSize: 14, fontWeight: 500, letterSpacing: '.15em', textTransform: 'uppercase', color: 'rgba(140,160,255,.7)', marginBottom: 20 }}>
-          Software Company
-        </p>
-        <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 500, letterSpacing: '-.03em', lineHeight: 1.1, maxWidth: 800, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+      <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 'clamp(100px, 15vh, 140px) 24px 80px' }}>
+        <p className="label-glow fade-up">Software Company</p>
+        <h1 className="shimmer-text fade-up fade-up-d1" style={{ fontSize: 'clamp(38px, 7vw, 72px)', fontWeight: 600, letterSpacing: '-.04em', lineHeight: 1.08, maxWidth: 820, marginTop: 16 }}>
           We build software<br />that works.
         </h1>
-        <p style={{ fontSize: 'clamp(16px, 2.5vw, 21px)', fontWeight: 300, color: 'rgba(255,255,255,.55)', maxWidth: 580, marginTop: 24, lineHeight: 1.5 }}>
+        <p className="fade-up fade-up-d2" style={{ fontSize: 'clamp(15px, 2vw, 18px)', fontWeight: 300, color: 'rgba(255,255,255,.4)', maxWidth: 520, marginTop: 24, lineHeight: 1.6 }}>
           Modern tools for modern businesses. Elegant, reliable, and built to scale.
         </p>
-        <div style={{ marginTop: 40, display: 'flex', gap: 16 }}>
-          <a href="#products" style={{ height: 48, padding: '0 32px', borderRadius: 999, background: '#fff', color: '#000', fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', textDecoration: 'none', transition: 'opacity .2s' }}>
-            Explore Products
-          </a>
-          <a href="#contact" style={{ height: 48, padding: '0 32px', borderRadius: 999, border: '1px solid rgba(255,255,255,.2)', background: 'transparent', color: '#fff', fontSize: 15, fontWeight: 500, display: 'flex', alignItems: 'center', textDecoration: 'none', transition: 'all .2s' }}>
-            Get in Touch
-          </a>
+        <div className="fade-up fade-up-d3" style={{ marginTop: 40, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <a href="#products" className="btn-primary">Explore Products</a>
+          <a href="#contact" className="btn-secondary">Get in Touch</a>
         </div>
       </section>
 
       {/* ── Products ── */}
-      <section id="products" style={{ padding: '100px 24px', maxWidth: 1100, margin: '0 auto' }}>
-        <p style={{ fontSize: 13, fontWeight: 500, letterSpacing: '.15em', textTransform: 'uppercase', color: 'rgba(140,160,255,.6)', textAlign: 'center', marginBottom: 12 }}>
-          Products
-        </p>
-        <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 500, letterSpacing: '-.02em', textAlign: 'center', marginBottom: 60, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+      <section id="products" style={{ padding: 'clamp(60px, 10vh, 100px) 24px', maxWidth: 1080, margin: '0 auto' }}>
+        <p className="label-glow" style={{ textAlign: 'center', marginBottom: 12 }}>Products</p>
+        <h2 className="shimmer-text" style={{ fontSize: 'clamp(28px, 4.5vw, 48px)', fontWeight: 600, letterSpacing: '-.03em', textAlign: 'center', marginBottom: 56 }}>
           What we&apos;re building
         </h2>
 
-        {/* Booking System Card */}
-        <div style={{ borderRadius: 24, border: '1px solid rgba(255,255,255,.08)', background: 'linear-gradient(180deg, rgba(255,255,255,.04) 0%, rgba(255,255,255,.01) 100%)', overflow: 'hidden', padding: '48px 40px', position: 'relative' }}>
-          <div style={{ position: 'absolute', top: -80, right: -80, width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(100,120,255,.15), transparent 70%)', filter: 'blur(60px)', pointerEvents: 'none' }} />
+        <div className="glass-card" style={{ maxWidth: 800, margin: '0 auto', padding: 'clamp(28px, 4vw, 48px) clamp(24px, 4vw, 44px)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-            <span style={{ width: 10, height: 10, borderRadius: 999, background: '#8b9aff', display: 'inline-block' }} />
-            <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: '#8b9aff' }}>Coming Soon</span>
+            <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(130,150,220,.7)', display: 'inline-block' }} />
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(130,150,220,.7)' }}>Available Now</span>
           </div>
-          <h3 style={{ fontSize: 'clamp(24px, 3.5vw, 36px)', fontWeight: 500, letterSpacing: '-.02em', marginBottom: 16 }}>
-            Booking System
+          <h3 style={{ fontSize: 'clamp(24px, 3.5vw, 36px)', fontWeight: 600, letterSpacing: '-.02em', marginBottom: 14, color: '#f0f0f5' }}>
+            VuriumBook
           </h3>
-          <p style={{ fontSize: 17, fontWeight: 300, color: 'rgba(255,255,255,.55)', maxWidth: 560, lineHeight: 1.6, marginBottom: 32 }}>
-            A complete appointment scheduling platform for barbershops, salons, and service businesses. Online booking, team management, payments, and client CRM — all in one place.
+          <p style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', fontWeight: 300, color: 'rgba(255,255,255,.4)', maxWidth: 520, lineHeight: 1.65, marginBottom: 28 }}>
+            A complete appointment scheduling platform for barbershops, salons, and service businesses. Online booking, team management, payments, and client CRM.
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 32 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 28 }}>
             {[
-              { icon: '{}', label: 'Online Booking', desc: 'Clients book 24/7 from your website' },
-              { icon: '{}', label: 'Team Calendar', desc: 'Manage schedules for your entire team' },
-              { icon: '$', label: 'Payments', desc: 'Accept card, Apple Pay, and cash' },
-              { icon: '{}', label: 'Client CRM', desc: 'Track visits, preferences, and notes' },
+              { label: 'Online Booking', desc: 'Clients book 24/7' },
+              { label: 'Team Calendar', desc: 'Manage all schedules' },
+              { label: 'Payments', desc: 'Card, Apple Pay, cash' },
+              { label: 'Client CRM', desc: 'Track everything' },
             ].map((f, i) => (
-              <div key={i} style={{ padding: '16px 18px', borderRadius: 14, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)' }}>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 6 }}>{f.label}</div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', lineHeight: 1.4 }}>{f.desc}</div>
+              <div key={i} style={{ padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.015)' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>{f.label}</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', lineHeight: 1.4 }}>{f.desc}</div>
               </div>
             ))}
           </div>
-          <a href="#contact" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 500, color: '#8b9aff', textDecoration: 'none' }}>
-            Request Early Access
-            <span style={{ fontSize: 18 }}>&rarr;</span>
+          <a href="/vuriumbook" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 500, color: 'rgba(130,150,220,.8)', textDecoration: 'none', transition: 'color .2s' }}>
+            Learn more <span style={{ fontSize: 16 }}>&rarr;</span>
           </a>
         </div>
       </section>
 
-      {/* ── Features ── */}
-      <section id="features" style={{ padding: '100px 24px', maxWidth: 1100, margin: '0 auto' }}>
-        <p style={{ fontSize: 13, fontWeight: 500, letterSpacing: '.15em', textTransform: 'uppercase', color: 'rgba(140,160,255,.6)', textAlign: 'center', marginBottom: 12 }}>
-          Why Vurium
-        </p>
-        <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 500, letterSpacing: '-.02em', textAlign: 'center', marginBottom: 60, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+      {/* ── About / Features ── */}
+      <section id="about" style={{ padding: 'clamp(60px, 10vh, 100px) 24px', maxWidth: 1080, margin: '0 auto' }}>
+        <p className="label-glow" style={{ textAlign: 'center', marginBottom: 12 }}>Why Vurium</p>
+        <h2 className="shimmer-text" style={{ fontSize: 'clamp(28px, 4.5vw, 48px)', fontWeight: 600, letterSpacing: '-.03em', textAlign: 'center', marginBottom: 56 }}>
           Built different.
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
           {[
-            { title: 'Reliability First', desc: 'Our software is built to work — no crashes, no downtime. Your business depends on it, and we take that seriously.', accent: '#8ff0b1' },
-            { title: 'Beautiful by Default', desc: 'Every interface is crafted with attention to detail. Dark, modern, and intuitive — your team will love using it.', accent: '#8b9aff' },
-            { title: 'Built to Scale', desc: 'From a single chair to a franchise. Our architecture grows with your business without compromises.', accent: '#ffb86b' },
+            { title: 'Reliability First', desc: 'Built to work — no crashes, no downtime. Your business depends on it.', color: 'rgba(130,220,170,.5)' },
+            { title: 'Beautiful by Default', desc: 'Every interface is crafted with attention to detail. Modern and intuitive.', color: 'rgba(130,150,220,.5)' },
+            { title: 'Built to Scale', desc: 'From a single chair to a franchise. Grows with your business.', color: 'rgba(220,170,100,.5)' },
           ].map((f, i) => (
-            <div key={i} style={{ padding: '32px 28px', borderRadius: 20, border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(180deg, rgba(255,255,255,.03), transparent)', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ width: 40, height: 3, borderRadius: 2, background: f.accent, marginBottom: 20, opacity: .7 }} />
-              <h3 style={{ fontSize: 18, fontWeight: 500, letterSpacing: '-.01em', marginBottom: 12 }}>{f.title}</h3>
-              <p style={{ fontSize: 15, fontWeight: 300, color: 'rgba(255,255,255,.45)', lineHeight: 1.6 }}>{f.desc}</p>
+            <div key={i} className="glass-card">
+              <div style={{ width: 32, height: 2, borderRadius: 1, background: f.color, marginBottom: 20 }} />
+              <h3 style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-.01em', marginBottom: 10, color: '#e8e8ed' }}>{f.title}</h3>
+              <p style={{ fontSize: 14, fontWeight: 300, color: 'rgba(255,255,255,.35)', lineHeight: 1.6 }}>{f.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* ── Contact ── */}
-      <section id="contact" style={{ padding: '100px 24px 120px', textAlign: 'center' }}>
-        <p style={{ fontSize: 13, fontWeight: 500, letterSpacing: '.15em', textTransform: 'uppercase', color: 'rgba(140,160,255,.6)', marginBottom: 12 }}>
-          Contact
-        </p>
-        <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 500, letterSpacing: '-.02em', marginBottom: 20, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+      <section id="contact" style={{ padding: 'clamp(60px, 10vh, 100px) 24px clamp(80px, 12vh, 120px)', textAlign: 'center' }}>
+        <p className="label-glow" style={{ marginBottom: 12 }}>Contact</p>
+        <h2 className="shimmer-text" style={{ fontSize: 'clamp(28px, 4.5vw, 48px)', fontWeight: 600, letterSpacing: '-.03em', marginBottom: 20 }}>
           Let&apos;s talk.
         </h2>
-        <p style={{ fontSize: 17, fontWeight: 300, color: 'rgba(255,255,255,.45)', maxWidth: 480, margin: '0 auto 40px', lineHeight: 1.5 }}>
-          Interested in our products or want to work together? We&apos;d love to hear from you.
+        <p style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', fontWeight: 300, color: 'rgba(255,255,255,.35)', maxWidth: 440, margin: '0 auto 36px', lineHeight: 1.6 }}>
+          Interested in our products? We&apos;d love to hear from you.
         </p>
-        <a href="mailto:hello@vurium.com" style={{ display: 'inline-flex', alignItems: 'center', height: 52, padding: '0 36px', borderRadius: 999, background: '#fff', color: '#000', fontSize: 16, fontWeight: 600, textDecoration: 'none' }}>
-          hello@vurium.com
-        </a>
+        <a href="mailto:hello@vurium.com" className="btn-primary">hello@vurium.com</a>
       </section>
 
       {/* ── Footer ── */}
-      <footer style={{ borderTop: '1px solid rgba(255,255,255,.06)', padding: '24px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
-        <span style={{ fontSize: 12, color: 'rgba(255,255,255,.3)' }}>&copy; 2026 Vurium. All rights reserved.</span>
-        <div style={{ display: 'flex', gap: 24 }}>
-          <a href="#" style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', textDecoration: 'none' }}>Privacy</a>
-          <a href="#" style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', textDecoration: 'none' }}>Terms</a>
+      <footer style={{ borderTop: '1px solid rgba(255,255,255,.05)', padding: '20px clamp(20px, 4vw, 48px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2, flexWrap: 'wrap', gap: 12 }}>
+        <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)' }}>&copy; 2026 Vurium. All rights reserved.</span>
+        <div style={{ display: 'flex', gap: 20 }}>
+          <a href="#" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Privacy</a>
+          <a href="#" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Terms</a>
         </div>
       </footer>
     </>

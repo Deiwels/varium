@@ -1,136 +1,142 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 export default function VuriumBook() {
+  const spaceRef = useRef<HTMLDivElement>(null)
+  const orbRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
+    function onMouse(e: MouseEvent) {
+      const cx = (e.clientX / window.innerWidth - 0.5) * 2
+      const cy = (e.clientY / window.innerHeight - 0.5) * 2
+      const far = document.querySelector('.stars-far') as HTMLElement
+      const mid = document.querySelector('.stars-mid') as HTMLElement
+      const near = document.querySelector('.stars-near') as HTMLElement
+      if (far) far.style.transform = `translate(${cx * 4}px, ${cy * 4}px)`
+      if (mid) mid.style.transform = `translate(${cx * 8}px, ${cy * 8}px)`
+      if (near) near.style.transform = `translate(${cx * 14}px, ${cy * 14}px)`
+      if (orbRef.current) orbRef.current.style.transform = `translate(${cx * -10}px, ${cy * -10}px)`
+    }
+
     function onScroll() {
       const y = window.scrollY
-      const layers = document.querySelectorAll('.stars-layer') as NodeListOf<HTMLElement>
-      if (layers[0]) layers[0].style.transform = `translateY(${y * 0.1}px)`
-      if (layers[1]) layers[1].style.transform = `translateY(${y * 0.25}px)`
-      if (layers[2]) layers[2].style.transform = `translateY(${y * 0.45}px)`
-      const container = document.querySelector('.stars-container') as HTMLElement
-      if (container) {
-        const scale = 1 + y * 0.0001
-        container.style.transform = `scale(${Math.min(scale, 1.15)})`
-      }
+      const scale = 1 + y * 0.00008
+      if (spaceRef.current) spaceRef.current.style.transform = `scale(${Math.min(scale, 1.05)})`
     }
+
+    window.addEventListener('mousemove', onMouse, { passive: true })
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    return () => {
+      window.removeEventListener('mousemove', onMouse)
+      window.removeEventListener('scroll', onScroll)
+    }
   }, [])
 
   return (
     <>
-      {/* ── Stars ── */}
-      <div className="stars-container">
-        <div className="stars-layer layer-1" />
-        <div className="stars-layer layer-2" />
-        <div className="stars-layer layer-3" />
-        <div className="black-hole" />
-        <div className="galaxy" />
-        <div className="shooting-star shooting-star-1" />
-        <div className="shooting-star shooting-star-2" />
-        <div className="shooting-star shooting-star-3" />
+      {/* ── Background ── */}
+      <div className="space-bg" ref={spaceRef}>
+        <div className="stars stars-far" />
+        <div className="stars stars-mid" />
+        <div className="stars stars-near" />
+        <div className="orb-container" ref={orbRef}>
+          <div className="orb-halo" />
+          <div className="orb-ring-2" />
+          <div className="orb-ring" />
+          <div className="orb-core" />
+        </div>
         <div className="comet comet-1" />
         <div className="comet comet-2" />
-        <div className="comet comet-3" />
+        <div className="nebula-layer" style={{ width: 700, height: 400, top: '8%', left: '-12%', background: 'rgba(40,50,130,.07)' }} />
+        <div className="nebula-layer" style={{ width: 500, height: 300, top: '40%', right: '-8%', background: 'rgba(70,40,120,.05)', animationDelay: '.4s' }} />
       </div>
-
-      <div className="nebula" style={{ width: 700, height: 350, top: '130vh', left: '-5%', background: 'rgba(60,100,220,.35)' }} />
-      <div className="nebula" style={{ width: 500, height: 250, top: '280vh', right: '-8%', background: 'rgba(150,60,180,.25)' }} />
+      <div className="horizon-grid" />
+      <div className="noise-overlay" />
 
       {/* ── Navbar ── */}
       <nav className="navbar">
-        <a href="/" className="navbar-logo" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/logo.jpg" alt="Vurium" style={{ height: 36, width: 36, borderRadius: 8, objectFit: 'cover' }} />
+        <a href="/" className="navbar-logo">
+          <img src="/logo.jpg" alt="Vurium" />
           Vurium
         </a>
         <ul className="navbar-links">
-          <li><a href="/vuriumbook" style={{ color: '#fff' }}>VuriumBook</a></li>
+          <li><a href="/vuriumbook" style={{ color: 'rgba(255,255,255,.85)' }}>VuriumBook</a></li>
           <li><a href="/#products">Products</a></li>
-          <li><a href="/#features">Features</a></li>
           <li><a href="/#contact">Contact</a></li>
+          <li><a href="#demo" className="btn-nav-cta">Get Started</a></li>
         </ul>
       </nav>
 
       {/* ── Hero ── */}
-      <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '120px 24px 80px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-          <span style={{ width: 10, height: 10, borderRadius: 999, background: '#8b9aff', display: 'inline-block' }} />
-          <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: '.12em', textTransform: 'uppercase', color: '#8b9aff' }}>Booking Platform</span>
+      <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 'clamp(100px, 15vh, 140px) 24px 80px' }}>
+        <div className="fade-up" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(130,150,220,.7)', display: 'inline-block' }} />
+          <span className="label-glow">Booking Platform</span>
         </div>
-        <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 500, letterSpacing: '-.03em', lineHeight: 1.1, maxWidth: 800, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+        <h1 className="shimmer-text fade-up fade-up-d1" style={{ fontSize: 'clamp(36px, 7vw, 68px)', fontWeight: 600, letterSpacing: '-.04em', lineHeight: 1.08, maxWidth: 780 }}>
           VuriumBook
         </h1>
-        <p style={{ fontSize: 'clamp(16px, 2.5vw, 20px)', fontWeight: 300, color: 'rgba(255,255,255,.55)', maxWidth: 600, marginTop: 20, lineHeight: 1.5 }}>
-          The all-in-one booking system for barbershops, salons, and service businesses. Manage appointments, team schedules, payments, and clients — beautifully.
+        <p className="fade-up fade-up-d2" style={{ fontSize: 'clamp(15px, 2vw, 18px)', fontWeight: 300, color: 'rgba(255,255,255,.4)', maxWidth: 560, marginTop: 24, lineHeight: 1.6 }}>
+          The all-in-one booking system for barbershops, salons, and service businesses. Manage appointments, team schedules, payments, and clients.
         </p>
-        <div style={{ marginTop: 40, display: 'flex', gap: 16 }}>
-          <a href="#demo" style={{ height: 48, padding: '0 32px', borderRadius: 999, background: '#fff', color: '#000', fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-            Request Demo
-          </a>
-          <a href="#features" style={{ height: 48, padding: '0 32px', borderRadius: 999, border: '1px solid rgba(255,255,255,.2)', background: 'transparent', color: '#fff', fontSize: 15, fontWeight: 500, display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-            See Features
-          </a>
+        <div className="fade-up fade-up-d3" style={{ marginTop: 40, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <a href="#demo" className="btn-primary">Request Demo</a>
+          <a href="#features" className="btn-secondary">See Features</a>
         </div>
       </section>
 
-      {/* ── Features Grid ── */}
-      <section id="features" style={{ padding: '80px 24px', maxWidth: 1100, margin: '0 auto' }}>
-        <p style={{ fontSize: 13, fontWeight: 500, letterSpacing: '.15em', textTransform: 'uppercase', color: 'rgba(140,160,255,.6)', textAlign: 'center', marginBottom: 12 }}>
-          Everything you need
-        </p>
-        <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 500, letterSpacing: '-.02em', textAlign: 'center', marginBottom: 60, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+      {/* ── Features ── */}
+      <section id="features" style={{ padding: 'clamp(60px, 10vh, 100px) 24px', maxWidth: 1080, margin: '0 auto' }}>
+        <p className="label-glow" style={{ textAlign: 'center', marginBottom: 12 }}>Everything you need</p>
+        <h2 className="shimmer-text" style={{ fontSize: 'clamp(28px, 4.5vw, 48px)', fontWeight: 600, letterSpacing: '-.03em', textAlign: 'center', marginBottom: 56 }}>
           One platform, zero headaches.
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
           {[
-            { title: 'Online Booking', desc: 'Your clients book appointments 24/7 from your website or a custom booking page. No phone calls needed.', accent: '#8b9aff' },
-            { title: 'Team Calendar', desc: 'Visual calendar for your entire team. Drag to create blocks, reschedule with a tap, and see everyone at a glance.', accent: '#8ff0b1' },
-            { title: 'Smart Payments', desc: 'Accept card payments, Apple Pay, cash, and tips. Automatic receipts and end-of-day reports.', accent: '#ffb86b' },
-            { title: 'Client CRM', desc: 'Track visit history, preferences, notes, and contact info. Know your clients before they sit down.', accent: '#ff8ba7' },
-            { title: 'Waitlist & Queue', desc: 'Walk-in management with real-time queue. Clients can join remotely and get notified when it\'s their turn.', accent: '#8bdaff' },
-            { title: 'Analytics & Payroll', desc: 'Revenue reports, barber performance, tip tracking, and automated payroll calculations.', accent: '#d4a5ff' },
+            { title: 'Online Booking', desc: 'Your clients book appointments 24/7 from your website or a custom booking page.', color: 'rgba(130,150,220,.5)' },
+            { title: 'Team Calendar', desc: 'Visual calendar for your entire team. Drag to create blocks, reschedule with a tap.', color: 'rgba(130,220,170,.5)' },
+            { title: 'Smart Payments', desc: 'Accept card payments, Apple Pay, cash, and tips. Automatic receipts and reports.', color: 'rgba(220,170,100,.5)' },
+            { title: 'Client CRM', desc: 'Track visit history, preferences, notes, and contact info for every client.', color: 'rgba(220,130,160,.5)' },
+            { title: 'Waitlist & Queue', desc: 'Walk-in management with real-time queue. Clients get notified when ready.', color: 'rgba(130,200,220,.5)' },
+            { title: 'Analytics & Payroll', desc: 'Revenue reports, performance tracking, tip management, and automated payroll.', color: 'rgba(180,140,220,.5)' },
           ].map((f, i) => (
-            <div key={i} style={{ padding: '28px 24px', borderRadius: 20, border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(180deg, rgba(255,255,255,.03), transparent)', overflow: 'hidden' }}>
-              <div style={{ width: 36, height: 3, borderRadius: 2, background: f.accent, marginBottom: 18, opacity: .7 }} />
-              <h3 style={{ fontSize: 17, fontWeight: 500, letterSpacing: '-.01em', marginBottom: 10 }}>{f.title}</h3>
-              <p style={{ fontSize: 14, fontWeight: 300, color: 'rgba(255,255,255,.4)', lineHeight: 1.6 }}>{f.desc}</p>
+            <div key={i} className="glass-card">
+              <div style={{ width: 32, height: 2, borderRadius: 1, background: f.color, marginBottom: 18 }} />
+              <h3 style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-.01em', marginBottom: 10, color: '#e8e8ed' }}>{f.title}</h3>
+              <p style={{ fontSize: 13, fontWeight: 300, color: 'rgba(255,255,255,.35)', lineHeight: 1.6 }}>{f.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* ── Pricing ── */}
-      <section style={{ padding: '80px 24px', maxWidth: 900, margin: '0 auto' }}>
-        <p style={{ fontSize: 13, fontWeight: 500, letterSpacing: '.15em', textTransform: 'uppercase', color: 'rgba(140,160,255,.6)', textAlign: 'center', marginBottom: 12 }}>
-          Pricing
-        </p>
-        <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 500, letterSpacing: '-.02em', textAlign: 'center', marginBottom: 60, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+      <section style={{ padding: 'clamp(60px, 10vh, 100px) 24px', maxWidth: 960, margin: '0 auto' }}>
+        <p className="label-glow" style={{ textAlign: 'center', marginBottom: 12 }}>Pricing</p>
+        <h2 className="shimmer-text" style={{ fontSize: 'clamp(28px, 4.5vw, 48px)', fontWeight: 600, letterSpacing: '-.03em', textAlign: 'center', marginBottom: 56 }}>
           Simple, transparent pricing.
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
           {[
-            { name: 'Starter', price: '$29', period: '/mo', desc: 'For solo barbers and small shops', features: ['Up to 2 team members', 'Online booking page', 'Basic calendar', 'Client management'] },
+            { name: 'Starter', price: '$29', period: '/mo', desc: 'For solo barbers and small shops', features: ['Up to 2 team members', 'Online booking page', 'Basic calendar', 'Client management'], featured: false },
             { name: 'Pro', price: '$79', period: '/mo', desc: 'For growing barbershops and salons', features: ['Unlimited team members', 'Custom booking page', 'Payments & tips', 'Analytics & payroll', 'Priority support'], featured: true },
-            { name: 'Enterprise', price: 'Custom', period: '', desc: 'For multi-location businesses', features: ['Everything in Pro', 'Multiple locations', 'API access', 'Dedicated support', 'Custom integrations'] },
+            { name: 'Enterprise', price: 'Custom', period: '', desc: 'For multi-location businesses', features: ['Everything in Pro', 'Multiple locations', 'API access', 'Dedicated support', 'Custom integrations'], featured: false },
           ].map((p, i) => (
-            <div key={i} style={{ padding: '32px 28px', borderRadius: 20, border: `1px solid ${(p as any).featured ? 'rgba(139,154,255,.3)' : 'rgba(255,255,255,.06)'}`, background: (p as any).featured ? 'linear-gradient(180deg, rgba(139,154,255,.08), rgba(139,154,255,.02))' : 'linear-gradient(180deg, rgba(255,255,255,.03), transparent)', position: 'relative' }}>
-              {(p as any).featured && <div style={{ position: 'absolute', top: 16, right: 20, fontSize: 10, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: '#8b9aff', background: 'rgba(139,154,255,.12)', padding: '4px 10px', borderRadius: 999 }}>Popular</div>}
-              <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.5)', marginBottom: 8 }}>{p.name}</div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 8 }}>
-                <span style={{ fontSize: 36, fontWeight: 600, letterSpacing: '-.02em' }}>{p.price}</span>
-                {p.period && <span style={{ fontSize: 14, color: 'rgba(255,255,255,.35)' }}>{p.period}</span>}
+            <div key={i} className="glass-card" style={{ borderColor: p.featured ? 'rgba(130,150,220,.2)' : undefined, background: p.featured ? 'rgba(130,150,220,.03)' : undefined }}>
+              {p.featured && <div style={{ position: 'absolute', top: 14, right: 18, fontSize: 9, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(130,150,220,.7)', background: 'rgba(130,150,220,.1)', padding: '3px 10px', borderRadius: 999 }}>Popular</div>}
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.4)', marginBottom: 8 }}>{p.name}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, marginBottom: 6 }}>
+                <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-.02em', color: '#e8e8ed' }}>{p.price}</span>
+                {p.period && <span style={{ fontSize: 13, color: 'rgba(255,255,255,.25)' }}>{p.period}</span>}
               </div>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', marginBottom: 20 }}>{p.desc}</p>
-              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+              <p style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', marginBottom: 18 }}>{p.desc}</p>
+              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 22 }}>
                 {p.features.map((f, j) => (
-                  <li key={j} style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ color: '#8ff0b1', fontSize: 14 }}>&#10003;</span> {f}
+                  <li key={j} style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <span style={{ color: 'rgba(130,220,170,.6)', fontSize: 13 }}>&#10003;</span> {f}
                   </li>
                 ))}
               </ul>
-              <a href="#demo" style={{ display: 'block', textAlign: 'center', height: 40, lineHeight: '40px', borderRadius: 999, background: (p as any).featured ? '#fff' : 'rgba(255,255,255,.06)', color: (p as any).featured ? '#000' : '#fff', fontSize: 13, fontWeight: 600, textDecoration: 'none', border: (p as any).featured ? 'none' : '1px solid rgba(255,255,255,.1)' }}>
+              <a href="#demo" className={p.featured ? 'btn-primary' : 'btn-secondary'} style={{ width: '100%', justifyContent: 'center', height: 42, fontSize: 13 }}>
                 Get Started
               </a>
             </div>
@@ -138,25 +144,23 @@ export default function VuriumBook() {
         </div>
       </section>
 
-      {/* ── Demo / Contact ── */}
-      <section id="demo" style={{ padding: '80px 24px 120px', textAlign: 'center' }}>
-        <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 500, letterSpacing: '-.02em', marginBottom: 20, background: 'linear-gradient(180deg, #fff 30%, rgba(255,255,255,.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+      {/* ── Demo CTA ── */}
+      <section id="demo" style={{ padding: 'clamp(60px, 10vh, 100px) 24px clamp(80px, 12vh, 120px)', textAlign: 'center' }}>
+        <h2 className="shimmer-text" style={{ fontSize: 'clamp(28px, 4.5vw, 48px)', fontWeight: 600, letterSpacing: '-.03em', marginBottom: 20 }}>
           Ready to get started?
         </h2>
-        <p style={{ fontSize: 16, fontWeight: 300, color: 'rgba(255,255,255,.45)', maxWidth: 480, margin: '0 auto 40px', lineHeight: 1.5 }}>
-          Request a demo or sign up today. We&apos;ll have you up and running in minutes.
+        <p style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', fontWeight: 300, color: 'rgba(255,255,255,.35)', maxWidth: 440, margin: '0 auto 36px', lineHeight: 1.6 }}>
+          Request a demo or sign up today. We&apos;ll have you running in minutes.
         </p>
-        <a href="mailto:hello@vurium.com?subject=VuriumBook Demo Request" style={{ display: 'inline-flex', alignItems: 'center', height: 52, padding: '0 36px', borderRadius: 999, background: '#fff', color: '#000', fontSize: 16, fontWeight: 600, textDecoration: 'none' }}>
-          Request a Demo
-        </a>
+        <a href="mailto:hello@vurium.com?subject=VuriumBook Demo" className="btn-primary">Request a Demo</a>
       </section>
 
       {/* ── Footer ── */}
-      <footer style={{ borderTop: '1px solid rgba(255,255,255,.06)', padding: '24px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
-        <span style={{ fontSize: 12, color: 'rgba(255,255,255,.3)' }}>&copy; 2026 Vurium. All rights reserved.</span>
-        <div style={{ display: 'flex', gap: 24 }}>
-          <a href="#" style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', textDecoration: 'none' }}>Privacy</a>
-          <a href="#" style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', textDecoration: 'none' }}>Terms</a>
+      <footer style={{ borderTop: '1px solid rgba(255,255,255,.05)', padding: '20px clamp(20px, 4vw, 48px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2, flexWrap: 'wrap', gap: 12 }}>
+        <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)' }}>&copy; 2026 Vurium. All rights reserved.</span>
+        <div style={{ display: 'flex', gap: 20 }}>
+          <a href="#" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Privacy</a>
+          <a href="#" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Terms</a>
         </div>
       </footer>
     </>
