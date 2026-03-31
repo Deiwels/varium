@@ -226,7 +226,7 @@ function BarberEditCard({ b, onDelete, onSaved, onError, isBarberSelf }: {
   const [price, setPrice] = useState(b.basePrice || '')
   const [about, setAbout] = useState(b.about || '')
   const [publicRole, setPublicRole] = useState(b.publicRole || '')
-  const [radarLabels, setRadarLabels] = useState((b.radarLabels || ['FADE','LONG','BEARD','STYLE','DETAIL']).join(','))
+  const [radarLabels, setRadarLabels] = useState((b.radarLabels || ['SKILL 1','SKILL 2','SKILL 3','SKILL 4','SKILL 5']).join(','))
   const [radarValues, setRadarValues] = useState((b.radarValues || [4.5,4.5,4.5,4.5,4.5]).join(','))
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState('')
@@ -255,7 +255,7 @@ function BarberEditCard({ b, onDelete, onSaved, onError, isBarberSelf }: {
   useEffect(() => {
     setLevel(b.level || ''); setPrice(b.basePrice || ''); setAbout(b.about || '')
     setPublicRole(b.publicRole || '')
-    setRadarLabels((b.radarLabels || ['FADE','LONG','BEARD','STYLE','DETAIL']).join(','))
+    setRadarLabels((b.radarLabels || ['SKILL 1','SKILL 2','SKILL 3','SKILL 4','SKILL 5']).join(','))
     setRadarValues((b.radarValues || [4.5,4.5,4.5,4.5,4.5]).join(','))
     // Sync schedule from server data (b.schedule is 7-element array [Sun..Sat])
     if (b.schedule && b.schedule.length === 7) {
@@ -397,7 +397,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
   studentSchedule?: DaySchedule[]; onStudentScheduleChange?: (s: DaySchedule[]) => void
 }) {
   const _isOwnerOrAdmin = !isStudent && !isBarber
-  const [tab, setTab] = useState<'barbers'|'services'|'account'>(isStudent ? 'account' : (isBarber ? 'barbers' : 'barbers'))
+  const [tab, setTab] = useState<'team'|'services'|'account'>(isStudent ? 'account' : (isBarber ? 'barbers' : 'barbers'))
   const [msg, setMsg] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -406,7 +406,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
   const [bUsername, setBUsername] = useState(''); const [bPassword, setBPassword] = useState('')
   const [bPrice, setBPrice] = useState(''); const [bAbout, setBAbout] = useState('')
   const [bPublicRole, setBPublicRole] = useState('')
-  const [bRadarLabels, setBRadarLabels] = useState('FADE,LONG,BEARD,STYLE,DETAIL')
+  const [bRadarLabels, setBRadarLabels] = useState('SKILL 1,SKILL 2,SKILL 3,SKILL 4,SKILL 5')
   const [bRadarValues, setBRadarValues] = useState('4.5,4.5,4.5,4.5,4.5')
   const [bPhotoPreview, setBPhotoPreview] = useState('')
   const [bSchedule, setBSchedule] = useState<DaySchedule[]>(DAY_DEFAULTS.map(d => ({...d})))
@@ -433,7 +433,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
         password: bPassword.trim(), barber_pin: bPassword.trim(),
         base_price: bPrice.trim(), public_role: bPublicRole.trim() || bLevel.trim(),
         about: bAbout.trim(), description: bAbout.trim(), bio: bAbout.trim(),
-        radar_labels: rLabels.length ? rLabels : ['FADE','LONG','BEARD','STYLE','DETAIL'],
+        radar_labels: rLabels.length ? rLabels : ['SKILL 1','SKILL 2','SKILL 3','SKILL 4','SKILL 5'],
         radar_values: rValues.length ? rValues : [4.5,4.5,4.5,4.5,4.5],
         photo_url: bPhotoPreview || '', active: true, public_enabled: true,
         schedule: schedPayload, work_schedule: schedPayload,
@@ -467,19 +467,19 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
 
   const inp: React.CSSProperties = { width: '100%', height: 40, borderRadius: 12, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', padding: '0 10px', outline: 'none', fontSize: 13, fontFamily: 'inherit' }
   const lbl: React.CSSProperties = { fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', display: 'block', marginBottom: 4 }
-  const tabs = (isStudent ? ['account'] : ['barbers','services','account']) as ('barbers'|'services'|'account')[]
+  const tabs = (isStudent ? ['account'] : ['team','services','account']) as ('team'|'services'|'account')[]
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 90, padding: 'clamp(8px,2vw,16px)' }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{ width: 'min(680px,100%)', maxWidth: 'calc(100vw - 16px)', height: 'min(800px,calc(100dvh - 32px))', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', color: '#e8e8ed', fontFamily: 'Inter,sans-serif', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,.55), inset 0 0 0 0.5px rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,.08)' }}>
-          <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 14 }}>Settings</div>
+          <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.04em', fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.7)' }}>Settings</div>
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontSize: 16, fontFamily: 'inherit' }}>✕</button>
         </div>
 
         <div style={{ display: 'flex', gap: 6, padding: '14px 18px 0' }}>
           {tabs.map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{ height: 36, padding: '0 16px', borderRadius: 999, border: `1px solid ${tab === t ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.09)'}`, background: tab === t ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.03)', color: tab === t ? '#fff' : 'rgba(255,255,255,.55)', cursor: 'pointer', fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: 'inherit', transition: 'all .25s ease', boxShadow: tab === t ? '0 0 16px rgba(10,132,255,.35)' : 'none' }}>{t}</button>
+            <button key={t} onClick={() => setTab(t)} style={{ height: 36, padding: '0 16px', borderRadius: 999, border: `1px solid ${tab === t ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.09)'}`, background: tab === t ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.03)', color: tab === t ? '#fff' : 'rgba(255,255,255,.55)', cursor: 'pointer', fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: 'inherit', transition: 'all .25s ease', boxShadow: 'none' }}>{t}</button>
           ))}
         </div>
 
@@ -487,7 +487,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
           {msg && <div style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', fontSize: 12, color: '#e8e8ed', marginBottom: 14 }}>{msg}</div>}
 
           {/* Barbers tab */}
-          {tab === 'barbers' && (
+          {tab === 'team' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)' }}>{isBarber ? 'My profile' : `Team members (${barbers.length})`}</div>
@@ -499,50 +499,17 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
               </div>
 
               {!isBarber && <div style={{ borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: 16 }}>
-                <div style={{ fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 12 }}>Add team member</div>
+                <div style={{ fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 12 }}>Add to team</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  {[['Name *', bName, setBName, 'Nazar'], ['Level', bLevel, setBLevel, 'Senior'], ['Login', bUsername, setBUsername, 'nazar'], ['Password *', bPassword, setBPassword, '1234'], ['Base price', bPrice, setBPrice, '55.99'], ['Public role', bPublicRole, setBPublicRole, 'Ambassador']].map(([l, v, s, p]) => (
+                  {[['Name *', bName, setBName, 'Jane Smith'], ['Level', bLevel, setBLevel, 'Senior'], ['Public role', bPublicRole, setBPublicRole, 'Stylist']].map(([l, v, s, p]) => (
                     <div key={l as string}><label style={lbl}>{l as string}</label><input value={v as string} onChange={e => (s as any)(e.target.value)} placeholder={p as string} style={inp} /></div>
                   ))}
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <label style={lbl}>About / Bio</label>
-                    <textarea value={bAbout} onChange={e => setBAbout(e.target.value)} rows={2} placeholder="Precision fades. Clean silhouette..." style={{ ...inp, height: 'auto', padding: '8px 10px', resize: 'vertical' as const }} />
-                  </div>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <label style={lbl}>Skill radar</label>
-                    <RadarEditor labelsStr={bRadarLabels} valuesStr={bRadarValues} onLabelsChange={setBRadarLabels} onValuesChange={setBRadarValues} />
-                  </div>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <label style={lbl}>Photo</label>
-                    <label style={{ height: 38, padding: '0 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.70)', cursor: 'pointer', display: 'flex', alignItems: 'center', fontSize: 12, fontFamily: 'inherit', gap: 8 }}>
-                      {bPhotoPreview ? <img src={bPhotoPreview} alt="" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} /> : null}
-                      {bPhotoPreview ? 'Change photo' : 'Upload photo…'}
-                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
-                        const file = e.target.files?.[0]; if (!file) return
-                        const reader = new FileReader()
-                        reader.onload = () => {
-                          const img = new Image()
-                          img.onload = () => {
-                            const MAX = 900, scale = Math.min(1, MAX/img.width, MAX/img.height)
-                            const w = Math.round(img.width*scale), h = Math.round(img.height*scale)
-                            const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h
-                            canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
-                            let q = 0.82, out = canvas.toDataURL('image/jpeg', q)
-                            while (out.length > 900000 && q > 0.35) { q -= 0.08; out = canvas.toDataURL('image/jpeg', q) }
-                            setBPhotoPreview(out)
-                          }
-                          img.src = reader.result as string
-                        }
-                        reader.readAsDataURL(file)
-                      }} />
-                    </label>
-                  </div>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <label style={lbl}>Working schedule</label>
                     <SchedGrid schedule={bSchedule} onChange={setBSchedule} />
                   </div>
                 </div>
-                <button onClick={addBarber} disabled={saving} style={{ width: '100%', height: 42, borderRadius: 12, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.10)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', marginTop: 12 }}>
+                <button onClick={addBarber} disabled={saving} style={{ width: '100%', height: 42, borderRadius: 12, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontWeight: 600, fontSize: 13, fontFamily: 'inherit', marginTop: 12 }}>
                   {saving ? 'Saving…' : '+ Add team member'}
                 </button>
               </div>}
@@ -1150,7 +1117,7 @@ export default function CalendarPage() {
         about: String(b.about || b.description || '').trim(),
         basePrice: String(b.base_price || '').trim(),
         publicRole: String(b.public_role || '').trim(),
-        radarLabels: Array.isArray(b.radar_labels) ? b.radar_labels : ['FADE','LONG','BEARD','STYLE','DETAIL'],
+        radarLabels: Array.isArray(b.radar_labels) ? b.radar_labels : ['SKILL 1','SKILL 2','SKILL 3','SKILL 4','SKILL 5'],
         radarValues: Array.isArray(b.radar_values) ? b.radar_values.map(Number) : [4.5,4.5,4.5,4.5,4.5],
         username: String(b.username || '').trim(),
         schedule: finalSchedule,
