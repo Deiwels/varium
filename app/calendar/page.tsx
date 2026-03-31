@@ -1620,6 +1620,10 @@ export default function CalendarPage() {
 
   return (
     <Shell page="calendar">
+      {/* Subtle cosmic background */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', opacity: 0.3 }}>
+        <div className="stars stars-far" style={{ position: 'absolute', inset: '-10%', width: '120%', height: '120%' }} />
+      </div>
       {/* Loading — inline centered in calendar area */}
       {loading && events.length === 0 && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, background: '#000' }}>
@@ -1771,22 +1775,17 @@ export default function CalendarPage() {
           .cal-topbar-row{
             flex-direction:row !important;
             align-items:center !important;
-            justify-content:space-between !important;
-            gap:0 !important;
+            justify-content:center !important;
+            gap:4px !important;
             flex-wrap:nowrap !important;
           }
-          /* Hide title+date on mobile — save space */
-          .cal-topbar-left{
-            display:none !important;
-          }
-          /* Buttons row — compact, center, no wrap */
+          .cal-topbar-left{ display:none !important; }
           .cal-topbar-btns{
             flex-wrap:nowrap !important;
             gap:4px !important;
             justify-content:center !important;
             width:100% !important;
             overflow-x:auto !important;
-            padding:0 4px !important;
           }
           .cal-topbar-btns button, .cal-topbar-btns label, .cal-topbar-btns div {
             flex-shrink:0 !important;
@@ -1819,43 +1818,41 @@ export default function CalendarPage() {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: '#000', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
 
         {/* Topbar */}
-        <div className="cal-topbar-wrap" style={{ padding: '10px 18px 12px', background: 'rgba(0,0,0,.85)', backdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,.08)', flexShrink: 0 }}>
-          <div className="cal-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            {!isMobile && (
+        <div className="cal-topbar-wrap" style={{ padding: '6px 14px', background: 'rgba(5,5,12,.6)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,.05)', flexShrink: 0 }}>
+          <div className="cal-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {false && (
               <div className="cal-topbar-left">
-                <h2 className="page-title" style={{ margin: 0, fontFamily: '"Inter",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 15 }}>Calendar</h2>
-                <p style={{ margin: '3px 0 0', color: 'rgba(255,255,255,.40)', fontSize: 11, letterSpacing: '.08em' }}>{anchor.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
               </div>
             )}
             <div className="cal-topbar-btns" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               {/* Date picker — desktop only */}
-              <button className="cal-btn-date" onClick={() => setDatePickerOpen(true)} style={{ height: 40, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>Date</button>
+              <button className="cal-btn-date" onClick={() => setDatePickerOpen(true)} style={{ height: 30, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>Date</button>
 
               {/* Nav arrows + date — hidden on mobile, shown on desktop */}
               <div className="cal-nav-arrows" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <button onClick={() => animateDayChange(-1)} style={{ height: 36, width: 36, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 15, fontFamily: 'inherit', flexShrink: 0 }}>‹</button>
-                <button onClick={() => { if (dayTransition !== 'idle') return; setDayTransition('out'); setTimeout(() => { const d=new Date(); d.setHours(0,0,0,0); setAnchor(d); setDayTransition('in'); setTimeout(() => setDayTransition('idle'), 220) }, 180) }} style={{ height: 36, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', flexShrink: 0 }}>Today</button>
-                <button onClick={() => animateDayChange(1)} style={{ height: 36, width: 36, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 15, fontFamily: 'inherit', flexShrink: 0 }}>›</button>
+                <button onClick={() => animateDayChange(-1)} style={{ height: 28, width: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 15, fontFamily: 'inherit', flexShrink: 0 }}>‹</button>
+                <button onClick={() => { if (dayTransition !== 'idle') return; setDayTransition('out'); setTimeout(() => { const d=new Date(); d.setHours(0,0,0,0); setAnchor(d); setDayTransition('in'); setTimeout(() => setDayTransition('idle'), 220) }, 180) }} style={{ height: 28, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', flexShrink: 0 }}>Today</button>
+                <button onClick={() => animateDayChange(1)} style={{ height: 28, width: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 15, fontFamily: 'inherit', flexShrink: 0 }}>›</button>
               </div>
 
               {/* Search — full on desktop */}
-              <input className="cal-search-full" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} style={{ height: 36, width: 'min(200px,40vw)', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', padding: '0 14px', outline: 'none', fontSize: 13 }} />
+              <input className="cal-search-full" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} style={{ height: 28, width: 'min(160px,30vw)', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', padding: '0 14px', outline: 'none', fontSize: 13 }} />
 
               {/* Search — icon on mobile, expands on tap */}
               <div className="cal-search-icon" style={{ display: 'none', position: 'relative', alignItems: 'center' }}>
                 {search
                   ? <input autoFocus placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} onBlur={() => { if (!search) {} }} style={{ height: 36, width: 130, borderRadius: 999, border: '1px solid rgba(255,255,255,.20)', background: 'rgba(255,255,255,.08)', color: '#fff', padding: '0 14px 0 32px', outline: 'none', fontSize: 12 }} />
-                  : <button onClick={() => setSearch(' ')} style={{ height: 36, width: 36, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  : <button onClick={() => setSearch(' ')} style={{ height: 28, width: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                     </button>
                 }
               </div>
 
               {/* Settings — desktop only */}
-              {isOwnerOrAdmin && <button className="cal-settings-btn" onClick={() => setSettingsOpen(true)} style={{ height: 36, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>Settings</button>}
+              {isOwnerOrAdmin && <button className="cal-settings-btn" onClick={() => setSettingsOpen(true)} style={{ height: 28, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>Settings</button>}
 
               {/* Settings icon — mobile */}
-              {(isOwnerOrAdmin || isStudent || isBarber) && <button onClick={() => setSettingsOpen(true)} style={{ height: 36, width: 36, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} className="cal-settings-icon">
+              {(isOwnerOrAdmin || isStudent || isBarber) && <button onClick={() => setSettingsOpen(true)} style={{ height: 28, width: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} className="cal-settings-icon">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               </button>}
 
@@ -1886,12 +1883,12 @@ export default function CalendarPage() {
 
               {/* Zoom +/- — desktop only */}
               {!isMobile && <>
-                <button onClick={() => setSlotH(h => Math.max(6, h-2))} style={{ height: 36, width: 36, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontSize: 17, fontWeight: 700, flexShrink: 0, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{'\u2212'}</button>
-                <button onClick={() => setSlotH(h => Math.min(22, h+2))} style={{ height: 36, width: 36, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontSize: 17, fontWeight: 700, flexShrink: 0, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                <button onClick={() => setSlotH(h => Math.max(6, h-2))} style={{ height: 28, width: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontSize: 17, fontWeight: 700, flexShrink: 0, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{'\u2212'}</button>
+                <button onClick={() => setSlotH(h => Math.min(22, h+2))} style={{ height: 28, width: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontSize: 17, fontWeight: 700, flexShrink: 0, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
               </>}
 
               {/* Reload — desktop only */}
-              {!isMobile && <button onClick={reload} style={{ height: 36, width: 36, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontSize: 15, flexShrink: 0 }}>↻</button>}
+              {!isMobile && <button onClick={reload} style={{ height: 28, width: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontSize: 15, flexShrink: 0 }}>↻</button>}
             </div>
           </div>
         </div>
@@ -1910,7 +1907,7 @@ export default function CalendarPage() {
         <div className={`cal-container${dayTransition === 'out' ? ' day-transition-out' : dayTransition === 'in' ? ' day-transition-in' : ''}`} style={{ flex: 1, position: 'relative', overflowY: (drag || blockDrag) ? 'hidden' : 'auto', overflowX: 'hidden', touchAction: (drag || blockDrag) ? 'none' : 'pan-x pan-y', transformOrigin: 'center 40%' }} ref={scrollContainerRef} onTouchStart={onPinchStart} onTouchMove={onPinchMove} onTouchEnd={onPinchEnd}>
           <div style={{ minWidth: timeColW + pageBarbers.length * colMin }}>
             {/* Header */}
-            <div style={{ display: 'grid', gridTemplateColumns: `${timeColW}px repeat(${pageBarbers.length}, minmax(${colMin}px,1fr))`, borderBottom: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.20)', position: 'sticky', top: 0, zIndex: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `${timeColW}px repeat(${pageBarbers.length}, minmax(${colMin}px,1fr))`, borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(5,5,12,.7)', backdropFilter: 'blur(20px)', position: 'sticky', top: 0, zIndex: 10 }}>
               <div style={{ padding: isMobile ? '10px 2px' : '10px 12px', borderRight: '1px solid rgba(255,255,255,.10)', color: 'rgba(255,255,255,.40)', fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', textAlign: 'center' }}>{isMobile ? '' : 'Time'}</div>
               {pageBarbers.map((b, i) => {
                 const attachedStudents = studentUsers.filter(s => s.mentorIds.includes(b.id))
