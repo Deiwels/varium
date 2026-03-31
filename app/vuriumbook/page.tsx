@@ -64,7 +64,6 @@ export default function VuriumBook() {
           <li><a href="/vuriumbook" style={{ color: 'rgba(255,255,255,.85)' }}>VuriumBook</a></li>
           <li><a href="/#products">Products</a></li>
           <li><a href="/#contact">Contact</a></li>
-          <li><a href="#demo" className="btn-nav-cta">Get Started</a></li>
         </ul>
       </nav>
 

@@ -67,21 +67,20 @@ export default function Home() {
           <li><a href="/vuriumbook">VuriumBook</a></li>
           <li><a href="#products">Products</a></li>
           <li><a href="#about">About</a></li>
-          <li><a href="#contact" className="btn-nav-cta">Get Started</a></li>
         </ul>
       </nav>
 
       {/* ── Hero ── */}
       <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 'clamp(100px, 15vh, 140px) 24px 80px' }}>
         <p className="label-glow fade-up">Software Company</p>
-        <h1 className="shimmer-text fade-up fade-up-d1" style={{ fontSize: 'clamp(38px, 7vw, 72px)', fontWeight: 600, letterSpacing: '-.04em', lineHeight: 1.08, maxWidth: 820, marginTop: 16 }}>
+        <h1 className="shimmer-text fade-up fade-up-d1" style={{ fontSize: 'clamp(30px, 5vw, 56px)', fontWeight: 600, letterSpacing: '-.04em', lineHeight: 1.08, maxWidth: 820, marginTop: 16 }}>
           We build software<br />that works.
         </h1>
         <p className="fade-up fade-up-d2" style={{ fontSize: 'clamp(15px, 2vw, 18px)', fontWeight: 300, color: 'rgba(255,255,255,.4)', maxWidth: 520, marginTop: 24, lineHeight: 1.6 }}>
           Modern tools for modern businesses. Elegant, reliable, and built to scale.
         </p>
         <div className="fade-up fade-up-d3" style={{ marginTop: 40, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <a href="#products" className="btn-primary">Explore Products</a>
+          <a href="#products" className="btn-dark-glow">Explore Products</a>
           <a href="#contact" className="btn-secondary">Get in Touch</a>
         </div>
       </section>
