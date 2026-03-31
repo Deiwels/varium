@@ -471,7 +471,7 @@ function UsersTab() {
 
 // ─── Main Settings Page ───────────────────────────────────────────────────────
 export default function SettingsPage() {
-  const [tab, setTab] = useState<'shop'|'fees'|'booking'|'payroll'|'square'|'users'>('shop')
+  const [tab, setTab] = useState<'shop'|'fees'|'booking'|'payroll'|'square'|'users'|'features'|'billing'>('shop')
   const [settings, setSettings] = useState<any>({})
   const [fees, setFees] = useState<Fee[]>([])
   const [charges, setCharges] = useState<Charge[]>([])
@@ -565,12 +565,14 @@ export default function SettingsPage() {
   const square = s.square || {}
 
   const TABS = [
-    { id: 'shop', label: 'Shop' },
+    { id: 'shop', label: 'General' },
+    { id: 'features', label: 'Features' },
     { id: 'fees', label: 'Fees & Charges' },
     { id: 'booking', label: 'Booking & SMS' },
     { id: 'payroll', label: 'Payroll' },
     { id: 'square', label: 'Square' },
     { id: 'users', label: 'Accounts' },
+    { id: 'billing', label: 'Billing' },
   ] as const
 
   return (
@@ -864,6 +866,46 @@ export default function SettingsPage() {
 
             {/* ── USERS ── */}
             {tab === 'users' && <UsersTab />}
+
+            {/* ── FEATURES ── */}
+            {tab === 'features' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <SectionCard title="Optional Features">
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', marginBottom: 16, lineHeight: 1.5 }}>Enable or disable features for your workspace. Some features require Pro plan.</p>
+                  {[
+                    { key: 'clock_in_enabled', label: 'Clock In / Attendance', desc: 'Team members can clock in and out. Track hours and shifts.', pro: true },
+                    { key: 'waitlist_enabled', label: 'Waitlist', desc: 'Allow clients to join a waitlist when no slots available.', pro: true },
+                    { key: 'portfolio_enabled', label: 'Portfolio', desc: 'Work gallery for team members to showcase their work.', pro: false },
+                    { key: 'membership_enabled', label: 'Membership', desc: 'Recurring appointments for subscription clients.', pro: true },
+                    { key: 'cash_register_enabled', label: 'Cash Register', desc: 'Daily cash reconciliation and tracking.', pro: true },
+                  ].map(f => (
+                    <div key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#e8e8ed', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {f.label}
+                          {f.pro && <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 999, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.35)' }}>PRO</span>}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{f.desc}</div>
+                      </div>
+                      <button onClick={() => set(f.key, !s[f.key])}
+                        style={{ width: 44, height: 26, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 2, transition: 'background .2s', background: s[f.key] ? 'rgba(255,255,255,.2)' : 'rgba(255,255,255,.06)', position: 'relative', flexShrink: 0 }}>
+                        <div style={{ width: 22, height: 22, borderRadius: 999, background: s[f.key] ? '#fff' : 'rgba(255,255,255,.2)', transition: 'transform .2s, background .2s', transform: s[f.key] ? 'translateX(18px)' : 'translateX(0)' }} />
+                      </button>
+                    </div>
+                  ))}
+                </SectionCard>
+              </div>
+            )}
+
+            {/* ── BILLING ── */}
+            {tab === 'billing' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, textAlign: 'center', padding: '40px 0' }}>
+                <p style={{ fontSize: 14, color: 'rgba(255,255,255,.4)' }}>Manage your subscription and payment details</p>
+                <a href="/billing" style={{ display: 'inline-block', padding: '12px 28px', borderRadius: 12, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.7)', fontSize: 14, textDecoration: 'none', margin: '0 auto' }}>
+                  Open Billing & Plan →
+                </a>
+              </div>
+            )}
 
             {/* ── PIN RESET (visible on all tabs) ── */}
             <div style={{ marginTop: 24, padding: '14px 16px', borderRadius: 16, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)' }}>
