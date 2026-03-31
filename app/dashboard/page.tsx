@@ -147,6 +147,12 @@ export default function DashboardPage() {
   const isStudent = role === 'student'
   const myBarberId: string = user?.barber_id || ''
   const myBarberName: string = user?.name || ''
+
+  // Dashboard shortcut settings
+  const [dashSettings, setDashSettings] = useState<Record<string, any>>({})
+  useEffect(() => {
+    apiFetch('/api/settings').then(d => setDashSettings(d || {})).catch(() => {})
+  }, [])
   const isOwnerOrAdmin = role === 'owner' || role === 'admin'
 
   const loadAll = useCallback(async () => {
@@ -291,26 +297,28 @@ export default function DashboardPage() {
   }, {} as Record<string, number>)
   const maxCount = Math.max(...Object.values(byBarber), 1)
 
-  // Tools — plan-based access
-  // Individual: Calendar, Clients, Payments, Settings
-  // Salon: + Waitlist, Messages, Portfolio, Cash, Membership, Attendance
-  // Custom: + Expenses, Payroll
-  const actions = [
-    { label: 'Calendar', desc: 'Bookings & schedule', href: '/calendar', color: 'rgba(255,255,255,.4)', feature: 'calendar' },
-    { label: 'Clients', desc: 'Your client base', href: '/clients', color: 'rgba(255,255,255,.35)', feature: 'clients' },
-    { label: 'Payments', desc: 'Transactions', href: '/payments', color: 'rgba(255,255,255,.35)', feature: 'payments' },
-    { label: 'Waitlist', desc: 'Queue & notify', href: '/waitlist', color: 'rgba(255,255,255,.3)', feature: 'waitlist', salon: true },
-    { label: 'Portfolio', desc: 'Work gallery', href: '/portfolio', color: 'rgba(255,255,255,.3)', feature: 'portfolio', salon: true },
-    { label: 'Cash', desc: 'Daily register', href: '/cash', color: 'rgba(255,255,255,.3)', feature: 'cash_register', salon: true },
-    { label: 'Membership', desc: 'Recurring clients', href: '/membership', color: 'rgba(255,255,255,.3)', feature: 'membership', salon: true },
+  // Tools — filtered by dashboard settings + role
+  // Default 4 core always shown, extras only if enabled in settings
+  const allActions = [
+    { label: 'Calendar', desc: 'Bookings & schedule', href: '/calendar', dashKey: 'dash_calendar', core: true },
+    { label: 'Clients', desc: 'Your client base', href: '/clients', dashKey: 'dash_clients', core: true },
+    { label: 'Payments', desc: 'Transactions', href: '/payments', dashKey: 'dash_payments', core: true },
+    { label: 'Waitlist', desc: 'Queue & notify', href: '/waitlist', dashKey: 'dash_waitlist' },
+    { label: 'Portfolio', desc: 'Work gallery', href: '/portfolio', dashKey: 'dash_portfolio' },
+    { label: 'Cash', desc: 'Daily register', href: '/cash', dashKey: 'dash_cash' },
+    { label: 'Membership', desc: 'Recurring clients', href: '/membership', dashKey: 'dash_membership' },
+    { label: 'Attendance', desc: 'Clock in / out', href: '/attendance', dashKey: 'dash_attendance' },
     ...(role === 'owner' ? [
-      { label: 'Expenses', desc: 'Track costs', href: '/expenses', color: 'rgba(255,255,255,.25)', feature: 'expenses', custom: true },
-      { label: 'Payroll', desc: 'Commission + tips', href: '/payroll', color: 'rgba(255,255,255,.25)', feature: 'payroll', custom: true },
+      { label: 'Expenses', desc: 'Track costs', href: '/expenses', dashKey: 'dash_expenses' },
+      { label: 'Payroll', desc: 'Commission + tips', href: '/payroll', dashKey: 'dash_payroll' },
     ] : []),
-    { label: 'Settings', desc: 'Config & team', href: '/settings', color: 'rgba(255,255,255,.25)' },
-  ].filter(item => {
+    { label: 'Settings', desc: 'Config & team', href: '/settings', dashKey: null, core: true },
+  ]
+  const actions = allActions.filter(item => {
     if (isBarber && ['Clients', 'Payments', 'Cash', 'Membership', 'Expenses', 'Payroll', 'Settings'].includes(item.label)) return false
     if (isStudent && item.label !== 'Calendar') return false
+    // Core items always shown; extras only if enabled in settings
+    if (!(item as any).core && item.dashKey && dashSettings[item.dashKey] === false) return false
     return true
   })
 

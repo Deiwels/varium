@@ -569,30 +569,70 @@ export default function SettingsPage() {
 
             {/* ── FEATURES ── */}
             {tab === 'features' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <SectionCard title="Optional Features">
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', marginBottom: 16, lineHeight: 1.5 }}>Enable or disable features for your workspace. Some features require Pro plan.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {/* Dashboard shortcuts */}
+                <SectionCard title="Dashboard Shortcuts">
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginBottom: 14, lineHeight: 1.5 }}>Choose which tools appear on your dashboard. Locked features require a plan upgrade.</p>
                   {[
-                    { key: 'clock_in_enabled', label: 'Clock In / Attendance', desc: 'Team members can clock in and out. Track hours and shifts.', pro: true },
-                    { key: 'waitlist_enabled', label: 'Waitlist', desc: 'Allow clients to join a waitlist when no slots available.', pro: true },
-                    { key: 'portfolio_enabled', label: 'Portfolio', desc: 'Work gallery for team members to showcase their work.', pro: false },
-                    { key: 'membership_enabled', label: 'Membership', desc: 'Recurring appointments for subscription clients.', pro: true },
-                    { key: 'cash_register_enabled', label: 'Cash Register', desc: 'Daily cash reconciliation and tracking.', pro: true },
-                  ].map(f => (
-                    <div key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#e8e8ed', display: 'flex', alignItems: 'center', gap: 8 }}>
-                          {f.label}
-                          {f.pro && <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 999, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.35)' }}>PRO</span>}
+                    { key: 'dash_calendar', label: 'Calendar', desc: 'Bookings & schedule', plan: null },
+                    { key: 'dash_clients', label: 'Clients', desc: 'Your client base', plan: null },
+                    { key: 'dash_payments', label: 'Payments', desc: 'Transactions', plan: null },
+                    { key: 'dash_waitlist', label: 'Waitlist', desc: 'Queue & notifications', plan: 'salon' },
+                    { key: 'dash_portfolio', label: 'Portfolio', desc: 'Work gallery', plan: 'salon' },
+                    { key: 'dash_cash', label: 'Cash Register', desc: 'Daily reconciliation', plan: 'salon' },
+                    { key: 'dash_membership', label: 'Membership', desc: 'Recurring clients', plan: 'salon' },
+                    { key: 'dash_attendance', label: 'Attendance', desc: 'Clock in / out', plan: 'salon' },
+                    { key: 'dash_expenses', label: 'Expenses', desc: 'Track costs', plan: 'custom' },
+                    { key: 'dash_payroll', label: 'Payroll', desc: 'Commission + tips', plan: 'custom' },
+                  ].map(f => {
+                    const planLabels: Record<string, string> = { salon: 'SALON', custom: 'CUSTOM' }
+                    const locked = f.plan !== null // For now show plan badge; real gating via usePlan on dashboard
+                    const enabled = s[f.key] !== false // default on
+                    return (
+                      <div key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: locked ? 'rgba(255,255,255,.7)' : '#e8e8ed', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {f.label}
+                            {f.plan && <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 999, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.3)', letterSpacing: '.04em' }}>{planLabels[f.plan]}</span>}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{f.desc}</div>
                         </div>
-                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{f.desc}</div>
+                        <button onClick={() => set(f.key, !enabled)}
+                          style={{ width: 40, height: 24, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 2, transition: 'background .2s', background: enabled ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.04)', position: 'relative', flexShrink: 0 }}>
+                          <div style={{ width: 20, height: 20, borderRadius: 999, background: enabled ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.15)', transition: 'transform .2s, background .2s', transform: enabled ? 'translateX(16px)' : 'translateX(0)' }} />
+                        </button>
                       </div>
-                      <button onClick={() => set(f.key, !s[f.key])}
-                        style={{ width: 44, height: 26, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 2, transition: 'background .2s', background: s[f.key] ? 'rgba(255,255,255,.2)' : 'rgba(255,255,255,.06)', position: 'relative', flexShrink: 0 }}>
-                        <div style={{ width: 22, height: 22, borderRadius: 999, background: s[f.key] ? '#fff' : 'rgba(255,255,255,.2)', transition: 'transform .2s, background .2s', transform: s[f.key] ? 'translateX(18px)' : 'translateX(0)' }} />
-                      </button>
-                    </div>
-                  ))}
+                    )
+                  })}
+                </SectionCard>
+
+                {/* Feature toggles */}
+                <SectionCard title="Workspace Features">
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginBottom: 14, lineHeight: 1.5 }}>Enable additional capabilities for your workspace.</p>
+                  {[
+                    { key: 'clock_in_enabled', label: 'Clock In / Attendance', desc: 'Team members can clock in and out.', plan: 'salon' },
+                    { key: 'waitlist_enabled', label: 'Waitlist', desc: 'Clients join waitlist when no slots.', plan: 'salon' },
+                    { key: 'portfolio_enabled', label: 'Portfolio', desc: 'Work gallery for team members.', plan: null },
+                    { key: 'membership_enabled', label: 'Membership', desc: 'Recurring appointment subscriptions.', plan: 'salon' },
+                    { key: 'cash_register_enabled', label: 'Cash Register', desc: 'Daily cash reconciliation.', plan: 'salon' },
+                  ].map(f => {
+                    const planLabels: Record<string, string> = { salon: 'SALON', custom: 'CUSTOM' }
+                    return (
+                      <div key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: '#e8e8ed', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {f.label}
+                            {f.plan && <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 999, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.3)', letterSpacing: '.04em' }}>{planLabels[f.plan]}</span>}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{f.desc}</div>
+                        </div>
+                        <button onClick={() => set(f.key, !s[f.key])}
+                          style={{ width: 40, height: 24, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 2, transition: 'background .2s', background: s[f.key] ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.04)', position: 'relative', flexShrink: 0 }}>
+                          <div style={{ width: 20, height: 20, borderRadius: 999, background: s[f.key] ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.15)', transition: 'transform .2s, background .2s', transform: s[f.key] ? 'translateX(16px)' : 'translateX(0)' }} />
+                        </button>
+                      </div>
+                    )
+                  })}
                 </SectionCard>
               </div>
             )}
