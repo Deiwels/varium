@@ -607,7 +607,7 @@ export default function PayrollPage() {
           .payroll-body{padding:12px!important;gap:12px!important}
         }
       `}</style>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#000', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif', overflowY: 'auto' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif', overflowY: 'auto' }}>
 
         {/* Topbar */}
         <div className="topbar-pad" style={{ padding: '14px 20px 12px', background: 'rgba(0,0,0,.80)', backdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,.08)', position: 'sticky', top: 0, zIndex: 20 }}>

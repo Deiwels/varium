@@ -808,7 +808,7 @@ export default function MessagesPage() {
     <Shell page="Messages">
       {/* Loading — inline spinner, no fullscreen overlay */}
       {loading && messages.length === 0 && requests.length === 0 && applications.length === 0 && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(1,1,1,.8)' }}>
           <div style={{ width: 24, height: 24, border: '2px solid rgba(255,255,255,.10)', borderTop: '2px solid rgba(255,255,255,.50)', borderRadius: '50%', animation: 'msgLoadSpin .8s linear infinite' }} />
           <style>{`@keyframes msgLoadSpin { to { transform: rotate(360deg) } }`}</style>
         </div>

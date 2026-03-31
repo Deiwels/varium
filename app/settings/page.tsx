@@ -315,7 +315,7 @@ export default function SettingsPage() {
           .set-create-grid{grid-template-columns:1fr!important;}
         }
       `}</style>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#000', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
 
         {/* Topbar */}
         <div style={{ padding: '12px 20px', background: 'rgba(0,0,0,.80)', backdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,.08)', position: 'sticky', top: 0, zIndex: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>

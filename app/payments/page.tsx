@@ -345,7 +345,7 @@ export default function PaymentsPage() {
         }
         @keyframes paySpin { to { transform:rotate(360deg) } }
       `}</style>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#000', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
 
         {/* Topbar */}
         <div style={{ padding: '10px 14px', background: 'rgba(0,0,0,.80)', backdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,.08)', position: 'sticky', top: 0, zIndex: 20 }}>

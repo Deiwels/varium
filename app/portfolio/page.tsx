@@ -466,7 +466,7 @@ export default function PortfolioPage() {
         @media(max-width:640px) { .port-grid { grid-template-columns: repeat(2,1fr) !important; } }
       `}</style>
 
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#000', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
 
         {/* Header */}
         <div style={{ padding: '14px 20px', background: 'rgba(0,0,0,.80)', backdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,.08)', position: 'sticky', top: 0, zIndex: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>

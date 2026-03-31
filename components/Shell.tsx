@@ -612,7 +612,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
   }, [pathname])
 
   if (status === 'loading' || status === 'noauth') {
-    return <div style={{ background: '#000', minHeight: '100vh' }} />
+    return <div style={{ background: 'transparent', minHeight: '100vh' }} />
   }
 
   const role = user?.role || 'barber'

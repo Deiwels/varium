@@ -1605,7 +1605,7 @@ export default function CalendarPage() {
       {/* Stars now rendered by Shell */}
       {/* Loading — inline centered in calendar area */}
       {loading && events.length === 0 && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, background: '#000' }}>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, background: 'rgba(1,1,1,.8)' }}>
           <div style={{ width: 24, height: 24, border: '2px solid rgba(255,255,255,.10)', borderTop: '2px solid rgba(255,255,255,.50)', borderRadius: '50%', animation: 'calLoadSpin 0.8s linear infinite' }} />
           <style>{`@keyframes calLoadSpin { to { transform: rotate(360deg) } }`}</style>
         </div>
@@ -1794,7 +1794,7 @@ export default function CalendarPage() {
         select option { background: #111; }
         input[type=date],input[type=time] { color-scheme: dark; }
       `}</style>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: '#000', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
 
         {/* Topbar */}
         <div className="cal-topbar-wrap" style={{ padding: '6px 14px', background: 'rgba(5,5,12,.6)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,.05)', flexShrink: 0 }}>

@@ -217,7 +217,7 @@ export default function ExpensesPage() {
     <Shell page="expenses">
       {/* Loading overlay */}
       {loading && expenses.length === 0 && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 70, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#000', gap: 16 }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 70, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(1,1,1,.8)', gap: 16 }}>
           <div style={{ position: 'relative', width: 80, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <img src="/Element_logo-05.jpg" alt="Element" style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover' }} />
             <svg viewBox="0 0 80 80" fill="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', animation: 'expSpin 1.2s linear infinite' }}>
