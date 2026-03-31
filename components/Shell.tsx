@@ -686,6 +686,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
           padding:0 20px;
           border-bottom:1px solid rgba(255,255,255,.05);
           background:rgba(5,5,12,.7);
+          position:relative;
           backdrop-filter:saturate(180%) blur(40px);
           -webkit-backdrop-filter:saturate(180%) blur(40px);
           z-index:50;
@@ -793,8 +794,8 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         <div className="top-bar">
           <div className="top-bar-brand">
             <img src="/logo.jpg" alt="" />
-            <span>{user?.name || 'VuriumBook'}</span>
           </div>
+          <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.45)', letterSpacing: '.06em', textTransform: 'uppercase', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>{page}</span>
           <button className="top-bar-user" onClick={() => setShowProfile(true)}>
             {(user as any)?.photo
               ? <img src={(user as any).photo} alt="" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'cover', border: '1px solid rgba(255,255,255,.12)' }}

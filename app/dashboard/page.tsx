@@ -464,16 +464,7 @@ export default function DashboardPage() {
     <Shell page="dashboard">
       <div className="dash-container" style={{ padding: '18px 18px 40px', maxWidth: 1400, margin: '0 auto', overflowY: 'auto', height: '100vh', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif' }}>
 
-        {/* Topbar */}
-        <div style={{ position: 'sticky', top: 0, zIndex: 20, padding: '10px 0 12px', background: 'linear-gradient(to bottom,rgba(0,0,0,.88),rgba(0,0,0,.68),transparent)', backdropFilter: 'blur(14px)', marginBottom: 16 } as React.CSSProperties}>
-          <div className="dash-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <div>
-              <h2 className="page-title" style={{ margin: 0, fontFamily: 'Inter, sans-serif', letterSpacing: '.06em', fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', textAlign: 'center', width: '100%' }}>
-                {isBarber ? `Hey, ${myBarberName.split(' ')[0]}` : 'Dashboard'}
-              </h2>
-            </div>
-          </div>
-        </div>
+        {/* Topbar removed — page name shown in Shell top-bar */}
 
         <style>{`
           @keyframes clockPulse {
@@ -878,8 +869,8 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* ─── Reviews ─── */}
-          {isOwnerOrAdmin && (
+          {/* ─── Reviews — hidden, moved to separate page ─── */}
+          {false && isOwnerOrAdmin && (
             <div style={{ marginTop: 28 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
                 <div style={{ fontSize: 12, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.55)', fontWeight: 900 }}>
