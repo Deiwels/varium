@@ -45,15 +45,14 @@ export default function Home() {
           <div className="orb-halo" />
           <div className="orb-ring-2" />
           <div className="orb-ring" />
+          <div className="orb-ring-3" />
           <div className="orb-core" />
         </div>
-        <div className="comet comet-1" />
-        <div className="comet comet-2" />
-        <div className="comet comet-3" />
-        {/* Nebula glows */}
-        <div className="nebula-layer" style={{ width: 800, height: 500, top: '5%', left: '-15%', background: 'rgba(40,50,120,.08)', animationDelay: '.2s' }} />
-        <div className="nebula-layer" style={{ width: 600, height: 400, top: '15%', right: '-10%', background: 'rgba(80,50,130,.06)', animationDelay: '.5s' }} />
-        <div className="nebula-layer" style={{ width: 500, height: 300, bottom: '10%', left: '20%', background: 'rgba(30,60,100,.06)', animationDelay: '.8s' }} />
+        <div className="shooting-star shooting-star-1" />
+        <div className="shooting-star shooting-star-2" />
+        <div className="nebula-layer" style={{ width: 900, height: 500, top: '5%', left: '-18%', background: 'rgba(30,40,100,.07)', animationDelay: '.2s' }} />
+        <div className="nebula-layer" style={{ width: 700, height: 400, top: '20%', right: '-12%', background: 'rgba(60,40,110,.05)', animationDelay: '.6s' }} />
+        <div className="nebula-layer" style={{ width: 500, height: 300, bottom: '15%', left: '25%', background: 'rgba(25,50,90,.05)', animationDelay: '1s' }} />
       </div>
       <div className="horizon-grid" />
       <div className="noise-overlay" />

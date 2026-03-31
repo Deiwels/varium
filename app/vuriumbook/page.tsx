@@ -43,12 +43,13 @@ export default function VuriumBook() {
           <div className="orb-halo" />
           <div className="orb-ring-2" />
           <div className="orb-ring" />
+          <div className="orb-ring-3" />
           <div className="orb-core" />
         </div>
-        <div className="comet comet-1" />
-        <div className="comet comet-2" />
-        <div className="nebula-layer" style={{ width: 700, height: 400, top: '8%', left: '-12%', background: 'rgba(40,50,130,.07)' }} />
-        <div className="nebula-layer" style={{ width: 500, height: 300, top: '40%', right: '-8%', background: 'rgba(70,40,120,.05)', animationDelay: '.4s' }} />
+        <div className="shooting-star shooting-star-1" />
+        <div className="shooting-star shooting-star-2" />
+        <div className="nebula-layer" style={{ width: 800, height: 450, top: '6%', left: '-14%', background: 'rgba(30,45,110,.06)' }} />
+        <div className="nebula-layer" style={{ width: 550, height: 300, top: '35%', right: '-10%', background: 'rgba(55,35,100,.04)', animationDelay: '.5s' }} />
       </div>
       <div className="horizon-grid" />
       <div className="noise-overlay" />
