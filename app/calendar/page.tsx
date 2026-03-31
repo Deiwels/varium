@@ -489,6 +489,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                 ))}
               </div>
 
+              {/* Add team member form — show always for now, plan gating via backend */}
               {!isBarber && <div style={{ borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: 16 }}>
                 <div style={{ fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 12 }}>Add to team</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

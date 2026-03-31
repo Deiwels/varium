@@ -1191,6 +1191,15 @@ app.get('/api/barbers', async (req, res) => {
 
 app.post('/api/barbers', requireRole('owner', 'admin'), async (req, res) => {
   try {
+    // Plan-based team member limit: trial/starter = max 2, pro = unlimited
+    const wsDoc = await req.wsDoc().get();
+    const wsPlan = wsDoc.exists ? (wsDoc.data()?.plan || 'trial') : 'trial';
+    if (['trial', 'starter', 'free'].includes(wsPlan)) {
+      const existingSnap = await req.ws('barbers').where('active', '==', true).get();
+      if (existingSnap.size >= 2) {
+        return res.status(403).json({ error: 'Starter plan allows up to 2 team members. Upgrade to Pro for unlimited.' });
+      }
+    }
     const b = req.body || {};
     const name = safeStr(b.name);
     if (!name) return res.status(400).json({ error: 'name is required' });
