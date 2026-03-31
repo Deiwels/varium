@@ -2592,7 +2592,7 @@ export default function CalendarPage() {
 
       {/* Training modal */}
       {trainingModal && (() => {
-        const barberStudents = studentUsers.filter(s => s.mentorIds.includes(trainingModal.barberId))
+        const barberStudents = studentUsers.filter(s => s.mentorIds.includes(trainingModal!.barberId))
         const TRAINING_TYPES = [
           { value: 'model', label: 'Model haircut', durMin: 90 },
           { value: 'beard', label: 'Beard training', durMin: 90 },
@@ -2611,12 +2611,12 @@ export default function CalendarPage() {
             if (!studentId || !student || !trainingModal) return
             setTSaving(true)
             const clientName = `Training · ${student.name} · ${tt.label}`
-            const startAt = new Date(todayStr + 'T' + minToHHMM(trainingModal.min) + ':00')
+            const startAt = new Date(todayStr + 'T' + minToHHMM(trainingModal!.min) + ':00')
             const endAt = new Date(startAt.getTime() + tt.durMin * 60000)
             const id = uid()
-            setEvents(prev => [...prev, { id, type: 'booking' as const, barberId: trainingModal.barberId, barberName: trainingModal.barberName, clientName, clientPhone: '', serviceId: '', serviceName: tt.label, date: todayStr, startMin: clamp(trainingModal.min), durMin: tt.durMin, status: 'model', paid: false, notes: tNotes, _raw: { booking_type: 'training', student_id: studentId, training_type: trainingType } }])
+            setEvents(prev => [...prev, { id, type: 'booking' as const, barberId: trainingModal!.barberId, barberName: trainingModal!.barberName, clientName, clientPhone: '', serviceId: '', serviceName: tt.label, date: todayStr, startMin: clamp(trainingModal!.min), durMin: tt.durMin, status: 'model', paid: false, notes: tNotes, _raw: { booking_type: 'training', student_id: studentId, training_type: trainingType } }])
             try {
-              const res = await apiFetch('/api/bookings', { method: 'POST', body: JSON.stringify({ barber_id: trainingModal.barberId, client_name: clientName, start_at: startAt.toISOString(), end_at: endAt.toISOString(), notes: tNotes || tt.label, status: 'booked', booking_type: 'training', student_id: studentId, training_type: trainingType }) })
+              const res = await apiFetch('/api/bookings', { method: 'POST', body: JSON.stringify({ barber_id: trainingModal!.barberId, client_name: clientName, start_at: startAt.toISOString(), end_at: endAt.toISOString(), notes: tNotes || tt.label, status: 'booked', booking_type: 'training', student_id: studentId, training_type: trainingType }) })
               const savedId = res?.id || res?.booking?.id
               if (savedId) setEvents(prev => prev.map((e: any) => e.id === id ? { ...e, _raw: { ...e._raw, id: savedId }, id: String(savedId) } : e))
             } catch (e: any) { console.warn('training save:', e.message) }
@@ -2629,7 +2629,7 @@ export default function CalendarPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div style={{ padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)' }}>
                   <div style={{ ...mLbl, marginBottom: 2 }}>Time</div>
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>{minToAMPM(trainingModal.min)} — {minToAMPM(trainingModal.min + tt.durMin)}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700 }}>{minToAMPM(trainingModal!.min)} — {minToAMPM(trainingModal!.min + tt.durMin)}</div>
                 </div>
                 <div style={{ padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)' }}>
                   <div style={{ ...mLbl, marginBottom: 2 }}>Duration</div>
@@ -2676,7 +2676,7 @@ export default function CalendarPage() {
               <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', borderRadius: '22px 22px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13 }}>Schedule training</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginTop: 3, letterSpacing: '.08em' }}>{todayStr} · {trainingModal.barberName}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginTop: 3, letterSpacing: '.08em' }}>{todayStr} · {trainingModal!.barberName}</div>
                 </div>
                 <button onClick={() => setTrainingModal(null)} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontFamily: 'inherit' }}>✕</button>
               </div>
