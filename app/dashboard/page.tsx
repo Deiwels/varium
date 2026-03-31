@@ -72,9 +72,9 @@ function KpiCard({ title, value, sub, color }: { title: string; value: string; s
   const dots: Record<string, string> = { ok: 'rgba(130,220,170,.6)', bad: '#ff6b6b', blue: 'rgba(255,255,255,.4)', gold: 'rgba(220,190,100,.6)' }
   return (
     <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.025)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', padding: '12px 14px' }}>
-      <div style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.3)', marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 6 }}>{title}</div>
       <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-.02em', lineHeight: 1, color: '#e8e8ed' }}>{value}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,.25)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,.4)' }}>
         {color && <span style={{ width: 5, height: 5, borderRadius: 999, background: dots[color] || 'rgba(255,255,255,.15)', flexShrink: 0, display: 'inline-block' }} />}
         {sub}
       </div>
@@ -761,25 +761,24 @@ export default function DashboardPage() {
 
             {/* ── Booking Link (compact) ── */}
             {!isBarber && user?.workspace_id && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', flexShrink: 0 }}>Booking</div>
-                <code style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,.45)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>vurium.com/book/{user.workspace_id}</code>
-                <button onClick={() => navigator.clipboard.writeText(`https://vurium.com/book/${user.workspace_id}`)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.45)', flexShrink: 0 }}>Copy</button>
-                <a href={`/book/${user.workspace_id}`} target="_blank" rel="noopener" style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, textDecoration: 'none', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.35)', flexShrink: 0 }}>Preview</a>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
+                <div style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,.5)' }}>Booking Page</div>
+                <button onClick={() => navigator.clipboard.writeText(`https://vurium.com/book/${user.workspace_id}`)} style={{ padding: '6px 14px', borderRadius: 8, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.55)', flexShrink: 0 }}>Copy Link</button>
+                <a href={`/book/${user.workspace_id}`} target="_blank" rel="noopener" style={{ padding: '6px 14px', borderRadius: 8, fontSize: 11, textDecoration: 'none', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.45)', flexShrink: 0 }}>Preview</a>
               </div>
             )}
 
             {/* ── Today Activity ── */}
             {!isBarber && Object.keys(byBarber).length > 0 && (
               <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.3)', marginBottom: 12 }}>Today Activity</div>
+                <div style={{ fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 12 }}>Today Activity</div>
                 {Object.entries(byBarber).sort((a, b) => b[1] - a[1]).map(([name, count]) => (
                   <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.03)' }}>
-                    <span style={{ width: 80, fontWeight: 500, fontSize: 13, color: 'rgba(255,255,255,.65)', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                    <span style={{ width: 80, fontWeight: 500, fontSize: 13, color: 'rgba(255,255,255,.75)', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
                     <div style={{ flex: 1, height: 4, borderRadius: 999, background: 'rgba(255,255,255,.05)' }}>
                       <div style={{ height: 4, borderRadius: 999, background: 'rgba(255,255,255,.2)', width: `${Math.round(count / maxCount * 100)}%`, transition: 'width .6s ease' }} />
                     </div>
-                    <span style={{ width: 40, textAlign: 'right', fontSize: 12, color: 'rgba(255,255,255,.35)' }}>{count}</span>
+                    <span style={{ width: 40, textAlign: 'right', fontSize: 12, color: 'rgba(255,255,255,.5)' }}>{count}</span>
                   </div>
                 ))}
               </div>
@@ -789,8 +788,8 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
               {actions.slice(0, 4).map(item => (
                 <a key={item.href} href={item.href} style={{ flex: '1 1 120px', padding: '12px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', textDecoration: 'none', transition: 'border-color .2s' }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.6)' }}>{item.label}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>{item.desc}</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.75)' }}>{item.label}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', marginTop: 2 }}>{item.desc}</div>
                 </a>
               ))}
             </div>
@@ -803,7 +802,7 @@ export default function DashboardPage() {
 
               {/* Team — days + ratings */}
               <div style={{ marginTop: 20 }}>
-                <div style={{ fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.3)', marginBottom: 10 }}>Team</div>
+                <div style={{ fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 10 }}>Team</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
                   {barbers.map((b: any) => {
                     const sched = b.schedule
@@ -815,12 +814,12 @@ export default function DashboardPage() {
                           : <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.4)', flexShrink: 0 }}>{(b.name||'?')[0]}</div>
                         }
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 500, fontSize: 13, color: 'rgba(255,255,255,.7)', marginBottom: 3 }}>{b.name}</div>
+                          <div style={{ fontWeight: 500, fontSize: 13, color: 'rgba(255,255,255,.8)', marginBottom: 3 }}>{b.name}</div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                             {DAY_NAMES_SHORT.map((day, i) => {
                               const works = workDays.includes(i)
                               return (
-                                <span key={day} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: `1px solid ${works ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.04)'}`, background: 'transparent', color: works ? 'rgba(255,255,255,.45)' : 'rgba(255,255,255,.15)', letterSpacing: '.04em', textTransform: 'uppercase', fontWeight: 500 }}>
+                                <span key={day} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: `1px solid ${works ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.04)'}`, background: 'transparent', color: works ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.2)', letterSpacing: '.04em', textTransform: 'uppercase', fontWeight: 500 }}>
                                   {day}
                                 </span>
                               )
@@ -992,7 +991,7 @@ export default function DashboardPage() {
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         {r.barber_name && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, border: '1px solid rgba(10,132,255,.25)', background: 'rgba(10,132,255,.06)', color: 'rgba(10,132,255,.80)', letterSpacing: '.06em', textTransform: 'uppercase' }}>{r.barber_name}</span>}
-                        {r.source === 'google' && <span style={{ fontSize: 9, color: 'rgba(255,255,255,.25)' }}>Google</span>}
+                        {r.source === 'google' && <span style={{ fontSize: 9, color: 'rgba(255,255,255,.4)' }}>Google</span>}
                       </div>
                     </div>
                     {r.text && <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 4, lineHeight: 1.4 }}>{String(r.text).slice(0, 200)}{String(r.text).length > 200 ? '…' : ''}</div>}
