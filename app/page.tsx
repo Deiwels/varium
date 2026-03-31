@@ -136,7 +136,7 @@ export default function Home() {
           Modern tools for modern businesses. Elegant, reliable, and built to scale.
         </p>
         <div className="fade-up fade-up-d3" style={{ marginTop: 40, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <a href="#products" className="btn-dark-glow">Explore Products</a>
+          <a href="#products" className="btn-primary">Explore Products</a>
           <a href="#contact" className="btn-secondary">Get in Touch</a>
         </div>
       </section>
