@@ -69,13 +69,13 @@ function Chip({ label, type }: { label: string; type: string }) {
 }
 
 function KpiCard({ title, value, sub, color }: { title: string; value: string; sub: string; color?: string }) {
-  const dots: Record<string, string> = { ok: 'rgba(130,220,170,.8)', bad: '#ff6b6b', blue: 'rgba(255,255,255,.6)', gold: 'rgba(220,190,100,.8)' }
+  const dots: Record<string, string> = { ok: 'rgba(130,220,170,.6)', bad: '#ff6b6b', blue: 'rgba(255,255,255,.4)', gold: 'rgba(220,190,100,.6)' }
   return (
-    <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', backdropFilter: 'blur(12px)', padding: 16, transition: 'border-color .2s' }}>
-      <div style={{ fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', marginBottom: 10 }}>{title}</div>
-      <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-.01em', lineHeight: 1, color: '#f0f0f5' }}>{value}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,.35)' }}>
-        {color && <span style={{ width: 6, height: 6, borderRadius: 999, background: dots[color] || 'rgba(255,255,255,.2)', flexShrink: 0, display: 'inline-block' }} />}
+    <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.04)', background: 'rgba(255,255,255,.02)', padding: '12px 14px' }}>
+      <div style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.3)', marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-.02em', lineHeight: 1, color: '#e8e8ed' }}>{value}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,.25)' }}>
+        {color && <span style={{ width: 5, height: 5, borderRadius: 999, background: dots[color] || 'rgba(255,255,255,.15)', flexShrink: 0, display: 'inline-block' }} />}
         {sub}
       </div>
     </div>
@@ -759,59 +759,41 @@ export default function DashboardPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 14 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* Booking page link */}
+            {/* ── Booking Link (compact) ── */}
             {!isBarber && user?.workspace_id && (
-              <div style={{ borderRadius: 18, border: '1px solid rgba(130,150,220,.12)', background: 'linear-gradient(180deg,rgba(130,150,220,.05),rgba(255,255,255,.02))', padding: 14 }}>
-                <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(130,150,220,.6)', marginBottom: 10 }}>Your Booking Page</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <code style={{ flex: 1, fontSize: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(0,0,0,.3)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(130,150,220,.8)', wordBreak: 'break-all', minWidth: 0 }}>
-                    vurium.com/book/{user.workspace_id}
-                  </code>
-                  <button onClick={() => { navigator.clipboard.writeText(`https://vurium.com/book/${user.workspace_id}`); }} style={{
-                    padding: '10px 16px', borderRadius: 10, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0,
-                    background: 'rgba(130,150,220,.1)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.8)',
-                  }}>Copy Link</button>
-                  <a href={`/book/${user.workspace_id}`} target="_blank" rel="noopener" style={{
-                    padding: '10px 16px', borderRadius: 10, fontSize: 12, textDecoration: 'none', flexShrink: 0,
-                    background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)',
-                  }}>Preview</a>
-                </div>
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 8 }}>Share this link with your clients so they can book online.</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.015)' }}>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', flexShrink: 0 }}>Booking</div>
+                <code style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,.45)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>vurium.com/book/{user.workspace_id}</code>
+                <button onClick={() => navigator.clipboard.writeText(`https://vurium.com/book/${user.workspace_id}`)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.45)', flexShrink: 0 }}>Copy</button>
+                <a href={`/book/${user.workspace_id}`} target="_blank" rel="noopener" style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, textDecoration: 'none', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.35)', flexShrink: 0 }}>Preview</a>
               </div>
             )}
 
-            {/* Quick actions */}
-            <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: 14 }}>
-              <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)', marginBottom: 12 }}>Tools</div>
-              <div className="dash-quick-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
-                {actions.map(item => (
-                  <a key={item.href} href={item.href} style={{ padding: '13px 12px', borderRadius: 14, border: `1px solid ${(item as any).color ? (item as any).color.replace(/[\d.]+\)$/, '.12)') : 'rgba(255,255,255,.10)'}`, background: (item as any).color ? (item as any).color.replace(/[\d.]+\)$/, '.04)') : 'rgba(0,0,0,.14)', cursor: 'pointer', display: 'block', textDecoration: 'none', transition: 'all .2s' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <div style={{ width: 3, height: 14, borderRadius: 2, background: (item as any).color || 'rgba(255,255,255,.3)' }} />
-                      <span style={{ fontWeight: 700, fontSize: 13, color: '#e8e8ed' }}>{item.label}</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', lineHeight: 1.4, paddingLeft: 11 }}>{item.desc}</div>
-                  </a>
-                ))}
-              </div>
-            </div>
-
-            {/* Owner: today by barber */}
-            {!isBarber && (
-              <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: 14 }}>
-                <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)', marginBottom: 12 }}>Today by team member</div>
+            {/* ── Today Activity ── */}
+            {!isBarber && Object.keys(byBarber).length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.3)', marginBottom: 12 }}>Today Activity</div>
                 {Object.entries(byBarber).sort((a, b) => b[1] - a[1]).map(([name, count]) => (
-                  <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-                    <span style={{ width: 70, fontWeight: 700, fontSize: 12, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                    <div style={{ flex: 1, height: 6, borderRadius: 999, background: 'rgba(255,255,255,.08)' }}>
-                      <div style={{ height: 6, borderRadius: 999, background: 'linear-gradient(90deg,rgba(130,150,220,.9),rgba(10,132,255,.5))', width: `${Math.round(count / maxCount * 100)}%`, transition: 'width .6s ease' }} />
+                  <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.03)' }}>
+                    <span style={{ width: 80, fontWeight: 500, fontSize: 13, color: 'rgba(255,255,255,.65)', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                    <div style={{ flex: 1, height: 4, borderRadius: 999, background: 'rgba(255,255,255,.05)' }}>
+                      <div style={{ height: 4, borderRadius: 999, background: 'rgba(255,255,255,.2)', width: `${Math.round(count / maxCount * 100)}%`, transition: 'width .6s ease' }} />
                     </div>
-                    <span style={{ width: 50, textAlign: 'right', fontSize: 12, color: 'rgba(255,255,255,.55)' }}>{count} bk</span>
+                    <span style={{ width: 40, textAlign: 'right', fontSize: 12, color: 'rgba(255,255,255,.35)' }}>{count}</span>
                   </div>
                 ))}
-                {Object.keys(byBarber).length === 0 && <div style={{ color: 'rgba(255,255,255,.30)', fontSize: 12 }}>No data yet</div>}
               </div>
             )}
+
+            {/* ── Core Navigation (minimal) ── */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+              {actions.slice(0, 4).map(item => (
+                <a key={item.href} href={item.href} style={{ flex: '1 1 120px', padding: '12px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.015)', textDecoration: 'none', transition: 'border-color .2s' }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.6)' }}>{item.label}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>{item.desc}</div>
+                </a>
+              ))}
+            </div>
 
           </div>
         </div>
@@ -820,28 +802,25 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
 
               {/* Team — days + ratings */}
-              <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: 16 }}>
-                <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)', marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Team</span>
-                  <span style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', textTransform: 'none', letterSpacing: 0 }}>Tap days: green — works, red — day off</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+              <div style={{ marginTop: 20 }}>
+                <div style={{ fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.3)', marginBottom: 10 }}>Team</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
                   {barbers.map((b: any) => {
                     const sched = b.schedule
                     const workDays: number[] = Array.isArray(sched?.days) ? sched.days : [1,2,3,4,5,6]
                     return (
-                      <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 14, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(0,0,0,.12)' }}>
+                      <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.04)', background: 'rgba(255,255,255,.015)' }}>
                         {b.photo_url
-                          ? <img src={b.photo_url} alt={b.name} style={{ width: 38, height: 38, borderRadius: 10, objectFit: 'cover', border: '1px solid rgba(255,255,255,.12)', flexShrink: 0 }} onError={e => (e.currentTarget.style.display='none')} />
-                          : <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 900, flexShrink: 0 }}>{(b.name||'?')[0]}</div>
+                          ? <img src={b.photo_url} alt={b.name} style={{ width: 34, height: 34, borderRadius: 9, objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)', flexShrink: 0 }} onError={e => (e.currentTarget.style.display='none')} />
+                          : <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.4)', flexShrink: 0 }}>{(b.name||'?')[0]}</div>
                         }
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{b.name}</div>
+                          <div style={{ fontWeight: 500, fontSize: 13, color: 'rgba(255,255,255,.7)', marginBottom: 3 }}>{b.name}</div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                             {DAY_NAMES_SHORT.map((day, i) => {
                               const works = workDays.includes(i)
                               return (
-                                <span key={day} style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, border: `1px solid ${works ? 'rgba(143,240,177,.40)' : 'rgba(255,107,107,.28)'}`, background: works ? 'rgba(143,240,177,.10)' : 'rgba(255,107,107,.07)', color: works ? 'rgba(130,220,170,.8)' : 'rgba(220,130,160,.5)', letterSpacing: '.06em', textTransform: 'uppercase', fontWeight: 700 }}>
+                                <span key={day} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: `1px solid ${works ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.04)'}`, background: 'transparent', color: works ? 'rgba(255,255,255,.45)' : 'rgba(255,255,255,.15)', letterSpacing: '.04em', textTransform: 'uppercase', fontWeight: 500 }}>
                                   {day}
                                 </span>
                               )
