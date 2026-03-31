@@ -680,35 +680,56 @@ section { position: relative; z-index: 2; }
   .orb-parallax { display: none; }
 }
 
-/* ── Mobile performance: disable heavy effects ── */
+/* ── Mobile performance: keep effects but lighter ── */
 @media (max-width: 768px) {
-  /* Kill all continuous CSS animations on mobile — saves battery & GPU */
-  .stars-wrap-far,
-  .stars-wrap-mid,
-  .stars-wrap-near { animation: none !important; }
-  .stars-far  { animation: none !important; }
-  .stars-mid  { animation: none !important; }
-  .stars-near { animation: none !important; opacity: .7; }
-  .star-glow  { animation: none !important; opacity: .4; }
-  .orb-container { animation: none !important; }
-  .orb-halo   { animation: none !important; }
-  .shimmer-text { animation: none !important; background: none !important; -webkit-text-fill-color: #fff !important; }
-  .btn-primary { animation: none !important; }
-  .btn-dark-glow::before { animation: none !important; }
-  .shooting-star-1,
-  .shooting-star-2 { display: none !important; }
+  /* Slow down star animations (3x slower = 3x less GPU work) */
+  .stars-wrap-far  { animation-duration: 270s !important; }
+  .stars-wrap-mid  { animation-duration: 195s !important; }
+  .stars-wrap-near { animation-duration: 150s !important; }
+  .stars-far  { animation-duration: 270s !important; }
+  .stars-mid  { animation-duration: 195s !important; }
+  .stars-near { animation-duration: 150s !important; }
 
-  /* Remove expensive backdrop-filter blur on mobile */
-  .glass-card {
+  /* Glow stars — keep breathing but slower and simpler (no box-shadow) */
+  .star-glow  { animation-duration: 12s !important; box-shadow: none !important; }
+
+  /* Orb — keep rotation but much slower */
+  .orb-container { animation-duration: 360s !important; }
+  .orb-halo   { animation-duration: 36s !important; }
+
+  /* Orb core — remove backdrop-filter (heaviest single element), use solid dark */
+  .orb-core {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    background: rgba(12, 12, 18, .85) !important;
+    background: radial-gradient(circle at 30% 26%, rgba(255,255,255,.028) 0%, rgba(220,230,255,.014) 16%, transparent 40%, #000 100%) !important;
   }
 
-  /* Reduce nebula blur filters (very GPU heavy) */
-  .nebula-layer {
-    display: none !important;
+  /* Shimmer text — keep but slower */
+  .shimmer-text { animation-duration: 16s !important; }
+
+  /* Button glow — keep but slower */
+  .btn-primary { animation-duration: 8s !important; }
+  .btn-dark-glow::before { animation-duration: 8s !important; }
+
+  /* Shooting stars — keep one, hide the other */
+  .shooting-star-2 { display: none !important; }
+
+  /* Glass cards — use lightweight blur (8px instead of 12px) */
+  .glass-card {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
   }
+
+  /* Nebula glow — replace 140px blur with simpler opacity fade (no filter) */
+  .nebula-layer {
+    filter: none !important;
+    opacity: .4 !important;
+    border-radius: 50%;
+    background: radial-gradient(ellipse, var(--nebula-color, rgba(30,45,110,.05)) 0%, transparent 70%) !important;
+  }
+
+  /* Hide noise overlay (SVG feTurbulence is expensive) */
+  .noise-overlay { display: none !important; }
 
   /* Simplify horizon grid */
   .horizon-grid { display: none !important; }
@@ -716,11 +737,24 @@ section { position: relative; z-index: 2; }
   /* Reduce will-change usage (reserves GPU memory) */
   .stars, .space-bg { will-change: auto !important; }
 
-  /* Kill ALL backdrop-filter on mobile — biggest perf win */
-  * {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
+  /* Limit backdrop-filter blur to 8px max on all overlays/modals */
+  [style*="blur(24px)"],
+  [style*="blur(40px)"],
+  [style*="blur(18px)"],
+  [style*="blur(20px)"],
+  [style*="blur(16px)"] {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
   }
+
+  /* Slow down calendar card pulse animations */
+  .wl-ghost-pulse,
+  .block-pending-pulse,
+  .vip-pulse,
+  .at-risk-pulse,
+  .arrived-pulse { animation-duration: 6s !important; }
+  .cal-event-paid::after { animation-duration: 12s !important; }
+  .block-approved-stripes { animation-duration: 3s !important; }
 }
 
 /* Respect prefers-reduced-motion globally */
