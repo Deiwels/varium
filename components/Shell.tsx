@@ -791,6 +791,14 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
       `}</style>
 
       <div className="shell">
+        {/* ── Cosmic star background ── */}
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+          <div className="stars stars-far" style={{ position: 'absolute', inset: '-15%', width: '130%', height: '130%', opacity: 0.2 }} />
+          <div className="stars stars-mid" style={{ position: 'absolute', inset: '-10%', width: '120%', height: '120%', opacity: 0.12 }} />
+          <div className="nebula-layer" style={{ width: 600, height: 350, top: '5%', left: '-10%', background: 'rgba(30,45,110,.03)' }} />
+          <div className="nebula-layer" style={{ width: 400, height: 250, bottom: '15%', right: '-5%', background: 'rgba(55,35,100,.02)' }} />
+        </div>
+
         {/* ── Top Header Bar ── */}
         <div className="top-bar">
           <div className="top-bar-brand">

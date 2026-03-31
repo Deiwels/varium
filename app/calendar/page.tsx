@@ -1602,30 +1602,7 @@ export default function CalendarPage() {
 
   return (
     <Shell page="calendar">
-      {/* Cosmic parallax background */}
-      <div id="cal-space" style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden', willChange: 'transform' }}>
-        <div id="cal-stars-far" className="stars stars-far" style={{ position: 'absolute', inset: '-15%', width: '130%', height: '130%', opacity: 0.25 }} />
-        <div id="cal-stars-mid" className="stars stars-mid" style={{ position: 'absolute', inset: '-10%', width: '120%', height: '120%', opacity: 0.15 }} />
-        <div className="nebula-layer" style={{ width: 500, height: 300, top: '5%', left: '-8%', background: 'rgba(30,45,110,.03)', opacity: 0.4 }} />
-        <div className="nebula-layer" style={{ width: 400, height: 250, bottom: '10%', right: '-5%', background: 'rgba(55,35,100,.02)', opacity: 0.3 }} />
-      </div>
-      <script dangerouslySetInnerHTML={{ __html: `
-        (function(){
-          let mx=0,my=0;
-          document.addEventListener('mousemove',function(e){
-            mx=(e.clientX/window.innerWidth-0.5)*2;
-            my=(e.clientY/window.innerHeight-0.5)*2;
-          },{passive:true});
-          function tick(){
-            var f=document.getElementById('cal-stars-far');
-            var m=document.getElementById('cal-stars-mid');
-            if(f)f.style.transform='translate('+mx*4+'px,'+my*4+'px)';
-            if(m)m.style.transform='translate('+mx*8+'px,'+my*8+'px)';
-            requestAnimationFrame(tick);
-          }
-          requestAnimationFrame(tick);
-        })();
-      ` }} />
+      {/* Stars now rendered by Shell */}
       {/* Loading — inline centered in calendar area */}
       {loading && events.length === 0 && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, background: '#000' }}>
