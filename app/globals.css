@@ -658,18 +658,16 @@ section { position: relative; z-index: 2; }
   to { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
 
-/* On mobile — show content instantly, no fade-in delays */
+/* On mobile — faster fade-in, no delays */
 @media (max-width: 768px) {
-  .fade-up,
-  .fade-up-d1,
-  .fade-up-d2,
-  .fade-up-d3,
-  .fade-up-d4 {
-    opacity: 1 !important;
-    transform: none !important;
+  .fade-up {
+    animation-duration: 0.4s !important;
     filter: none !important;
-    animation: none !important;
   }
+  .fade-up-d1 { animation-delay: 0.05s !important; }
+  .fade-up-d2 { animation-delay: 0.1s !important; }
+  .fade-up-d3 { animation-delay: 0.15s !important; }
+  .fade-up-d4 { animation-delay: 0.2s !important; }
 }
 
 /* ── Responsive ── */
