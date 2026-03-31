@@ -467,12 +467,9 @@ export default function DashboardPage() {
         <div style={{ position: 'sticky', top: 0, zIndex: 20, padding: '10px 0 12px', background: 'linear-gradient(to bottom,rgba(0,0,0,.88),rgba(0,0,0,.68),transparent)', backdropFilter: 'blur(14px)', marginBottom: 16 } as React.CSSProperties}>
           <div className="dash-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <div>
-              <h2 className="page-title" style={{ margin: 0, fontFamily: 'Inter, sans-serif', letterSpacing: '-.02em', fontSize: 20, fontWeight: 600, color: '#f0f0f5' }}>
+              <h2 className="page-title" style={{ margin: 0, fontFamily: 'Inter, sans-serif', letterSpacing: '.06em', fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', textAlign: 'center', width: '100%' }}>
                 {isBarber ? `Hey, ${myBarberName.split(' ')[0]}` : 'Dashboard'}
               </h2>
-              <p style={{ margin: '4px 0 0', color: 'rgba(255,255,255,.3)', fontSize: 13, fontWeight: 300 }}>
-                {fmtDateLong()}
-              </p>
             </div>
           </div>
         </div>
@@ -830,57 +827,7 @@ export default function DashboardPage() {
           {isOwnerOrAdmin && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
 
-              {/* Shop Status */}
-              <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: 16 }}>
-                <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)', marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Shop status</span>
-                  {statusMsg && <span style={{ fontSize: 11, color: 'rgba(130,220,170,.8)' }}>{statusMsg}</span>}
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {(['auto','open','closed'] as const).map(mode => {
-                    const icons = {
-                      auto:   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-7.5"/></svg>,
-                      open:   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
-                      closed: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
-                    }
-                    const labels = { auto: 'Auto', open: 'Force Open', closed: 'Force Closed' }
-                    const colors = {
-                      auto:   shopStatus==='auto'   ? 'rgba(255,255,255,.20)' : 'rgba(255,255,255,.08)',
-                      open:   shopStatus==='open'   ? 'rgba(143,240,177,.35)' : 'rgba(255,255,255,.08)',
-                      closed: shopStatus==='closed' ? 'rgba(255,107,107,.35)' : 'rgba(255,255,255,.08)',
-                    }
-                    return (
-                      <button key={mode} onClick={() => saveShopStatus(mode)} disabled={statusSaving}
-                        style={{ height: 38, padding: '0 14px', borderRadius: 999, border: `1px solid ${colors[mode]}`, background: shopStatus===mode ? colors[mode] : 'rgba(255,255,255,.03)', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: shopStatus===mode ? 900 : 400, fontFamily: 'inherit', transition: 'all .18s' }}>
-                        <span style={{ display:'flex', alignItems:'center', gap:5 }}>{icons[mode]}{labels[mode]}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Banner */}
-              <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: 16 }}>
-                <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)', marginBottom: 12 }}>Top banner</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                  <button onClick={() => { setBannerEnabled(v => !v); }} style={{ height: 28, padding: '0 12px', borderRadius: 999, border: `1px solid ${bannerEnabled ? 'rgba(143,240,177,.40)' : 'rgba(255,255,255,.12)'}`, background: bannerEnabled ? 'rgba(143,240,177,.12)' : 'rgba(255,255,255,.04)', color: bannerEnabled ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.55)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
-                    {bannerEnabled ? 'Enabled' : 'Disabled'}
-                  </button>
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>Shown on main website</span>
-                </div>
-                <textarea value={bannerText} onChange={e => setBannerText(e.target.value)} placeholder="THANKSGIVING · TODAY WE WORK UNTIL 2:00 PM" rows={2}
-                  style={{ width: '100%', borderRadius: 12, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: '#fff', padding: '8px 12px', fontSize: 12, outline: 'none', fontFamily: 'inherit', resize: 'vertical' as const }} />
-                {bannerEnabled && bannerText && (
-                  <div style={{ marginTop: 8, padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.20)', background: 'rgba(255,255,255,.08)', fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', textAlign: 'center', color: '#fff' }}>
-                    {bannerText}
-                  </div>
-                )}
-                <button onClick={saveBanner} disabled={statusSaving} style={{ marginTop: 10, height: 36, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(255,255,255,.07)', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
-                  Save banner
-                </button>
-              </div>
-
-              {/* Barbers — days + ratings */}
+              {/* Team — days + ratings */}
               <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: 16 }}>
                 <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)', marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>Team</span>
