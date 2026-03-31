@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 const COOKIE_NAME = 'VURIUMBOOK_TOKEN'
 
 // Routes that don't need auth
-const PUBLIC_PATHS = ['/signin']
+const PUBLIC_PATHS = ['/', '/signin', '/vuriumbook', '/booking', '/public']
 
 // Routes restricted by role
 const OWNER_ADMIN_ONLY = ['/settings', '/payroll', '/payments', '/attendance', '/expenses', '/membership']
@@ -32,7 +32,8 @@ export function middleware(req: NextRequest) {
 
   // Always allow public paths, static files, api routes
   if (
-    PUBLIC_PATHS.some(p => pathname.startsWith(p)) ||
+    pathname === '/' ||
+    PUBLIC_PATHS.some(p => p !== '/' && pathname.startsWith(p)) ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname.includes('.')
