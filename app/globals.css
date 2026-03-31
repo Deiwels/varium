@@ -532,6 +532,11 @@ section { position: relative; z-index: 2; }
   animation: shimmer 8s ease-in-out infinite;
 }
 
+/* When shimmer-text also has fade-up, run BOTH animations together */
+.shimmer-text.fade-up {
+  animation: fadeUp 0.5s ease-out forwards, shimmer 8s ease-in-out infinite;
+}
+
 @keyframes shimmer {
   0%, 100% { background-position: 100% 50%; }
   50% { background-position: 0% 50%; }
@@ -657,18 +662,21 @@ section { position: relative; z-index: 2; }
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* On mobile — headline instant, subtitle & buttons smooth */
+/* On mobile — headline ~2s, subtitle & buttons smooth */
 @media (max-width: 768px) {
-  /* Label + headline: appear immediately */
+  /* Label: appear fast */
   .fade-up {
-    animation-duration: 0.01s !important;
-    animation-delay: 0s !important;
+    animation: fadeUp 0.3s ease-out forwards !important;
   }
-  .fade-up-d1 { animation-delay: 0s !important; animation-duration: 0.01s !important; }
+  /* Headline (shimmer-text + fade-up): 2 seconds */
+  .shimmer-text.fade-up {
+    animation: fadeUp 2s ease-out forwards, shimmer 16s ease-in-out infinite !important;
+  }
+  .fade-up-d1 { animation-delay: 0.05s !important; }
   /* Subtitle + buttons: smooth and elegant */
-  .fade-up-d2 { animation-delay: 0.1s !important; animation-duration: 0.6s !important; }
-  .fade-up-d3 { animation-delay: 0.2s !important; animation-duration: 0.6s !important; }
-  .fade-up-d4 { animation-delay: 0.3s !important; animation-duration: 0.5s !important; }
+  .fade-up-d2 { animation-delay: 0.3s !important; animation-duration: 0.8s !important; }
+  .fade-up-d3 { animation-delay: 0.5s !important; animation-duration: 0.8s !important; }
+  .fade-up-d4 { animation-delay: 0.65s !important; animation-duration: 0.7s !important; }
 }
 
 /* ── Responsive ── */
@@ -724,8 +732,8 @@ section { position: relative; z-index: 2; }
     background: radial-gradient(circle at 30% 26%, rgba(255,255,255,.028) 0%, rgba(220,230,255,.014) 16%, transparent 40%, #000 100%) !important;
   }
 
-  /* Shimmer text — keep but slower */
-  .shimmer-text { animation-duration: 16s !important; }
+  /* Shimmer text — slower on mobile (duration handled in fade-up section for combined elements) */
+  .shimmer-text:not(.fade-up) { animation-duration: 16s !important; }
 
   /* Button glow — keep but slower */
   .btn-primary { animation-duration: 8s !important; }
