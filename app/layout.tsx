@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { DialogWrapper } from './DialogWrapper'
+import CosmosParallax from '@/components/CosmosParallax'
 
 export const metadata: Metadata = {
   title: 'Vurium — Software That Works',
@@ -112,29 +113,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div style={{ position: 'absolute', width: 300, height: 200, top: '15%', right: '15%', background: 'rgba(25,50,100,.02)', borderRadius: '50%', filter: 'blur(100px)' }} />
         </div>
 
+        <CosmosParallax />
         <DialogWrapper>{children}</DialogWrapper>
-
-        {/* Parallax mouse tracking */}
-        <script dangerouslySetInnerHTML={{ __html: `
-          (function(){
-            var cx=0,cy=0,tx=0,ty=0;
-            document.addEventListener('mousemove',function(e){
-              tx=(e.clientX/window.innerWidth-0.5)*2;
-              ty=(e.clientY/window.innerHeight-0.5)*2;
-            },{passive:true});
-            function tick(){
-              cx+=(tx-cx)*0.02;cy+=(ty-cy)*0.02;
-              var f=document.getElementById('v-stars-far');
-              var m=document.getElementById('v-stars-mid');
-              var n=document.getElementById('v-stars-near');
-              if(f)f.style.transform='translate('+cx*3+'px,'+cy*3+'px)';
-              if(m)m.style.transform='translate('+cx*7+'px,'+cy*7+'px)';
-              if(n)n.style.transform='translate('+cx*14+'px,'+cy*14+'px)';
-              requestAnimationFrame(tick);
-            }
-            requestAnimationFrame(tick);
-          })();
-        ` }} />
       </body>
     </html>
   )
