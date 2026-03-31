@@ -40,7 +40,7 @@ export default function SignInPage() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
-    if (!workspaceId || !username || !password) { setError('All fields are required.'); return }
+    if (!workspaceId || !username || !password) { setError('All fields are required'); return }
     setError(''); setLoading(true)
     try {
       const res = await fetch(`${API}/auth/login`, {
@@ -229,8 +229,8 @@ export default function SignInPage() {
                   <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 4 }}>Provided during registration</p>
                 </div>
                 <div>
-                  <label style={lbl}>Username</label>
-                  <input type="text" placeholder="Enter your username" autoComplete="username" autoCapitalize="none" value={username}
+                  <label style={lbl}>Email</label>
+                  <input type="email" placeholder="you@yourbusiness.com" autoComplete="email" autoCapitalize="none" value={username}
                     onChange={e => setUsername(e.target.value)} required style={inp} />
                 </div>
                 <div>
