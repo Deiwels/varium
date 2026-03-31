@@ -55,7 +55,9 @@ function SmBtn({ onClick, children, danger, disabled }: { onClick: () => void; c
   )
 }
 
-// ─── Hero Media Upload (resize + compress on client, then upload) ──────────────
+// ─── Hero Media Upload — REMOVED (Element-specific) ──────────────
+// HeroMediaCard and ScheduleEditor removed — not needed for VuriumBook SaaS
+/*
 function HeroMediaCard({ settings: s, onUpdate, onSave }: { settings: any; onUpdate: (key: string, val: any) => void; onSave: () => void }) {
   const [uploading, setUploading] = useState(false)
   const [uploadMsg, setUploadMsg] = useState('')
@@ -259,50 +261,45 @@ function ScheduleEditor({ userId, userName, currentSchedule, onSaved }: { userId
   )
 }
 
-// ─── Users Tab ────────────────────────────────────────────────────────────────
+*/
+
+// ─── Users Tab — Clean VuriumBook style ──────────────────────────────────────
 function UsersTab() {
   const [users, setUsers] = useState<UserAccount[]>([])
-  const [barbers, setBarbers] = useState<Barber[]>([])
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
+  const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<'owner'|'admin'|'barber'|'student'>('barber')
-  const [barberId, setBarberId] = useState('')
-  const [mentorBarberIds, setMentorBarberIds] = useState<string[]>([])
-  const [phone, setPhone] = useState('')
+  const [role, setRole] = useState<'admin'|'barber'>('barber')
   const [creating, setCreating] = useState(false)
-  const [editScheduleId, setEditScheduleId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
-    try {
-      const [ud, bd] = await Promise.all([apiFetch('/api/users'), apiFetch('/api/barbers')])
-      setUsers(ud?.users || [])
-      setBarbers((Array.isArray(bd) ? bd : bd?.barbers || []).map((b: any) => ({ id: b.id, name: b.name })))
-    } catch (e: any) { setMsg('Error: ' + e.message) }
+    try { const ud = await apiFetch('/api/users'); setUsers(ud?.users || []) }
+    catch (e: any) { setMsg('Error: ' + e.message) }
     setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
 
   async function createUser() {
-    if (!name.trim() || !username.trim() || !password) { setMsg('Name, username and password required'); return }
-    if (password.length < 4) { setMsg('Password min 4 characters'); return }
+    if (!name.trim() || !email.trim() || !password) { setMsg('All fields required'); return }
+    if (password.length < 6) { setMsg('Password min 6 characters'); return }
     setCreating(true); setMsg('')
     try {
-      await apiFetch('/api/users', { method: 'POST', body: JSON.stringify({ name: name.trim(), username: username.trim().toLowerCase(), password, role, barber_id: barberId, phone: phone.trim() || undefined, ...(role === 'student' ? { mentor_barber_ids: mentorBarberIds } : {}) }) })
-      setName(''); setUsername(''); setPassword(''); setBarberId(''); setMentorBarberIds([]); setPhone('')
-      setMsg('Account created ✓'); load()
+      await apiFetch('/api/users', { method: 'POST', body: JSON.stringify({ name: name.trim(), username: email.trim().toLowerCase(), password, role }) })
+      setName(''); setEmail(''); setPassword(''); setShowForm(false)
+      setMsg('Team member added'); load()
     } catch (e: any) { setMsg('Error: ' + e.message) }
     setCreating(false)
   }
 
   async function resetPw(uid: string) {
-    const pw = prompt('New password (min 4 chars):')
-    if (!pw || pw.length < 4) { alert('Min 4 characters'); return }
-    try { await apiFetch(`/api/users/${encodeURIComponent(uid)}`, { method: 'PATCH', body: JSON.stringify({ password: pw }) }); load() }
+    const pw = prompt('New password (min 6 chars):')
+    if (!pw || pw.length < 6) return
+    try { await apiFetch(`/api/users/${encodeURIComponent(uid)}`, { method: 'PATCH', body: JSON.stringify({ password: pw }) }); setMsg('Password reset'); load() }
     catch (e: any) { alert(e.message) }
   }
 
@@ -311,160 +308,89 @@ function UsersTab() {
     catch (e: any) { alert(e.message) }
   }
 
-  async function editPhone(uid: string, currentPhone?: string) {
-    const ph = prompt('Phone number:', currentPhone || '')
-    if (ph === null) return  // cancelled
-    try { await apiFetch(`/api/users/${encodeURIComponent(uid)}`, { method: 'PATCH', body: JSON.stringify({ phone: ph.trim() }) }); load() }
-    catch (e: any) { alert(e.message) }
+  async function deleteUser(uid: string, uname: string) {
+    if (!window.confirm(`Remove "${uname}" from your team?`)) return
+    try { await apiFetch(`/api/users/${encodeURIComponent(uid)}?hard=true`, { method: 'DELETE' }); load() }
+    catch (e: any) { alert(e?.message || 'Failed') }
   }
 
-  const roleColors: Record<string, { border: string; color: string }> = {
-    owner: { border: 'rgba(255,207,63,.35)', color: 'rgba(220,190,130,.5)' },
-    admin: { border: 'rgba(143,240,177,.35)', color: 'rgba(130,220,170,.5)' },
-    barber: { border: 'rgba(10,132,255,.35)', color: 'rgba(130,150,220,.6)' },
-    student: { border: 'rgba(168,107,255,.35)', color: 'rgba(180,140,220,.6)' },
-  }
+  const initials = (n: string) => (n || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* Create new account */}
-      <SectionCard title="Create account">
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginBottom: 4 }}>Owner, Admin or Team member — each person gets their own login</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 10 }}>
-          <Field label="Display name"><input value={name} onChange={e => setName(e.target.value)} placeholder="Nazar" style={inp} /></Field>
-          <Field label="Username (login)"><input value={username} onChange={e => setUsername(e.target.value)} placeholder="nazar" style={inp} /></Field>
-          <Field label="Password"><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="min 4 chars" style={inp} /></Field>
-          <Field label="Phone"><input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 (___) ___-____" type="tel" style={inp} /></Field>
-          <Field label="Role">
-            <select value={role} onChange={e => setRole(e.target.value as any)} style={inp}>
-              <option value="owner">Owner — full access</option>
-              <option value="admin">Admin — all except payroll/settings</option>
-              <option value="barber">Team member — own bookings only</option>
-              <option value="student">Student — calendar only, no payments</option>
-            </select>
-          </Field>
-          {role === 'barber' && (
-            <div style={{ gridColumn: '1 / -1' }}>
-              <Field label="Link to team member profile">
-                <select value={barberId} onChange={e => setBarberId(e.target.value)} style={inp}>
-                  <option value="">— Not linked —</option>
-                  {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
-              </Field>
-            </div>
-          )}
-          {role === 'student' && (
-            <div style={{ gridColumn: '1 / -1' }}>
-              <Field label="Mentors (select one or more)">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.14)' }}>
-                  {barbers.length === 0 && <div style={{ fontSize: 12, color: 'rgba(255,255,255,.30)' }}>No team members found</div>}
-                  {barbers.map(b => (
-                    <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, color: '#e8e8ed' }}>
-                      <input type="checkbox"
-                        checked={mentorBarberIds.includes(b.id)}
-                        onChange={e => {
-                          if (e.target.checked) setMentorBarberIds(prev => [...prev, b.id])
-                          else setMentorBarberIds(prev => prev.filter(id => id !== b.id))
-                        }}
-                        style={{ accentColor: 'rgba(180,140,220,.8)', width: 16, height: 16 }}
-                      />
-                      {b.name}
-                    </label>
-                  ))}
-                  {mentorBarberIds.length === 0 && barbers.length > 0 && (
-                    <div style={{ fontSize: 11, color: 'rgba(255,207,63,.70)', marginTop: 4 }}>⚠ Select at least one mentor</div>
-                  )}
-                </div>
-              </Field>
-            </div>
-          )}
-        </div>
-        {msg && <div style={{ fontSize: 12, color: msg.includes('Error') ? 'rgba(220,130,160,.5)' : 'rgba(130,220,170,.5)', padding: '8px 12px', borderRadius: 10, border: `1px solid ${msg.includes('Error') ? 'rgba(255,107,107,.30)' : 'rgba(143,240,177,.30)'}`, background: msg.includes('Error') ? 'rgba(255,107,107,.08)' : 'rgba(143,240,177,.08)' }}>{msg}</div>}
-        <button onClick={createUser} disabled={creating}
-          style={{ height: 44, borderRadius: 12, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.14)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: creating ? .5 : 1 }}>
-          {creating ? 'Creating…' : '+ Create account'}
-        </button>
-      </SectionCard>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Header + Add button */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,.4)' }}>{users.length} team member{users.length !== 1 ? 's' : ''}</div>
+        <button onClick={() => setShowForm(!showForm)} style={{
+          padding: '8px 18px', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer',
+          background: showForm ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.06)',
+          border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.7)',
+        }}>{showForm ? 'Cancel' : '+ Add member'}</button>
+      </div>
 
-      {/* Users list */}
-      <SectionCard title={`Accounts (${users.length})`} action={<SmBtn onClick={load}>↻</SmBtn>}>
-        {loading ? <div style={{ color: 'rgba(255,255,255,.35)', fontSize: 12 }}>Loading…</div> :
-          users.length === 0 ? <div style={{ color: 'rgba(255,255,255,.30)', fontSize: 12 }}>No accounts yet</div> :
-          users.map(u => {
-            const rc = roleColors[u.role] || roleColors.barber
-            const linked = barbers.find(b => b.id === u.barber_id)
-            return (
-              <div key={u.id} style={{ display: 'flex', flexDirection: 'column', gap: 0, borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)', opacity: u.active ? 1 : 0.55, overflow: 'hidden' }}>
-                <div className="set-user-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 900, fontSize: 14 }}>{u.name || u.username}</div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginTop: 2 }}>
-                      @{u.username}{(u as any).phone ? ` · ${(u as any).phone}` : ''}{linked ? ` · ${linked.name}` : ''}{u.role === 'student' && (u as any).mentor_barber_ids?.length ? ` · ${(u as any).mentor_barber_ids.map((id: string) => barbers.find(b => b.id === id)?.name || id).join(', ')}` : ''}{u.last_login ? ` · ${u.last_login.slice(0,10)}` : ''}
-                      {!u.active && <span style={{ color: '#ff6b6b', marginLeft: 8 }}>disabled</span>}
-                    </div>
-                  </div>
-                  <div className="set-user-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', padding: '3px 9px', borderRadius: 999, border: `1px solid ${rc.border}`, background: 'rgba(0,0,0,.14)', color: rc.color }}>{u.role}</span>
-                    <SmBtn onClick={() => editPhone(u.id, (u as any).phone)}>Phone</SmBtn>
-                    {u.role === 'admin' && <SmBtn onClick={() => setEditScheduleId(editScheduleId === u.id ? null : u.id)}>Schedule</SmBtn>}
-                    <SmBtn onClick={() => resetPw(u.id)}>Reset PW</SmBtn>
-                    <SmBtn danger onClick={() => toggleActive(u.id, !u.active)}>{u.active ? 'Disable' : 'Enable'}</SmBtn>
-                    {u.role !== 'owner' && <SmBtn danger onClick={async () => {
-                      if (!window.confirm(`Permanently delete account "${u.name || u.username}"?\n\nThis will remove the account completely and cannot be undone.`)) return
-                      try {
-                        await apiFetch(`/api/users/${encodeURIComponent(u.id)}?hard=true`, { method: 'DELETE' })
-                        load()
-                      } catch (e: any) { alert(e?.message || 'Delete failed') }
-                    }}>Delete</SmBtn>}
-                  </div>
-                </div>
-                {editScheduleId === u.id && u.role === 'admin' && (
-                  <ScheduleEditor userId={u.id} userName={u.name || u.username} currentSchedule={(u as any).schedule} onSaved={() => { setEditScheduleId(null); load() }} />
-                )}
+      {msg && <div style={{ fontSize: 12, padding: '8px 14px', borderRadius: 10, color: msg.includes('Error') ? 'rgba(255,160,160,.8)' : 'rgba(130,220,170,.7)', background: msg.includes('Error') ? 'rgba(220,80,80,.06)' : 'rgba(130,220,170,.06)', border: `1px solid ${msg.includes('Error') ? 'rgba(220,80,80,.12)' : 'rgba(130,220,170,.12)'}` }}>{msg}</div>}
+
+      {/* Create form */}
+      {showForm && (
+        <div style={{ padding: 20, borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.02)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Full name"><input value={name} onChange={e => setName(e.target.value)} placeholder="Jane Smith" style={inp} /></Field>
+            <Field label="Email (login)"><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@business.com" style={inp} /></Field>
+            <Field label="Password"><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 6 characters" style={inp} /></Field>
+            <Field label="Role">
+              <select value={role} onChange={e => setRole(e.target.value as any)} style={inp}>
+                <option value="admin">Admin — manage everything</option>
+                <option value="barber">Team member — own bookings</option>
+              </select>
+            </Field>
+          </div>
+          <button onClick={createUser} disabled={creating} style={{
+            marginTop: 14, width: '100%', padding: '12px', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', cursor: 'pointer',
+            background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)', color: '#fff', fontWeight: 600,
+            opacity: creating ? 0.5 : 1,
+          }}>{creating ? 'Adding...' : 'Add to team'}</button>
+        </div>
+      )}
+
+      {/* Team list */}
+      {loading ? <div style={{ color: 'rgba(255,255,255,.25)', fontSize: 13, padding: 20, textAlign: 'center' }}>Loading...</div> :
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {users.map(u => (
+            <div key={u.id} style={{
+              display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 14,
+              border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)',
+              opacity: u.active ? 1 : 0.45, transition: 'opacity .2s',
+            }}>
+              {/* Avatar */}
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.5)', flexShrink: 0 }}>
+                {initials(u.name || u.username)}
               </div>
-            )
-          })
-        }
-      </SectionCard>
-
-      {/* Permissions table */}
-      <SectionCard title="Role permissions">
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead>
-              <tr>
-                <th style={{ padding: '8px 12px', textAlign: 'left', ...lbl }}>Feature</th>
-                {['Owner', 'Admin', 'Team member', 'Student'].map(r => <th key={r} style={{ padding: '8px 12px', textAlign: 'center', ...lbl, color: roleColors[r.toLowerCase()]?.color }}>{r}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                ['Dashboard', true, true, true, false],
-                ['Calendar — all team members', true, true, false, false],
-                ['Calendar — mentor columns', true, true, true, true],
-                ['Book models (practice)', false, false, false, true],
-                ['Clients', true, true, false, false],
-                ['Payments', true, true, false, false],
-                ['Payroll', true, false, false, false],
-                ['Settings', true, false, false, false],
-                ['Own profile / password', true, true, true, true],
-                ['Add/block time slots', true, true, false, false],
-                ['View client phones', true, true, false, false],
-                ['View prices', true, true, true, false],
-              ].map(([feat, owner, admin, barber, student]) => (
-                <tr key={String(feat)}>
-                  <td style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,.05)', color: 'rgba(255,255,255,.70)' }}>{feat as string}</td>
-                  {[owner, admin, barber, student].map((v, i) => (
-                    <td key={i} style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,.05)', textAlign: 'center' }}>
-                      {v ? <span style={{ color: 'rgba(130,220,170,.8)', fontSize: 16 }}>✓</span> : <span style={{ color: 'rgba(255,255,255,.20)', fontSize: 14 }}>—</span>}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#e8e8ed', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {u.name || u.username}
+                  {!u.active && <span style={{ fontSize: 10, color: 'rgba(255,100,100,.6)', marginLeft: 8 }}>inactive</span>}
+                </div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{u.username}</div>
+              </div>
+              {/* Role badge */}
+              <span style={{
+                fontSize: 10, fontWeight: 500, letterSpacing: '.04em', padding: '4px 10px', borderRadius: 999,
+                background: u.role === 'owner' ? 'rgba(220,190,100,.08)' : u.role === 'admin' ? 'rgba(130,220,170,.06)' : 'rgba(255,255,255,.04)',
+                border: `1px solid ${u.role === 'owner' ? 'rgba(220,190,100,.15)' : u.role === 'admin' ? 'rgba(130,220,170,.12)' : 'rgba(255,255,255,.08)'}`,
+                color: u.role === 'owner' ? 'rgba(220,190,100,.7)' : u.role === 'admin' ? 'rgba(130,220,170,.6)' : 'rgba(255,255,255,.4)',
+                textTransform: 'capitalize', flexShrink: 0,
+              }}>{u.role === 'barber' ? 'member' : u.role}</span>
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <SmBtn onClick={() => resetPw(u.id)}>Reset PW</SmBtn>
+                {u.role !== 'owner' && <SmBtn danger onClick={() => toggleActive(u.id, !u.active)}>{u.active ? 'Disable' : 'Enable'}</SmBtn>}
+                {u.role !== 'owner' && <SmBtn danger onClick={() => deleteUser(u.id, u.name || u.username)}>Remove</SmBtn>}
+              </div>
+            </div>
+          ))}
         </div>
-      </SectionCard>
+      }
     </div>
   )
 }
@@ -662,16 +588,7 @@ export default function SettingsPage() {
                       <option value="EUR">EUR — Euro</option>
                     </select>
                   </Field>
-                  <Field label="Shop status">
-                    <select value={s.shopStatusMode || 'auto'} onChange={e => set('shopStatusMode', e.target.value)} style={inp}>
-                      <option value="auto">Auto (follow schedule)</option>
-                      <option value="open">Force Open</option>
-                      <option value="closed">Force Closed</option>
-                    </select>
-                  </Field>
                 </SectionCard>
-
-                <HeroMediaCard settings={s} onUpdate={(key: string, val: any) => set(key, val)} onSave={save} />
 
                 <SectionCard title="Tax">
                   <Toggle checked={!!tax.enabled} onChange={v => setNested('tax','enabled',v)} label="Enable tax on services" sub="Added to invoice total" />
@@ -851,15 +768,6 @@ export default function SettingsPage() {
                       </button>
                     </div>
                   )}
-                </SectionCard>
-                <SectionCard title="Danger zone">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(255,107,107,.20)', background: 'rgba(255,107,107,.04)' }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>Clear abandoned Terminal requests</div>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', marginTop: 2 }}>Remove pending/test payment requests older than 4h</div>
-                    </div>
-                    <SmBtn danger onClick={cleanup}>Clean up</SmBtn>
-                  </div>
                 </SectionCard>
               </div>
             )}
