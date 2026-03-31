@@ -121,7 +121,7 @@ export default function DashboardPage() {
   const [clockOutSummary, setClockOutSummary] = useState<{ hours: string; earnings: string; tips: string; clients: number; services: string } | null>(() => {
     // Restore clock-out summary from localStorage if same day
     try {
-      const saved = JSON.parse(localStorage.getItem('ELEMENT_CLOCKOUT_SUMMARY') || 'null')
+      const saved = JSON.parse(localStorage.getItem('VB_CLOCKOUT_SUMMARY') || 'null')
       if (saved && saved.date === isoToday()) return saved.data
     } catch {}
     return null
@@ -404,14 +404,14 @@ export default function DashboardPage() {
             services: money(mine?.barber_service_share || 0),
           }
           setClockOutSummary(summaryData)
-          try { localStorage.setItem('ELEMENT_CLOCKOUT_SUMMARY', JSON.stringify({ date: isoToday(), data: summaryData })) } catch {}
+          try { localStorage.setItem('VB_CLOCKOUT_SUMMARY', JSON.stringify({ date: isoToday(), data: summaryData })) } catch {}
         } catch {
           const totalMins = data?.duration_minutes || todayMinutes
           const h = Math.floor(totalMins / 60)
           const m = totalMins % 60
           const fallbackData = { hours: h > 0 ? `${h}h ${m}m` : `${m}m`, earnings: '—', tips: '—', clients: 0, services: '—' }
           setClockOutSummary(fallbackData)
-          try { localStorage.setItem('ELEMENT_CLOCKOUT_SUMMARY', JSON.stringify({ date: isoToday(), data: fallbackData })) } catch {}
+          try { localStorage.setItem('VB_CLOCKOUT_SUMMARY', JSON.stringify({ date: isoToday(), data: fallbackData })) } catch {}
         }
         setClockSuccess('out')
         // After animation, keep summary visible (don't clear it — stays until midnight)
@@ -458,7 +458,7 @@ export default function DashboardPage() {
                 {isBarber ? `Hey, ${myBarberName.split(' ')[0]}` : 'Dashboard'}
               </h2>
               <p style={{ margin: '5px 0 0', color: 'rgba(255,255,255,.45)', fontSize: 12, letterSpacing: '.08em', textTransform: 'uppercase' }}>
-                {fmtDateLong()} · ELEMENT BARBERSHOP
+                {fmtDateLong()} · VuriumBook
               </p>
             </div>
           </div>

@@ -753,7 +753,7 @@ export default function CalendarPage() {
   const blockLongPressTimer = useRef<any>(null)
   const eventLongPressTimer = useRef<any>(null)
   // Persist arrived IDs in localStorage so they survive reload (cleared when paid)
-  const ARRIVED_KEY = 'ELEMENT_ARRIVED_IDS'
+  const ARRIVED_KEY = 'VB_ARRIVED_IDS'
   const arrivedIdsRef = useRef<Set<string>>(new Set())
   useEffect(() => {
     try { arrivedIdsRef.current = new Set(JSON.parse(localStorage.getItem(ARRIVED_KEY) || '[]')) } catch {}
@@ -816,7 +816,7 @@ export default function CalendarPage() {
 
   // Student schedule state
   const [studentSchedule, setStudentSchedule] = useState<DaySchedule[]>(() => {
-    try { const s = localStorage.getItem('ELEMENT_STUDENT_SCHEDULE'); if (s) return JSON.parse(s) } catch {}
+    try { const s = localStorage.getItem('VB_STUDENT_SCHEDULE'); if (s) return JSON.parse(s) } catch {}
     return DAY_DEFAULTS.map(d => ({...d}))
   })
   // Build workHours from barber schedule every time barbers or date changes
@@ -971,7 +971,7 @@ export default function CalendarPage() {
         const sched = data?.user?.schedule
         if (Array.isArray(sched) && sched.length === 7) {
           setStudentSchedule(sched)
-          localStorage.setItem('ELEMENT_STUDENT_SCHEDULE', JSON.stringify(sched))
+          localStorage.setItem('VB_STUDENT_SCHEDULE', JSON.stringify(sched))
         }
       } catch {}
     })()
@@ -2774,7 +2774,7 @@ export default function CalendarPage() {
       {settingsOpen && <SettingsModal barbers={barbers} services={services} onClose={() => setSettingsOpen(false)} onReload={reloadAll}
         isStudent={isStudent} isBarber={isBarber} myBarberId={myBarberId}
         studentSchedule={studentSchedule} onStudentScheduleChange={(s: DaySchedule[]) => {
-          setStudentSchedule(s); localStorage.setItem('ELEMENT_STUDENT_SCHEDULE', JSON.stringify(s))
+          setStudentSchedule(s); localStorage.setItem('VB_STUDENT_SCHEDULE', JSON.stringify(s))
           // Save to user profile
           const uid = currentUser?.uid; if (uid) apiFetch(`/api/users/${encodeURIComponent(uid)}`, { method: 'PATCH', body: JSON.stringify({ schedule: s }) }).catch(() => {})
         }} />}

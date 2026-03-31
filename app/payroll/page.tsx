@@ -469,7 +469,7 @@ export default function PayrollPage() {
       const currentRules = rulesData?.rules || {}
       // Load late resets from localStorage as backup
       let localResets: Record<string, string> = {}
-      try { localResets = JSON.parse(localStorage.getItem('ELEMENT_LATE_RESETS') || '{}') } catch {}
+      try { localResets = JSON.parse(localStorage.getItem('VB_LATE_RESETS') || '{}') } catch {}
       attRecords.forEach((r: any) => {
         if (!r.clock_in || !r.barber_id) return
         const sched = barberSchedules[r.barber_id]
@@ -719,7 +719,7 @@ export default function PayrollPage() {
                                       const resetTime = new Date().toISOString()
                                       await apiFetch(`/api/payroll/rules/${encodeURIComponent(b.barber_id)}`, { method: 'POST', body: JSON.stringify({ ...bRule, late_reset_at: resetTime }) })
                                       // Also persist in localStorage as backup (server may not save late_reset_at)
-                                      try { const key = 'ELEMENT_LATE_RESETS'; const resets = JSON.parse(localStorage.getItem(key) || '{}'); resets[b.barber_id] = resetTime; localStorage.setItem(key, JSON.stringify(resets)) } catch {}
+                                      try { const key = 'VB_LATE_RESETS'; const resets = JSON.parse(localStorage.getItem(key) || '{}'); resets[b.barber_id] = resetTime; localStorage.setItem(key, JSON.stringify(resets)) } catch {}
                                       setLateMinutes(prev => ({ ...prev, [b.barber_id]: 0 }))
                                       setRules(prev => ({ ...prev, [b.barber_id]: { ...bRule, late_reset_at: resetTime } as any }))
                                     } catch (err: any) { alert('Failed to reset: ' + err.message) }

@@ -542,9 +542,9 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
     if (status !== 'ok' || !user) return
     const CHAT_COLORS: Record<string, string> = { general: 'rgba(130,150,220,.6)', barbers: 'rgba(130,150,220,.6)', admins: 'rgba(130,220,170,.5)', students: 'rgba(180,140,220,.6)', requests: 'rgba(220,190,130,.5)', applications: 'rgba(220,130,160,.5)' }
     const chatTypes = ['general', 'barbers', 'admins', 'students']
-    const lastSeenKey = 'ELEMENT_MSG_LAST_SEEN'
-    const lastSeenAppsKey = 'ELEMENT_APPS_LAST_SEEN'
-    const lastSeenReqKey = 'ELEMENT_REQ_LAST_SEEN'
+    const lastSeenKey = 'VB_MSG_LAST_SEEN'
+    const lastSeenAppsKey = 'VB_APPS_LAST_SEEN'
+    const lastSeenReqKey = 'VB_REQ_LAST_SEEN'
     const isOwnerAdmin = user.role === 'owner' || user.role === 'admin'
     const hdrs = { Authorization: `Bearer ${localStorage.getItem('VURIUMBOOK_TOKEN') || ''}`, 'Content-Type': 'application/json' }
 
@@ -605,9 +605,9 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
     if (pathname === '/messages') {
       setUnreadChat(null)
       const now = new Date().toISOString()
-      localStorage.setItem('ELEMENT_MSG_LAST_SEEN', now)
-      localStorage.setItem('ELEMENT_APPS_LAST_SEEN', now)
-      localStorage.setItem('ELEMENT_REQ_LAST_SEEN', now)
+      localStorage.setItem('VB_MSG_LAST_SEEN', now)
+      localStorage.setItem('VB_APPS_LAST_SEEN', now)
+      localStorage.setItem('VB_REQ_LAST_SEEN', now)
     }
   }, [pathname])
 
@@ -702,8 +702,8 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         }
         .brand h1{
           font-family:"Inter",sans-serif;
-          letter-spacing:.32em;font-size:14px;text-transform:uppercase;
-          background:linear-gradient(150deg,rgba(255,255,255,.92),rgba(255,255,255,.45));
+          letter-spacing:.08em;font-size:16px;font-weight:600;
+          background:linear-gradient(150deg,rgba(130,150,220,.95),rgba(130,220,170,.7));
           -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
         }
         .brand-sub{
@@ -728,8 +728,8 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
           border-color:rgba(255,255,255,.07);
         }
         .nav-item.active{
-          background:rgba(255,255,255,.09);
-          border-color:rgba(255,255,255,.12);
+          background:rgba(130,150,220,.08);
+          border-color:rgba(130,150,220,.15);
         }
         .nav-ico{
           width:33px;height:33px;border-radius:9px;
@@ -739,8 +739,8 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
           border:1px solid rgba(255,255,255,.06);
         }
         .nav-item.active .nav-ico{
-          background:rgba(255,255,255,.12);
-          border-color:rgba(255,255,255,.14);
+          background:rgba(130,150,220,.12);
+          border-color:rgba(130,150,220,.2);
         }
         .nav-t{font-weight:600;font-size:13px;color:rgba(255,255,255,.85);display:block;letter-spacing:.01em;}
         .nav-s{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.28);display:block;margin-top:1px;}
@@ -908,7 +908,10 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         {/* Sidebar */}
         <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}>
           <div className="brand">
-            <h1>ELEMENT</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+              <img src="/logo.jpg" alt="" style={{ width: 22, height: 22, borderRadius: 6 }} />
+              <h1>VuriumBook</h1>
+            </div>
             <div className="brand-sub">{page}</div>
           </div>
 
