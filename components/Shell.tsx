@@ -684,8 +684,8 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
           height:52px;flex:0 0 52px;
           display:flex;align-items:center;justify-content:space-between;
           padding:0 20px;
-          border-bottom:1px solid rgba(130,150,220,.06);
-          background:rgba(5,5,15,.65);
+          border-bottom:1px solid rgba(255,255,255,.05);
+          background:rgba(5,5,12,.7);
           backdrop-filter:saturate(180%) blur(40px);
           -webkit-backdrop-filter:saturate(180%) blur(40px);
           z-index:50;
@@ -715,52 +715,51 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         .pill-bar{
           position:fixed;bottom:0;left:0;right:0;z-index:60;
           display:flex;align-items:center;justify-content:center;
-          padding:10px 16px max(10px, env(safe-area-inset-bottom, 10px));
-          background:linear-gradient(180deg, rgba(0,0,0,.0) 0%, rgba(0,0,0,.85) 30%, rgba(0,0,0,.95) 100%);
+          padding:12px 16px max(12px, env(safe-area-inset-bottom, 12px));
+          background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.8) 25%, rgba(1,1,1,.97) 100%);
           pointer-events:none;
         }
         .pill-inner{
           pointer-events:auto;
-          display:flex;align-items:center;gap:2px;
-          padding:6px 8px;border-radius:22px;
-          background:rgba(10,10,20,.7);
+          display:flex;align-items:center;gap:3px;
+          padding:5px 6px;border-radius:20px;
+          background:rgba(8,8,14,.75);
           backdrop-filter:saturate(180%) blur(40px);
           -webkit-backdrop-filter:saturate(180%) blur(40px);
-          border:1px solid rgba(130,150,220,.12);
-          box-shadow:0 4px 30px rgba(0,0,0,.5), 0 0 60px rgba(130,150,220,.04), inset 0 0.5px 0 rgba(255,255,255,.06);
+          border:1px solid rgba(255,255,255,.08);
+          box-shadow:0 4px 30px rgba(0,0,0,.5), inset 0 0.5px 0 rgba(255,255,255,.05);
         }
         .pill-item{
-          display:flex;flex-direction:column;align-items:center;gap:2px;
-          padding:8px 18px;border-radius:16px;
+          display:flex;flex-direction:column;align-items:center;gap:3px;
+          padding:10px 20px;border-radius:15px;
           cursor:pointer;transition:all .2s ease;
           border:1px solid transparent;
-          min-width:56px;
+          min-width:58px;
           text-decoration:none!important;
           position:relative;
         }
         .pill-item:hover{
-          background:rgba(130,150,220,.06);
-          border-color:rgba(130,150,220,.08);
+          background:rgba(255,255,255,.04);
         }
         .pill-item.active{
-          background:rgba(130,150,220,.1);
-          border-color:rgba(130,150,220,.18);
-          box-shadow:0 0 20px rgba(130,150,220,.08), inset 0 0 8px rgba(130,150,220,.04);
+          background:rgba(255,255,255,.07);
+          border-color:rgba(255,255,255,.10);
+          box-shadow:0 0 16px rgba(255,255,255,.03);
         }
         .pill-item .pill-ico{
           width:22px;height:22px;display:flex;align-items:center;justify-content:center;
           position:relative;
           transition:transform .15s;
         }
-        .pill-item.active .pill-ico{transform:scale(1.08);}
+        .pill-item.active .pill-ico{transform:scale(1.05);}
         .pill-item .pill-label{
           font-size:10px;font-weight:400;
-          color:rgba(255,255,255,.3);
+          color:rgba(255,255,255,.25);
           letter-spacing:.02em;
           transition:color .2s;
         }
         .pill-item.active .pill-label{
-          color:rgba(130,150,220,.9);
+          color:rgba(255,255,255,.85);
           font-weight:500;
         }
 
@@ -830,7 +829,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
               return (
                 <Link key={item.id} href={item.href} className={`pill-item${active ? ' active' : ''}`}>
                   <div className={`pill-ico${hasUnread ? ' has-unread' : ''}`}>
-                    <Icon id={item.id} color={active ? 'rgba(130,150,220,.95)' : 'rgba(255,255,255,.35)'} />
+                    <Icon id={item.id} color={active ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.3)'} />
                     {hasUnread && <div className="pill-unread-dot" />}
                   </div>
                   <span className="pill-label">{item.label}</span>

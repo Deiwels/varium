@@ -69,13 +69,13 @@ function Chip({ label, type }: { label: string; type: string }) {
 }
 
 function KpiCard({ title, value, sub, color }: { title: string; value: string; sub: string; color?: string }) {
-  const dots: Record<string, string> = { ok: 'rgba(130,220,170,.8)', bad: '#ff6b6b', blue: 'rgba(130,150,220,.9)', gold: 'rgba(220,190,100,.8)' }
+  const dots: Record<string, string> = { ok: 'rgba(130,220,170,.8)', bad: '#ff6b6b', blue: 'rgba(255,255,255,.6)', gold: 'rgba(220,190,100,.8)' }
   return (
-    <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.10)', background: 'linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02))', boxShadow: '0 10px 40px rgba(0,0,0,.35)', padding: 16 }}>
-      <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.55)', marginBottom: 10 }}>{title}</div>
-      <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: '.02em', lineHeight: 1 }}>{value}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,.45)' }}>
-        {color && <span style={{ width: 7, height: 7, borderRadius: 999, background: dots[color] || 'rgba(255,255,255,.25)', flexShrink: 0, display: 'inline-block' }} />}
+    <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', backdropFilter: 'blur(12px)', padding: 16, transition: 'border-color .2s' }}>
+      <div style={{ fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', marginBottom: 10 }}>{title}</div>
+      <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-.01em', lineHeight: 1, color: '#f0f0f5' }}>{value}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,.35)' }}>
+        {color && <span style={{ width: 6, height: 6, borderRadius: 999, background: dots[color] || 'rgba(255,255,255,.2)', flexShrink: 0, display: 'inline-block' }} />}
         {sub}
       </div>
     </div>
@@ -464,11 +464,11 @@ export default function DashboardPage() {
         <div style={{ position: 'sticky', top: 0, zIndex: 20, padding: '10px 0 12px', background: 'linear-gradient(to bottom,rgba(0,0,0,.88),rgba(0,0,0,.68),transparent)', backdropFilter: 'blur(14px)', marginBottom: 16 } as React.CSSProperties}>
           <div className="dash-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <div>
-              <h2 className="page-title" style={{ margin: 0, fontFamily: '"Inter", sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 16 }}>
+              <h2 className="page-title" style={{ margin: 0, fontFamily: 'Inter, sans-serif', letterSpacing: '-.02em', fontSize: 20, fontWeight: 600, color: '#f0f0f5' }}>
                 {isBarber ? `Hey, ${myBarberName.split(' ')[0]}` : 'Dashboard'}
               </h2>
-              <p style={{ margin: '5px 0 0', color: 'rgba(255,255,255,.45)', fontSize: 12, letterSpacing: '.08em', textTransform: 'uppercase' }}>
-                {fmtDateLong()} · VuriumBook
+              <p style={{ margin: '4px 0 0', color: 'rgba(255,255,255,.3)', fontSize: 13, fontWeight: 300 }}>
+                {fmtDateLong()}
               </p>
             </div>
           </div>
@@ -706,7 +706,7 @@ export default function DashboardPage() {
 
         {/* Barber: earnings breakdown — right after clock in/out */}
         {isBarber ? (
-              <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.10)', background: 'linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02))', padding: 14, marginBottom: 14 }}>
+              <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: 14, marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)' }}>My earnings</div>
                   <div style={{ display: 'flex', gap: 4 }}>
@@ -787,7 +787,7 @@ export default function DashboardPage() {
             )}
 
             {/* Quick actions */}
-            <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.10)', background: 'linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02))', padding: 14 }}>
+            <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: 14 }}>
               <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)', marginBottom: 12 }}>Tools</div>
               <div className="dash-quick-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
                 {actions.map(item => (
@@ -804,7 +804,7 @@ export default function DashboardPage() {
 
             {/* Owner: today by barber */}
             {!isBarber && (
-              <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.10)', background: 'linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02))', padding: 14 }}>
+              <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: 14 }}>
                 <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)', marginBottom: 12 }}>Today by team member</div>
                 {Object.entries(byBarber).sort((a, b) => b[1] - a[1]).map(([name, count]) => (
                   <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
@@ -826,7 +826,7 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
 
               {/* Shop Status */}
-              <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.10)', background: 'linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02))', padding: 16 }}>
+              <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: 16 }}>
                 <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)', marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>Shop status</span>
                   {statusMsg && <span style={{ fontSize: 11, color: 'rgba(130,220,170,.8)' }}>{statusMsg}</span>}
@@ -855,7 +855,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Banner */}
-              <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.10)', background: 'linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02))', padding: 16 }}>
+              <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: 16 }}>
                 <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)', marginBottom: 12 }}>Top banner</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                   <button onClick={() => { setBannerEnabled(v => !v); }} style={{ height: 28, padding: '0 12px', borderRadius: 999, border: `1px solid ${bannerEnabled ? 'rgba(143,240,177,.40)' : 'rgba(255,255,255,.12)'}`, background: bannerEnabled ? 'rgba(143,240,177,.12)' : 'rgba(255,255,255,.04)', color: bannerEnabled ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.55)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
@@ -876,7 +876,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Barbers — days + ratings */}
-              <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.10)', background: 'linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02))', padding: 16 }}>
+              <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: 16 }}>
                 <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)', marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>Team</span>
                   <span style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', textTransform: 'none', letterSpacing: 0 }}>Tap days: green — works, red — day off</span>
