@@ -364,7 +364,7 @@ function ClientSearch({ onSelect, isOwnerOrAdmin, initialClient, initialName }: 
           {results.slice(0, 6).map(c => (
             <div key={c.id} onClick={() => select(c)}
               style={{ padding: '11px 14px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', gap: 12 }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(10,132,255,.10)')}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,.04)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
               <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.50)" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -404,7 +404,7 @@ function ClientSearch({ onSelect, isOwnerOrAdmin, initialClient, initialName }: 
             <button
               onClick={saveNew}
               disabled={!name.trim() || saving}
-              style={{ height: 42, borderRadius: 12, border: '1px solid rgba(10,132,255,.65)', background: name.trim() ? 'rgba(10,132,255,.18)' : 'rgba(255,255,255,.04)', color: name.trim() ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.30)', cursor: name.trim() ? 'pointer' : 'default', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', marginTop: 2, transition: 'all .15s' }}>
+              style={{ height: 42, borderRadius: 12, border: '1px solid rgba(255,255,255,.15)', background: name.trim() ? 'rgba(10,132,255,.18)' : 'rgba(255,255,255,.04)', color: name.trim() ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.30)', cursor: name.trim() ? 'pointer' : 'default', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', marginTop: 2, transition: 'all .15s' }}>
               {saving ? 'Saving…' : 'Save & use this client'}
             </button>
           </div>
@@ -470,7 +470,7 @@ function NewClientForm({ initialName, onCreated, onCancel }: {
       {err && <div style={{ fontSize: 12, color: 'rgba(220,130,160,.5)', marginBottom: 8 }}>{err}</div>}
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={onCancel} style={{ flex: 1, height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit' }}>Cancel</button>
-        <button onClick={save} disabled={saving} style={{ flex: 2, height: 38, borderRadius: 10, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.16)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>
+        <button onClick={save} disabled={saving} style={{ flex: 2, height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(10,132,255,.16)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>
           {saving ? 'Saving…' : 'Save client'}
         </button>
       </div>
@@ -638,7 +638,7 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
       zelle: '1px solid rgba(106,0,255,.75)', other: '1px solid rgba(255,207,63,.65)'
     }[m]! : '1px solid rgba(255,255,255,.12)',
     background: method === m ? {
-      terminal: 'rgba(10,132,255,.14)', cash: 'rgba(143,240,177,.10)',
+      terminal: 'rgba(255,255,255,.04)', cash: 'rgba(143,240,177,.10)',
       zelle: 'rgba(106,0,255,.14)', other: 'rgba(255,207,63,.10)'
     }[m]! : 'rgba(255,255,255,.04)',
     color: method === m ? {

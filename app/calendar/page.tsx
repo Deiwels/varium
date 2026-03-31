@@ -30,7 +30,7 @@ const slotH_DEFAULT = 11
 const START_HOUR = 0
 const END_HOUR = 24
 const COL_MIN = 190
-const BARBER_COLORS = ['#99d100','rgba(180,140,220,.8)','rgba(130,150,220,.9)','#ffb000','rgba(220,130,160,.8)','rgba(130,200,220,.8)','#ff6b6b']
+const BARBER_COLORS = ['#99d100','rgba(180,140,220,.8)','rgba(255,255,255,.7)','#ffb000','rgba(220,130,160,.8)','rgba(130,200,220,.8)','#ff6b6b']
 const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 const DAY_DEFAULTS: DaySchedule[] = [
   { enabled: false, startMin: 10*60, endMin: 20*60 },
@@ -64,7 +64,7 @@ const minToTimeStr = (min: number) => `${pad2(Math.floor(min/60))}:${pad2(min%60
 // ─── Status Chip ──────────────────────────────────────────────────────────────
 const STATUS_COLORS: Record<string, { border: string; bg: string; color: string }> = {
   paid:      { border: 'rgba(143,240,177,.40)', bg: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)' },
-  booked:    { border: 'rgba(10,132,255,.40)',  bg: 'rgba(10,132,255,.10)',  color: 'rgba(130,150,220,.6)' },
+  booked:    { border: 'rgba(255,255,255,.10)',  bg: 'rgba(255,255,255,.04)',  color: 'rgba(130,150,220,.6)' },
   arrived:   { border: 'rgba(143,240,177,.40)', bg: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)' },
   done:      { border: 'rgba(255,207,63,.40)',  bg: 'rgba(255,207,63,.08)',  color: 'rgba(220,190,130,.5)' },
   noshow:    { border: 'rgba(255,107,107,.40)', bg: 'rgba(255,107,107,.10)', color: 'rgba(220,130,160,.5)' },
@@ -127,9 +127,9 @@ function SchedGrid({ schedule, onChange }: { schedule: DaySchedule[]; onChange: 
       {DAY_NAMES.map((name, i) => {
         const day = schedule[i]
         return (
-          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3, border: `1px solid ${day.enabled ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)'}`, borderRadius: 10, padding: '5px 4px', background: day.enabled ? 'rgba(10,132,255,.08)' : 'rgba(0,0,0,.18)', opacity: day.enabled ? 1 : 0.55 }}>
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3, border: `1px solid ${day.enabled ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.10)'}`, borderRadius: 10, padding: '5px 4px', background: day.enabled ? 'rgba(255,255,255,.03)' : 'rgba(0,0,0,.18)', opacity: day.enabled ? 1 : 0.55 }}>
             <div style={{ fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase', textAlign: 'center', fontWeight: 900, color: 'rgba(255,255,255,.60)' }}>{name}</div>
-            <button onClick={() => toggle(i)} style={{ height: 22, borderRadius: 999, border: `1px solid ${day.enabled ? 'rgba(10,132,255,.65)' : 'rgba(255,255,255,.16)'}`, background: day.enabled ? 'rgba(10,132,255,.16)' : 'rgba(255,255,255,.05)', color: day.enabled ? 'rgba(130,150,220,.6)' : '#fff', cursor: 'pointer', fontSize: 8, textTransform: 'uppercase', fontWeight: 900, fontFamily: 'inherit', width: '100%' }}>{day.enabled ? 'ON' : 'OFF'}</button>
+            <button onClick={() => toggle(i)} style={{ height: 22, borderRadius: 999, border: `1px solid ${day.enabled ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.16)'}`, background: day.enabled ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.05)', color: day.enabled ? 'rgba(130,150,220,.6)' : '#fff', cursor: 'pointer', fontSize: 8, textTransform: 'uppercase', fontWeight: 900, fontFamily: 'inherit', width: '100%' }}>{day.enabled ? 'ON' : 'OFF'}</button>
             <div style={{ opacity: day.enabled ? 1 : 0.3, pointerEvents: day.enabled ? 'auto' : 'none' }}>
               <input type="time" value={minToTimeStr(day.startMin)} onChange={e => setTime(i,'startMin',e.target.value)} style={{ height: 24, borderRadius: 6, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.05)', color: '#fff', padding: '0 3px', fontSize: 9, outline: 'none', width: '100%', colorScheme: 'dark' as any }} />
               <input type="time" value={minToTimeStr(day.endMin)} onChange={e => setTime(i,'endMin',e.target.value)} style={{ height: 24, borderRadius: 6, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.05)', color: '#fff', padding: '0 3px', fontSize: 9, outline: 'none', width: '100%', colorScheme: 'dark' as any, marginTop: 2 }} />
@@ -183,7 +183,7 @@ function RadarEditor({ labelsStr, valuesStr, onLabelsChange, onValuesChange }: {
               onChange={e => setEditText(e.target.value.toUpperCase())}
               onBlur={() => { updateLabel(i, editText); setEditingIdx(null) }}
               onKeyDown={e => { if (e.key === 'Enter') { updateLabel(i, editText); setEditingIdx(null) } }}
-              style={{ width: 70, height: 24, borderRadius: 6, border: '1px solid rgba(10,132,255,.50)', background: 'rgba(10,132,255,.10)', color: '#fff', padding: '0 6px', outline: 'none', fontSize: 10, fontWeight: 900, letterSpacing: '.08em', fontFamily: 'inherit' }}
+              style={{ width: 70, height: 24, borderRadius: 6, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: '#fff', padding: '0 6px', outline: 'none', fontSize: 10, fontWeight: 900, letterSpacing: '.08em', fontFamily: 'inherit' }}
             />
           ) : (
             <span
@@ -197,7 +197,7 @@ function RadarEditor({ labelsStr, valuesStr, onLabelsChange, onValuesChange }: {
             min={0} max={5} step={0.5}
             value={values[i] ?? 0}
             onChange={e => updateValue(i, parseFloat(e.target.value))}
-            style={{ flex: 1, height: 4, accentColor: 'rgba(130,150,220,.9)', cursor: 'pointer' }}
+            style={{ flex: 1, height: 4, accentColor: 'rgba(255,255,255,.7)', cursor: 'pointer' }}
           />
           <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', minWidth: 24, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{(values[i] ?? 0).toFixed(1)}</span>
           <button
@@ -318,7 +318,7 @@ function BarberEditCard({ b, onDelete, onSaved, onError, isBarberSelf }: {
   const lbl: React.CSSProperties = { fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', display: 'block', marginBottom: 4 }
 
   return (
-    <div className="barber-edit-card" style={{ borderRadius: 16, border: `1px solid ${open ? 'rgba(10,132,255,.35)' : 'rgba(255,255,255,.10)'}`, background: open ? 'rgba(10,132,255,.08)' : 'rgba(255,255,255,.03)', transition: 'border-color .25s ease, box-shadow .25s ease' }}>
+    <div className="barber-edit-card" style={{ borderRadius: 16, border: `1px solid ${open ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.10)'}`, background: open ? 'rgba(255,255,255,.03)' : 'rgba(255,255,255,.03)', transition: 'border-color .25s ease, box-shadow .25s ease' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
           {(photoPreview || b.photo)
@@ -333,7 +333,7 @@ function BarberEditCard({ b, onDelete, onSaved, onError, isBarberSelf }: {
                 const badgeColors = lvl.includes('ambassador')
                   ? { border: 'rgba(255,207,63,.45)', bg: 'rgba(255,207,63,.10)', color: 'rgba(220,190,130,.5)', shadow: '0 0 8px rgba(255,207,63,.20)' }
                   : lvl.includes('senior')
-                  ? { border: 'rgba(10,132,255,.45)', bg: 'rgba(10,132,255,.10)', color: 'rgba(130,150,220,.6)', shadow: '0 0 8px rgba(10,132,255,.20)' }
+                  ? { border: 'rgba(255,255,255,.12)', bg: 'rgba(255,255,255,.04)', color: 'rgba(130,150,220,.6)', shadow: '0 0 8px rgba(255,255,255,.06)' }
                   : lvl.includes('expert')
                   ? { border: 'rgba(143,240,177,.45)', bg: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)', shadow: '0 0 8px rgba(143,240,177,.20)' }
                   : { border: 'rgba(255,255,255,.16)', bg: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.55)', shadow: 'none' }
@@ -345,7 +345,7 @@ function BarberEditCard({ b, onDelete, onSaved, onError, isBarberSelf }: {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          <button onClick={() => setOpen(v => !v)} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: `1px solid ${open ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.14)'}`, background: open ? 'rgba(10,132,255,.12)' : 'rgba(255,255,255,.05)', color: open ? 'rgba(130,150,220,.6)' : '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>{open ? 'Collapse' : 'Edit'}</button>
+          <button onClick={() => setOpen(v => !v)} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: `1px solid ${open ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.14)'}`, background: open ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.05)', color: open ? 'rgba(130,150,220,.6)' : '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>{open ? 'Collapse' : 'Edit'}</button>
           {!isBarberSelf && onDelete && <button onClick={() => onDelete(b.id, b.name)} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>Remove</button>}
         </div>
       </div>
@@ -380,7 +380,7 @@ function BarberEditCard({ b, onDelete, onSaved, onError, isBarberSelf }: {
             <label style={lbl}>Working schedule</label>
             <SchedGrid schedule={sched} onChange={setSched} />
           </div>
-          <button onClick={save} disabled={saving} style={{ width: '100%', height: 42, borderRadius: 12, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.10)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', marginTop: 12 }}>
+          <button onClick={save} disabled={saving} style={{ width: '100%', height: 42, borderRadius: 12, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.04)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', marginTop: 12 }}>
             {saving ? 'Saving…' : isBarberSelf ? 'Send for approval' : 'Save changes — update on website'}
           </button>
         </div>
@@ -463,7 +463,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 90, padding: 'clamp(8px,2vw,16px)' }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{ width: 'min(680px,100%)', maxWidth: 'calc(100vw - 16px)', height: 'min(800px,calc(100dvh - 32px))', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', color: '#e8e8ed', fontFamily: 'Inter,sans-serif', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,.55), inset 0 0 0 0.5px rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', margin: '0 auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,.08)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
           <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.04em', fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.7)' }}>Settings</div>
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontSize: 16, fontFamily: 'inherit' }}>✕</button>
         </div>
@@ -545,7 +545,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ fontWeight: 700, fontSize: 13 }}>{s.name}</span>
-                            <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4, border: `1px solid ${s.service_type === 'addon' ? 'rgba(255,207,63,.35)' : 'rgba(10,132,255,.35)'}`, background: s.service_type === 'addon' ? 'rgba(255,207,63,.12)' : 'rgba(10,132,255,.12)', color: s.service_type === 'addon' ? 'rgba(220,190,130,.5)' : 'rgba(130,150,220,.6)' }}>{s.service_type === 'addon' ? 'Add-on' : 'Primary'}</span>
+                            <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4, border: `1px solid ${s.service_type === 'addon' ? 'rgba(255,207,63,.35)' : 'rgba(255,255,255,.08)'}`, background: s.service_type === 'addon' ? 'rgba(255,207,63,.12)' : 'rgba(255,255,255,.04)', color: s.service_type === 'addon' ? 'rgba(220,190,130,.5)' : 'rgba(130,150,220,.6)' }}>{s.service_type === 'addon' ? 'Add-on' : 'Primary'}</span>
                           </div>
                           <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginTop: 2 }}>
                             {s.durationMin}min{s.price ? ` · $${s.price}` : ''}
@@ -590,7 +590,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                             <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                               {(['primary', 'addon'] as const).map(t => (
                                 <button key={t} onClick={() => setSType(t)}
-                                  style={{ height: 30, padding: '0 12px', borderRadius: 999, border: `1px solid ${sType === t ? (t === 'addon' ? 'rgba(255,207,63,.40)' : 'rgba(10,132,255,.40)') : 'rgba(255,255,255,.10)'}`, background: sType === t ? (t === 'addon' ? 'rgba(255,207,63,.12)' : 'rgba(10,132,255,.12)') : 'rgba(255,255,255,.03)', color: sType === t ? (t === 'addon' ? 'rgba(220,190,130,.5)' : 'rgba(130,150,220,.6)') : 'rgba(255,255,255,.45)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', transition: 'all .2s' }}>
+                                  style={{ height: 30, padding: '0 12px', borderRadius: 999, border: `1px solid ${sType === t ? (t === 'addon' ? 'rgba(255,207,63,.40)' : 'rgba(255,255,255,.10)') : 'rgba(255,255,255,.10)'}`, background: sType === t ? (t === 'addon' ? 'rgba(255,207,63,.12)' : 'rgba(255,255,255,.04)') : 'rgba(255,255,255,.03)', color: sType === t ? (t === 'addon' ? 'rgba(220,190,130,.5)' : 'rgba(130,150,220,.6)') : 'rgba(255,255,255,.45)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', transition: 'all .2s' }}>
                                   {t === 'primary' ? 'Primary' : 'Add-on'}
                                 </button>
                               ))}
@@ -645,7 +645,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                     <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                       {(['primary', 'addon'] as const).map(t => (
                         <button key={t} onClick={() => { if (!editSvcId) setSType(t) }}
-                          style={{ height: 30, padding: '0 12px', borderRadius: 999, border: `1px solid ${!editSvcId && sType === t ? (t === 'addon' ? 'rgba(255,207,63,.40)' : 'rgba(10,132,255,.40)') : 'rgba(255,255,255,.10)'}`, background: !editSvcId && sType === t ? (t === 'addon' ? 'rgba(255,207,63,.12)' : 'rgba(10,132,255,.12)') : 'rgba(255,255,255,.03)', color: !editSvcId && sType === t ? (t === 'addon' ? 'rgba(220,190,130,.5)' : 'rgba(130,150,220,.6)') : 'rgba(255,255,255,.45)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', opacity: editSvcId ? 0.4 : 1, transition: 'all .2s' }}>
+                          style={{ height: 30, padding: '0 12px', borderRadius: 999, border: `1px solid ${!editSvcId && sType === t ? (t === 'addon' ? 'rgba(255,207,63,.40)' : 'rgba(255,255,255,.10)') : 'rgba(255,255,255,.10)'}`, background: !editSvcId && sType === t ? (t === 'addon' ? 'rgba(255,207,63,.12)' : 'rgba(255,255,255,.04)') : 'rgba(255,255,255,.03)', color: !editSvcId && sType === t ? (t === 'addon' ? 'rgba(220,190,130,.5)' : 'rgba(130,150,220,.6)') : 'rgba(255,255,255,.45)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', opacity: editSvcId ? 0.4 : 1, transition: 'all .2s' }}>
                           {t === 'primary' ? 'Primary' : 'Add-on'}
                         </button>
                       ))}
@@ -666,7 +666,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                     </div>
                   </div>
                 </div>
-                <button onClick={addService} disabled={saving || !!editSvcId} style={{ width: '100%', height: 42, borderRadius: 12, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.10)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: editSvcId ? 0.4 : 1 }}>
+                <button onClick={addService} disabled={saving || !!editSvcId} style={{ width: '100%', height: 42, borderRadius: 12, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.04)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: editSvcId ? 0.4 : 1 }}>
                   {saving ? 'Saving…' : '+ Add service'}
                 </button>
               </div>}
@@ -1602,10 +1602,30 @@ export default function CalendarPage() {
 
   return (
     <Shell page="calendar">
-      {/* Subtle cosmic background */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', opacity: 0.3 }}>
-        <div className="stars stars-far" style={{ position: 'absolute', inset: '-10%', width: '120%', height: '120%' }} />
+      {/* Cosmic parallax background */}
+      <div id="cal-space" style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden', willChange: 'transform' }}>
+        <div id="cal-stars-far" className="stars stars-far" style={{ position: 'absolute', inset: '-15%', width: '130%', height: '130%', opacity: 0.25 }} />
+        <div id="cal-stars-mid" className="stars stars-mid" style={{ position: 'absolute', inset: '-10%', width: '120%', height: '120%', opacity: 0.15 }} />
+        <div className="nebula-layer" style={{ width: 500, height: 300, top: '5%', left: '-8%', background: 'rgba(30,45,110,.03)', opacity: 0.4 }} />
+        <div className="nebula-layer" style={{ width: 400, height: 250, bottom: '10%', right: '-5%', background: 'rgba(55,35,100,.02)', opacity: 0.3 }} />
       </div>
+      <script dangerouslySetInnerHTML={{ __html: `
+        (function(){
+          let mx=0,my=0;
+          document.addEventListener('mousemove',function(e){
+            mx=(e.clientX/window.innerWidth-0.5)*2;
+            my=(e.clientY/window.innerHeight-0.5)*2;
+          },{passive:true});
+          function tick(){
+            var f=document.getElementById('cal-stars-far');
+            var m=document.getElementById('cal-stars-mid');
+            if(f)f.style.transform='translate('+mx*4+'px,'+my*4+'px)';
+            if(m)m.style.transform='translate('+mx*8+'px,'+my*8+'px)';
+            requestAnimationFrame(tick);
+          }
+          requestAnimationFrame(tick);
+        })();
+      ` }} />
       {/* Loading — inline centered in calendar area */}
       {loading && events.length === 0 && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, background: '#000' }}>
@@ -1620,8 +1640,8 @@ export default function CalendarPage() {
         .barber-edit-card:hover { border-color: rgba(255,255,255,.22) !important; box-shadow: 0 2px 16px rgba(255,255,255,.04); }
         @keyframes slideUp { from { opacity:0; transform:translateX(-50%) translateY(12px) } to { opacity:1; transform:translateX(-50%) translateY(0) } }
         @keyframes wlGhostPulse {
-          0%, 100% { box-shadow: 0 0 8px rgba(10,132,255,.15), inset 0 0 0 1px rgba(10,132,255,.12); border-color: rgba(10,132,255,.25); background: rgba(10,132,255,.05); }
-          50% { box-shadow: 0 0 22px rgba(10,132,255,.45), inset 0 0 0 1px rgba(10,132,255,.30); border-color: rgba(10,132,255,.55); background: rgba(10,132,255,.12); }
+          0%, 100% { box-shadow: 0 0 8px rgba(255,255,255,.05), inset 0 0 0 1px rgba(255,255,255,.04); border-color: rgba(255,255,255,.06); background: rgba(255,255,255,.03); }
+          50% { box-shadow: 0 0 22px rgba(255,255,255,.12), inset 0 0 0 1px rgba(255,255,255,.08); border-color: rgba(255,255,255,.12); background: rgba(255,255,255,.04); }
         }
         .wl-ghost-pulse { animation: wlGhostPulse 2.6s ease-in-out infinite; transition: filter .2s; }
         .wl-ghost-pulse:hover { filter: brightness(1.25); }
@@ -1684,11 +1704,11 @@ export default function CalendarPage() {
           100% { background-position: 200% 0; }
         }
         .arrived-pulse {
-          border: 1px solid rgba(10,132,255,.30);
-          background: linear-gradient(90deg, rgba(10,132,255,.04) 0%, rgba(10,132,255,.18) 25%, rgba(10,132,255,.30) 50%, rgba(10,132,255,.18) 75%, rgba(10,132,255,.04) 100%);
+          border: 1px solid rgba(255,255,255,.08);
+          background: linear-gradient(90deg, rgba(255,255,255,.02) 0%, rgba(255,255,255,.05) 25%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.05) 75%, rgba(255,255,255,.02) 100%);
           background-size: 200% 100%;
           animation: arrivedShimmer 2.4s ease-in-out infinite;
-          box-shadow: 0 0 10px rgba(10,132,255,.12), inset 0 0 8px rgba(10,132,255,.06);
+          box-shadow: 0 0 10px rgba(255,255,255,.04), inset 0 0 8px rgba(255,255,255,.02);
         }
         /* Gravity lens day transition */
         @keyframes gravityOut {
@@ -1706,19 +1726,19 @@ export default function CalendarPage() {
         /* Drag lift + neon + tilt */
         @keyframes dragLift {
           0% { transform: scale(1) perspective(600px) rotateX(0deg); box-shadow: 0 2px 6px rgba(0,0,0,.2); }
-          100% { transform: scale(1.06) perspective(600px) rotateX(0deg); box-shadow: 0 16px 40px rgba(0,0,0,.50), 0 0 20px rgba(10,132,255,.30); }
+          100% { transform: scale(1.06) perspective(600px) rotateX(0deg); box-shadow: 0 16px 40px rgba(0,0,0,.50), 0 0 20px rgba(255,255,255,.08); }
         }
         .cal-event-dragging {
           animation: dragLift .2s ease-out forwards !important;
-          border: 1.5px solid rgba(10,132,255,.70) !important;
+          border: 1.5px solid rgba(255,255,255,.25) !important;
           z-index: 50 !important;
           opacity: 1 !important;
           filter: brightness(1.15);
         }
         .cal-event-drag-ghost {
-          border: 2px dashed rgba(10,132,255,.50) !important;
-          background: rgba(10,132,255,.08) !important;
-          box-shadow: 0 0 16px rgba(10,132,255,.20), inset 0 0 12px rgba(10,132,255,.06);
+          border: 2px dashed rgba(255,255,255,.10) !important;
+          background: rgba(255,255,255,.03) !important;
+          box-shadow: 0 0 16px rgba(255,255,255,.06), inset 0 0 12px rgba(255,255,255,.02);
         }
         /* Date dot morph + glow animations */
         @keyframes dotPillGlow {
@@ -1792,8 +1812,8 @@ export default function CalendarPage() {
           .cal-topbar-wrap{ display:none !important; }
         }
         input[type=range] { -webkit-appearance: none; appearance: none; background: rgba(255,255,255,.12); border-radius: 4px; height: 4px; outline: none; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: rgba(130,150,220,.9); cursor: pointer; border: 2px solid rgba(0,0,0,.40); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
-        input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: rgba(130,150,220,.9); cursor: pointer; border: 2px solid rgba(0,0,0,.40); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: rgba(255,255,255,.7); cursor: pointer; border: 2px solid rgba(0,0,0,.40); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+        input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: rgba(255,255,255,.7); cursor: pointer; border: 2px solid rgba(0,0,0,.40); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
         select option { background: #111; }
         input[type=date],input[type=time] { color-scheme: dark; }
       `}</style>
@@ -1860,7 +1880,7 @@ export default function CalendarPage() {
                   setSlotPicker(freeSlots)
                 }} className="cal-student-btn" style={{ height: 36, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(168,107,255,.80)', background: 'rgba(0,0,0,.75)', color: 'rgba(180,140,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', boxShadow: '0 0 14px rgba(168,107,255,.20)', whiteSpace: 'nowrap', flexShrink: 0 }}>+ Model</button>
               ) : (
-                <button className="cal-new-btn" onClick={() => openCreate(isBarber ? myBarberId : (barbers[0]?.id || ''), clamp(new Date().getHours()*60))} style={{ height: 36, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(10,132,255,.80)', background: 'rgba(0,0,0,.75)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', boxShadow: '0 0 14px rgba(10,132,255,.20)', whiteSpace: 'nowrap', flexShrink: 0 }}>+ New</button>
+                <button className="cal-new-btn" onClick={() => openCreate(isBarber ? myBarberId : (barbers[0]?.id || ''), clamp(new Date().getHours()*60))} style={{ height: 30, padding: '0 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>+ New</button>
               )}
 
               {/* Zoom +/- — desktop only */}
@@ -1944,7 +1964,7 @@ export default function CalendarPage() {
                   : filtered.filter(e => e.barberId === barber.id)
                 return (
                   <div key={barber.id} ref={el => { colRefs.current[bi] = el }}
-                    style={{ position: 'relative', borderRight: bi < visibleBarbers.length-1 ? '1px solid rgba(255,255,255,.08)' : 'none', background: blockDrag?.barberIdx === bi ? 'rgba(255,107,107,.03)' : drag?.ghostBarberIdx === bi ? 'rgba(10,132,255,.03)' : 'transparent', transition: 'background .15s', touchAction: (drag || blockDrag) ? 'none' : 'pan-y' }}
+                    style={{ position: 'relative', borderRight: bi < visibleBarbers.length-1 ? '1px solid rgba(255,255,255,.08)' : 'none', background: blockDrag?.barberIdx === bi ? 'rgba(255,107,107,.03)' : drag?.ghostBarberIdx === bi ? 'rgba(255,255,255,.02)' : 'transparent', transition: 'background .15s', touchAction: (drag || blockDrag) ? 'none' : 'pan-y' }}
                     onMouseDown={e => {
                       if (e.button !== 0) return
                       if ((e.target as HTMLElement).closest('.cal-event')) return
@@ -2146,8 +2166,8 @@ export default function CalendarPage() {
                     ))}
                     {/* Now line — full width across all columns */}
                     {showNow && (
-                      <div style={{ position: 'absolute', left: 0, right: 0, top: nowY, height: 2, background: 'rgba(10,132,255,.85)', boxShadow: '0 0 14px rgba(10,132,255,.40)', pointerEvents: 'none', zIndex: 20 }}>
-                        {bi === 0 && <div style={{ position: 'absolute', left: -4, top: -4, width: 10, height: 10, borderRadius: 999, background: 'rgba(130,150,220,.9)', boxShadow: '0 0 0 3px rgba(10,132,255,.25)' }} />}
+                      <div style={{ position: 'absolute', left: 0, right: 0, top: nowY, height: 2, background: 'rgba(255,255,255,.5)', boxShadow: '0 0 14px rgba(255,255,255,.10)', pointerEvents: 'none', zIndex: 20 }}>
+                        {bi === 0 && <div style={{ position: 'absolute', left: -4, top: -4, width: 10, height: 10, borderRadius: 999, background: 'rgba(255,255,255,.7)', boxShadow: '0 0 0 3px rgba(255,255,255,.06)' }} />}
                       </div>
                     )}
                     {/* Touch indicator — crosshair + time tooltip */}
@@ -2161,11 +2181,11 @@ export default function CalendarPage() {
                       return (
                         <>
                           {/* Highlight row */}
-                          <div style={{ position: 'absolute', left: -timeColW, right: -(pageBarbers.length - 1) * colMin, top: indY - slotH * 3, height: slotH * 6, background: 'rgba(10,132,255,.04)', pointerEvents: 'none', zIndex: 1 }} />
+                          <div style={{ position: 'absolute', left: -timeColW, right: -(pageBarbers.length - 1) * colMin, top: indY - slotH * 3, height: slotH * 6, background: 'rgba(255,255,255,.02)', pointerEvents: 'none', zIndex: 1 }} />
                           {/* Crosshair line */}
-                          <div style={{ position: 'absolute', left: -timeColW, right: -(pageBarbers.length - 1) * colMin, top: indY, height: 1, background: 'rgba(10,132,255,.35)', pointerEvents: 'none', zIndex: 25, boxShadow: '0 0 6px rgba(10,132,255,.25)' }} />
+                          <div style={{ position: 'absolute', left: -timeColW, right: -(pageBarbers.length - 1) * colMin, top: indY, height: 1, background: 'rgba(255,255,255,.08)', pointerEvents: 'none', zIndex: 25, boxShadow: '0 0 6px rgba(255,255,255,.06)' }} />
                           {/* Time tooltip */}
-                          <div style={{ position: 'absolute', left: -timeColW, top: indY - 11, zIndex: 26, pointerEvents: 'none', background: 'rgba(10,132,255,.85)', borderRadius: 6, padding: '2px 6px', fontSize: 9, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap' }}>
+                          <div style={{ position: 'absolute', left: -timeColW, top: indY - 11, zIndex: 26, pointerEvents: 'none', background: 'rgba(255,255,255,.5)', borderRadius: 6, padding: '2px 6px', fontSize: 9, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap' }}>
                             {displayHour}:{String(mins).padStart(2, '0')} {ampm}
                           </div>
                         </>
@@ -2288,7 +2308,7 @@ export default function CalendarPage() {
                           {tinyCol ? (<>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                               <span style={{ fontWeight: 900, fontSize: 9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{ev.clientName.split(' ')[0]}</span>
-                              {(() => { const cs = ev._raw?.client_status || (ev.status === 'noshow' ? 'at_risk' : ''); const m: Record<string,{l:string,c:string,bg:string}> = { vip:{l:'V',c:'#ffd700',bg:'rgba(255,215,0,.25)'}, active:{l:'A',c:'rgba(130,220,170,.8)',bg:'rgba(143,240,177,.20)'}, new:{l:'N',c:'#7abaff',bg:'rgba(10,132,255,.25)'}, at_risk:{l:'!',c:'#ff6b6b',bg:'rgba(255,107,107,.25)'}, risk:{l:'!',c:'#ff6b6b',bg:'rgba(255,107,107,.25)'} }; const b = m[cs]; return b ? <span style={{ fontSize: 7, fontWeight: 900, color: b.c, background: b.bg, borderRadius: 3, padding: '0 2px', lineHeight: '11px', flexShrink: 0 }}>{b.l}</span> : null })()}
+                              {(() => { const cs = ev._raw?.client_status || (ev.status === 'noshow' ? 'at_risk' : ''); const m: Record<string,{l:string,c:string,bg:string}> = { vip:{l:'V',c:'#ffd700',bg:'rgba(255,215,0,.25)'}, active:{l:'A',c:'rgba(130,220,170,.8)',bg:'rgba(143,240,177,.20)'}, new:{l:'N',c:'#7abaff',bg:'rgba(255,255,255,.06)'}, at_risk:{l:'!',c:'#ff6b6b',bg:'rgba(255,107,107,.25)'}, risk:{l:'!',c:'#ff6b6b',bg:'rgba(255,107,107,.25)'} }; const b = m[cs]; return b ? <span style={{ fontSize: 7, fontWeight: 900, color: b.c, background: b.bg, borderRadius: 3, padding: '0 2px', lineHeight: '11px', flexShrink: 0 }}>{b.l}</span> : null })()}
                             </div>
                             {height > 24 && <div style={{ fontSize: 7, color: 'rgba(255,255,255,.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{minToAMPM(ev.startMin)}</div>}
                             {height > 36 && ev.serviceName && ev.serviceName !== 'Service' && <div style={{ fontSize: 7, color: 'rgba(255,255,255,.35)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.serviceName.split(' + ')[0]}</div>}
@@ -2299,7 +2319,7 @@ export default function CalendarPage() {
                             </div>}
                           </>) : (<>
                           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
-                            <div style={{ fontWeight: 900, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, display: 'flex', alignItems: 'center', gap: 3 }}>{ev.clientName}{(() => { const cs = ev._raw?.client_status; const badges: Record<string,{label:string,color:string,bg:string,border:string}> = { vip:{label:'VIP',color:'#ffd700',bg:'rgba(255,215,0,.18)',border:'rgba(255,215,0,.35)'}, active:{label:'ACTIVE',color:'rgba(130,220,170,.8)',bg:'rgba(143,240,177,.14)',border:'rgba(143,240,177,.30)'}, new:{label:'NEW',color:'#7abaff',bg:'rgba(10,132,255,.18)',border:'rgba(10,132,255,.35)'}, at_risk:{label:'RISK',color:'#ff6b6b',bg:'rgba(255,107,107,.18)',border:'rgba(255,107,107,.35)'} }; const b = badges[cs] || badges[(cs === 'risk' ? 'at_risk' : '')]; return b ? <span style={{ fontSize: 7, fontWeight: 900, letterSpacing: '.04em', color: b.color, background: b.bg, border: `1px solid ${b.border}`, borderRadius: 4, padding: '1px 4px', lineHeight: '12px', flexShrink: 0 }}>{b.label}</span> : null })()}</div>
+                            <div style={{ fontWeight: 900, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, display: 'flex', alignItems: 'center', gap: 3 }}>{ev.clientName}{(() => { const cs = ev._raw?.client_status; const badges: Record<string,{label:string,color:string,bg:string,border:string}> = { vip:{label:'VIP',color:'#ffd700',bg:'rgba(255,215,0,.18)',border:'rgba(255,215,0,.35)'}, active:{label:'ACTIVE',color:'rgba(130,220,170,.8)',bg:'rgba(143,240,177,.14)',border:'rgba(143,240,177,.30)'}, new:{label:'NEW',color:'#7abaff',bg:'rgba(255,255,255,.05)',border:'rgba(255,255,255,.08)'}, at_risk:{label:'RISK',color:'#ff6b6b',bg:'rgba(255,107,107,.18)',border:'rgba(255,107,107,.35)'} }; const b = badges[cs] || badges[(cs === 'risk' ? 'at_risk' : '')]; return b ? <span style={{ fontSize: 7, fontWeight: 900, letterSpacing: '.04em', color: b.color, background: b.bg, border: `1px solid ${b.border}`, borderRadius: 4, padding: '1px 4px', lineHeight: '12px', flexShrink: 0 }}>{b.label}</span> : null })()}</div>
                             <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
                               {ev._raw?.booking_type === 'membership' && <Chip label="Member" type="arrived" />}
                               {ev._raw?.booking_type === 'model' && <Chip label="Model" type="model" />}
@@ -2321,7 +2341,7 @@ export default function CalendarPage() {
                           {height > 50 && ((ev._raw?.reference_photo_url || ev._raw?.client_photo || ev._raw?.haircut_photo || ev._raw?.photo_url || ev._raw?.attachment_url) || (ev.notes && ev.notes.replace(/Reference photo attached on website:\s*\S+/gi, '').trim())) && (
                             <div style={{ marginTop: 3, display: 'flex', alignItems: 'center', gap: 3 }}>
                               {(ev._raw?.reference_photo_url || ev._raw?.client_photo || ev._raw?.haircut_photo || ev._raw?.photo_url || ev._raw?.attachment_url) && (
-                                <span title="Has reference photo" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: 5, background: 'rgba(10,132,255,.18)', border: '1px solid rgba(10,132,255,.30)', flexShrink: 0 }}>
+                                <span title="Has reference photo" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: 5, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', flexShrink: 0 }}>
                                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#7abaff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
                                 </span>
                               )}
@@ -2375,10 +2395,10 @@ export default function CalendarPage() {
                       const top = minToY(slotMin)
                       const height = Math.max(24, (dur / 5) * slotH) - 2
                       return (
-                        <div key={`wl-${w.id}`} className="wl-ghost-pulse" style={{ position: 'absolute', left: 8, right: 8, top, height, borderRadius: 14, border: '1px solid rgba(10,132,255,.35)', background: 'rgba(10,132,255,.08)', zIndex: 3, padding: '6px 10px', cursor: 'pointer', overflow: 'hidden', boxShadow: '0 0 12px rgba(10,132,255,.20), inset 0 0 0 1px rgba(10,132,255,.15)' }}
+                        <div key={`wl-${w.id}`} className="wl-ghost-pulse" style={{ position: 'absolute', left: 8, right: 8, top, height, borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', zIndex: 3, padding: '6px 10px', cursor: 'pointer', overflow: 'hidden', boxShadow: '0 0 12px rgba(255,255,255,.06), inset 0 0 0 1px rgba(255,255,255,.05)' }}
                           onClick={() => setWlConfirm({ w, barberId: barber.id, barberName: barber.name, slotMin, dur })}>
                           <div style={{ fontSize: 11, fontWeight: 700, color: '#bfe0ff' }}>{w.client_name || 'Waitlist'}</div>
-                          <div style={{ fontSize: 9, color: 'rgba(10,132,255,.70)', marginTop: 1 }}>{minToAMPM(slotMin)} · {dur}min · {prefStart !== wh.startMin || prefEnd !== wh.endMin ? `${minToAMPM(prefStart)}-${minToAMPM(prefEnd)}` : 'WAITLIST'}</div>
+                          <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 1 }}>{minToAMPM(slotMin)} · {dur}min · {prefStart !== wh.startMin || prefEnd !== wh.endMin ? `${minToAMPM(prefStart)}-${minToAMPM(prefEnd)}` : 'WAITLIST'}</div>
                         </div>
                       )
                     })}
@@ -2444,7 +2464,7 @@ export default function CalendarPage() {
                     position: 'relative',
                   }}>
                   {dot.isCurrent ? (<><div style={{ fontSize: 13, fontWeight: 900, lineHeight: 1 }}>{dot.dayName}</div><div style={{ fontSize: 8, opacity: .45, lineHeight: 1, marginTop: 2 }}>{dot.label}</div></>) : dot.day}
-                  {dot.isToday && !dot.isCurrent && <div style={{ position: 'absolute', bottom: 3, width: 3, height: 3, borderRadius: 999, background: 'rgba(10,132,255,.90)' }} />}
+                  {dot.isToday && !dot.isCurrent && <div style={{ position: 'absolute', bottom: 3, width: 3, height: 3, borderRadius: 999, background: 'rgba(255,255,255,.6)' }} />}
                 </button>
               ))}
               </div>
@@ -2470,14 +2490,14 @@ export default function CalendarPage() {
                 } else {
                   openCreate(isBarber ? myBarberId : (barbers[0]?.id || ''), clamp(new Date().getHours()*60))
                 }
-              }} style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid rgba(10,132,255,.45)', background: 'rgba(0,0,0,.50)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              }} style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(0,0,0,.50)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               </button>
             </div>
           )
         })()}
 
-        {loading && dayTransition === 'idle' && !isMobile && <div style={{ position: 'fixed', bottom: 20, right: 20, padding: '8px 16px', borderRadius: 999, background: 'rgba(10,132,255,.20)', border: '1px solid rgba(10,132,255,.40)', color: 'rgba(130,150,220,.6)', fontSize: 12, zIndex: 99 }}>Loading…</div>}
+        {loading && dayTransition === 'idle' && !isMobile && <div style={{ position: 'fixed', bottom: 20, right: 20, padding: '8px 16px', borderRadius: 999, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: 'rgba(130,150,220,.6)', fontSize: 12, zIndex: 99 }}>Loading…</div>}
       </div>
 
       {/* Context menu */}
@@ -2485,7 +2505,7 @@ export default function CalendarPage() {
         const cmBarber = barbers.find(b=>b.id===contextMenu.barberId)
         const hasStudents = studentUsers.some(s => s.mentorIds.includes(contextMenu.barberId))
         const cmItems = [
-          { label: 'Booking', icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(130,150,220,.6)" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>, bg: 'rgba(10,132,255,.18)', brd: 'rgba(10,132,255,.35)', col: 'rgba(130,150,220,.6)', fn: () => { setContextMenu(null); openCreate(contextMenu.barberId, contextMenu.min) } },
+          { label: 'Booking', icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(130,150,220,.6)" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>, bg: 'rgba(255,255,255,.05)', brd: 'rgba(255,255,255,.08)', col: 'rgba(130,150,220,.6)', fn: () => { setContextMenu(null); openCreate(contextMenu.barberId, contextMenu.min) } },
           ...(hasStudents ? [{
             label: 'Training', icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(180,140,220,.6)" strokeWidth="2.2" strokeLinecap="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 3 3 6 3s6-1 6-3v-5"/></svg>, bg: 'rgba(168,107,255,.18)', brd: 'rgba(168,107,255,.35)', col: 'rgba(180,140,220,.6)', fn: () => { setContextMenu(null); setTrainingModal({ barberId: contextMenu.barberId, barberName: cmBarber?.name || '', min: contextMenu.min }) }
           }] : []),
@@ -2529,7 +2549,7 @@ export default function CalendarPage() {
               </div>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                 <button onClick={() => setDragConfirm(null)} style={{ height: 40, padding: '0 18px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
-                <button onClick={confirmDragMove} style={{ height: 40, padding: '0 20px', borderRadius: 999, border: '1px solid rgba(10,132,255,.75)', background: 'rgba(10,132,255,.18)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13 }}>Move</button>
+                <button onClick={confirmDragMove} style={{ height: 40, padding: '0 20px', borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.05)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13 }}>Move</button>
               </div>
             </div>
           </div>
@@ -2910,10 +2930,10 @@ export default function CalendarPage() {
         return (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 16 }}
             onClick={e => { if (e.target === e.currentTarget && !wlConfirming) setWlConfirm(null) }}>
-            <div style={{ width: 'min(420px,92vw)', borderRadius: 22, border: '1px solid rgba(10,132,255,.25)', background: 'rgba(0,0,0,.70)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.60), inset 0 0 0 0.5px rgba(255,255,255,.07)', padding: '24px 22px', color: '#e8e8ed', fontFamily: 'Inter,sans-serif' }}>
+            <div style={{ width: 'min(420px,92vw)', borderRadius: 22, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.70)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.60), inset 0 0 0 0.5px rgba(255,255,255,.07)', padding: '24px 22px', color: '#e8e8ed', fontFamily: 'Inter,sans-serif' }}>
               {/* Icon */}
               <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(10,132,255,.10)', border: '1px solid rgba(10,132,255,.30)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7fbfff" strokeWidth="2" strokeLinecap="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><polyline points="9 14 11 16 15 12"/></svg>
                 </div>
               </div>
@@ -2953,7 +2973,7 @@ export default function CalendarPage() {
                   Cancel
                 </button>
                 <button onClick={doConfirm} disabled={wlConfirming}
-                  style={{ flex: 2, height: 44, borderRadius: 999, border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.12)', color: '#bfe0ff', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13, opacity: wlConfirming ? .5 : 1 }}>
+                  style={{ flex: 2, height: 44, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: '#bfe0ff', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13, opacity: wlConfirming ? .5 : 1 }}>
                   {wlConfirming ? 'Creating…' : 'Confirm & Book'}
                 </button>
               </div>
