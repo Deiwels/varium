@@ -290,25 +290,28 @@ export default function DashboardPage() {
   }, {} as Record<string, number>)
   const maxCount = Math.max(...Object.values(byBarber), 1)
 
-  // Quick actions — hub to all features, filtered by role
+  // Tools — plan-based access
+  // Starter: Calendar, Clients, Payments, Settings
+  // Pro: + Waitlist, Messages, Portfolio, Cash, Membership
+  // Enterprise: + Expenses, Payroll
   const actions = [
-    { label: 'Calendar', desc: 'View & manage bookings', href: '/calendar', color: 'rgba(130,150,220,.5)' },
-    { label: 'Waitlist', desc: 'Queue & notifications', href: '/waitlist', color: 'rgba(130,220,170,.5)' },
-    ...(isOwnerOrAdmin ? [
-      { label: 'Payments', desc: 'Transactions & Square', href: '/payments', color: 'rgba(220,170,100,.5)' },
-      { label: 'Attendance', desc: 'Hours & clock-in', href: '/attendance', color: 'rgba(130,200,220,.5)' },
-      { label: 'Cash', desc: 'Daily register', href: '/cash', color: 'rgba(180,140,220,.5)' },
-      { label: 'Membership', desc: 'Recurring clients', href: '/membership', color: 'rgba(220,130,160,.5)' },
-    ] : []),
-    { label: 'Portfolio', desc: 'Work gallery', href: '/portfolio', color: 'rgba(130,150,220,.4)' },
+    { label: 'Calendar', desc: 'Bookings & schedule', href: '/calendar', color: 'rgba(255,255,255,.4)' },
+    { label: 'Clients', desc: 'Your client base', href: '/clients', color: 'rgba(255,255,255,.35)' },
+    { label: 'Payments', desc: 'Transactions', href: '/payments', color: 'rgba(255,255,255,.35)' },
+    { label: 'Waitlist', desc: 'Queue & notify', href: '/waitlist', color: 'rgba(255,255,255,.3)', pro: true },
+    { label: 'Portfolio', desc: 'Work gallery', href: '/portfolio', color: 'rgba(255,255,255,.3)', pro: true },
+    { label: 'Cash', desc: 'Daily register', href: '/cash', color: 'rgba(255,255,255,.3)', pro: true },
+    { label: 'Membership', desc: 'Recurring clients', href: '/membership', color: 'rgba(255,255,255,.3)', pro: true },
     ...(role === 'owner' ? [
-      { label: 'Expenses', desc: 'Track costs', href: '/expenses', color: 'rgba(220,170,100,.4)' },
-      { label: 'Payroll', desc: 'Commission + tips', href: '/payroll', color: 'rgba(130,220,170,.4)' },
+      { label: 'Expenses', desc: 'Track costs', href: '/expenses', color: 'rgba(255,255,255,.25)', enterprise: true },
+      { label: 'Payroll', desc: 'Commission + tips', href: '/payroll', color: 'rgba(255,255,255,.25)', enterprise: true },
     ] : []),
-    ...(isOwnerOrAdmin ? [
-      { label: 'Settings', desc: 'Config & team', href: '/settings', color: 'rgba(255,255,255,.3)' },
-    ] : []),
-  ]
+    { label: 'Settings', desc: 'Config & team', href: '/settings', color: 'rgba(255,255,255,.25)' },
+  ].filter(item => {
+    if (isBarber && ['Clients', 'Payments', 'Cash', 'Membership', 'Expenses', 'Payroll', 'Settings'].includes(item.label)) return false
+    if (isStudent && item.label !== 'Calendar') return false
+    return true
+  })
 
   async function saveShopStatus(mode: 'auto'|'open'|'closed') {
     setShopStatus(mode)
