@@ -1941,7 +1941,7 @@ export default function CalendarPage() {
             {/* Body */}
             <div style={{ display: 'grid', gridTemplateColumns: `${timeColW}px repeat(${pageBarbers.length}, minmax(${colMin}px,1fr))`, height: totalH, position: 'relative' }}>
               {/* Time labels */}
-              <div style={{ borderRight: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.12)', position: 'relative' }}>
+              <div style={{ borderRight: '1px solid rgba(255,255,255,.04)', background: 'rgba(5,5,12,.3)', position: 'relative' }}>
                 {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => {
                   const h = START_HOUR + i
                   const label = _is24h ? `${pad2(h)}` : (() => { const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h; return String(h12) })()
@@ -1964,7 +1964,7 @@ export default function CalendarPage() {
                   : filtered.filter(e => e.barberId === barber.id)
                 return (
                   <div key={barber.id} ref={el => { colRefs.current[bi] = el }}
-                    style={{ position: 'relative', borderRight: bi < visibleBarbers.length-1 ? '1px solid rgba(255,255,255,.08)' : 'none', background: blockDrag?.barberIdx === bi ? 'rgba(255,107,107,.03)' : drag?.ghostBarberIdx === bi ? 'rgba(255,255,255,.02)' : 'transparent', transition: 'background .15s', touchAction: (drag || blockDrag) ? 'none' : 'pan-y' }}
+                    style={{ position: 'relative', borderRight: bi < visibleBarbers.length-1 ? '1px solid rgba(255,255,255,.03)' : 'none', background: blockDrag?.barberIdx === bi ? 'rgba(255,107,107,.02)' : drag?.ghostBarberIdx === bi ? 'rgba(255,255,255,.015)' : bi % 2 === 0 ? 'rgba(255,255,255,.008)' : 'transparent', transition: 'background .15s', touchAction: (drag || blockDrag) ? 'none' : 'pan-y' }}
                     onMouseDown={e => {
                       if (e.button !== 0) return
                       if ((e.target as HTMLElement).closest('.cal-event')) return
@@ -2299,7 +2299,7 @@ export default function CalendarPage() {
                       }
                       return (
                         <div key={ev.id} className={`cal-event${isArrived ? ' arrived-pulse' : ''}${isPaid ? ' cal-event-paid' : ''}${isAtRisk ? ' at-risk-pulse' : ''}${isVip ? ' vip-pulse' : ''}${drag?.eventId===ev.id ? ' cal-event-dragging' : ''}`}
-                          style={{ position: 'absolute', left: tinyCol ? 2 : 8, right: tinyCol ? 2 : 8, top, height: height-2, borderRadius: tinyCol ? 8 : 14, ...(isArrived || isAtRisk || isVip ? {} : drag?.eventId===ev.id ? {} : { border: `1px solid ${isPaid ? barber.color + '20' : isNoshow ? 'rgba(255,107,107,.15)' : 'rgba(255,255,255,.10)'}`, background: isNoshow ? 'rgba(255,107,107,.06)' : (ev._raw?.booking_type === 'model' || ev._raw?.booking_type === 'training') ? 'linear-gradient(180deg,rgba(168,107,255,.26),rgba(168,107,255,.10))' : `linear-gradient(180deg,${barber.color}${isPaid ? '18' : '26'},${barber.color}${isPaid ? '08' : '12'})` }), ...(isNoshow ? { opacity: 0.35 } : {}), padding: tinyCol ? '3px 4px' : '7px 10px', cursor: canDrag ? (drag ? 'grabbing' : 'grab') : 'pointer', userSelect: 'none', overflow: 'hidden', zIndex: drag?.eventId===ev.id ? 50 : isNoshow ? 2 : 5, transition: 'transform .15s, box-shadow .15s' }}
+                          style={{ position: 'absolute', left: tinyCol ? 2 : 6, right: tinyCol ? 2 : 6, top, height: height-2, borderRadius: tinyCol ? 8 : 12, ...(isArrived || isAtRisk || isVip ? {} : drag?.eventId===ev.id ? {} : { border: `1px solid ${isPaid ? 'rgba(130,220,170,.15)' : isNoshow ? 'rgba(255,107,107,.12)' : 'rgba(255,255,255,.08)'}`, background: isNoshow ? 'rgba(255,107,107,.04)' : isPaid ? 'rgba(130,220,170,.04)' : 'rgba(255,255,255,.03)', backdropFilter: 'blur(8px)', boxShadow: isPaid ? '0 0 12px rgba(130,220,170,.06)' : isNoshow ? 'none' : '0 0 8px rgba(255,255,255,.02)' }), ...(isNoshow ? { opacity: 0.3 } : {}), padding: tinyCol ? '3px 4px' : '7px 10px', cursor: canDrag ? (drag ? 'grabbing' : 'grab') : 'pointer', userSelect: 'none', overflow: 'hidden', zIndex: drag?.eventId===ev.id ? 50 : isNoshow ? 2 : 5, transition: 'all .2s ease' }}
                           onMouseDown={e => { if (!canDrag || e.button!==0) return; startDrag(e, ev, bi) }}
                           onTouchStart={e => { if (!canDrag) return; e.stopPropagation(); clearTimeout(eventLongPressTimer.current); const touch = e.touches[0]; const evCopy = ev; const biCopy = bi; eventLongPressTimer.current = setTimeout(() => { const fakeEvt = { preventDefault(){}, stopPropagation(){}, touches: [touch] } as any; startDrag(fakeEvt, evCopy, biCopy) }, 400) }}
                           onTouchEnd={() => clearTimeout(eventLongPressTimer.current)}
