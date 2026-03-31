@@ -5,6 +5,10 @@ export default function VuriumBook() {
   const spaceRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    // Skip parallax and scroll-scale on mobile — causes jank when scrolling
+    const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window
+    if (isMobile) return
+
     let tx = 0, ty = 0, cx = 0, cy = 0
     let raf: number
 

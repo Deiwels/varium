@@ -682,6 +682,15 @@ section { position: relative; z-index: 2; }
 
 /* ── Mobile performance: keep effects but lighter ── */
 @media (max-width: 768px) {
+  /* Disable smooth scroll — causes jank on low-end mobile */
+  html { scroll-behavior: auto !important; }
+
+  /* Space background — no transform transitions on mobile (no parallax) */
+  .space-bg {
+    will-change: auto !important;
+    transition: none !important;
+  }
+
   /* Slow down star animations (3x slower = 3x less GPU work) */
   .stars-wrap-far  { animation-duration: 270s !important; }
   .stars-wrap-mid  { animation-duration: 195s !important; }
