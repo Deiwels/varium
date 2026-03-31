@@ -665,8 +665,8 @@ section { position: relative; z-index: 2; }
     animation-duration: 0.3s !important;
     filter: none !important;
   }
-  /* Headline: slightly slower for elegance */
-  .fade-up-d1 { animation-delay: 0.05s !important; animation-duration: 0.4s !important; }
+  /* Headline: fast but smooth */
+  .fade-up-d1 { animation-delay: 0.03s !important; animation-duration: 0.25s !important; }
   /* Subtitle + buttons: smooth and elegant */
   .fade-up-d2 { animation-delay: 0.2s !important; animation-duration: 0.7s !important; }
   .fade-up-d3 { animation-delay: 0.35s !important; animation-duration: 0.7s !important; }
