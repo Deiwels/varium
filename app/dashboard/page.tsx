@@ -755,6 +755,27 @@ export default function DashboardPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 14 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
+            {/* Booking page link */}
+            {!isBarber && user?.workspace_id && (
+              <div style={{ borderRadius: 18, border: '1px solid rgba(130,150,220,.12)', background: 'linear-gradient(180deg,rgba(130,150,220,.05),rgba(255,255,255,.02))', padding: 14 }}>
+                <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(130,150,220,.6)', marginBottom: 10 }}>Your Booking Page</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <code style={{ flex: 1, fontSize: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(0,0,0,.3)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(130,150,220,.8)', wordBreak: 'break-all', minWidth: 0 }}>
+                    vurium.com/book/{user.workspace_id}
+                  </code>
+                  <button onClick={() => { navigator.clipboard.writeText(`https://vurium.com/book/${user.workspace_id}`); }} style={{
+                    padding: '10px 16px', borderRadius: 10, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0,
+                    background: 'rgba(130,150,220,.1)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.8)',
+                  }}>Copy Link</button>
+                  <a href={`/book/${user.workspace_id}`} target="_blank" rel="noopener" style={{
+                    padding: '10px 16px', borderRadius: 10, fontSize: 12, textDecoration: 'none', flexShrink: 0,
+                    background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)',
+                  }}>Preview</a>
+                </div>
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 8 }}>Share this link with your clients so they can book online.</p>
+              </div>
+            )}
+
             {/* Quick actions */}
             <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.10)', background: 'linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02))', padding: 14 }}>
               <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)', marginBottom: 12 }}>Quick actions</div>

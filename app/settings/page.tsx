@@ -632,6 +632,20 @@ export default function SettingsPage() {
             {/* ── SHOP ── */}
             {tab === 'shop' && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 14 }}>
+                <SectionCard title="Booking Page">
+                  <Field label="Your public booking URL">
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <code style={{ flex: 1, fontSize: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(0,0,0,.3)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(130,150,220,.8)', wordBreak: 'break-all' }}>
+                        vurium.com/book/{typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}').workspace_id || '' : ''}
+                      </code>
+                      <button onClick={() => { const u = JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}'); navigator.clipboard.writeText(`https://vurium.com/book/${u.workspace_id || ''}`); }} style={{
+                        padding: '10px 14px', borderRadius: 10, fontSize: 11, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit',
+                        background: 'rgba(130,150,220,.1)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.8)',
+                      }}>Copy</button>
+                    </div>
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 6 }}>Share this link on your website, social media, or Google Business profile.</p>
+                  </Field>
+                </SectionCard>
                 <SectionCard title="Shop info">
                   <Field label="Shop name"><input value={s.shop_name || ''} onChange={e => set('shop_name', e.target.value)} placeholder="Your Business Name" style={inp} /></Field>
                   <Field label="Timezone">
