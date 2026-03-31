@@ -398,6 +398,28 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
   const [pinLoading, setPinLoading] = useState(false)
   const pathname = usePathname()
 
+  // Cosmic parallax — stars follow mouse
+  useEffect(() => {
+    let cx = 0, cy = 0, tx = 0, ty = 0, raf: number
+    function onMouse(e: MouseEvent) {
+      tx = (e.clientX / window.innerWidth - 0.5) * 2
+      ty = (e.clientY / window.innerHeight - 0.5) * 2
+    }
+    function tick() {
+      cx += (tx - cx) * 0.03; cy += (ty - cy) * 0.03
+      const f = document.getElementById('shell-stars-far')
+      const m = document.getElementById('shell-stars-mid')
+      const n = document.getElementById('shell-stars-near')
+      if (f) f.style.transform = `translate(${cx * 3}px,${cy * 3}px)`
+      if (m) m.style.transform = `translate(${cx * 7}px,${cy * 7}px)`
+      if (n) n.style.transform = `translate(${cx * 12}px,${cy * 12}px)`
+      raf = requestAnimationFrame(tick)
+    }
+    window.addEventListener('mousemove', onMouse, { passive: true })
+    raf = requestAnimationFrame(tick)
+    return () => { window.removeEventListener('mousemove', onMouse); cancelAnimationFrame(raf) }
+  }, [])
+
   // Listen for PIN-required events from api.ts
   useEffect(() => {
     const handler = () => { if (hasPinSetup()) setShowPinOverlay(true); else { localStorage.removeItem('VURIUMBOOK_USER'); window.location.href = '/signin' } }
@@ -791,12 +813,16 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
       `}</style>
 
       <div className="shell">
-        {/* ── Cosmic star background ── */}
-        <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-          <div className="stars stars-far" style={{ position: 'absolute', inset: '-15%', width: '130%', height: '130%', opacity: 0.2 }} />
-          <div className="stars stars-mid" style={{ position: 'absolute', inset: '-10%', width: '120%', height: '120%', opacity: 0.12 }} />
-          <div className="nebula-layer" style={{ width: 600, height: 350, top: '5%', left: '-10%', background: 'rgba(30,45,110,.03)' }} />
-          <div className="nebula-layer" style={{ width: 400, height: 250, bottom: '15%', right: '-5%', background: 'rgba(55,35,100,.02)' }} />
+        {/* ── Cosmic star background with parallax ── */}
+        <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
+          <div id="shell-stars-far" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.3, willChange: 'transform',
+            backgroundImage: 'radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,.4) 50%, transparent 50%), radial-gradient(1px 1px at 25% 35%, rgba(255,255,255,.3) 50%, transparent 50%), radial-gradient(1.2px 1.2px at 40% 8%, rgba(255,255,255,.5) 50%, transparent 50%), radial-gradient(1px 1px at 55% 42%, rgba(255,255,255,.3) 50%, transparent 50%), radial-gradient(1px 1px at 70% 20%, rgba(255,255,255,.4) 50%, transparent 50%), radial-gradient(1.2px 1.2px at 85% 55%, rgba(255,255,255,.35) 50%, transparent 50%), radial-gradient(1px 1px at 15% 65%, rgba(255,255,255,.3) 50%, transparent 50%), radial-gradient(1px 1px at 50% 75%, rgba(255,255,255,.4) 50%, transparent 50%), radial-gradient(1.2px 1.2px at 75% 85%, rgba(255,255,255,.35) 50%, transparent 50%), radial-gradient(1px 1px at 90% 10%, rgba(255,255,255,.3) 50%, transparent 50%), radial-gradient(1px 1px at 5% 90%, rgba(255,255,255,.4) 50%, transparent 50%), radial-gradient(1px 1px at 35% 55%, rgba(255,255,255,.3) 50%, transparent 50%), radial-gradient(1.2px 1.2px at 60% 30%, rgba(255,255,255,.45) 50%, transparent 50%), radial-gradient(1px 1px at 80% 70%, rgba(255,255,255,.3) 50%, transparent 50%), radial-gradient(1px 1px at 20% 80%, rgba(255,255,255,.35) 50%, transparent 50%), radial-gradient(1px 1px at 45% 95%, rgba(255,255,255,.3) 50%, transparent 50%), radial-gradient(1.2px 1.2px at 95% 40%, rgba(255,255,255,.4) 50%, transparent 50%), radial-gradient(1px 1px at 30% 20%, rgba(255,255,255,.35) 50%, transparent 50%), radial-gradient(1px 1px at 65% 60%, rgba(255,255,255,.3) 50%, transparent 50%), radial-gradient(1.2px 1.2px at 8% 45%, rgba(255,255,255,.4) 50%, transparent 50%)'
+          }} />
+          <div id="shell-stars-mid" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.15, willChange: 'transform',
+            backgroundImage: 'radial-gradient(1.5px 1.5px at 12% 22%, rgba(255,255,255,.5) 50%, transparent 50%), radial-gradient(1.5px 1.5px at 38% 48%, rgba(255,255,255,.4) 50%, transparent 50%), radial-gradient(2px 2px at 62% 15%, rgba(255,255,255,.55) 50%, transparent 50%), radial-gradient(1.5px 1.5px at 78% 65%, rgba(255,255,255,.4) 50%, transparent 50%), radial-gradient(1.5px 1.5px at 22% 78%, rgba(255,255,255,.45) 50%, transparent 50%), radial-gradient(2px 2px at 88% 35%, rgba(255,255,255,.5) 50%, transparent 50%), radial-gradient(1.5px 1.5px at 48% 88%, rgba(255,255,255,.4) 50%, transparent 50%), radial-gradient(1.5px 1.5px at 5% 55%, rgba(255,255,255,.45) 50%, transparent 50%), radial-gradient(2px 2px at 72% 42%, rgba(255,255,255,.5) 50%, transparent 50%), radial-gradient(1.5px 1.5px at 55% 5%, rgba(255,255,255,.4) 50%, transparent 50%)'
+          }} />
+          <div style={{ position: 'absolute', width: 700, height: 400, top: '3%', left: '-10%', background: 'rgba(30,45,110,.04)', borderRadius: '50%', filter: 'blur(100px)' }} />
+          <div style={{ position: 'absolute', width: 500, height: 300, bottom: '10%', right: '-5%', background: 'rgba(55,35,100,.03)', borderRadius: '50%', filter: 'blur(100px)' }} />
         </div>
 
         {/* ── Top Header Bar ── */}
