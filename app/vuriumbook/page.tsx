@@ -106,12 +106,12 @@ export default function VuriumBook() {
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
           {[
-            { title: 'Online Booking', desc: 'Your clients book appointments 24/7 from your website or a custom booking page.', color: 'rgba(130,150,220,.5)' },
-            { title: 'Team Calendar', desc: 'Visual calendar for your entire team. Drag to create blocks, reschedule with a tap.', color: 'rgba(130,220,170,.5)' },
-            { title: 'Smart Payments', desc: 'Accept card payments, Apple Pay, cash, and tips. Automatic receipts and reports.', color: 'rgba(220,170,100,.5)' },
-            { title: 'Client CRM', desc: 'Track visit history, preferences, notes, and contact info for every client.', color: 'rgba(220,130,160,.5)' },
-            { title: 'Waitlist & Queue', desc: 'Walk-in management with real-time queue. Clients get notified when ready.', color: 'rgba(130,200,220,.5)' },
-            { title: 'Analytics & Payroll', desc: 'Revenue reports, performance tracking, tip management, and automated payroll.', color: 'rgba(180,140,220,.5)' },
+            { title: 'Online Booking', desc: 'Clients book 24/7 from your personal booking page. Auto-confirmations via SMS.', color: 'rgba(255,255,255,.3)' },
+            { title: 'Smart Calendar', desc: 'Visual schedule for you or your entire team. Drag to reschedule, tap to create.', color: 'rgba(255,255,255,.25)' },
+            { title: 'Payments & Tips', desc: 'Accept cards, Apple Pay, cash. Track tips, generate receipts automatically.', color: 'rgba(255,255,255,.25)' },
+            { title: 'Client Management', desc: 'Full CRM: visit history, preferences, notes, contact info, classifications.', color: 'rgba(255,255,255,.25)' },
+            { title: 'Team & Roles', desc: 'Add team members with roles. Each gets their own calendar and client base. Salon plan.', color: 'rgba(255,255,255,.2)' },
+            { title: 'Waitlist & Membership', desc: 'Queue management, recurring subscriptions, automated SMS reminders. Salon plan.', color: 'rgba(255,255,255,.2)' },
           ].map((f, i) => (
             <div key={i} className="glass-card">
               <div style={{ width: 32, height: 2, borderRadius: 1, background: f.color, marginBottom: 18 }} />
@@ -157,17 +157,21 @@ export default function VuriumBook() {
         </div>
       </section>
 
-      {/* ── Demo CTA ── */}
-      <section id="demo" style={{ padding: 'clamp(60px, 10vh, 100px) 24px clamp(80px, 12vh, 120px)', textAlign: 'center' }}>
-        <h2 className="shimmer-text" style={{ fontSize: 'clamp(28px, 4.5vw, 48px)', fontWeight: 600, letterSpacing: '-.03em', marginBottom: 20 }}>
-          Ready to get started?
-        </h2>
-        <p style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', fontWeight: 300, color: 'rgba(255,255,255,.35)', maxWidth: 440, margin: '0 auto 36px', lineHeight: 1.6 }}>
-          Request a demo or sign up today. We&apos;ll have you running in minutes.
-        </p>
-        <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <a href="/signup?plan=salon" className="btn-primary">Start Free Trial</a>
-          <a href="mailto:hello@vurium.com?subject=VuriumBook Demo" className="btn-secondary">Request a Demo</a>
+      {/* ── Bottom info ── */}
+      <section style={{ padding: 'clamp(60px, 10vh, 100px) 24px clamp(80px, 12vh, 120px)', maxWidth: 700, margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 24 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8 }}>Individual Plan</div>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>For solo specialists. Your own calendar, booking page, client base, and payments. Everything you need to run independently.</p>
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8 }}>Salon Plan</div>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>For teams. Add up to 10 members, manage schedules, track performance, handle waitlists and memberships.</p>
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8 }}>30-Day Trial</div>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>Every account starts with full Salon access for 30 days. No credit card required. Explore everything before you choose.</p>
+          </div>
         </div>
       </section>
 
