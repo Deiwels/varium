@@ -75,7 +75,9 @@ interface BookingModalProps {
   services: Service[]
   isOwnerOrAdmin: boolean
   myBarberId?: string
-  allEvents?: Array<{ id: string; barberId: string; startMin: number; durMin: number; status: string; paid: boolean; clientName: string; paymentStatus?: string }>
+  isStudent?: boolean
+  mentorBarberIds?: string[]
+  allEvents?: Array<{ id: string; barberId: string; startMin: number; durMin: number; status: string; paid: boolean; clientName: string; date?: string; paymentStatus?: string }>
   existingEvent?: {
     id: string
     clientName: string
@@ -97,6 +99,7 @@ interface BookingModalProps {
   }) => void
   onDelete: () => void
   onPayment: (method: string, tip: number) => void
+  onOpenEvent?: (eventId: string) => void
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
