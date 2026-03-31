@@ -677,7 +677,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         html,body{height:100%;background:#000;color:#e8e8ed;font-family:Inter,system-ui,sans-serif;}
         a{color:#fff!important;text-decoration:none!important;}
 
-        .shell{display:flex;flex-direction:column;height:100vh;width:100vw;overflow:hidden;position:relative;}
+        .shell{display:flex;flex-direction:column;height:100vh;width:100vw;overflow:hidden;position:relative;background:#010101;}
 
         /* ── Top Header Bar — Vurium Glass ── */
         .top-bar{
@@ -708,8 +708,9 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
 
         /* ── Content ── */
         .content{
-          flex:1;min-height:0;overflow:auto;background:#000;
+          flex:1;min-height:0;overflow:auto;background:transparent;
           padding-bottom:74px; /* space for bottom bar */
+          position:relative;z-index:1;
         }
 
         /* ── Bottom Pill Nav Bar — Vurium Cosmic ── */
