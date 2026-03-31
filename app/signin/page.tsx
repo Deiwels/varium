@@ -40,14 +40,14 @@ export default function SignInPage() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
-    if (!workspaceId || !username || !password) { setError('All fields are required'); return }
+    if (!username || !password) { setError('Email and password required'); return }
     setError(''); setLoading(true)
     try {
-      const res = await fetch(`${API}/auth/login`, {
+      const res = await fetch(`${API}/auth/login-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ workspace_id: workspaceId.trim(), username: username.trim(), password }),
+        body: JSON.stringify({ email: username.trim().toLowerCase(), password }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Login failed')
@@ -222,12 +222,6 @@ export default function SignInPage() {
               )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div>
-                  <label style={lbl}>Workspace ID</label>
-                  <input type="text" placeholder="Your workspace ID" autoComplete="off" value={workspaceId}
-                    onChange={e => setWorkspaceId(e.target.value)} required style={inp} />
-                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 4 }}>Provided during registration</p>
-                </div>
                 <div>
                   <label style={lbl}>Email</label>
                   <input type="email" placeholder="you@yourbusiness.com" autoComplete="email" autoCapitalize="none" value={username}

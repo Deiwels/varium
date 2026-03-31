@@ -1098,6 +1098,56 @@ app.post('/auth/setup-owner', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
+// Login by email only — searches all workspaces
+app.post('/auth/login-email', async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+    const emailLC = email.toLowerCase().trim();
+    const ip = getClientIp(req);
+    const rl = await checkRateLimit(ip);
+    if (!rl.allowed) {
+      res.set('Retry-After', String(rl.retryAfter));
+      return res.status(429).json({ error: 'Too many login attempts. Try again later.', retry_after: rl.retryAfter });
+    }
+    // Search all workspaces for this email
+    const wsSnap = await db.collection('workspaces').get();
+    let foundUser = null, foundWsId = null;
+    for (const ws of wsSnap.docs) {
+      const usersSnap = await db.collection('workspaces').doc(ws.id).collection('users')
+        .where('username', '==', emailLC).where('active', '==', true).limit(1).get();
+      if (!usersSnap.empty) {
+        foundUser = { ...usersSnap.docs[0].data(), uid: usersSnap.docs[0].id };
+        foundWsId = ws.id;
+        break;
+      }
+    }
+    if (!foundUser || !foundWsId) return res.status(401).json({ error: 'Invalid email or password' });
+    if (!checkPassword(password, foundUser.password_hash)) return res.status(401).json({ error: 'Invalid email or password' });
+    await resetRateLimit(ip);
+    const token = jwt.sign({
+      uid: foundUser.uid, username: foundUser.username, role: foundUser.role,
+      name: foundUser.name, workspace_id: foundWsId,
+      barber_id: foundUser.barber_id || null,
+      mentor_barber_ids: foundUser.mentor_barber_ids || [],
+      permissions: PERMISSIONS[foundUser.role] || {},
+    }, JWT_SECRET, { expiresIn: TOKEN_TTL });
+    setAuthCookie(res, token);
+    writeAuditLog(foundWsId, { action: 'user.login', resource_id: foundUser.uid, data: { username: foundUser.username }, req }).catch(() => {});
+    res.json({
+      ok: true, token,
+      user: {
+        id: foundUser.uid, uid: foundUser.uid, username: foundUser.username, name: foundUser.name,
+        role: foundUser.role, workspace_id: foundWsId, barber_id: foundUser.barber_id || null,
+        permissions: PERMISSIONS[foundUser.role] || {},
+      },
+    });
+  } catch (e) {
+    console.error('login-email error:', e);
+    res.status(500).json({ error: e?.message || 'Internal error' });
+  }
+});
+
 app.post('/auth/login', async (req, res) => {
   try {
     const v = validate(LoginSchema, req.body || {});
