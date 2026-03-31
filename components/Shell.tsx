@@ -672,316 +672,157 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         </div>
       )}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Julius+Sans+One&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
         html,body{height:100%;background:#000;color:#e8e8ed;font-family:Inter,system-ui,sans-serif;}
         a{color:#fff!important;text-decoration:none!important;}
 
-        .shell{display:flex;height:100vh;width:100vw;overflow:hidden;position:relative;}
+        .shell{display:flex;flex-direction:column;height:100vh;width:100vw;overflow:hidden;position:relative;}
 
-        /* ── Sidebar — Apple glass ── */
-        .sidebar{
-          width:240px;flex:0 0 240px;
-          height:100vh;display:flex;flex-direction:column;
-          border-right:1px solid rgba(255,255,255,.07);
+        /* ── Top Header Bar ── */
+        .top-bar{
+          height:52px;flex:0 0 52px;
+          display:flex;align-items:center;justify-content:space-between;
+          padding:0 20px;
+          border-bottom:1px solid rgba(255,255,255,.06);
           background:rgba(0,0,0,.55);
           backdrop-filter:saturate(180%) blur(40px);
           -webkit-backdrop-filter:saturate(180%) blur(40px);
           z-index:50;
-          transition:transform .28s cubic-bezier(.4,0,.2,1);
+        }
+        .top-bar-brand{
+          display:flex;align-items:center;gap:10px;
+        }
+        .top-bar-brand img{ width:24px;height:24px;border-radius:6px; }
+        .top-bar-brand span{
+          font-size:15px;font-weight:600;color:#fff;letter-spacing:-.01em;
+        }
+        .top-bar-user{
+          display:flex;align-items:center;gap:10px;cursor:pointer;
+          background:none;border:none;padding:4px 8px 4px 4px;border-radius:10px;
+          transition:background .15s;
+        }
+        .top-bar-user:hover{background:rgba(255,255,255,.06);}
+
+        /* ── Content ── */
+        .content{
+          flex:1;min-height:0;overflow:auto;background:#000;
+          padding-bottom:74px; /* space for bottom bar */
         }
 
-        /* Brand */
-        .brand{
-          padding:12px 18px 12px;
-          border-bottom:1px solid rgba(255,255,255,.06);
-          display:flex;
-          flex-direction:column;
-          align-items:center;
-          text-align:center;
-        }
-        .brand h1{
-          font-family:"Inter",sans-serif;
-          letter-spacing:.08em;font-size:16px;font-weight:600;
-          background:linear-gradient(150deg,rgba(130,150,220,.95),rgba(130,220,170,.7));
-          -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-        }
-        .brand-sub{
-          font-size:9px;letter-spacing:.18em;text-transform:uppercase;
-          color:rgba(255,255,255,.20);margin-top:6px;
-        }
-
-        .nav{
-          display:flex;flex-direction:column;justify-content:center;
-          gap:3px;padding:16px 12px;flex:1;overflow-y:auto;
-        }
-
-        .nav-item{
-          display:flex;align-items:center;gap:11px;
-          padding:10px 12px;border-radius:13px;
-          border:1px solid transparent;
-          transition:background .16s ease, border-color .16s ease;
-          cursor:pointer;
-        }
-        .nav-item:hover{
-          background:rgba(255,255,255,.06);
-          border-color:rgba(255,255,255,.07);
-        }
-        .nav-item.active{
-          background:rgba(130,150,220,.08);
-          border-color:rgba(130,150,220,.15);
-        }
-        .nav-ico{
-          width:33px;height:33px;border-radius:9px;
+        /* ── Bottom Pill Nav Bar ── */
+        .pill-bar{
+          position:fixed;bottom:0;left:0;right:0;z-index:60;
           display:flex;align-items:center;justify-content:center;
-          flex-shrink:0;transition:background .16s;
-          background:rgba(255,255,255,.05);
-          border:1px solid rgba(255,255,255,.06);
+          padding:8px 16px max(8px, env(safe-area-inset-bottom, 8px));
+          background:rgba(0,0,0,.75);
+          backdrop-filter:saturate(180%) blur(30px);
+          -webkit-backdrop-filter:saturate(180%) blur(30px);
+          border-top:1px solid rgba(255,255,255,.06);
         }
-        .nav-item.active .nav-ico{
-          background:rgba(130,150,220,.12);
-          border-color:rgba(130,150,220,.2);
-        }
-        .nav-t{font-weight:600;font-size:13px;color:rgba(255,255,255,.85);display:block;letter-spacing:.01em;}
-        .nav-s{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.28);display:block;margin-top:1px;}
-        .nav-item.active .nav-t{color:#fff;}
-
-        @keyframes msgPulse {
-          0%, 100% { box-shadow: 0 0 0 rgba(var(--pulse-rgb), 0); }
-          50% { box-shadow: 0 0 14px rgba(var(--pulse-rgb), .75); }
-        }
-        .nav-ico.has-unread {
-          animation: msgPulse 2.4s ease-in-out infinite;
-          border-color: var(--pulse-color) !important;
-          background: var(--pulse-bg) !important;
-        }
-
-        /* User bar */
-        .user-bar{
-          padding:8px 12px 10px;
-          border-bottom:1px solid rgba(255,255,255,.06);
-        }
-        .user-card{
-          display:flex;flex-direction:column;gap:8px;
-          padding:12px;border-radius:14px;
+        .pill-inner{
+          display:flex;align-items:center;gap:4px;
+          padding:4px;border-radius:18px;
           background:rgba(255,255,255,.04);
           border:1px solid rgba(255,255,255,.07);
         }
+        .pill-item{
+          display:flex;flex-direction:column;align-items:center;gap:3px;
+          padding:8px 16px;border-radius:14px;
+          cursor:pointer;transition:all .16s;
+          border:1px solid transparent;
+          min-width:60px;
+          text-decoration:none!important;
+        }
+        .pill-item:hover{background:rgba(255,255,255,.04);}
+        .pill-item.active{
+          background:rgba(255,255,255,.08);
+          border-color:rgba(255,255,255,.10);
+        }
+        .pill-item .pill-ico{
+          width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+          position:relative;
+        }
+        .pill-item .pill-label{
+          font-size:10px;font-weight:500;color:rgba(255,255,255,.35);
+          letter-spacing:.02em;
+        }
+        .pill-item.active .pill-label{color:rgba(255,255,255,.85);}
 
-        /* Content */
-        .content{flex:1;min-width:0;height:100vh;overflow:hidden;background:#000;}
-
-        /* Mobile: compensate for fixed burger button */
-        @media(max-width:768px){
-          .content{ position:relative; }
-
-          /* Center page title h2 on mobile */
-          .page-title{
-            text-align:center!important;
-            width:100%;
-            display:block!important;
-          }
-
-          /* Center ALL topbar rows: title + subtitle + buttons */
-          .cal-topbar-row,
-          .content > div > div:first-child > div > div:first-child,
-          [class*="topbar"]{
-            justify-content:center!important;
-            text-align:center!important;
-          }
-
-          /* Date/subtitle lines under h2 */
-          .content h2 + p,
-          .content .page-title + p{
-            text-align:center!important;
-            width:100%;
-          }
-
-          /* Topbar padding-left — only for elements with specific class */
-          .cal-topbar-wrap{
-            padding-left:54px!important;
-          }
+        @keyframes msgPulse {
+          0%, 100% { box-shadow: 0 0 0 rgba(var(--pulse-rgb), 0); }
+          50% { box-shadow: 0 0 10px rgba(var(--pulse-rgb), .6); }
+        }
+        .pill-ico.has-unread {
+          animation: msgPulse 2.4s ease-in-out infinite;
+        }
+        .pill-unread-dot{
+          position:absolute;top:-2px;right:-4px;
+          width:7px;height:7px;border-radius:50%;
+          background:rgba(130,220,170,.8);
+          border:1.5px solid #000;
         }
 
-        /* Burger */
-        .burger-btn{
-          display:none;
-          position:fixed;top:6px;left:10px;z-index:80;
-          width:36px;height:36px;border-radius:999px;
-          border:none;
-          background:transparent;
-          color:#fff;cursor:pointer;
-          align-items:center;justify-content:center;
-          padding:0;
-          transition:background .15s;
-        }
-        .burger-btn:hover{background:rgba(255,255,255,.10);}
-        @media(max-width:768px){
-          .burger-btn{ display:none !important; }
-        }
-
-        .sidebar-backdrop{
-          display:none;position:fixed;inset:0;
-          background:rgba(0,0,0,.45);z-index:49;
-          backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-        }
-        .sidebar-backdrop.open{display:block;}
-
-        @media(max-width:768px){
-          /* Sidebar */
-          .sidebar{
-            position:fixed;
-            /* dvh accounts for Safari toolbar collapsing */
-            top:0;left:0;bottom:0;right:auto;
-            transform:translateX(-108%);
-          }
-          .sidebar.open{transform:translateX(0);}
-          .burger-btn{display:flex;}
-          .content{width:100vw;}
-
-          /* Brand — centered text, clear burger with padding */
-          .brand{
-            padding:10px 18px;
-            display:flex;
-            flex-direction:column;
-            align-items:center;
-            text-align:center;
-          }
-          .brand h1{
-            font-size:13px;
-            letter-spacing:.28em;
-          }
-          .brand-sub{
-            display:none;
-          }
-          /* User bar — on top, add top padding for status bar + burger */
-          .user-bar{
-            padding:max(16px, env(safe-area-inset-top, 16px)) 12px 12px;
-            border-bottom:1px solid rgba(255,255,255,.06);
-            border-top:none;
-          }
+        @media(max-width:480px){
+          .pill-item{padding:8px 10px;min-width:50px;}
+          .pill-item .pill-label{font-size:9px;}
         }
 
         ::-webkit-scrollbar{width:4px;}
         ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px;}
         select option{background:#111;}
-        @keyframes swipeHintIn {
-          0% { opacity:0; transform:translateX(-4px) }
-          20% { opacity:.6; transform:translateX(0) }
-          70% { opacity:.6; transform:translateX(0) }
-          100% { opacity:0; transform:translateX(-4px) }
-        }
-        .swipe-hint {
-          display:none;
-          position:fixed;
-          left:0; top:50%; transform:translateY(-50%);
-          width:4px; height:36px; border-radius:0 4px 4px 0;
-          background:rgba(255,255,255,.30);
-          z-index:60;
-          animation: swipeHintIn 1.5s ease-in-out forwards;
-          pointer-events:none;
-        }
-        @media(max-width:768px){
-          .swipe-hint { display:block; }
-        }
       `}</style>
 
-      {/* Swipe hint — iOS-style bar on left edge */}
-      {!sidebarOpen && <div className="swipe-hint" key={`${pathname}-${swipeHintKey}`} />}
-
       <div className="shell">
-        {/* Burger */}
-        <button
-          className={`burger-btn${sidebarOpen ? ' open' : ''}`}
-          onClick={() => setSidebarOpen(v => !v)}
-          aria-label="Menu"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-        </button>
-
-        {/* Backdrop */}
-        <div
-          className={`sidebar-backdrop${sidebarOpen ? ' open' : ''}`}
-          onClick={() => setSidebarOpen(false)}
-        />
-
-        {/* Sidebar */}
-        <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}>
-          <div className="brand">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
-              <img src="/logo.jpg" alt="" style={{ width: 22, height: 22, borderRadius: 6 }} />
-              <h1>VuriumBook</h1>
-            </div>
-            <div className="brand-sub">{page}</div>
+        {/* ── Top Header Bar ── */}
+        <div className="top-bar">
+          <div className="top-bar-brand">
+            <img src="/logo.jpg" alt="" />
+            <span>{user?.name || 'VuriumBook'}</span>
           </div>
-
-          {/* Profile — top on mobile */}
-          <div className="user-bar">
-            <div className="user-card">
-              <button
-                onClick={() => setShowProfile(true)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: '100%', textAlign: 'left' }}
-              >
-                {(user as any)?.photo
-                  ? <img
-                      src={(user as any).photo}
-                      alt={user?.name || ''}
-                      style={{ width: 34, height: 34, borderRadius: 9, objectFit: 'cover', border: '1px solid rgba(255,255,255,.12)', flexShrink: 0 }}
-                      onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                    />
-                  : <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,.10)', border: '1px solid rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, color: '#fff', flexShrink: 0 }}>
-                      {initials(user?.name || user?.username || '?')}
-                    </div>
-                }
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, color: '#e8e8ed', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name || user?.username || '—'}</div>
-                  <div style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.30)', marginTop: 2 }}>{user?.role || '—'}</div>
+          <button className="top-bar-user" onClick={() => setShowProfile(true)}>
+            {(user as any)?.photo
+              ? <img src={(user as any).photo} alt="" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'cover', border: '1px solid rgba(255,255,255,.12)' }}
+                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+              : <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,.10)', border: '1px solid rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff' }}>
+                  {initials(user?.name || user?.username || '?')}
                 </div>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.28)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-              </button>
-              <button
-                onClick={() => { localStorage.removeItem('VURIUMBOOK_TOKEN'); localStorage.removeItem('VURIUMBOOK_USER'); clearAuthCookie(); window.location.href = '/signin' }}
-                style={{ height: 30, width: '100%', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 600, border: '1px solid rgba(255,255,255,.09)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.55)', fontFamily: 'inherit', letterSpacing: '.04em' }}
-              >
-                Sign out
-              </button>
-            </div>
-          </div>
+            }
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>
 
-          <nav className="nav">
-            {visibleNav.map(item => {
-              const active = pathname === item.href
-              const hasUnread = item.id === 'messages' && !!unreadChat && !active
-              const pc = unreadChat || 'rgba(130,150,220,.6)'
-              const r = parseInt(pc.slice(1,3),16)||215, g = parseInt(pc.slice(3,5),16)||236, b = parseInt(pc.slice(5,7),16)||255
+        {/* ── Content ── */}
+        <div className="content">{children}</div>
+
+        {/* ── Bottom Pill Navigation ── */}
+        <div className="pill-bar">
+          <div className="pill-inner">
+            {[
+              { id: 'dashboard', href: '/dashboard', label: 'Home' },
+              { id: 'calendar', href: '/calendar', label: 'Calendar' },
+              { id: 'messages', href: '/messages', label: 'Messages' },
+              { id: 'clients', href: '/clients', label: 'Clients' },
+              { id: 'settings', href: '/settings', label: 'Settings' },
+            ].filter(item => {
+              if (isStudent && item.id !== 'calendar' && item.id !== 'messages') return false
+              if (isBarber && (item.id === 'clients' || item.id === 'settings')) return false
+              return true
+            }).map(item => {
+              const active = pathname === item.href || (item.id === 'settings' && ['/settings', '/billing', '/waitlist', '/portfolio', '/attendance', '/cash', '/membership', '/expenses', '/payroll', '/payments'].some(p => pathname.startsWith(p)))
+              const hasUnread = item.id === 'messages' && !!unreadChat && pathname !== '/messages'
               return (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`nav-item${active ? ' active' : ''}`}
-                >
-                  <div
-                    className={`nav-ico${hasUnread ? ' has-unread' : ''}`}
-                    style={hasUnread ? { '--pulse-rgb': `${r},${g},${b}`, '--pulse-color': `rgba(${r},${g},${b},.55)`, '--pulse-bg': `rgba(${r},${g},${b},.12)` } as React.CSSProperties : undefined}
-                  >
-                    <Icon id={item.id} color={hasUnread ? pc : active ? 'rgba(255,255,255,.90)' : 'rgba(255,255,255,.45)'} />
+                <Link key={item.id} href={item.href} className={`pill-item${active ? ' active' : ''}`}>
+                  <div className={`pill-ico${hasUnread ? ' has-unread' : ''}`}>
+                    <Icon id={item.id} color={active ? '#fff' : 'rgba(255,255,255,.4)'} />
+                    {hasUnread && <div className="pill-unread-dot" />}
                   </div>
-                  <div style={{ minWidth: 0 }}>
-                    <span className="nav-t" style={hasUnread ? { color: pc } : undefined}>{item.label}</span>
-                    <span className="nav-s">{item.sub}</span>
-                  </div>
+                  <span className="pill-label">{item.label}</span>
                 </Link>
               )
             })}
-          </nav>
-
-
-        </aside>
-
-        <div className="content">{children}</div>
+          </div>
+        </div>
       </div>
 
       {showProfile && user && (
