@@ -3,19 +3,28 @@ import { useEffect, useRef } from 'react'
 
 export default function VuriumBook() {
   const spaceRef = useRef<HTMLDivElement>(null)
-  const orbRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    let tx = 0, ty = 0, cx = 0, cy = 0
+    let raf: number
+
     function onMouse(e: MouseEvent) {
-      const cx = (e.clientX / window.innerWidth - 0.5) * 2
-      const cy = (e.clientY / window.innerHeight - 0.5) * 2
-      const far = document.querySelector('.stars-far') as HTMLElement
-      const mid = document.querySelector('.stars-mid') as HTMLElement
-      const near = document.querySelector('.stars-near') as HTMLElement
-      if (far) far.style.transform = `translate(${cx * 4}px, ${cy * 4}px)`
-      if (mid) mid.style.transform = `translate(${cx * 8}px, ${cy * 8}px)`
-      if (near) near.style.transform = `translate(${cx * 14}px, ${cy * 14}px)`
-      if (orbRef.current) orbRef.current.style.transform = `translate(${cx * -10}px, ${cy * -10}px)`
+      tx = (e.clientX / window.innerWidth - 0.5) * 2
+      ty = (e.clientY / window.innerHeight - 0.5) * 2
+    }
+
+    function tick() {
+      cx += (tx - cx) * 0.04
+      cy += (ty - cy) * 0.04
+      const far  = document.querySelector('.stars-far')    as HTMLElement
+      const mid  = document.querySelector('.stars-mid')    as HTMLElement
+      const near = document.querySelector('.stars-near')   as HTMLElement
+      const orb  = document.querySelector('.orb-parallax') as HTMLElement
+      if (far)  far.style.transform  = `translate(${cx * 3}px, ${cy * 3}px)`
+      if (mid)  mid.style.transform  = `translate(${cx * 7}px, ${cy * 7}px)`
+      if (near) near.style.transform = `translate(${cx * 12}px, ${cy * 12}px)`
+      if (orb)  orb.style.transform  = `translate(${cx * -8}px, ${cy * -8}px)`
+      raf = requestAnimationFrame(tick)
     }
 
     function onScroll() {
@@ -26,9 +35,11 @@ export default function VuriumBook() {
 
     window.addEventListener('mousemove', onMouse, { passive: true })
     window.addEventListener('scroll', onScroll, { passive: true })
+    raf = requestAnimationFrame(tick)
     return () => {
       window.removeEventListener('mousemove', onMouse)
       window.removeEventListener('scroll', onScroll)
+      cancelAnimationFrame(raf)
     }
   }, [])
 
@@ -39,12 +50,14 @@ export default function VuriumBook() {
         <div className="stars stars-far" />
         <div className="stars stars-mid" />
         <div className="stars stars-near" />
-        <div className="orb-container" ref={orbRef}>
-          <div className="orb-halo" />
-          <div className="orb-ring-2" />
-          <div className="orb-ring" />
-          <div className="orb-ring-3" />
-          <div className="orb-core" />
+        <div className="orb-parallax">
+          <div className="orb-container">
+            <div className="orb-halo" />
+            <div className="orb-ring-2" />
+            <div className="orb-ring" />
+            <div className="orb-ring-3" />
+            <div className="orb-core" />
+          </div>
         </div>
         <div className="shooting-star shooting-star-1" />
         <div className="shooting-star shooting-star-2" />
@@ -63,7 +76,7 @@ export default function VuriumBook() {
         <ul className="navbar-links">
           <li><a href="/vuriumbook" style={{ color: 'rgba(255,255,255,.85)' }}>VuriumBook</a></li>
           <li><a href="/#products">Products</a></li>
-          <li><a href="/#contact">Contact</a></li>
+          <li><a href="/#about">About</a></li>
         </ul>
       </nav>
 
