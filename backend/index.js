@@ -1,0 +1,3157 @@
+// ============================================================
+// VuriumBook SaaS — Multi-Tenant Backend
+// Cloud Run: https://vuriumbook-api-431945333485.us-central1.run.app
+// Based on Element CRM, adapted for multi-tenant SaaS
+// ============================================================
+const express = require('express');
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const https = require('https');
+const http2 = require('http2');
+const { z } = require('zod');
+const { Firestore } = require('@google-cloud/firestore');
+
+const app = express();
+const db = new Firestore();
+const PORT = process.env.PORT || 8080;
+
+// ============================================================
+// CONFIG
+// ============================================================
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+const TOKEN_TTL = '24h';
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+if (NODE_ENV === 'production' && JWT_SECRET === 'dev-secret-change-in-production') {
+  console.error('FATAL: JWT_SECRET must be set in production');
+  process.exit(1);
+}
+
+// ============================================================
+// MIDDLEWARE
+// ============================================================
+const ALLOWED_ORIGINS = [
+  'https://vuriumbook.com',
+  'https://www.vuriumbook.com',
+  'https://varium.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:3001',
+];
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    cb(null, false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Auth-Token', 'Cookie'],
+  maxAge: 86400,
+}));
+
+app.use(cookieParser());
+app.use(express.json({ limit: '10mb' }));
+
+// Security headers
+app.use((req, res, next) => {
+  res.set('X-Frame-Options', 'DENY');
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.set('X-XSS-Protection', '1; mode=block');
+  res.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  if (NODE_ENV === 'production') {
+    res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
+
+// ============================================================
+// HELPERS
+// ============================================================
+function safeStr(x) { return String(x ?? '').trim(); }
+function toIso(d) { return new Date(d).toISOString(); }
+function parseIso(s) { const d = new Date(String(s || '')); return Number.isNaN(d.getTime()) ? null : d; }
+function normPhone(x) { const digits = String(x || '').replace(/[^\d]/g, ''); if (!digits) return ''; return digits.length > 15 ? digits.slice(-15) : digits; }
+
+function sanitizeHtml(str) {
+  if (str == null) return str;
+  return String(str).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+}
+
+function hashPassword(plain) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.createHmac('sha256', salt).update(plain).digest('hex');
+  return salt + ':' + hash;
+}
+
+function checkPassword(plain, stored) {
+  try {
+    const [salt, hash] = stored.split(':');
+    return crypto.createHmac('sha256', salt).update(plain).digest('hex') === hash;
+  } catch { return false; }
+}
+
+function getClientIp(req) {
+  return safeStr(
+    (req.headers['x-forwarded-for'] || '').split(',')[0] ||
+    req.headers['x-real-ip'] || req.ip || 'unknown'
+  ) || 'unknown';
+}
+
+// ============================================================
+// PHONE ENCRYPTION (AES-256-GCM)
+// ============================================================
+function getPhoneEncryptionKey() {
+  const key = process.env.PHONE_ENCRYPTION_KEY || '';
+  if (!key) return null;
+  return Buffer.from(key, 'hex');
+}
+
+function encryptPhone(phone) {
+  const key = getPhoneEncryptionKey();
+  if (!key || !phone) return phone;
+  try {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const encrypted = Buffer.concat([cipher.update(phone, 'utf8'), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return 'enc:' + iv.toString('hex') + ':' + encrypted.toString('hex') + ':' + tag.toString('hex');
+  } catch { return phone; }
+}
+
+function decryptPhone(value) {
+  if (!value || !String(value).startsWith('enc:')) return value;
+  const key = getPhoneEncryptionKey();
+  if (!key) return value;
+  try {
+    const parts = value.split(':');
+    const iv = Buffer.from(parts[1], 'hex');
+    const encrypted = Buffer.from(parts[2], 'hex');
+    const tag = Buffer.from(parts[3], 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+  } catch { return '****'; }
+}
+
+function phoneForRole(encryptedPhone, role) {
+  if (!encryptedPhone) return null;
+  if (role === 'owner') return decryptPhone(encryptedPhone);
+  if (role === 'admin') return decryptPhone(encryptedPhone);
+  const plain = decryptPhone(encryptedPhone);
+  if (!plain || plain.length < 4) return '****';
+  return '****' + plain.slice(-4);
+}
+
+// ============================================================
+// TWILIO SMS
+// ============================================================
+function twilioCredentials() {
+  return {
+    accountSid: safeStr(process.env.TWILIO_ACCOUNT_SID),
+    authToken: safeStr(process.env.TWILIO_AUTH_TOKEN),
+    from: safeStr(process.env.TWILIO_FROM),
+  };
+}
+
+function formatPhone(phone) {
+  if (!phone) return null;
+  const digits = String(phone).replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  if (digits.length > 7) return `+${digits}`;
+  return null;
+}
+
+function sendSms(to, body) {
+  const { accountSid, authToken, from } = twilioCredentials();
+  if (!accountSid || !authToken || !from) { console.warn('Twilio not configured'); return Promise.resolve(null); }
+  const toFormatted = formatPhone(to);
+  if (!toFormatted) { console.warn('sendSms: invalid phone', to); return Promise.resolve(null); }
+  const payload = new URLSearchParams({ To: toFormatted, From: from, Body: body }).toString();
+  const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+  return new Promise((resolve) => {
+    const req = https.request({
+      hostname: 'api.twilio.com',
+      path: `/2010-04-01/Accounts/${accountSid}/Messages.json`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': `Basic ${auth}`, 'Content-Length': Buffer.byteLength(payload) },
+    }, (resp) => {
+      let data = '';
+      resp.on('data', c => data += c);
+      resp.on('end', () => {
+        try { resolve(JSON.parse(data)); } catch { resolve(null); }
+      });
+    });
+    req.on('error', (e) => { console.warn('sendSms error:', e?.message); resolve(null); });
+    req.write(payload);
+    req.end();
+  });
+}
+
+async function scheduleReminders(wsCol, bookingId, booking, timeZone) {
+  try {
+    const startAt = parseIso(booking.start_at);
+    if (!startAt) return;
+    const phone = booking.client_phone || booking.phone_norm;
+    if (!phone) return;
+    const clientName = booking.client_name || 'Client';
+    const barberName = booking.barber_name || 'your barber';
+    const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: timeZone || 'America/Chicago' });
+    const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: timeZone || 'America/Chicago' });
+    // 24h reminder
+    const remind24 = new Date(startAt.getTime() - 24 * 60 * 60 * 1000);
+    if (remind24 > new Date()) {
+      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, type: '24h', send_at: toIso(remind24), sent: false, message: `Reminder: Your appointment with ${barberName} is tomorrow ${dateStr} at ${timeStr}. Reply STOP to unsubscribe.`, created_at: toIso(new Date()) });
+    }
+    // 2h reminder
+    const remind2 = new Date(startAt.getTime() - 2 * 60 * 60 * 1000);
+    if (remind2 > new Date()) {
+      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, type: '2h', send_at: toIso(remind2), sent: false, message: `Reminder: Your appointment with ${barberName} is in 2 hours at ${timeStr}. Reply STOP to unsubscribe.`, created_at: toIso(new Date()) });
+    }
+  } catch (e) { console.warn('scheduleReminders error:', e?.message); }
+}
+
+// ============================================================
+// APNs PUSH NOTIFICATIONS
+// ============================================================
+let _apnsJwt = null;
+let _apnsJwtTime = 0;
+
+function getApnsJwt() {
+  const keyId = process.env.APNS_KEY_ID || '';
+  const teamId = process.env.APNS_TEAM_ID || '';
+  const keyPath = process.env.APNS_KEY_PATH || '';
+  if (!keyId || !teamId || !keyPath) return null;
+  const now = Math.floor(Date.now() / 1000);
+  if (_apnsJwt && now - _apnsJwtTime < 3000) return _apnsJwt;
+  try {
+    const fs = require('fs');
+    const key = fs.readFileSync(keyPath, 'utf8');
+    _apnsJwt = jwt.sign({}, key, { algorithm: 'ES256', keyid: keyId, issuer: teamId, expiresIn: '1h' });
+    _apnsJwtTime = now;
+    return _apnsJwt;
+  } catch (e) { console.warn('getApnsJwt error:', e?.message); return null; }
+}
+
+function sendApnsPush(deviceToken, title, body, data = {}, bundleId = 'com.vuriumbook.app') {
+  const apnsJwt = getApnsJwt();
+  if (!apnsJwt || !deviceToken) return Promise.resolve(null);
+  const host = (process.env.APNS_ENV || 'production') === 'sandbox' ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
+  return new Promise((resolve) => {
+    try {
+      const client = http2.connect(`https://${host}`);
+      const payload = JSON.stringify({ aps: { alert: { title, body }, sound: 'default', 'mutable-content': 1 }, ...data });
+      const headers = { ':method': 'POST', ':path': `/3/device/${deviceToken}`, 'authorization': `bearer ${apnsJwt}`, 'apns-topic': bundleId, 'apns-push-type': 'alert', 'apns-priority': '10' };
+      const req = client.request(headers);
+      let respData = '';
+      req.on('data', c => respData += c);
+      req.on('end', () => { client.close(); resolve(respData); });
+      req.on('error', () => { client.close(); resolve(null); });
+      req.write(payload);
+      req.end();
+      setTimeout(() => { try { client.close(); } catch {} resolve(null); }, 10000);
+    } catch { resolve(null); }
+  });
+}
+
+async function getCrmDeviceTokens(wsCol, userId) {
+  try {
+    const snap = await wsCol('crm_push_tokens').where('user_id', '==', userId).get();
+    return snap.docs.map(d => d.data().device_token).filter(Boolean);
+  } catch { return []; }
+}
+
+async function sendCrmPush(wsCol, userId, title, body, data = {}) {
+  const tokens = await getCrmDeviceTokens(wsCol, userId);
+  for (const t of tokens) sendApnsPush(t, title, body, data).catch(() => {});
+}
+
+async function sendCrmPushToRoles(wsCol, roles, title, body, data = {}) {
+  try {
+    const snap = await wsCol('crm_push_tokens').get();
+    for (const d of snap.docs) {
+      const td = d.data();
+      if (roles.includes(td.role)) sendApnsPush(td.device_token, title, body, data).catch(() => {});
+    }
+  } catch {}
+}
+
+async function sendCrmPushToBarber(wsCol, barberId, title, body, data = {}) {
+  try {
+    const snap = await wsCol('crm_push_tokens').where('barber_id', '==', barberId).get();
+    for (const d of snap.docs) sendApnsPush(d.data().device_token, title, body, data).catch(() => {});
+  } catch {}
+}
+
+async function sendCrmPushToStaff(wsCol, barberId, title, body, data = {}) {
+  sendCrmPushToRoles(wsCol, ['owner', 'admin'], title, body, data).catch(() => {});
+  if (barberId) sendCrmPushToBarber(wsCol, barberId, title, body, data).catch(() => {});
+}
+
+// ============================================================
+// SQUARE PAYMENT HELPERS
+// ============================================================
+const SQUARE_VERSION = process.env.SQUARE_VERSION || '2026-01-22';
+const SQUARE_BASE = (process.env.SQUARE_ENV || 'production').toLowerCase() === 'sandbox' ? 'https://connect.squareupsandbox.com' : 'https://connect.squareup.com';
+const SQUARE_TIMEOUT_MS = Number(process.env.SQUARE_TIMEOUT_MS || 15000);
+const SQUARE_APP_ID = process.env.SQUARE_APP_ID || '';
+const SQUARE_APP_SECRET = process.env.SQUARE_APP_SECRET || '';
+
+async function getSquareToken(wsCol) {
+  try {
+    const doc = await wsCol('settings').doc('square_oauth').get();
+    if (doc.exists) {
+      const data = doc.data();
+      if (data.access_token) {
+        const expiresAt = data.expires_at ? new Date(data.expires_at) : null;
+        if (expiresAt && expiresAt.getTime() - Date.now() < 5 * 60 * 1000) {
+          const refreshed = await refreshSquareToken(wsCol, data.refresh_token);
+          if (refreshed) return refreshed;
+        }
+        return data.access_token;
+      }
+    }
+  } catch (e) { console.error('getSquareToken error:', e.message); }
+  return process.env.SQUARE_TOKEN || '';
+}
+
+async function refreshSquareToken(wsCol, refreshToken) {
+  if (!refreshToken || !SQUARE_APP_SECRET) return null;
+  try {
+    const r = await fetch(`${SQUARE_BASE}/oauth2/token`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: SQUARE_APP_ID, client_secret: SQUARE_APP_SECRET, grant_type: 'refresh_token', refresh_token: refreshToken }),
+    });
+    const data = await r.json();
+    if (r.ok && data.access_token) {
+      await wsCol('settings').doc('square_oauth').set({
+        access_token: data.access_token, refresh_token: data.refresh_token || refreshToken,
+        expires_at: data.expires_at || null, token_type: data.token_type || 'bearer', updated_at: toIso(new Date()),
+      }, { merge: true });
+      return data.access_token;
+    }
+  } catch (e) { console.error('Square token refresh error:', e.message); }
+  return null;
+}
+
+async function squareHeaders(wsCol, { hasBody = false } = {}) {
+  const token = await getSquareToken(wsCol);
+  if (!token) throw new Error('Square not connected');
+  return { 'Authorization': `Bearer ${token}`, 'Square-Version': SQUARE_VERSION, ...(hasBody ? { 'Content-Type': 'application/json' } : {}) };
+}
+
+async function squareFetch(path, options = {}) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), SQUARE_TIMEOUT_MS);
+  try { return await fetch(`${SQUARE_BASE}${path}`, { ...options, signal: controller.signal }); }
+  finally { clearTimeout(t); }
+}
+
+// ============================================================
+// GEOFENCE / HAVERSINE
+// ============================================================
+function haversineMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function addMinutes(date, minutes) { return new Date(date.getTime() + minutes * 60000); }
+function overlaps(aStart, aEnd, bStart, bEnd) { return aStart < bEnd && bStart < aEnd; }
+
+// ============================================================
+// PERMISSIONS
+// ============================================================
+const PERMISSIONS = {
+  owner: {
+    canViewAll: true, canViewPayroll: true, canViewSettings: true,
+    canViewPayments: true, canManageBarbers: true, canManageServices: true,
+    canManageClients: true, canViewAllBookings: true, canManageBookings: true,
+    canChangePassword: true, canManageUsers: true,
+  },
+  admin: {
+    canViewAll: true, canViewPayroll: false, canViewSettings: false,
+    canViewPayments: true, canManageBarbers: false, canManageServices: false,
+    canManageClients: true, canViewAllBookings: true, canManageBookings: true,
+    canChangePassword: true, canManageUsers: false,
+  },
+  barber: {
+    canViewAll: false, canViewPayroll: false, canViewSettings: false,
+    canViewPayments: false, canManageBarbers: false, canManageServices: false,
+    canManageClients: false, canViewAllBookings: false, canManageBookings: true,
+    canChangePassword: true, canManageUsers: false,
+  },
+  student: {
+    canViewAll: false, canViewPayroll: false, canViewSettings: false,
+    canViewPayments: false, canManageBarbers: false, canManageServices: false,
+    canManageClients: false, canViewAllBookings: false, canManageBookings: false,
+    canChangePassword: true, canManageUsers: false, canViewMentorBookings: true,
+  },
+};
+
+function hasPermission(session, perm) {
+  if (!session?.role) return false;
+  return !!PERMISSIONS[session.role]?.[perm];
+}
+
+// ============================================================
+// ZOD SCHEMAS
+// ============================================================
+const validate = (schema, input) => {
+  const result = schema.safeParse(input);
+  if (!result.success) {
+    const messages = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
+    return { ok: false, error: messages };
+  }
+  return { ok: true, data: result.data };
+};
+
+const SignupSchema = z.object({
+  workspace_name: z.string().min(2).max(120).trim(),
+  username: z.string().min(2).max(80).trim(),
+  password: z.string().min(4).max(200),
+  name: z.string().max(120).optional(),
+  email: z.string().email().optional(),
+  phone: z.string().max(30).optional(),
+  timezone: z.string().max(60).optional(),
+});
+
+const LoginSchema = z.object({
+  workspace_id: z.string().min(1, 'required').max(80),
+  username: z.string().min(1, 'required').max(80).trim(),
+  password: z.string().min(1, 'required').max(200),
+});
+
+const BookingCreateSchema = z.object({
+  client_name: z.string().min(1).max(120).trim().optional(),
+  client_phone: z.string().max(30).optional(),
+  barber_id: z.string().min(1, 'barber_id required').max(80),
+  barber_name: z.string().max(120).optional(),
+  service_id: z.string().max(500).optional(),
+  service_name: z.string().max(200).optional(),
+  start_at: z.string().min(1, 'start_at required').refine(s => !isNaN(Date.parse(s)), 'invalid ISO date'),
+  end_at: z.string().optional().refine(s => !s || !isNaN(Date.parse(s)), 'invalid ISO date'),
+  duration_minutes: z.number().int().min(1).max(480).optional(),
+  status: z.enum(['booked', 'confirmed', 'arrived', 'cancelled', 'noshow', 'completed', 'done']).optional(),
+  source: z.string().max(40).optional(),
+  notes: z.string().max(1000).optional(),
+  customer_note: z.string().max(1000).optional(),
+  paid: z.boolean().optional(),
+  customer_id: z.string().max(80).optional(),
+});
+
+const BookingPatchSchema = BookingCreateSchema.partial().extend({
+  payment_status: z.enum(['paid', 'unpaid']).optional(),
+  payment_method: z.string().max(40).optional(),
+  tip: z.number().min(0).optional(),
+  tip_amount: z.number().min(0).optional(),
+  amount: z.number().min(0).optional(),
+  service_amount: z.number().min(0).optional(),
+});
+
+const ClientCreateSchema = z.object({
+  name: z.string().min(1, 'name required').max(120).trim(),
+  phone: z.string().max(30).optional(),
+  email: z.string().email().optional().or(z.literal('')),
+});
+
+const ClientPatchSchema = z.object({
+  name: z.string().min(1).max(120).trim().optional(),
+  phone: z.string().max(30).optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  notes: z.string().max(2000).optional(),
+  status: z.string().max(40).optional(),
+  preferred_barber: z.string().max(80).optional(),
+  tags: z.array(z.string().max(50)).optional(),
+  photo_url: z.string().max(5000).optional().or(z.literal('')),
+});
+
+const ChangePasswordSchema = z.object({
+  current_password: z.string().min(1, 'required'),
+  new_password: z.string().min(4, 'min 4 chars').max(200),
+});
+
+const UserCreateSchema = z.object({
+  username: z.string().min(2).max(80).trim(),
+  password: z.string().min(4).max(200),
+  role: z.enum(['owner', 'admin', 'barber', 'student']).optional().default('barber'),
+  name: z.string().max(120).optional(),
+  barber_id: z.string().max(80).optional(),
+  mentor_barber_ids: z.array(z.string().max(80)).optional(),
+  phone: z.string().max(30).optional(),
+});
+
+const NotificationPrefsSchema = z.object({
+  push_booking_confirm: z.boolean().optional(),
+  push_reminder_24h: z.boolean().optional(),
+  push_reminder_2h: z.boolean().optional(),
+  push_reschedule: z.boolean().optional(),
+  push_cancel: z.boolean().optional(),
+  push_waitlist: z.boolean().optional(),
+  push_arrived: z.boolean().optional(),
+  push_chat_messages: z.boolean().optional(),
+}).optional();
+
+const UserPatchSchema = z.object({
+  name: z.string().max(120).optional(),
+  role: z.enum(['owner', 'admin', 'barber', 'student']).optional(),
+  active: z.boolean().optional(),
+  barber_id: z.string().max(80).optional(),
+  password: z.string().min(4).max(200).optional(),
+  mentor_barber_ids: z.array(z.string().max(80)).optional(),
+  phone: z.string().max(30).optional(),
+  photo_url: z.string().max(500000).optional().or(z.literal('')),
+  schedule: z.array(z.object({ enabled: z.boolean(), startMin: z.number(), endMin: z.number() })).optional(),
+  notification_prefs: NotificationPrefsSchema,
+});
+
+// ============================================================
+// AUTH MIDDLEWARE
+// ============================================================
+function getTokenFromReq(req) {
+  const cookie = req.cookies?.vuriumbook_token;
+  if (cookie) return cookie;
+  const auth = safeStr(req.headers['authorization'] || '');
+  if (auth.startsWith('Bearer ')) return auth.slice(7).trim();
+  const xauth = safeStr(req.headers['x-auth-token'] || '');
+  if (xauth) return xauth;
+  return '';
+}
+
+function authenticate(req, res, next) {
+  const token = getTokenFromReq(req);
+  if (!token) { req.user = null; return next(); }
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch {
+    req.user = null;
+    next();
+  }
+}
+
+function requireAuth(req, res, next) {
+  if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
+  next();
+}
+
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
+    if (!roles.includes(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    next();
+  };
+}
+
+// Resolve workspace — sets req.ws as Firestore workspace subcollection helper
+function resolveWorkspace(req, res, next) {
+  if (!req.user?.workspace_id) return res.status(400).json({ error: 'No workspace context' });
+  const wsId = req.user.workspace_id;
+  req.wsId = wsId;
+  req.ws = (collection) => db.collection('workspaces').doc(wsId).collection(collection);
+  req.wsDoc = () => db.collection('workspaces').doc(wsId);
+  next();
+}
+
+// ============================================================
+// SQUARE OAUTH CALLBACK (before auth middleware — no auth needed)
+// ============================================================
+app.get('/api/square/oauth/callback', async (req, res) => {
+  try {
+    const code = safeStr(req.query?.code || '');
+    const state = safeStr(req.query?.state || '');
+    if (!code || !state) return res.status(400).json({ error: 'Missing code or state' });
+    // State contains workspace_id
+    const wsId = state;
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
+    const r = await fetch(`${SQUARE_BASE}/oauth2/token`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: SQUARE_APP_ID, client_secret: SQUARE_APP_SECRET, code, grant_type: 'authorization_code' }),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.access_token) return res.status(400).json({ error: 'OAuth failed', details: data });
+    await wsCol('settings').doc('square_oauth').set({
+      access_token: data.access_token, refresh_token: data.refresh_token || null,
+      expires_at: data.expires_at || null, merchant_id: data.merchant_id || null,
+      token_type: data.token_type || 'bearer', connected_at: toIso(new Date()), updated_at: toIso(new Date()),
+    });
+    res.send('<html><body><h2>Square connected successfully!</h2><p>You can close this window.</p><script>window.close()</script></body></html>');
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// SQUARE WEBHOOK (before auth middleware — uses signature verification)
+// ============================================================
+app.post('/api/webhooks/square', async (req, res) => {
+  try {
+    const event = req.body;
+    if (!event?.type) return res.json({ ok: true });
+    // Find workspace by merchant_id
+    if (event.type === 'terminal.checkout.updated') {
+      const checkout = event.data?.object?.checkout;
+      if (!checkout?.id) return res.json({ ok: true });
+      // Search all workspaces for this checkout
+      const wsSnap = await db.collection('workspaces').get();
+      for (const ws of wsSnap.docs) {
+        const wsCol = (col) => db.collection('workspaces').doc(ws.id).collection(col);
+        const prSnap = await wsCol('payment_requests').where('checkout_id', '==', checkout.id).limit(1).get();
+        if (!prSnap.empty) {
+          const prDoc = prSnap.docs[0];
+          const status = checkout.status || 'PENDING';
+          const patch = { status: status.toLowerCase(), updated_at: toIso(new Date()) };
+          if (checkout.payment_ids?.length) patch.payment_id = checkout.payment_ids[0];
+          if (status === 'COMPLETED') {
+            patch.completed_at = toIso(new Date());
+            const tipMoney = checkout.tip_money?.amount || 0;
+            if (tipMoney > 0) patch.tip_cents = tipMoney;
+            // Update booking
+            const prData = prDoc.data();
+            if (prData.booking_id) {
+              const bPatch = { payment_status: 'paid', paid: true, updated_at: toIso(new Date()) };
+              if (tipMoney > 0) { bPatch.tip = tipMoney / 100; bPatch.tip_amount = tipMoney / 100; }
+              await wsCol('bookings').doc(prData.booking_id).update(bPatch).catch(() => {});
+            }
+          }
+          await prDoc.ref.update(patch);
+          break;
+        }
+      }
+    }
+    res.json({ ok: true });
+  } catch (e) { console.error('Square webhook error:', e); res.json({ ok: true }); }
+});
+
+// Apply auth + workspace for all /api/ routes
+app.use('/api', authenticate, requireAuth, resolveWorkspace);
+
+// Apply only authenticate for /public/ routes (no auth required)
+app.use('/public', authenticate);
+
+// ============================================================
+// RATE LIMITING
+// ============================================================
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW = 15;
+const RATE_LIMIT_BLOCK = 15;
+
+async function checkRateLimit(ip) {
+  const key = `ratelimit_login_${String(ip || 'unknown').replace(/[^a-zA-Z0-9._:-]/g, '_')}`;
+  const ref = db.collection('rate_limits').doc(key);
+  const now = Date.now();
+  const winMs = RATE_LIMIT_WINDOW * 60 * 1000;
+  const blkMs = RATE_LIMIT_BLOCK * 60 * 1000;
+  const snap = await ref.get();
+  const data = snap.exists ? snap.data() : null;
+  if (data?.blocked_until && now < data.blocked_until) {
+    return { allowed: false, retryAfter: Math.ceil((data.blocked_until - now) / 1000) };
+  }
+  if (!data || now - (data.first_attempt || 0) > winMs) {
+    await ref.set({ ip, attempts: 1, first_attempt: now, last_attempt: now, blocked_until: null });
+    return { allowed: true };
+  }
+  const newAttempts = (data.attempts || 0) + 1;
+  if (newAttempts >= RATE_LIMIT_MAX) {
+    await ref.set({ ip, attempts: newAttempts, first_attempt: data.first_attempt, last_attempt: now, blocked_until: now + blkMs });
+    return { allowed: false, retryAfter: RATE_LIMIT_BLOCK * 60 };
+  }
+  await ref.update({ attempts: newAttempts, last_attempt: now });
+  return { allowed: true };
+}
+
+async function resetRateLimit(ip) {
+  const key = `ratelimit_login_${String(ip || 'unknown').replace(/[^a-zA-Z0-9._:-]/g, '_')}`;
+  await db.collection('rate_limits').doc(key).delete().catch(() => {});
+}
+
+// ============================================================
+// AUDIT LOG
+// ============================================================
+async function writeAuditLog(wsId, { action, resource_id, data, req }) {
+  try {
+    await db.collection('workspaces').doc(wsId).collection('audit_logs').add({
+      action: safeStr(action),
+      resource_id: safeStr(resource_id || ''),
+      actor_uid: safeStr(req?.user?.uid || 'anonymous'),
+      actor_name: safeStr(req?.user?.name || req?.user?.username || 'anonymous'),
+      actor_role: safeStr(req?.user?.role || 'unknown'),
+      ip: getClientIp(req),
+      data: data || null,
+      created_at: toIso(new Date()),
+    });
+  } catch (e) {
+    console.warn('writeAuditLog error:', e?.message);
+  }
+}
+
+// ============================================================
+// TIMEZONE HELPERS (ported from Element CRM)
+// ============================================================
+function getTzParts(date, timeZone = 'America/Chicago') {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+    weekday: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  });
+  const parts = fmt.formatToParts(date);
+  const out = {};
+  for (const p of parts) { if (p.type !== 'literal') out[p.type] = p.value; }
+  const wdMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return { year: Number(out.year), month: Number(out.month), day: Number(out.day), hour: Number(out.hour), minute: Number(out.minute), second: Number(out.second), weekday: wdMap[out.weekday] };
+}
+
+function getTzDateKey(date, timeZone = 'America/Chicago') {
+  const p = getTzParts(date, timeZone);
+  return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
+}
+
+function getTimeZoneOffsetMinutes(date, timeZone = 'America/Chicago') {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  });
+  const parts = dtf.formatToParts(date);
+  const map = {};
+  for (const p of parts) { if (p.type !== 'literal') map[p.type] = p.value; }
+  const utcTs = Date.UTC(Number(map.year), Number(map.month) - 1, Number(map.day), Number(map.hour), Number(map.minute), Number(map.second));
+  return Math.round((utcTs - date.getTime()) / 60000);
+}
+
+function zonedTimeToUtc({ year, month, day, hour = 0, minute = 0, second = 0 }, timeZone = 'America/Chicago') {
+  const approxUtc = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  const offsetMin = getTimeZoneOffsetMinutes(approxUtc, timeZone);
+  return new Date(Date.UTC(year, month - 1, day, hour, minute, second) - offsetMin * 60000);
+}
+
+function startOfDayInTz(date, timeZone = 'America/Chicago') {
+  const p = getTzParts(date, timeZone);
+  return zonedTimeToUtc({ year: p.year, month: p.month, day: p.day }, timeZone);
+}
+
+function eachTzDay(start, end, timeZone = 'America/Chicago') {
+  const days = [];
+  let cur = startOfDayInTz(start, timeZone);
+  const last = startOfDayInTz(end, timeZone);
+  while (cur.getTime() <= last.getTime()) { days.push(new Date(cur)); cur = addMinutes(cur, 24 * 60); }
+  return days;
+}
+
+// ============================================================
+// SCHEDULE HELPERS (ported from Element CRM)
+// ============================================================
+function defaultSchedule() { return { startMin: 480, endMin: 1200, days: [0, 1, 2, 3, 4, 5, 6] }; }
+
+function normalizeSchedule(sch) {
+  const def = defaultSchedule();
+  if (!sch || typeof sch !== 'object') return def;
+  if (Array.isArray(sch) && sch.length === 7) {
+    const days = sch.map((d, i) => (d && d.enabled !== false) ? i : -1).filter(i => i >= 0);
+    const allStart = sch.filter(d => d && d.enabled !== false).map(d => Number(d.startMin ?? d.start_min ?? 480));
+    const allEnd = sch.filter(d => d && d.enabled !== false).map(d => Number(d.endMin ?? d.end_min ?? 1200));
+    return {
+      startMin: allStart.length ? Math.min(...allStart) : 480,
+      endMin: allEnd.length ? Math.max(...allEnd) : 1200,
+      days: days.length ? days : def.days,
+      perDay: sch.map(d => ({ enabled: d ? d.enabled !== false : false, startMin: Number(d?.startMin ?? d?.start_min ?? 480), endMin: Number(d?.endMin ?? d?.end_min ?? 1200) })),
+    };
+  }
+  const startMin = Number(sch.startMin ?? sch.start_min ?? def.startMin);
+  const endMin = Number(sch.endMin ?? sch.end_min ?? def.endMin);
+  const daysRaw = Array.isArray(sch.days) ? sch.days : def.days;
+  const days = Array.from(new Set(daysRaw.map(Number).filter(n => Number.isFinite(n) && n >= 0 && n <= 6))).sort((a, b) => a - b);
+  const result = { startMin: Math.max(0, Math.min(1440, Math.round(startMin))), endMin: Math.max(0, Math.min(1440, Math.round(endMin))), days: days.length ? days : def.days };
+  if (Array.isArray(sch.perDay)) result.perDay = sch.perDay;
+  return result;
+}
+
+function getScheduleForDate(barberDoc, dateObj, timeZone = 'America/Chicago') {
+  const parts = getTzParts(dateObj, timeZone);
+  const dow = parts.weekday;
+  const dateKey = getTzDateKey(dateObj, timeZone);
+  const overrides = barberDoc?.schedule_overrides;
+  if (overrides && typeof overrides === 'object' && overrides[dateKey]) {
+    const ov = overrides[dateKey];
+    return { works: ov.enabled !== false, startMin: Number(ov.startMin || 600), endMin: Number(ov.endMin || 1200), dayKey: dateKey, weekday: dow, isOverride: true };
+  }
+  const sch = barberDoc?.schedule || null;
+  const use = normalizeSchedule(sch);
+  if (use.perDay && use.perDay[dow]) {
+    const daySchedule = use.perDay[dow];
+    return { works: daySchedule.enabled !== false, startMin: Number(daySchedule.startMin || use.startMin), endMin: Number(daySchedule.endMin || use.endMin), dayKey: dateKey, weekday: dow };
+  }
+  return { works: use.days.includes(dow), startMin: use.startMin, endMin: use.endMin, dayKey: dateKey, weekday: dow };
+}
+
+function buildSlotsForDay({ dayDateUTC, schedule, durationMin, stepMin = 30, timeZone = 'America/Chicago' }) {
+  const { works, startMin, endMin } = schedule;
+  if (!works) return [];
+  const parts = getTzParts(dayDateUTC, timeZone);
+  const workStart = zonedTimeToUtc({ year: parts.year, month: parts.month, day: parts.day, hour: Math.floor(startMin / 60), minute: startMin % 60 }, timeZone);
+  const workEnd = zonedTimeToUtc({ year: parts.year, month: parts.month, day: parts.day, hour: Math.floor(endMin / 60), minute: endMin % 60 }, timeZone);
+  const slots = [];
+  for (let t = new Date(workStart); addMinutes(t, durationMin) <= workEnd; t = addMinutes(t, stepMin)) slots.push(new Date(t));
+  return slots;
+}
+
+function buildSmartSlotsForDay({ dayDateUTC, schedule, durationMin, stepMin = 30, timeZone = 'America/Chicago', busy = [] }) {
+  const baseSlots = buildSlotsForDay({ dayDateUTC, schedule, durationMin, stepMin, timeZone });
+  if (!baseSlots.length || !busy.length) return baseSlots;
+  const { startMin, endMin } = schedule;
+  const parts = getTzParts(dayDateUTC, timeZone);
+  const workStart = zonedTimeToUtc({ year: parts.year, month: parts.month, day: parts.day, hour: Math.floor(startMin / 60), minute: startMin % 60 }, timeZone);
+  const workEnd = zonedTimeToUtc({ year: parts.year, month: parts.month, day: parts.day, hour: Math.floor(endMin / 60), minute: endMin % 60 }, timeZone);
+  const durMs = durationMin * 60000;
+  const adjacency = [];
+  for (const b of busy) {
+    const before = new Date(b.start.getTime() - durMs);
+    if (before >= workStart) adjacency.push(before);
+    const after = new Date(b.end.getTime());
+    if (addMinutes(after, durationMin) <= workEnd) adjacency.push(after);
+  }
+  const map = new Map();
+  for (const s of baseSlots) map.set(s.getTime(), s);
+  for (const s of adjacency) map.set(s.getTime(), s);
+  return Array.from(map.values()).sort((a, b) => a.getTime() - b.getTime());
+}
+
+function filterSlotsAgainstBusy(slots, busy, durationMin) {
+  const durMs = durationMin * 60000;
+  return slots.filter(s => {
+    const e = new Date(s.getTime() + durMs);
+    return !busy.some(b => overlaps(s, e, b.start, b.end));
+  });
+}
+
+function clampDateRange(start, end) {
+  if (!(start instanceof Date) || !(end instanceof Date)) return null;
+  if (end <= start) return null;
+  if (end.getTime() - start.getTime() > 60 * 86400000) return null;
+  return { start, end };
+}
+
+// ============================================================
+// WORKSPACE-SCOPED DATA HELPERS
+// ============================================================
+async function getBusyIntervalsForBarber(wsCol, barberId, rangeStartIso, rangeEndIso) {
+  const rangeStart = parseIso(rangeStartIso);
+  const rangeEnd = parseIso(rangeEndIso);
+  if (!rangeStart || !rangeEnd) return [];
+  const snap = await wsCol('bookings').where('barber_id', '==', String(barberId)).get();
+  const out = [];
+  for (const doc of snap.docs) {
+    const b = doc.data() || {};
+    if (String(b.status || 'booked') === 'cancelled') continue;
+    const s = parseIso(b.start_at);
+    const e = parseIso(b.end_at);
+    if (!s || !e) continue;
+    if (s < rangeEnd && rangeStart < e) out.push({ start: s, end: e, id: doc.id });
+  }
+  out.sort((a, b) => a.start.getTime() - b.start.getTime());
+  return out;
+}
+
+async function ensureNoConflictTx(tx, bookingsRef, { barberId, startAt, endAt, excludeBookingId }) {
+  const snap = await tx.get(bookingsRef.where('barber_id', '==', String(barberId)));
+  for (const doc of snap.docs) {
+    if (excludeBookingId && doc.id === excludeBookingId) continue;
+    const b = doc.data() || {};
+    if (String(b.status || 'booked') === 'cancelled') continue;
+    const s = parseIso(b.start_at);
+    const e = parseIso(b.end_at);
+    if (!s || !e) continue;
+    if (overlaps(startAt, endAt, s, e)) {
+      const err = new Error('CONFLICT');
+      err.code = 'CONFLICT';
+      throw err;
+    }
+  }
+}
+
+// Client classification
+function classifyClient(clientName, bookings) {
+  const now = new Date();
+  const clientBookings = bookings.filter(b => String(b.client_name || '') === clientName);
+  const totalVisits = clientBookings.length;
+  const noShows = clientBookings.filter(b => String(b.status || '') === 'noshow').length;
+  const completedVisits = totalVisits - noShows;
+  const sorted = [...clientBookings].sort((a, b) => String(a.start_at || '').localeCompare(String(b.start_at || '')));
+  let visitsAfterLastNoshow = 0, bigTipsAfterLastNoshow = 0, foundNoshow = false;
+  for (const b of sorted) {
+    if (String(b.status || '') === 'noshow') { foundNoshow = true; visitsAfterLastNoshow = 0; bigTipsAfterLastNoshow = 0; }
+    else { visitsAfterLastNoshow++; if (Number(b.tip || 0) >= 30) bigTipsAfterLastNoshow++; }
+  }
+  const bigTipCount = clientBookings.filter(b => Number(b.tip || 0) >= 30 && String(b.status || '') !== 'noshow').length;
+  let lastVisitDate = null;
+  for (const b of clientBookings) { const d = b.start_at ? new Date(b.start_at) : null; if (d && (!lastVisitDate || d > lastVisitDate)) lastVisitDate = d; }
+  const daysSinceLastVisit = lastVisitDate ? (now - lastVisitDate) / (1000 * 60 * 60 * 24) : Infinity;
+  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+  const recentVisits = clientBookings.filter(b => { const d = b.start_at ? new Date(b.start_at) : null; return d && d >= sixtyDaysAgo && String(b.status || '') !== 'noshow'; }).length;
+  if (noShows >= 1 && foundNoshow) {
+    if (bigTipsAfterLastNoshow >= 5) return 'vip';
+    if (visitsAfterLastNoshow >= 10) return 'active';
+    return 'at_risk';
+  }
+  if (daysSinceLastVisit >= 90 && totalVisits >= 3) return 'at_risk';
+  if (bigTipCount >= 1) return 'vip';
+  if (recentVisits >= 2) return 'active';
+  if (completedVisits <= 1) return 'new';
+  return 'active';
+}
+
+// ============================================================
+// AUTH COOKIE
+// ============================================================
+function setAuthCookie(res, token) {
+  const secure = NODE_ENV === 'production';
+  res.cookie('vuriumbook_token', token, {
+    httpOnly: true, secure, sameSite: 'Lax', maxAge: 7 * 24 * 60 * 60 * 1000, path: '/',
+  });
+}
+
+function clearAuthCookie(res) {
+  const secure = NODE_ENV === 'production';
+  res.cookie('vuriumbook_token', '', {
+    httpOnly: true, secure, sameSite: 'Lax', maxAge: 0, path: '/',
+  });
+}
+
+// ============================================================
+// HEALTH
+// ============================================================
+app.get('/health', (req, res) => res.json({ ok: true, service: 'vuriumbook-api' }));
+
+// ============================================================
+// AUTH ROUTES (no workspace middleware — pre /api)
+// ============================================================
+app.post('/auth/signup', async (req, res) => {
+  try {
+    const v = validate(SignupSchema, req.body || {});
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    const { workspace_name, username, password, name, email, phone, timezone } = v.data;
+
+    // Check if username already used in any workspace
+    const usernameLC = username.toLowerCase();
+
+    // Create workspace
+    const wsRef = db.collection('workspaces').doc();
+    const wsData = {
+      name: sanitizeHtml(workspace_name),
+      plan: 'free',
+      owner_username: usernameLC,
+      timezone: timezone || 'America/Chicago',
+      created_at: toIso(new Date()),
+      updated_at: toIso(new Date()),
+    };
+    await wsRef.set(wsData);
+
+    // Create owner user in workspace
+    const userRef = wsRef.collection('users').doc();
+    const userData = {
+      username: usernameLC,
+      name: sanitizeHtml(name || username),
+      email: sanitizeHtml(email || '') || null,
+      phone: phone || null,
+      role: 'owner',
+      password_hash: hashPassword(password),
+      active: true,
+      created_at: toIso(new Date()),
+      updated_at: toIso(new Date()),
+    };
+    await userRef.set(userData);
+
+    // Create default settings doc
+    await wsRef.collection('settings').doc('config').set({
+      timezone: timezone || 'America/Chicago',
+      created_at: toIso(new Date()),
+    });
+
+    // Sign JWT
+    const token = jwt.sign({
+      uid: userRef.id,
+      username: usernameLC,
+      role: 'owner',
+      name: userData.name,
+      workspace_id: wsRef.id,
+      permissions: PERMISSIONS.owner,
+    }, JWT_SECRET, { expiresIn: TOKEN_TTL });
+
+    setAuthCookie(res, token);
+    res.status(201).json({
+      ok: true,
+      workspace_id: wsRef.id,
+      workspace_name: wsData.name,
+      user_id: userRef.id,
+      token,
+    });
+  } catch (e) {
+    console.error('signup error:', e);
+    res.status(500).json({ error: e?.message || 'Internal error' });
+  }
+});
+
+app.post('/auth/setup-owner', async (req, res) => {
+  try {
+    const v = validate(LoginSchema, req.body || {});
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    const { workspace_id, username, password } = v.data;
+    const wsDoc = await db.collection('workspaces').doc(workspace_id).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    // Check if owner already exists
+    const existingOwner = await db.collection('workspaces').doc(workspace_id).collection('users').where('role', '==', 'owner').limit(1).get();
+    if (!existingOwner.empty) return res.status(409).json({ error: 'Owner already exists for this workspace' });
+    const userRef = db.collection('workspaces').doc(workspace_id).collection('users').doc();
+    const userData = {
+      username: username.toLowerCase(),
+      name: sanitizeHtml(username),
+      role: 'owner',
+      password_hash: hashPassword(password),
+      active: true,
+      created_at: toIso(new Date()), updated_at: toIso(new Date()),
+    };
+    await userRef.set(userData);
+    const token = jwt.sign({
+      uid: userRef.id, username: userData.username, role: 'owner',
+      name: userData.name, workspace_id, permissions: PERMISSIONS.owner,
+    }, JWT_SECRET, { expiresIn: TOKEN_TTL });
+    setAuthCookie(res, token);
+    res.status(201).json({ ok: true, user_id: userRef.id, token });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/auth/login', async (req, res) => {
+  try {
+    const v = validate(LoginSchema, req.body || {});
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    const { workspace_id, username, password } = v.data;
+    const ip = getClientIp(req);
+
+    // Rate limit
+    const rl = await checkRateLimit(ip);
+    if (!rl.allowed) {
+      res.set('Retry-After', String(rl.retryAfter));
+      return res.status(429).json({ error: 'Too many login attempts. Try again later.', retry_after: rl.retryAfter });
+    }
+
+    // Check workspace exists
+    const wsDoc = await db.collection('workspaces').doc(workspace_id).get();
+    if (!wsDoc.exists) return res.status(401).json({ error: 'Invalid credentials' });
+
+    // Find user
+    const usersSnap = await db.collection('workspaces').doc(workspace_id).collection('users')
+      .where('username', '==', username.toLowerCase())
+      .where('active', '==', true)
+      .limit(1).get();
+
+    if (usersSnap.empty) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const userDoc = usersSnap.docs[0];
+    const user = userDoc.data();
+
+    if (!checkPassword(password, user.password_hash)) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    await resetRateLimit(ip);
+
+    const token = jwt.sign({
+      uid: userDoc.id,
+      username: user.username,
+      role: user.role,
+      name: user.name,
+      workspace_id,
+      barber_id: user.barber_id || null,
+      mentor_barber_ids: user.mentor_barber_ids || [],
+      permissions: PERMISSIONS[user.role] || {},
+    }, JWT_SECRET, { expiresIn: TOKEN_TTL });
+
+    setAuthCookie(res, token);
+
+    writeAuditLog(workspace_id, { action: 'user.login', resource_id: userDoc.id, data: { username: user.username }, req }).catch(() => {});
+
+    res.json({
+      ok: true,
+      token,
+      user: {
+        id: userDoc.id, username: user.username, name: user.name,
+        role: user.role, workspace_id, barber_id: user.barber_id || null,
+        permissions: PERMISSIONS[user.role] || {},
+      },
+    });
+  } catch (e) {
+    console.error('login error:', e);
+    res.status(500).json({ error: e?.message || 'Internal error' });
+  }
+});
+
+// ============================================================
+// AUTHENTICATED API ROUTES
+// ============================================================
+
+// --- Auth: me, logout, change-password ---
+app.get('/api/auth/me', (req, res) => {
+  res.json({
+    user: {
+      id: req.user.uid, username: req.user.username, name: req.user.name,
+      role: req.user.role, workspace_id: req.user.workspace_id,
+      barber_id: req.user.barber_id || null,
+      permissions: PERMISSIONS[req.user.role] || {},
+    },
+  });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  clearAuthCookie(res);
+  writeAuditLog(req.wsId, { action: 'user.logout', resource_id: req.user.uid, req }).catch(() => {});
+  res.json({ ok: true });
+});
+
+app.post('/api/auth/change-password', async (req, res) => {
+  try {
+    const v = validate(ChangePasswordSchema, req.body || {});
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    const { current_password, new_password } = v.data;
+
+    const userRef = req.ws('users').doc(req.user.uid);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'User not found' });
+
+    if (!checkPassword(current_password, userDoc.data().password_hash)) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    await userRef.update({ password_hash: hashPassword(new_password), updated_at: toIso(new Date()) });
+    writeAuditLog(req.wsId, { action: 'user.change_password', resource_id: req.user.uid, req }).catch(() => {});
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || 'Internal error' });
+  }
+});
+
+app.delete('/api/auth/delete-account', async (req, res) => {
+  try {
+    if (req.user.role === 'owner') return res.status(400).json({ error: 'Owner accounts cannot be self-deleted' });
+    const password = safeStr(req.body?.password || '');
+    if (!password) return res.status(400).json({ error: 'Password required to confirm deletion' });
+    const userRef = req.ws('users').doc(req.user.uid);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'User not found' });
+    if (!checkPassword(password, userDoc.data().password_hash)) {
+      return res.status(401).json({ error: 'Incorrect password' });
+    }
+    await userRef.update({ active: false, deleted: true, deleted_at: toIso(new Date()), updated_at: toIso(new Date()) });
+    // Remove CRM push tokens
+    const tokenSnap = await req.ws('crm_push_tokens').where('user_id', '==', req.user.uid).get();
+    for (const d of tokenSnap.docs) await d.ref.delete();
+    writeAuditLog(req.wsId, { action: 'user.delete_self', resource_id: req.user.uid, req }).catch(() => {});
+    clearAuthCookie(res);
+    res.json({ ok: true, deleted: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// --- Workspace info ---
+app.get('/api/workspace', async (req, res) => {
+  try {
+    const doc = await req.wsDoc().get();
+    if (!doc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const data = doc.data();
+    res.json({ id: doc.id, name: data.name, plan: data.plan, timezone: data.timezone, created_at: data.created_at });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || 'Internal error' });
+  }
+});
+
+// ============================================================
+// BARBERS CRUD
+// ============================================================
+app.get('/api/barbers', async (req, res) => {
+  try {
+    const snap = await req.ws('barbers').orderBy('name').get();
+    const list = snap.docs.map(d => {
+      const data = d.data() || {};
+      if (data.active === false) return null;
+      return { id: d.id, ...data };
+    }).filter(Boolean);
+    res.json(list);
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/barbers', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const name = safeStr(b.name);
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const schedule = b.schedule && typeof b.schedule === 'object' ? normalizeSchedule(b.schedule) : null;
+    const doc = {
+      name: sanitizeHtml(name),
+      level: safeStr(b.level) || null,
+      photo_url: safeStr(b.photo_url) || null,
+      schedule, schedule_overrides: {},
+      active: true,
+      created_at: toIso(new Date()), updated_at: toIso(new Date()),
+    };
+    const ref = await req.ws('barbers').add(doc);
+    writeAuditLog(req.wsId, { action: 'barber.create', resource_id: ref.id, data: { name }, req }).catch(() => {});
+    res.status(201).json({ id: ref.id, ...doc });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Schedule override for a specific date (must be before /:id)
+app.patch('/api/barbers/:id/schedule-override', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const ref = req.ws('barbers').doc(req.params.id);
+    const existing = await ref.get();
+    if (!existing.exists) return res.status(404).json({ error: 'Barber not found' });
+    const b = req.body || {};
+    const dateKey = safeStr(b.date); // YYYY-MM-DD
+    if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return res.status(400).json({ error: 'date required (YYYY-MM-DD)' });
+    const overrides = existing.data()?.schedule_overrides || {};
+    if (b.remove) {
+      delete overrides[dateKey];
+    } else {
+      overrides[dateKey] = {
+        enabled: b.enabled !== false,
+        startMin: Number(b.startMin || 600),
+        endMin: Number(b.endMin || 1200),
+      };
+    }
+    // Clean overrides older than 30 days
+    const cutoff = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    for (const k of Object.keys(overrides)) { if (k < cutoff) delete overrides[k]; }
+    await ref.update({ schedule_overrides: overrides, updated_at: toIso(new Date()) });
+    res.json({ ok: true, schedule_overrides: overrides });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.get('/api/barbers/:id', async (req, res) => {
+  try {
+    const doc = await req.ws('barbers').doc(req.params.id).get();
+    if (!doc.exists || doc.data()?.active === false) return res.status(404).json({ error: 'Barber not found' });
+    res.json({ id: doc.id, ...doc.data() });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.patch('/api/barbers/:id', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const ref = req.ws('barbers').doc(req.params.id);
+    const existing = await ref.get();
+    if (!existing.exists) return res.status(404).json({ error: 'Barber not found' });
+    const b = req.body || {};
+    const patch = { updated_at: toIso(new Date()) };
+    if (b.name != null) patch.name = sanitizeHtml(safeStr(b.name));
+    if (b.level != null) patch.level = safeStr(b.level);
+    if (b.photo_url != null) patch.photo_url = safeStr(b.photo_url) || null;
+    if (b.active != null) patch.active = !!b.active;
+    if (b.schedule && typeof b.schedule === 'object') patch.schedule = normalizeSchedule(b.schedule);
+    if (b.schedule_overrides && typeof b.schedule_overrides === 'object') patch.schedule_overrides = b.schedule_overrides;
+    await ref.set(patch, { merge: true });
+    const saved = await ref.get();
+    res.json({ id: saved.id, ...saved.data() });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.delete('/api/barbers/:id', requireRole('owner'), async (req, res) => {
+  try {
+    const ref = req.ws('barbers').doc(req.params.id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ error: 'Barber not found' });
+    await ref.set({ active: false, updated_at: toIso(new Date()) }, { merge: true });
+    res.json({ ok: true, id: req.params.id, soft_deleted: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// SERVICES CRUD
+// ============================================================
+app.get('/api/services', async (req, res) => {
+  try {
+    const snap = await req.ws('services').orderBy('name').get();
+    const list = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => s.active !== false);
+    res.json({ services: list });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/services', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const name = safeStr(b.name);
+    if (!name) return res.status(400).json({ error: 'name required' });
+    const doc = {
+      name: sanitizeHtml(name),
+      duration_minutes: Math.max(1, Math.round(Number(b.duration_minutes ?? b.durationMin ?? 30)) || 30),
+      price_cents: Math.max(0, Math.round(Number(b.price_cents ?? b.priceCents ?? 0)) || 0),
+      barber_ids: Array.isArray(b.barber_ids) ? b.barber_ids.map(String).filter(Boolean) : [],
+      service_type: safeStr(b.service_type || 'primary'),
+      active: true,
+      created_at: toIso(new Date()), updated_at: toIso(new Date()),
+    };
+    const ref = await req.ws('services').add(doc);
+    res.status(201).json({ service: { id: ref.id, ...doc } });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.patch('/api/services/:id', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const ref = req.ws('services').doc(req.params.id);
+    const existing = await ref.get();
+    if (!existing.exists) return res.status(404).json({ error: 'Service not found' });
+    const b = req.body || {};
+    const patch = { updated_at: toIso(new Date()) };
+    if (b.name != null) patch.name = sanitizeHtml(safeStr(b.name));
+    if (b.duration_minutes != null || b.durationMin != null) patch.duration_minutes = Math.max(1, Math.round(Number(b.duration_minutes ?? b.durationMin) || 30));
+    if (b.price_cents != null || b.priceCents != null) patch.price_cents = Math.max(0, Math.round(Number(b.price_cents ?? b.priceCents) || 0));
+    if (b.active != null) patch.active = !!b.active;
+    if (b.barber_ids != null) patch.barber_ids = Array.isArray(b.barber_ids) ? b.barber_ids.map(String).filter(Boolean) : [];
+    if (b.service_type != null) patch.service_type = safeStr(b.service_type) || 'primary';
+    await ref.set(patch, { merge: true });
+    const saved = await ref.get();
+    res.json({ service: { id: saved.id, ...saved.data() } });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.delete('/api/services/:id', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const ref = req.ws('services').doc(req.params.id);
+    if (!(await ref.get()).exists) return res.status(404).json({ error: 'Service not found' });
+    await ref.delete();
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// CLIENTS CRUD
+// ============================================================
+app.get('/api/clients', async (req, res) => {
+  try {
+    const q = safeStr(req.query?.q || '').toLowerCase();
+    const snap = await req.ws('clients').orderBy('created_at', 'desc').limit(500).get();
+    let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (q) list = list.filter(c =>
+      String(c.name || '').toLowerCase().includes(q) ||
+      String(c.phone_norm || '').includes(q) ||
+      String(c.email || '').toLowerCase().includes(q)
+    );
+    // Auto-classify
+    try {
+      const clientNames = list.map(c => String(c.name || '')).filter(Boolean);
+      if (clientNames.length > 0) {
+        const allBookings = [];
+        for (let i = 0; i < clientNames.length; i += 30) {
+          const batch = clientNames.slice(i, i + 30);
+          const bSnap = await req.ws('bookings').where('client_name', 'in', batch).orderBy('start_at', 'desc').limit(1000).get();
+          allBookings.push(...bSnap.docs.map(d => d.data()));
+        }
+        list = list.map(c => ({ ...c, client_status: classifyClient(String(c.name || ''), allBookings) }));
+      }
+    } catch (e) { console.warn('classifyClient error:', e?.message); }
+    res.json(list);
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/clients', async (req, res) => {
+  try {
+    const v = validate(ClientCreateSchema, req.body || {});
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    const { name, phone, email } = v.data;
+    const doc = {
+      name: sanitizeHtml(name),
+      phone: phone || null,
+      phone_norm: normPhone(phone) || null,
+      email: sanitizeHtml(email) || null,
+      created_at: toIso(new Date()), updated_at: toIso(new Date()),
+    };
+    const ref = await req.ws('clients').add(doc);
+    writeAuditLog(req.wsId, { action: 'client.create', resource_id: ref.id, data: { name }, req }).catch(() => {});
+    res.status(201).json({ id: ref.id, ...doc, client_status: 'new' });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Request phone access (must be before /:id)
+app.post('/api/clients/request-phone', async (req, res) => {
+  try {
+    const clientId = safeStr(req.body?.client_id || '');
+    if (!clientId) return res.status(400).json({ error: 'client_id required' });
+    const clientDoc = await req.ws('clients').doc(clientId).get();
+    if (!clientDoc.exists) return res.status(404).json({ error: 'Client not found' });
+    const clientData = clientDoc.data();
+    const phone = clientData.phone || clientData.phone_norm;
+    if (!phone) return res.status(404).json({ error: 'No phone on file' });
+    // Owner gets instant access
+    if (req.user.role === 'owner') {
+      const plainPhone = decryptPhone(phone);
+      req.ws('phone_access_log').add({ client_id: clientId, user_id: req.user.uid, role: req.user.role, granted: true, created_at: toIso(new Date()) }).catch(() => {});
+      return res.json({ phone: plainPhone });
+    }
+    // Admin: check GPS if geofence configured
+    if (req.user.role === 'admin') {
+      const settingsDoc = await req.ws('settings').doc('config').get();
+      const settings = settingsDoc.exists ? settingsDoc.data() : {};
+      if (settings.geofence_lat && settings.geofence_lng) {
+        const lat = Number(req.body?.lat);
+        const lng = Number(req.body?.lng);
+        if (!lat || !lng) return res.status(400).json({ error: 'Location required for phone access' });
+        const dist = haversineMeters(lat, lng, Number(settings.geofence_lat), Number(settings.geofence_lng));
+        const radius = Number(settings.geofence_radius_m || 250);
+        if (dist > radius) {
+          req.ws('phone_access_log').add({ client_id: clientId, user_id: req.user.uid, role: req.user.role, granted: false, reason: 'too_far', distance_m: Math.round(dist), created_at: toIso(new Date()) }).catch(() => {});
+          return res.status(403).json({ error: 'You must be at the shop to access client phone numbers' });
+        }
+      }
+      const plainPhone = decryptPhone(phone);
+      req.ws('phone_access_log').add({ client_id: clientId, user_id: req.user.uid, role: req.user.role, granted: true, created_at: toIso(new Date()) }).catch(() => {});
+      return res.json({ phone: plainPhone });
+    }
+    // Barber/student: masked
+    return res.json({ phone: phoneForRole(phone, req.user.role) });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.get('/api/clients/:id', async (req, res) => {
+  try {
+    const doc = await req.ws('clients').doc(req.params.id).get();
+    if (!doc.exists) return res.status(404).json({ error: 'Client not found' });
+    const data = doc.data();
+    const bSnap = await req.ws('bookings').where('client_name', '==', String(data.name || '')).orderBy('start_at', 'desc').limit(20).get();
+    const bookings = bSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ id: doc.id, ...data, bookings });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.patch('/api/clients/:id', async (req, res) => {
+  try {
+    const v = validate(ClientPatchSchema, req.body || {});
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    const b = v.data;
+    const ref = req.ws('clients').doc(req.params.id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ error: 'Client not found' });
+    const patch = { updated_at: toIso(new Date()) };
+    if (b.name != null) patch.name = sanitizeHtml(safeStr(b.name));
+    if (b.phone != null) { patch.phone = safeStr(b.phone) || null; patch.phone_norm = normPhone(b.phone) || null; }
+    if (b.email != null) patch.email = sanitizeHtml(safeStr(b.email));
+    if (b.notes != null) patch.notes = sanitizeHtml(safeStr(b.notes));
+    if (b.status != null) patch.status = safeStr(b.status);
+    if (b.preferred_barber != null) patch.preferred_barber = safeStr(b.preferred_barber);
+    if (Array.isArray(b.tags)) patch.tags = b.tags.map(t => sanitizeHtml(safeStr(t))).filter(Boolean);
+    if (b.photo_url != null) patch.photo_url = safeStr(b.photo_url) || null;
+    await ref.update(patch);
+    writeAuditLog(req.wsId, { action: 'client.update', resource_id: req.params.id, data: patch, req }).catch(() => {});
+    res.json({ id: req.params.id, ...doc.data(), ...patch });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.delete('/api/clients/:id', requireRole('owner'), async (req, res) => {
+  try {
+    const ref = req.ws('clients').doc(req.params.id);
+    if (!(await ref.get()).exists) return res.status(404).json({ error: 'Client not found' });
+    await ref.delete();
+    writeAuditLog(req.wsId, { action: 'client.delete', resource_id: req.params.id, req }).catch(() => {});
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// BOOKINGS CRUD
+// ============================================================
+app.get('/api/bookings', async (req, res) => {
+  try {
+    const statusFilter = safeStr(req.query?.status || '');
+    const barberId = safeStr(req.query?.barber_id || '');
+    const startFrom = safeStr(req.query?.start_from || '');
+    const startTo = safeStr(req.query?.start_to || '');
+    let query = req.ws('bookings').orderBy('start_at', 'desc').limit(500);
+    if (barberId) query = req.ws('bookings').where('barber_id', '==', barberId).orderBy('start_at', 'desc').limit(500);
+    const snap = await query.get();
+    let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (statusFilter) list = list.filter(b => String(b.status || '') === statusFilter);
+    if (startFrom) list = list.filter(b => String(b.start_at || '') >= startFrom);
+    if (startTo) list = list.filter(b => String(b.start_at || '') <= startTo);
+    // Barber role: only own bookings
+    if (req.user.role === 'barber' && req.user.barber_id) {
+      list = list.filter(b => b.barber_id === req.user.barber_id);
+    }
+    // Student role: only mentor bookings
+    if (req.user.role === 'student' && Array.isArray(req.user.mentor_barber_ids)) {
+      list = list.filter(b => req.user.mentor_barber_ids.includes(b.barber_id));
+    }
+    res.json(list);
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/bookings', async (req, res) => {
+  try {
+    const v = validate(BookingCreateSchema, req.body || {});
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    const data = v.data;
+    const startAt = parseIso(data.start_at);
+    if (!startAt) return res.status(400).json({ error: 'Invalid start_at' });
+    const durMin = data.duration_minutes || 30;
+    const endAt = data.end_at ? parseIso(data.end_at) : addMinutes(startAt, durMin);
+    const doc = {
+      client_name: sanitizeHtml(data.client_name) || null,
+      client_phone: data.client_phone || null,
+      customer_id: data.customer_id || null,
+      barber_id: data.barber_id,
+      barber_name: sanitizeHtml(data.barber_name) || null,
+      service_id: data.service_id || null,
+      service_name: sanitizeHtml(data.service_name) || null,
+      start_at: toIso(startAt),
+      end_at: toIso(endAt),
+      duration_minutes: durMin,
+      status: data.status || 'booked',
+      source: data.source || 'crm',
+      notes: sanitizeHtml(data.notes) || null,
+      customer_note: sanitizeHtml(data.customer_note) || null,
+      paid: data.paid || false,
+      created_at: toIso(new Date()), updated_at: toIso(new Date()),
+    };
+
+    // Conflict detection via transaction
+    const bookingsRef = req.ws('bookings');
+    const bookingRef = bookingsRef.doc();
+    try {
+      await db.runTransaction(async (tx) => {
+        await ensureNoConflictTx(tx, bookingsRef, { barberId: data.barber_id, startAt, endAt });
+        tx.set(bookingRef, doc);
+      });
+    } catch (e) {
+      if (e.code === 'CONFLICT' || String(e.message).includes('CONFLICT')) {
+        return res.status(409).json({ error: 'Slot already booked' });
+      }
+      throw e;
+    }
+    writeAuditLog(req.wsId, { action: 'booking.create', resource_id: bookingRef.id, data: { client_name: doc.client_name, barber_id: doc.barber_id }, req }).catch(() => {});
+    // SMS confirmation + push + schedule reminders
+    const settingsDoc = await req.ws('settings').doc('config').get();
+    const tz = settingsDoc.exists ? (settingsDoc.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+    if (doc.client_phone) {
+      const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+      const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
+      sendSms(doc.client_phone, `Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your barber'}. Reply STOP to unsubscribe.`).catch(() => {});
+    }
+    scheduleReminders(req.ws, bookingRef.id, doc, tz).catch(() => {});
+    sendCrmPushToStaff(req.ws, doc.barber_id, 'New Booking', `${doc.client_name || 'Client'} booked for ${doc.start_at?.slice(0, 10)}`, { type: 'booking_confirmed' }).catch(() => {});
+    res.status(201).json({ id: bookingRef.id, ...doc });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.patch('/api/bookings/:id', async (req, res) => {
+  try {
+    const v = validate(BookingPatchSchema, req.body || {});
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    const ref = req.ws('bookings').doc(req.params.id);
+    const existing = await ref.get();
+    if (!existing.exists) return res.status(404).json({ error: 'Booking not found' });
+    const b = v.data;
+    const patch = { updated_at: toIso(new Date()) };
+    if (b.client_name != null) patch.client_name = sanitizeHtml(b.client_name);
+    if (b.client_phone != null) patch.client_phone = b.client_phone;
+    if (b.barber_id != null) patch.barber_id = b.barber_id;
+    if (b.barber_name != null) patch.barber_name = sanitizeHtml(b.barber_name);
+    if (b.service_id != null) patch.service_id = b.service_id;
+    if (b.service_name != null) patch.service_name = sanitizeHtml(b.service_name);
+    if (b.start_at != null) patch.start_at = b.start_at;
+    if (b.end_at != null) patch.end_at = b.end_at;
+    if (b.duration_minutes != null) patch.duration_minutes = b.duration_minutes;
+    if (b.status != null) patch.status = b.status;
+    if (b.notes != null) patch.notes = sanitizeHtml(b.notes);
+    if (b.customer_note != null) patch.customer_note = sanitizeHtml(b.customer_note);
+    if (b.paid != null) patch.paid = b.paid;
+    if (b.payment_status != null) patch.payment_status = b.payment_status;
+    if (b.payment_method != null) patch.payment_method = b.payment_method;
+    if (b.tip != null) patch.tip = b.tip;
+    if (b.tip_amount != null) patch.tip_amount = b.tip_amount;
+    if (b.amount != null) patch.amount = b.amount;
+    if (b.service_amount != null) patch.service_amount = b.service_amount;
+
+    // If rescheduling, check conflicts
+    if (b.start_at && b.barber_id) {
+      const startAt = parseIso(b.start_at);
+      const endAt = b.end_at ? parseIso(b.end_at) : (startAt ? addMinutes(startAt, b.duration_minutes || existing.data().duration_minutes || 30) : null);
+      if (startAt && endAt) {
+        try {
+          await db.runTransaction(async (tx) => {
+            await ensureNoConflictTx(tx, req.ws('bookings'), { barberId: b.barber_id, startAt, endAt, excludeBookingId: req.params.id });
+            tx.update(ref, patch);
+          });
+          const saved = await ref.get();
+          writeAuditLog(req.wsId, { action: 'booking.update', resource_id: req.params.id, data: patch, req }).catch(() => {});
+          return res.json({ id: saved.id, ...saved.data() });
+        } catch (e) {
+          if (e.code === 'CONFLICT' || String(e.message).includes('CONFLICT')) return res.status(409).json({ error: 'Slot already booked' });
+          throw e;
+        }
+      }
+    }
+
+    await ref.update(patch);
+    const saved = await ref.get();
+    writeAuditLog(req.wsId, { action: 'booking.update', resource_id: req.params.id, data: patch, req }).catch(() => {});
+    res.json({ id: saved.id, ...saved.data() });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.delete('/api/bookings/:id', async (req, res) => {
+  try {
+    const ref = req.ws('bookings').doc(req.params.id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ error: 'Booking not found' });
+    const bookingData = doc.data();
+    await ref.update({ status: 'cancelled', updated_at: toIso(new Date()) });
+    writeAuditLog(req.wsId, { action: 'booking.cancelled', resource_id: req.params.id, req }).catch(() => {});
+    // SMS cancellation notification
+    if (bookingData.client_phone) {
+      sendSms(bookingData.client_phone, `Your appointment with ${bookingData.barber_name || 'your barber'} has been cancelled. Reply STOP to unsubscribe.`).catch(() => {});
+    }
+    sendCrmPushToBarber(req.ws, bookingData.barber_id, 'Booking Cancelled', `${bookingData.client_name || 'Client'} cancelled`, { type: 'booking_cancelled' }).catch(() => {});
+    res.json({ ok: true, id: req.params.id, status: 'cancelled' });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// AVAILABILITY
+// ============================================================
+app.post('/api/availability', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const barberId = safeStr(b.barber_id);
+    const startIso = b.start_at;
+    const endIso = b.end_at;
+    const durationMin = Math.max(1, Number(b.duration_minutes || 30));
+    if (!barberId) return res.status(400).json({ error: 'barber_id required' });
+    const start = parseIso(startIso);
+    const end = parseIso(endIso);
+    if (!start || !end) return res.status(400).json({ error: 'start_at and end_at required' });
+    const range = clampDateRange(start, end);
+    if (!range) return res.status(400).json({ error: 'Invalid date range' });
+    const barberDoc = await req.ws('barbers').doc(barberId).get();
+    if (!barberDoc.exists || barberDoc.data()?.active === false) return res.status(404).json({ error: 'Barber not found' });
+    const barber = barberDoc.data();
+
+    // Get workspace timezone
+    const settingsDoc = await req.ws('settings').doc('config').get();
+    const timeZone = settingsDoc.exists ? (settingsDoc.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+
+    const busy = await getBusyIntervalsForBarber(req.ws, barberId, toIso(range.start), toIso(range.end));
+    const avail = [];
+    for (const cur of eachTzDay(range.start, range.end, timeZone)) {
+      const sch = getScheduleForDate(barber, cur, timeZone);
+      let slots = buildSmartSlotsForDay({ dayDateUTC: cur, schedule: sch, durationMin, stepMin: durationMin, timeZone, busy });
+      slots = slots.filter(t => t >= range.start && t < range.end);
+      slots = slots.filter(t => t > new Date());
+      slots = filterSlotsAgainstBusy(slots, busy, durationMin);
+      for (const t of slots) avail.push({ start_at: toIso(t), local_day: getTzDateKey(t, timeZone) });
+    }
+    res.json({ time_zone: timeZone, availabilities: avail, slots: avail.map(x => x.start_at) });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// USERS CRUD
+// ============================================================
+app.get('/api/users', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const snap = await req.ws('users').get();
+    const list = snap.docs.map(d => {
+      const data = d.data();
+      return { id: d.id, username: data.username, name: data.name, role: data.role, active: data.active, barber_id: data.barber_id || null, phone: data.phone || null, photo_url: data.photo_url || null, created_at: data.created_at, updated_at: data.updated_at };
+    });
+    res.json(list);
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/users', requireRole('owner'), async (req, res) => {
+  try {
+    const v = validate(UserCreateSchema, req.body || {});
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    const { username, password, role, name, barber_id, mentor_barber_ids, phone } = v.data;
+    const usernameLC = username.toLowerCase();
+    // Check uniqueness within workspace
+    const existing = await req.ws('users').where('username', '==', usernameLC).limit(1).get();
+    if (!existing.empty) return res.status(409).json({ error: 'Username already exists' });
+    const doc = {
+      username: usernameLC,
+      name: sanitizeHtml(name || username),
+      role: role || 'barber',
+      password_hash: hashPassword(password),
+      barber_id: barber_id || null,
+      mentor_barber_ids: mentor_barber_ids || [],
+      phone: phone || null,
+      active: true,
+      created_at: toIso(new Date()), updated_at: toIso(new Date()),
+    };
+    const ref = await req.ws('users').add(doc);
+    writeAuditLog(req.wsId, { action: 'user.create', resource_id: ref.id, data: { username: usernameLC, role }, req }).catch(() => {});
+    res.status(201).json({ id: ref.id, username: doc.username, name: doc.name, role: doc.role, active: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Students list (must be before /:id)
+app.get('/api/users/students', async (req, res) => {
+  try {
+    const snap = await req.ws('users').where('role', '==', 'student').where('active', '==', true).get();
+    let students = snap.docs.map(d => {
+      const u = d.data();
+      return { id: d.id, name: u.name || u.username, role: 'student', mentor_barber_ids: Array.isArray(u.mentor_barber_ids) ? u.mentor_barber_ids : [] };
+    });
+    if (req.user.role === 'barber' && req.user.barber_id) {
+      students = students.filter(s => s.mentor_barber_ids.includes(req.user.barber_id));
+    }
+    res.json({ students });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.patch('/api/users/:id', async (req, res) => {
+  try {
+    const v = validate(UserPatchSchema, req.body || {});
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    const isSelf = req.params.id === req.user.uid;
+    // Non-owners can only update their own notification_prefs and photo
+    if (!isSelf && req.user.role !== 'owner') return res.status(403).json({ error: 'Forbidden' });
+    const ref = req.ws('users').doc(req.params.id);
+    const existing = await ref.get();
+    if (!existing.exists) return res.status(404).json({ error: 'User not found' });
+    const b = v.data;
+    const patch = { updated_at: toIso(new Date()) };
+    if (isSelf) {
+      // Self-update: only notification_prefs, photo_url, schedule
+      if (b.notification_prefs) patch.notification_prefs = b.notification_prefs;
+      if (b.photo_url != null) patch.photo_url = b.photo_url || null;
+      if (b.schedule) patch.schedule = b.schedule;
+    }
+    if (req.user.role === 'owner') {
+      if (b.name != null) patch.name = sanitizeHtml(b.name);
+      if (b.role != null) patch.role = b.role;
+      if (b.active != null) patch.active = b.active;
+      if (b.barber_id != null) patch.barber_id = b.barber_id;
+      if (b.mentor_barber_ids != null) patch.mentor_barber_ids = b.mentor_barber_ids;
+      if (b.phone != null) patch.phone = b.phone;
+      if (b.photo_url != null) patch.photo_url = b.photo_url || null;
+      if (b.password) patch.password_hash = hashPassword(b.password);
+      if (b.notification_prefs) patch.notification_prefs = b.notification_prefs;
+      if (b.schedule) patch.schedule = b.schedule;
+    }
+    await ref.update(patch);
+    writeAuditLog(req.wsId, { action: 'user.update', resource_id: req.params.id, data: { role: b.role }, req }).catch(() => {});
+    const saved = await ref.get();
+    const data = saved.data();
+    res.json({ id: saved.id, username: data.username, name: data.name, role: data.role, active: data.active, barber_id: data.barber_id, phone: data.phone, notification_prefs: data.notification_prefs || {} });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.delete('/api/users/:id', requireRole('owner'), async (req, res) => {
+  try {
+    if (req.params.id === req.user.uid) return res.status(400).json({ error: 'Cannot delete yourself' });
+    const ref = req.ws('users').doc(req.params.id);
+    if (!(await ref.get()).exists) return res.status(404).json({ error: 'User not found' });
+    await ref.update({ active: false, deleted: true, updated_at: toIso(new Date()) });
+    writeAuditLog(req.wsId, { action: 'user.delete', resource_id: req.params.id, req }).catch(() => {});
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// PAYMENTS (Square + local)
+// ============================================================
+app.get('/api/payments', async (req, res) => {
+  try {
+    const from = safeStr(req.query?.from || '');
+    const to = safeStr(req.query?.to || '');
+    const barberId = safeStr(req.query?.barber_id || '');
+    // Local payment_requests
+    const prSnap = await req.ws('payment_requests').orderBy('created_at', 'desc').limit(200).get();
+    let payments = prSnap.docs.map(d => ({ id: d.id, source: 'local', ...d.data() }));
+    // Try to get Square payments too
+    try {
+      const headers = await squareHeaders(req.ws);
+      const params = new URLSearchParams();
+      if (from) params.set('begin_time', from);
+      if (to) params.set('end_time', to);
+      const sqResp = await squareFetch(`/v2/payments?${params}`, { headers });
+      if (sqResp.ok) {
+        const sqData = await sqResp.json();
+        const sqPayments = (sqData.payments || []).map(p => ({
+          id: p.id, source: 'square', payment_id: p.id,
+          amount_cents: p.amount_money?.amount || 0, tip_cents: p.tip_money?.amount || 0,
+          status: (p.status || '').toLowerCase(), created_at: p.created_at,
+          card_brand: p.card_details?.card?.card_brand, last_4: p.card_details?.card?.last_4,
+        }));
+        // Merge, dedup by payment_id
+        const existingIds = new Set(payments.map(p => p.payment_id).filter(Boolean));
+        for (const sp of sqPayments) {
+          if (!existingIds.has(sp.payment_id)) payments.push(sp);
+        }
+      }
+    } catch {}
+    // Enrich with booking data
+    for (const p of payments) {
+      if (p.booking_id) {
+        try {
+          const bDoc = await req.ws('bookings').doc(p.booking_id).get();
+          if (bDoc.exists) {
+            const bd = bDoc.data();
+            p.client_name = bd.client_name;
+            p.barber_id = bd.barber_id;
+            p.barber_name = bd.barber_name;
+            p.service_name = bd.service_name;
+          }
+        } catch {}
+      }
+    }
+    if (barberId) payments = payments.filter(p => p.barber_id === barberId);
+    if (from) payments = payments.filter(p => (p.created_at || '') >= from);
+    if (to) payments = payments.filter(p => (p.created_at || '') <= to);
+    // Totals
+    const totalGross = payments.reduce((s, p) => s + (Number(p.amount_cents || 0) / 100), 0);
+    const totalTips = payments.reduce((s, p) => s + (Number(p.tip_cents || 0) / 100), 0);
+    res.json({ payments, totals: { gross: totalGross, tips: totalTips, count: payments.length } });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// MEMBERSHIPS CRUD
+// ============================================================
+app.get('/api/memberships', async (req, res) => {
+  try {
+    const snap = await req.ws('memberships').get();
+    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/memberships', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const b = req.body || {};
+    if (!b.client_name) return res.status(400).json({ error: 'client_name required' });
+    const doc = {
+      client_name: sanitizeHtml(safeStr(b.client_name)),
+      barber_id: safeStr(b.barber_id) || null,
+      barber_name: sanitizeHtml(safeStr(b.barber_name)) || null,
+      service_id: safeStr(b.service_id) || null,
+      service_name: sanitizeHtml(safeStr(b.service_name)) || null,
+      status: 'active',
+      frequency: safeStr(b.frequency || 'weekly'),
+      duration_minutes: Number(b.duration_minutes || 30),
+      discount_pct: Number(b.discount_pct || 0),
+      next_booking_at: b.next_booking_at || toIso(new Date()),
+      created_at: toIso(new Date()), updated_at: toIso(new Date()),
+    };
+    const ref = await req.ws('memberships').add(doc);
+    res.status(201).json({ id: ref.id, ...doc });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.patch('/api/memberships/:id', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const ref = req.ws('memberships').doc(req.params.id);
+    if (!(await ref.get()).exists) return res.status(404).json({ error: 'Membership not found' });
+    const b = req.body || {};
+    const patch = { updated_at: toIso(new Date()) };
+    if (b.status != null) patch.status = b.status;
+    if (b.frequency != null) patch.frequency = b.frequency;
+    if (b.duration_minutes != null) patch.duration_minutes = Number(b.duration_minutes);
+    if (b.discount_pct != null) patch.discount_pct = Number(b.discount_pct);
+    if (b.next_booking_at != null) patch.next_booking_at = b.next_booking_at;
+    await ref.update(patch);
+    const saved = await ref.get();
+    res.json({ id: saved.id, ...saved.data() });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.delete('/api/memberships/:id', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const ref = req.ws('memberships').doc(req.params.id);
+    if (!(await ref.get()).exists) return res.status(404).json({ error: 'Membership not found' });
+    await ref.delete();
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// EXPENSES CRUD
+// ============================================================
+// NOTE: /categories and /total MUST be before /:id to avoid Express treating them as :id
+app.get('/api/expenses/categories', async (req, res) => {
+  try {
+    const snap = await req.ws('expense_categories').get();
+    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/expenses/categories', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const name = sanitizeHtml(safeStr(req.body?.name));
+    if (!name) return res.status(400).json({ error: 'name required' });
+    const ref = await req.ws('expense_categories').add({ name, created_at: toIso(new Date()) });
+    res.status(201).json({ id: ref.id, name });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.get('/api/expenses/total', async (req, res) => {
+  try {
+    const from = safeStr(req.query?.from || '');
+    const to = safeStr(req.query?.to || '');
+    let query = req.ws('expenses');
+    if (from) query = query.where('date', '>=', from);
+    if (to) query = query.where('date', '<=', to);
+    const snap = await query.get();
+    const total = snap.docs.reduce((sum, d) => sum + Number(d.data()?.amount || 0), 0);
+    res.json({ total, count: snap.size });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.get('/api/expenses', async (req, res) => {
+  try {
+    const snap = await req.ws('expenses').orderBy('date', 'desc').limit(200).get();
+    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/expenses', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const doc = {
+      date: safeStr(b.date) || toIso(new Date()).slice(0, 10),
+      amount: Number(b.amount || 0),
+      category: sanitizeHtml(safeStr(b.category)) || 'Other',
+      description: sanitizeHtml(safeStr(b.description)) || null,
+      created_by: req.user.uid,
+      created_at: toIso(new Date()), updated_at: toIso(new Date()),
+    };
+    const ref = await req.ws('expenses').add(doc);
+    res.status(201).json({ id: ref.id, ...doc });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.patch('/api/expenses/:id', async (req, res) => {
+  try {
+    const ref = req.ws('expenses').doc(req.params.id);
+    if (!(await ref.get()).exists) return res.status(404).json({ error: 'Expense not found' });
+    const b = req.body || {};
+    const patch = { updated_at: toIso(new Date()) };
+    if (b.date != null) patch.date = b.date;
+    if (b.amount != null) patch.amount = Number(b.amount);
+    if (b.category != null) patch.category = sanitizeHtml(safeStr(b.category));
+    if (b.description != null) patch.description = sanitizeHtml(safeStr(b.description));
+    await ref.update(patch);
+    const saved = await ref.get();
+    res.json({ id: saved.id, ...saved.data() });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.delete('/api/expenses/:id', async (req, res) => {
+  try {
+    const ref = req.ws('expenses').doc(req.params.id);
+    if (!(await ref.get()).exists) return res.status(404).json({ error: 'Expense not found' });
+    await ref.delete();
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// ATTENDANCE
+// ============================================================
+app.get('/api/attendance', async (req, res) => {
+  try {
+    const snap = await req.ws('attendance').orderBy('date', 'desc').limit(200).get();
+    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.get('/api/attendance/status', async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    const today = new Date().toISOString().slice(0, 10);
+    const snap = await req.ws('attendance')
+      .where('user_id', '==', userId)
+      .where('date', '==', today)
+      .limit(1).get();
+    if (snap.empty) return res.json({ clocked_in: false });
+    const data = snap.docs[0].data();
+    res.json({ clocked_in: !data.clock_out, ...data, id: snap.docs[0].id });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/attendance/clock-in', async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    // Optional GPS geofence check
+    const lat = Number(req.body?.lat);
+    const lng = Number(req.body?.lng);
+    if (lat && lng) {
+      const settingsDoc = await req.ws('settings').doc('config').get();
+      const settings = settingsDoc.exists ? settingsDoc.data() : {};
+      if (settings.geofence_lat && settings.geofence_lng) {
+        const dist = haversineMeters(lat, lng, Number(settings.geofence_lat), Number(settings.geofence_lng));
+        const radius = Number(settings.geofence_radius_m || 500);
+        if (dist > radius) return res.status(403).json({ error: 'You are too far from the shop to clock in', distance_m: Math.round(dist) });
+      }
+    }
+    const doc = {
+      user_id: userId,
+      user_name: req.user.name || req.user.username,
+      barber_id: req.user.barber_id || null,
+      role: req.user.role,
+      date: today,
+      clock_in: toIso(now),
+      clock_out: null,
+      lat: lat || null, lng: lng || null,
+      created_at: toIso(now),
+    };
+    const ref = await req.ws('attendance').add(doc);
+    res.status(201).json({ id: ref.id, ...doc });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/attendance/clock-out', async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    const today = new Date().toISOString().slice(0, 10);
+    const snap = await req.ws('attendance')
+      .where('user_id', '==', userId)
+      .where('date', '==', today)
+      .limit(1).get();
+    if (snap.empty) return res.status(404).json({ error: 'No clock-in found for today' });
+    const docRef = snap.docs[0].ref;
+    await docRef.update({ clock_out: toIso(new Date()) });
+    const saved = await docRef.get();
+    res.json({ id: saved.id, ...saved.data() });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/attendance/admin-clock-out', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const userId = safeStr(req.body?.user_id || '');
+    const date = safeStr(req.body?.date || new Date().toISOString().slice(0, 10));
+    if (!userId) return res.status(400).json({ error: 'user_id required' });
+    const snap = await req.ws('attendance')
+      .where('user_id', '==', userId)
+      .where('date', '==', date)
+      .limit(1).get();
+    if (snap.empty) return res.status(404).json({ error: 'No clock-in found' });
+    const docRef = snap.docs[0].ref;
+    const clockOutTime = req.body?.clock_out ? toIso(parseIso(req.body.clock_out) || new Date()) : toIso(new Date());
+    await docRef.update({ clock_out: clockOutTime, admin_clock_out: true, admin_id: req.user.uid });
+    const saved = await docRef.get();
+    res.json({ id: saved.id, ...saved.data() });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// REVIEWS CRUD
+// ============================================================
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const snap = await req.ws('reviews').orderBy('created_at', 'desc').limit(200).get();
+    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/reviews', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const doc = {
+      client_name: sanitizeHtml(safeStr(b.client_name)) || 'Anonymous',
+      barber_id: safeStr(b.barber_id) || null,
+      barber_name: sanitizeHtml(safeStr(b.barber_name)) || null,
+      rating: Math.min(5, Math.max(1, Number(b.rating || 5))),
+      text: sanitizeHtml(safeStr(b.text)) || null,
+      status: 'pending',
+      created_at: toIso(new Date()), updated_at: toIso(new Date()),
+    };
+    const ref = await req.ws('reviews').add(doc);
+    res.status(201).json({ id: ref.id, ...doc });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.patch('/api/reviews/:id', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const ref = req.ws('reviews').doc(req.params.id);
+    if (!(await ref.get()).exists) return res.status(404).json({ error: 'Review not found' });
+    const patch = { updated_at: toIso(new Date()) };
+    if (req.body?.status != null) patch.status = req.body.status;
+    if (req.body?.text != null) patch.text = sanitizeHtml(req.body.text);
+    await ref.update(patch);
+    const saved = await ref.get();
+    res.json({ id: saved.id, ...saved.data() });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.delete('/api/reviews/:id', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const ref = req.ws('reviews').doc(req.params.id);
+    if (!(await ref.get()).exists) return res.status(404).json({ error: 'Review not found' });
+    await ref.delete();
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// MESSAGES
+// ============================================================
+app.get('/api/messages', async (req, res) => {
+  try {
+    const chatType = safeStr(req.query?.chatType || 'general');
+    const snap = await req.ws('messages').where('chatType', '==', chatType).orderBy('createdAt', 'desc').limit(100).get();
+    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/messages', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const doc = {
+      content: sanitizeHtml(safeStr(b.content)),
+      chatType: safeStr(b.chatType || 'general'),
+      sender_id: req.user.uid,
+      sender_name: req.user.name || req.user.username,
+      sender_role: req.user.role,
+      createdAt: toIso(new Date()),
+    };
+    if (!doc.content) return res.status(400).json({ error: 'content required' });
+    const ref = await req.ws('messages').add(doc);
+    // Push notification for new messages
+    const chatRoleMap = { general: ['owner', 'admin', 'barber'], barbers: ['barber'], admins: ['owner', 'admin'], students: ['student'] };
+    const targetRoles = chatRoleMap[doc.chatType] || ['owner', 'admin', 'barber'];
+    sendCrmPushToRoles(req.ws, targetRoles, `Chat: ${doc.sender_name}`, doc.content.slice(0, 100), { type: 'message', chatType: doc.chatType }).catch(() => {});
+    res.status(201).json({ id: ref.id, ...doc });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// PAYROLL
+// ============================================================
+app.get('/api/payroll', requireRole('owner'), async (req, res) => {
+  try {
+    const from = safeStr(req.query?.from || '');
+    const to = safeStr(req.query?.to || '');
+    // Calculate payroll from bookings
+    let query = req.ws('bookings');
+    if (from) query = query.where('start_at', '>=', from);
+    if (to) query = query.where('start_at', '<=', to);
+    const snap = await query.get();
+    const bookings = snap.docs.map(d => d.data());
+    // Group by barber
+    const byBarber = {};
+    for (const b of bookings) {
+      if (b.status === 'cancelled') continue;
+      const bid = b.barber_id || 'unknown';
+      if (!byBarber[bid]) byBarber[bid] = { barber_id: bid, barber_name: b.barber_name || b.barber || bid, total_bookings: 0, total_revenue: 0, total_tips: 0 };
+      byBarber[bid].total_bookings++;
+      byBarber[bid].total_revenue += Number(b.amount || b.service_amount || 0);
+      byBarber[bid].total_tips += Number(b.tip || b.tip_amount || 0);
+    }
+    res.json({ summary: Object.values(byBarber), period: { from, to } });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.get('/api/payroll/rules', requireRole('owner'), async (req, res) => {
+  try {
+    const snap = await req.ws('payroll_rules').get();
+    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/payroll/rules/:id', requireRole('owner'), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const patch = { updated_at: toIso(new Date()) };
+    if (b.barber_id != null) patch.barber_id = safeStr(b.barber_id);
+    if (b.commission_pct != null) patch.commission_pct = Math.max(0, Math.min(100, Number(b.commission_pct) || 0));
+    if (b.hourly_rate != null) patch.hourly_rate = Math.max(0, Number(b.hourly_rate) || 0);
+    if (b.tip_pct != null) patch.tip_pct = Math.max(0, Math.min(100, Number(b.tip_pct) || 0));
+    if (b.type != null) patch.type = safeStr(b.type);
+    const ref = req.ws('payroll_rules').doc(req.params.id);
+    await ref.set(patch, { merge: true });
+    const saved = await ref.get();
+    res.json({ id: saved.id, ...saved.data() });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// SETTINGS
+// ============================================================
+app.get('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const doc = await req.ws('settings').doc('config').get();
+    res.json(doc.exists ? { id: 'config', ...doc.data() } : {});
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const ALLOWED_SETTINGS = ['timezone', 'shop_name', 'shop_address', 'shop_phone', 'shop_email',
+      'booking_buffer_minutes', 'default_duration_minutes', 'currency', 'locale',
+      'sms_enabled', 'push_enabled', 'booking_confirmation', 'hero_url', 'logo_url',
+      'geofence_lat', 'geofence_lng', 'geofence_radius_m', 'theme', 'custom_css'];
+    const patch = { updated_at: toIso(new Date()) };
+    for (const key of ALLOWED_SETTINGS) {
+      if (b[key] !== undefined) patch[key] = typeof b[key] === 'string' ? sanitizeHtml(b[key]) : b[key];
+    }
+    const ref = req.ws('settings').doc('config');
+    await ref.set(patch, { merge: true });
+    const saved = await ref.get();
+    res.json({ id: 'config', ...saved.data() });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// AUDIT LOGS
+// ============================================================
+app.get('/api/audit-logs', requireRole('owner'), async (req, res) => {
+  try {
+    const snap = await req.ws('audit_logs').orderBy('created_at', 'desc').limit(200).get();
+    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// CASH REPORTS
+// ============================================================
+app.get('/api/cash-reports', async (req, res) => {
+  try {
+    const snap = await req.ws('cash_reports').orderBy('date', 'desc').limit(60).get();
+    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/cash-reports', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const doc = {
+      date: safeStr(b.date) || new Date().toISOString().slice(0, 10),
+      amount: Number(b.amount || 0),
+      notes: sanitizeHtml(safeStr(b.notes)) || null,
+      created_by: req.user.uid,
+      created_at: toIso(new Date()),
+    };
+    const ref = await req.ws('cash_reports').add(doc);
+    res.status(201).json({ id: ref.id, ...doc });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// WAITLIST CRUD
+// ============================================================
+app.get('/api/waitlist', async (req, res) => {
+  try {
+    const date = safeStr(req.query?.date || '');
+    const barberId = safeStr(req.query?.barber_id || '');
+    let query = req.ws('waitlist').where('notified', '==', false);
+    if (date) query = query.where('date', '==', date);
+    const snap = await query.orderBy('created_at', 'desc').limit(100).get();
+    let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (barberId) list = list.filter(w => w.barber_id === barberId);
+    if (req.user.role === 'barber' && req.user.barber_id) {
+      list = list.filter(w => w.barber_id === req.user.barber_id);
+    }
+    res.json({ waitlist: list });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/waitlist', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const doc = {
+      phone_norm: normPhone(safeStr(b.phone)),
+      phone_raw: safeStr(b.phone),
+      client_name: sanitizeHtml(safeStr(b.client_name)) || null,
+      barber_id: safeStr(b.barber_id),
+      barber_name: safeStr(b.barber_name),
+      date: safeStr(b.date),
+      service_ids: Array.isArray(b.service_ids) ? b.service_ids : [],
+      service_names: Array.isArray(b.service_names) ? b.service_names : [],
+      duration_minutes: Math.max(1, Number(b.duration_minutes || 30)),
+      preferred_start_min: Math.max(0, Number(b.preferred_start_min || 0)),
+      preferred_end_min: Math.min(1440, Number(b.preferred_end_min || 1440)),
+      notified: false,
+      added_by: req.user.uid,
+      created_at: toIso(new Date()),
+    };
+    if (!doc.barber_id || !doc.date) return res.status(400).json({ error: 'barber_id and date required' });
+    const ref = await req.ws('waitlist').add(doc);
+    sendCrmPushToStaff(req.ws, doc.barber_id, 'Waitlist', `${doc.client_name || 'Client'} wants ${doc.date}`, { type: 'waitlist' }).catch(() => {});
+    res.status(201).json({ ok: true, id: ref.id, ...doc });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.patch('/api/waitlist/:id', async (req, res) => {
+  try {
+    const ref = req.ws('waitlist').doc(req.params.id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ error: 'Not found' });
+    const action = safeStr(req.body?.action || '');
+    if (action === 'confirm') {
+      await ref.update({ notified: true, confirmed: true, confirmed_at: toIso(new Date()), confirmed_by: req.user.uid });
+      return res.json({ ok: true, confirmed: true });
+    }
+    if (action === 'remove') {
+      await ref.update({ notified: true, removed: true, removed_at: toIso(new Date()) });
+      return res.json({ ok: true, removed: true });
+    }
+    res.status(400).json({ error: 'action must be confirm or remove' });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.get('/api/admin/waitlist/check', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const settingsDoc = await req.ws('settings').doc('config').get();
+    const timeZone = settingsDoc.exists ? (settingsDoc.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+    const now = new Date();
+    const todayKey = getTzDateKey(now, timeZone);
+    const tomorrowKey = getTzDateKey(new Date(now.getTime() + 86400000), timeZone);
+    const waitSnap = await req.ws('waitlist').where('notified', '==', false).get();
+    const pending = waitSnap.docs.filter(d => [todayKey, tomorrowKey].includes(d.data().date));
+    if (!pending.length) return res.json({ ok: true, checked: 0, notified: 0 });
+    let notified = 0;
+    for (const wDoc of pending) {
+      const w = wDoc.data();
+      try {
+        const barberDoc = await req.ws('barbers').doc(w.barber_id).get();
+        if (!barberDoc.exists || barberDoc.data()?.active === false) continue;
+        const barber = barberDoc.data();
+        const dateObj = new Date(w.date + 'T00:00:00');
+        const busy = await getBusyIntervalsForBarber(req.ws, w.barber_id, toIso(dateObj), toIso(new Date(dateObj.getTime() + 86400000)));
+        const sch = getScheduleForDate(barber, dateObj, timeZone);
+        let slots = buildSmartSlotsForDay({ dayDateUTC: dateObj, schedule: sch, durationMin: w.duration_minutes, stepMin: w.duration_minutes, timeZone, busy });
+        slots = filterSlotsAgainstBusy(slots, busy, w.duration_minutes);
+        slots = slots.filter(t => t > now);
+        if (w.preferred_start_min || w.preferred_end_min < 1440) {
+          slots = slots.filter(t => {
+            const p = getTzParts(t, timeZone);
+            const slotMin = p.hour * 60 + p.minute;
+            return slotMin >= (w.preferred_start_min || 0) && slotMin < (w.preferred_end_min || 1440);
+          });
+        }
+        if (!slots.length) continue;
+        const slotTime = slots[0].toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone });
+        const svcText = Array.isArray(w.service_names) && w.service_names.length ? w.service_names.join(', ') : 'your service';
+        const msg = `VuriumBook: A spot opened up for ${svcText} with ${w.barber_name || 'your barber'} on ${w.date} at ${slotTime}. Book now! Reply STOP to unsubscribe.`;
+        sendSms(w.phone_raw || w.phone_norm, msg).catch(() => {});
+        await wDoc.ref.update({ notified: true, notified_at: toIso(new Date()), notified_slot: toIso(slots[0]) });
+        notified++;
+      } catch (e) { console.warn('waitlist check error for', wDoc.id, e?.message); }
+    }
+    res.json({ ok: true, checked: pending.length, notified });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// APPLICATIONS CRUD
+// ============================================================
+app.get('/api/applications', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const statusFilter = safeStr(req.query?.status || '');
+    const typeFilter = safeStr(req.query?.type || '');
+    const limitN = Math.min(200, Math.max(1, Number(req.query?.limit || 100)));
+    const snap = await req.ws('applications').orderBy('created_at', 'desc').limit(limitN).get();
+    let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (statusFilter) list = list.filter(a => a.status === statusFilter);
+    if (typeFilter) list = list.filter(a => String(a.type || a.role || '').toLowerCase().includes(typeFilter.toLowerCase()));
+    res.json({ applications: list, count: list.length });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.patch('/api/applications/:id', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const status = safeStr(req.body?.status || '');
+    const notes = safeStr(req.body?.notes || '');
+    if (!['new', 'reviewed', 'interview', 'hired', 'rejected'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    const ref = req.ws('applications').doc(req.params.id);
+    if (!(await ref.get()).exists) return res.status(404).json({ error: 'Not found' });
+    const patch = { status, updated_at: toIso(new Date()), reviewed_by: safeStr(req.user.name || req.user.username) };
+    if (notes) patch.notes = sanitizeHtml(notes);
+    await ref.update(patch);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.delete('/api/applications/:id', requireRole('owner'), async (req, res) => {
+  try {
+    await req.ws('applications').doc(req.params.id).delete();
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// REQUESTS CRUD (Staff Requests)
+// ============================================================
+app.get('/api/requests', async (req, res) => {
+  try {
+    const snap = await req.ws('requests').orderBy('createdAt', 'desc').limit(100).get();
+    let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (req.user.role === 'barber' && req.user.barber_id) {
+      list = list.filter(r => r.barberId === req.user.barber_id);
+    }
+    res.json({ requests: list });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/requests', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const doc = {
+      type: safeStr(b.type || 'schedule_change'),
+      barberId: safeStr(b.barberId || req.user.barber_id || ''),
+      barberName: sanitizeHtml(safeStr(b.barberName || req.user.name || '')),
+      status: 'pending',
+      data: b.data || {},
+      notes: sanitizeHtml(safeStr(b.notes || '')),
+      createdBy: req.user.uid,
+      createdAt: toIso(new Date()),
+      updatedAt: toIso(new Date()),
+    };
+    const ref = await req.ws('requests').add(doc);
+    sendCrmPushToRoles(req.ws, ['owner', 'admin'], 'New Request', `${doc.barberName} submitted a ${doc.type} request`, { type: 'request' }).catch(() => {});
+    res.status(201).json({ id: ref.id, ...doc });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.patch('/api/requests/:id', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const ref = req.ws('requests').doc(req.params.id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ error: 'Not found' });
+    const status = safeStr(req.body?.status || '');
+    if (!['approved', 'rejected'].includes(status)) return res.status(400).json({ error: 'Use approved or rejected' });
+    const requestData = doc.data();
+    const patch = { status, reviewedBy: safeStr(req.user.name || req.user.username), reviewedAt: toIso(new Date()), updatedAt: toIso(new Date()) };
+    if (req.body?.adminNotes) patch.adminNotes = sanitizeHtml(safeStr(req.body.adminNotes));
+    // Auto-apply on approval
+    if (status === 'approved' && requestData.barberId && requestData.data) {
+      try {
+        const barberId = requestData.barberId;
+        const data = requestData.data;
+        if (requestData.type === 'schedule_change' && data.schedule) {
+          await req.ws('barbers').doc(barberId).update({ schedule: normalizeSchedule(data.schedule), updated_at: toIso(new Date()) });
+        }
+        if (requestData.type === 'photo_change' && data.photo_url) {
+          await req.ws('barbers').doc(barberId).update({ photo_url: data.photo_url, updated_at: toIso(new Date()) });
+        }
+        if (requestData.type === 'profile_change') {
+          const profilePatch = { updated_at: toIso(new Date()) };
+          if (data.name) profilePatch.name = sanitizeHtml(data.name);
+          if (data.level) profilePatch.level = data.level;
+          await req.ws('barbers').doc(barberId).update(profilePatch);
+        }
+      } catch (e) { console.warn('Auto-apply request error:', e?.message); }
+    }
+    await ref.update(patch);
+    // Notify barber
+    sendCrmPushToBarber(req.ws, requestData.barberId, `Request ${status}`, `Your ${requestData.type} request was ${status}`, { type: 'request_update' }).catch(() => {});
+    res.json({ ok: true, status });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// SQUARE OAUTH ROUTES
+// ============================================================
+app.get('/api/square/oauth/url', requireRole('owner'), async (req, res) => {
+  try {
+    if (!SQUARE_APP_ID) return res.status(400).json({ error: 'Square App ID not configured' });
+    const scopes = 'PAYMENTS_READ PAYMENTS_WRITE ORDERS_READ MERCHANT_PROFILE_READ DEVICES_READ';
+    const redirectUri = `${req.protocol}://${req.get('host')}/api/square/oauth/callback`;
+    const state = req.wsId;
+    const url = `${SQUARE_BASE}/oauth2/authorize?client_id=${SQUARE_APP_ID}&scope=${encodeURIComponent(scopes)}&session=false&state=${state}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    res.json({ url });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.get('/api/square/oauth/status', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const doc = await req.ws('settings').doc('square_oauth').get();
+    if (!doc.exists || !doc.data()?.access_token) return res.json({ connected: false });
+    const data = doc.data();
+    res.json({ connected: true, merchant_id: data.merchant_id || null, connected_at: data.connected_at || null });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/square/oauth/disconnect', requireRole('owner'), async (req, res) => {
+  try {
+    await req.ws('settings').doc('square_oauth').delete();
+    res.json({ ok: true, disconnected: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// SQUARE TERMINAL PAYMENTS
+// ============================================================
+app.get('/api/payments/terminal/devices', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const headers = await squareHeaders(req.ws);
+    const r = await squareFetch('/v2/devices', { headers });
+    const data = await r.json();
+    res.json({ devices: data.devices || [] });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/payments/terminal', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const amountCents = Math.round(Number(b.amount_cents || b.amount || 0));
+    const bookingId = safeStr(b.booking_id || '');
+    const deviceId = safeStr(b.device_id || process.env.SQUARE_DEVICE_ID || '');
+    const paymentMethod = safeStr(b.payment_method || 'card');
+    if (!amountCents || amountCents <= 0) return res.status(400).json({ error: 'amount required' });
+    // For non-card payments (cash, zelle, other), just record locally
+    if (paymentMethod !== 'card') {
+      const doc = {
+        booking_id: bookingId, amount_cents: amountCents, payment_method: paymentMethod,
+        status: 'completed', created_by: req.user.uid, created_at: toIso(new Date()),
+      };
+      const ref = await req.ws('payment_requests').add(doc);
+      if (bookingId) {
+        await req.ws('bookings').doc(bookingId).update({ payment_status: 'paid', paid: true, payment_method: paymentMethod, updated_at: toIso(new Date()) }).catch(() => {});
+      }
+      return res.status(201).json({ id: ref.id, ...doc });
+    }
+    // Card payment via Square Terminal
+    if (!deviceId) return res.status(400).json({ error: 'device_id required for card payments' });
+    const headers = await squareHeaders(req.ws, { hasBody: true });
+    const locationId = safeStr(b.location_id || process.env.SQUARE_LOCATION_ID || '');
+    const idempotencyKey = crypto.randomUUID();
+    const sqBody = {
+      idempotency_key: idempotencyKey,
+      checkout: {
+        amount_money: { amount: amountCents, currency: 'USD' },
+        device_options: { device_id: deviceId, tip_settings: { allow_tipping: true } },
+        payment_type: 'CARD_PRESENT',
+        note: b.note || `Booking ${bookingId}`,
+      },
+    };
+    const r = await squareFetch('/v2/terminals/checkouts', { method: 'POST', headers, body: JSON.stringify(sqBody) });
+    const data = await r.json();
+    if (!r.ok) return res.status(r.status).json({ error: 'Square error', details: data });
+    const checkout = data.checkout || {};
+    const prDoc = {
+      checkout_id: checkout.id, booking_id: bookingId, amount_cents: amountCents,
+      payment_method: 'card', status: 'pending', device_id: deviceId, location_id: locationId,
+      created_by: req.user.uid, created_at: toIso(new Date()),
+    };
+    const ref = await req.ws('payment_requests').add(prDoc);
+    res.status(201).json({ id: ref.id, checkout_id: checkout.id, status: checkout.status });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.get('/api/payments/terminal/status/:checkoutId', async (req, res) => {
+  try {
+    const headers = await squareHeaders(req.ws);
+    const r = await squareFetch(`/v2/terminals/checkouts/${req.params.checkoutId}`, { headers });
+    const data = await r.json();
+    if (!r.ok) return res.status(r.status).json({ error: 'Square error', details: data });
+    const checkout = data.checkout || {};
+    // Update local record
+    const prSnap = await req.ws('payment_requests').where('checkout_id', '==', req.params.checkoutId).limit(1).get();
+    if (!prSnap.empty) {
+      const patch = { status: (checkout.status || 'PENDING').toLowerCase(), updated_at: toIso(new Date()) };
+      if (checkout.payment_ids?.length) patch.payment_id = checkout.payment_ids[0];
+      if (checkout.status === 'COMPLETED') {
+        patch.completed_at = toIso(new Date());
+        const tipCents = checkout.tip_money?.amount || 0;
+        if (tipCents > 0) patch.tip_cents = tipCents;
+        const prData = prSnap.docs[0].data();
+        if (prData.booking_id) {
+          const bPatch = { payment_status: 'paid', paid: true, updated_at: toIso(new Date()) };
+          if (tipCents > 0) { bPatch.tip = tipCents / 100; bPatch.tip_amount = tipCents / 100; }
+          await req.ws('bookings').doc(prData.booking_id).update(bPatch).catch(() => {});
+        }
+      }
+      await prSnap.docs[0].ref.update(patch);
+    }
+    res.json({ checkout_id: checkout.id, status: checkout.status, payment_ids: checkout.payment_ids || [], tip_money: checkout.tip_money || null });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/payments/terminal/cancel/:checkoutId', async (req, res) => {
+  try {
+    const headers = await squareHeaders(req.ws, { hasBody: true });
+    const r = await squareFetch(`/v2/terminals/checkouts/${req.params.checkoutId}/cancel`, { method: 'POST', headers, body: '{}' });
+    const data = await r.json();
+    if (!r.ok) return res.status(r.status).json({ error: 'Square error', details: data });
+    const prSnap = await req.ws('payment_requests').where('checkout_id', '==', req.params.checkoutId).limit(1).get();
+    if (!prSnap.empty) await prSnap.docs[0].ref.update({ status: 'cancelled', updated_at: toIso(new Date()) });
+    res.json({ ok: true, status: 'cancelled' });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// SQUARE REFUNDS
+// ============================================================
+app.post('/api/payments/refund/:paymentId', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const paymentId = req.params.paymentId;
+    const amountCents = req.body?.amount_cents ? Math.round(Number(req.body.amount_cents)) : null;
+    const headers = await squareHeaders(req.ws, { hasBody: true });
+    // Get payment to know amount
+    const payResp = await squareFetch(`/v2/payments/${paymentId}`, { headers: await squareHeaders(req.ws) });
+    const payData = await payResp.json();
+    if (!payResp.ok) return res.status(400).json({ error: 'Payment not found', details: payData });
+    const payment = payData.payment || {};
+    const refundAmount = amountCents || payment.amount_money?.amount || 0;
+    const refundBody = {
+      idempotency_key: crypto.randomUUID(),
+      payment_id: paymentId,
+      amount_money: { amount: refundAmount, currency: payment.amount_money?.currency || 'USD' },
+      reason: safeStr(req.body?.reason || 'Refund from CRM'),
+    };
+    const r = await squareFetch('/v2/refunds', { method: 'POST', headers, body: JSON.stringify(refundBody) });
+    const data = await r.json();
+    if (!r.ok) return res.status(r.status).json({ error: 'Refund failed', details: data });
+    writeAuditLog(req.wsId, { action: 'payment.refund', resource_id: paymentId, data: { amount_cents: refundAmount }, req }).catch(() => {});
+    res.json({ ok: true, refund: data.refund });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/payments/refund-by-booking/:bookingId', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const bookingId = req.params.bookingId;
+    const prSnap = await req.ws('payment_requests').where('booking_id', '==', bookingId).where('status', '==', 'completed').limit(1).get();
+    if (prSnap.empty) return res.status(404).json({ error: 'No completed payment found for this booking' });
+    const pr = prSnap.docs[0].data();
+    if (!pr.payment_id) return res.status(400).json({ error: 'No Square payment ID — manual refund needed' });
+    const headers = await squareHeaders(req.ws, { hasBody: true });
+    const refundBody = {
+      idempotency_key: crypto.randomUUID(),
+      payment_id: pr.payment_id,
+      amount_money: { amount: pr.amount_cents || 0, currency: 'USD' },
+      reason: safeStr(req.body?.reason || 'Refund by booking'),
+    };
+    const r = await squareFetch('/v2/refunds', { method: 'POST', headers, body: JSON.stringify(refundBody) });
+    const data = await r.json();
+    if (!r.ok) return res.status(r.status).json({ error: 'Refund failed', details: data });
+    await prSnap.docs[0].ref.update({ status: 'refunded', refunded_at: toIso(new Date()) });
+    await req.ws('bookings').doc(bookingId).update({ payment_status: 'refunded', updated_at: toIso(new Date()) }).catch(() => {});
+    writeAuditLog(req.wsId, { action: 'payment.refund', resource_id: bookingId, data: { payment_id: pr.payment_id }, req }).catch(() => {});
+    res.json({ ok: true, refund: data.refund });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.delete('/api/payments/delete-by-booking', requireRole('owner'), async (req, res) => {
+  try {
+    const bookingId = safeStr(req.body?.booking_id || req.query?.booking_id || '');
+    if (!bookingId) return res.status(400).json({ error: 'booking_id required' });
+    const prSnap = await req.ws('payment_requests').where('booking_id', '==', bookingId).get();
+    let deleted = 0;
+    for (const d of prSnap.docs) { await d.ref.delete(); deleted++; }
+    res.json({ ok: true, deleted });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// PUSH TOKEN REGISTRATION (CRM staff)
+// ============================================================
+app.post('/api/push/register', async (req, res) => {
+  try {
+    const deviceToken = safeStr(req.body?.device_token);
+    const platform = safeStr(req.body?.platform || 'ios');
+    const app = safeStr(req.body?.app || 'crm');
+    if (!deviceToken) return res.status(400).json({ error: 'device_token required' });
+    await req.ws('crm_push_tokens').doc(deviceToken).set({
+      device_token: deviceToken, platform, app,
+      user_id: req.user.uid, user_name: safeStr(req.user.name || req.user.username),
+      role: safeStr(req.user.role), barber_id: safeStr(req.user.barber_id || ''),
+      updated_at: toIso(new Date()),
+    }, { merge: true });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// REVIEWS IMPORT (owner bulk import)
+// ============================================================
+app.post('/api/reviews/import', requireRole('owner'), async (req, res) => {
+  try {
+    const items = Array.isArray(req.body?.reviews) ? req.body.reviews : [];
+    if (!items.length) return res.status(400).json({ error: 'reviews[] required' });
+    const batch = db.batch();
+    let count = 0;
+    for (const r of items.slice(0, 500)) {
+      const ref = req.ws('reviews').doc();
+      batch.set(ref, {
+        barber_id: safeStr(r.barber_id || ''), barber_name: safeStr(r.barber_name || ''),
+        client_name: sanitizeHtml(safeStr(r.name || 'Anonymous')),
+        rating: Math.max(1, Math.min(5, Number(r.rating || 5))),
+        text: sanitizeHtml(safeStr(r.text || '')).slice(0, 2000),
+        source: 'google', status: 'approved',
+        created_at: safeStr(r.ts || r.createdAt || '') || toIso(new Date()),
+      });
+      count++;
+    }
+    await batch.commit();
+    res.status(201).json({ ok: true, imported: count });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// PAYROLL BACKFILL TIPS
+// ============================================================
+app.post('/api/payroll/backfill-tips', requireRole('owner'), async (req, res) => {
+  try {
+    const from = safeStr(req.body?.from || req.query?.from || '');
+    const to = safeStr(req.body?.to || req.query?.to || '');
+    let query = req.ws('payment_requests').where('status', '==', 'completed');
+    const snap = await query.get();
+    let updated = 0;
+    for (const d of snap.docs) {
+      const pr = d.data();
+      if (!pr.booking_id || !pr.tip_cents) continue;
+      if (from && pr.created_at < from) continue;
+      if (to && pr.created_at > to) continue;
+      const tipAmount = pr.tip_cents / 100;
+      await req.ws('bookings').doc(pr.booking_id).update({ tip: tipAmount, tip_amount: tipAmount, updated_at: toIso(new Date()) }).catch(() => {});
+      updated++;
+    }
+    res.json({ ok: true, updated });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// ADMIN ROUTES
+// ============================================================
+app.get('/api/admin/security-log', requireRole('owner'), async (req, res) => {
+  try {
+    const snap = await db.collection('security_log').orderBy('created_at', 'desc').limit(200).get();
+    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.get('/api/admin/debug-booking/:id', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const doc = await req.ws('bookings').doc(req.params.id).get();
+    if (!doc.exists) return res.status(404).json({ error: 'Booking not found' });
+    res.json({ id: doc.id, ...doc.data() });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.delete('/api/admin/cleanup-rate-limits', requireRole('owner'), async (req, res) => {
+  try {
+    const snap = await db.collection('rate_limits').get();
+    let deleted = 0;
+    for (const d of snap.docs) { await d.ref.delete(); deleted++; }
+    res.json({ ok: true, deleted });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// PUBLIC ROUTES (no auth required, workspace_id in URL)
+// ============================================================
+app.get('/public/services/:workspace_id', async (req, res) => {
+  try {
+    const wsId = req.params.workspace_id;
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const snap = await db.collection('workspaces').doc(wsId).collection('services').orderBy('name').get();
+    const services = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => s.active !== false);
+    res.json({ services });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.get('/public/barbers/:workspace_id', async (req, res) => {
+  try {
+    const wsId = req.params.workspace_id;
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const snap = await db.collection('workspaces').doc(wsId).collection('barbers').orderBy('name').get();
+    const barbers = snap.docs.map(d => {
+      const data = d.data() || {};
+      if (data.active === false) return null;
+      return { id: d.id, name: data.name, level: data.level || null, photo_url: data.photo_url || null, schedule: data.schedule || defaultSchedule(), schedule_overrides: data.schedule_overrides || {} };
+    }).filter(Boolean);
+    res.json({ barbers });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/public/availability/:workspace_id', async (req, res) => {
+  try {
+    const wsId = req.params.workspace_id;
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
+    const b = req.body || {};
+    const barberId = safeStr(b.barber_id);
+    const durationMin = Math.max(1, Number(b.duration_minutes || 30));
+    const start = parseIso(b.start_at);
+    const end = parseIso(b.end_at);
+    if (!barberId || !start || !end) return res.status(400).json({ error: 'barber_id, start_at, end_at required' });
+    const range = clampDateRange(start, end);
+    if (!range) return res.status(400).json({ error: 'Invalid date range' });
+    const barberDoc = await wsCol('barbers').doc(barberId).get();
+    if (!barberDoc.exists || barberDoc.data()?.active === false) return res.status(404).json({ error: 'Barber not found' });
+    const barber = barberDoc.data();
+    const settingsDoc = await wsCol('settings').doc('config').get();
+    const timeZone = settingsDoc.exists ? (settingsDoc.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+    const busy = await getBusyIntervalsForBarber(wsCol, barberId, toIso(range.start), toIso(range.end));
+    const avail = [];
+    for (const cur of eachTzDay(range.start, range.end, timeZone)) {
+      const sch = getScheduleForDate(barber, cur, timeZone);
+      let slots = buildSmartSlotsForDay({ dayDateUTC: cur, schedule: sch, durationMin, stepMin: durationMin, timeZone, busy });
+      slots = slots.filter(t => t >= range.start && t < range.end && t > new Date());
+      slots = filterSlotsAgainstBusy(slots, busy, durationMin);
+      for (const t of slots) avail.push({ start_at: toIso(t), local_day: getTzDateKey(t, timeZone) });
+    }
+    res.json({ time_zone: timeZone, availabilities: avail, slots: avail.map(x => x.start_at) });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/public/bookings/:workspace_id', async (req, res) => {
+  try {
+    const wsId = req.params.workspace_id;
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
+    const booking = req.body || {};
+    const startAt = parseIso(booking.start_at);
+    const barberId = safeStr(booking.barber_id);
+    const clientName = sanitizeHtml(safeStr(booking.client_name));
+    const clientPhone = safeStr(booking.client_phone);
+    const durMin = Number(booking.duration_minutes || 30);
+    if (!startAt || !barberId) return res.status(400).json({ error: 'start_at and barber_id required' });
+    const endAt = addMinutes(startAt, durMin);
+    const doc = {
+      client_name: clientName || 'Walk-in',
+      client_phone: clientPhone || null,
+      phone_norm: normPhone(clientPhone) || null,
+      barber_id: barberId,
+      barber_name: sanitizeHtml(safeStr(booking.barber_name)) || null,
+      service_id: safeStr(booking.service_id) || null,
+      service_name: sanitizeHtml(safeStr(booking.service_name)) || null,
+      start_at: toIso(startAt), end_at: toIso(endAt),
+      duration_minutes: durMin,
+      status: 'booked', paid: false, source: 'website',
+      notes: sanitizeHtml(safeStr(booking.notes)) || null,
+      customer_note: sanitizeHtml(safeStr(booking.customer_note)) || null,
+      created_at: toIso(new Date()), updated_at: toIso(new Date()),
+    };
+    const bookingsRef = wsCol('bookings');
+    const bookingRef = bookingsRef.doc();
+    try {
+      await db.runTransaction(async (tx) => {
+        await ensureNoConflictTx(tx, bookingsRef, { barberId, startAt, endAt });
+        tx.set(bookingRef, doc);
+      });
+    } catch (e) {
+      if (e.code === 'CONFLICT' || String(e.message).includes('CONFLICT')) return res.status(409).json({ error: 'Slot already booked' });
+      throw e;
+    }
+    res.status(201).json({ booking_id: bookingRef.id, id: bookingRef.id });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// PUBLIC CONFIG
+// ============================================================
+app.get('/public/config/:workspace_id', async (req, res) => {
+  try {
+    const wsId = req.params.workspace_id;
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const doc = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
+    const data = doc.exists ? doc.data() : {};
+    res.json({
+      shopStatusMode: safeStr(data.shopStatusMode || 'auto'),
+      shopStatusCustomText: safeStr(data.shopStatusCustomText || ''),
+      bannerEnabled: !!data.bannerEnabled,
+      bannerText: safeStr(data.bannerText || ''),
+      hero_media_url: safeStr(data.hero_media_url || data.hero_url || ''),
+      hero_media_type: safeStr(data.hero_media_type || 'video'),
+      shop_name: safeStr(data.shop_name || ''),
+    });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// PUBLIC REVIEWS
+// ============================================================
+app.get('/public/reviews/:workspace_id', async (req, res) => {
+  try {
+    const wsId = req.params.workspace_id;
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
+    const barberName = safeStr(req.query?.barber || '');
+    const snap = await wsCol('reviews').where('status', '==', 'approved').orderBy('created_at', 'desc').limit(200).get();
+    let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (barberName) {
+      list = list.filter(r => String(r.barber_name || '').toLowerCase().includes(barberName.toLowerCase()));
+    }
+    const avg = list.length ? Math.round(list.reduce((s, r) => s + Number(r.rating || 0), 0) / list.length * 10) / 10 : 0;
+    res.json({ ok: true, items: list.map(r => ({ name: r.client_name || r.name, rating: r.rating, text: r.text, ts: r.created_at })), avg, count: list.length });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/public/reviews/:workspace_id', async (req, res) => {
+  try {
+    const wsId = req.params.workspace_id;
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
+    const b = req.body || {};
+    const doc = {
+      barber_id: safeStr(b.barber_id || ''), barber_name: safeStr(b.barber_name || ''),
+      client_name: sanitizeHtml(safeStr(b.name || 'Anonymous')),
+      rating: Math.max(1, Math.min(5, Number(b.rating || 5))),
+      text: sanitizeHtml(safeStr(b.text || '')).slice(0, 2000),
+      source: 'website', status: 'pending', created_at: toIso(new Date()),
+    };
+    const ref = await wsCol('reviews').add(doc);
+    res.status(201).json({ ok: true, id: ref.id, status: 'pending' });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// PUBLIC DEVICE TOKENS
+// ============================================================
+app.post('/public/device-tokens/:workspace_id', async (req, res) => {
+  try {
+    const wsId = req.params.workspace_id;
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const token = safeStr(req.body?.token);
+    const customerId = safeStr(req.body?.customer_id);
+    const platform = safeStr(req.body?.platform || 'ios');
+    if (!token || !customerId) return res.status(400).json({ error: 'token and customer_id required' });
+    await db.collection('workspaces').doc(wsId).collection('device_tokens').doc(token).set({
+      token, customer_id: customerId, platform, updated_at: toIso(new Date()),
+    }, { merge: true });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// PUBLIC PHONE VERIFICATION
+// ============================================================
+app.post('/public/verify/send/:workspace_id', async (req, res) => {
+  try {
+    const wsId = req.params.workspace_id;
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const phone = normPhone(safeStr(req.body?.phone));
+    if (!phone || phone.length < 10) return res.status(400).json({ error: 'Valid phone required' });
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const key = `verify_${phone}`;
+    await db.collection('workspaces').doc(wsId).collection('phone_verify').doc(key).set({
+      phone, code, attempts: 0,
+      expires_at: toIso(new Date(Date.now() + 10 * 60 * 1000)),
+      created_at: toIso(new Date()),
+    });
+    const formatted = phone.length === 10 ? `+1${phone}` : `+${phone}`;
+    sendSms(formatted, `VuriumBook: Your verification code is ${code}. Do not share this code.`).catch(e => console.warn('verify SMS error:', e?.message));
+    res.json({ ok: true, sent: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/public/verify/check/:workspace_id', async (req, res) => {
+  try {
+    const wsId = req.params.workspace_id;
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
+    const phone = normPhone(safeStr(req.body?.phone));
+    const code = safeStr(req.body?.code);
+    if (!phone || !code) return res.status(400).json({ error: 'phone and code required' });
+    const key = `verify_${phone}`;
+    const ref = wsCol('phone_verify').doc(key);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(400).json({ error: 'No code sent. Request a new one.' });
+    const data = doc.data();
+    if (new Date(data.expires_at) < new Date()) { await ref.delete(); return res.status(400).json({ error: 'Code expired. Request a new one.' }); }
+    if ((data.attempts || 0) >= 5) { await ref.delete(); return res.status(429).json({ error: 'Too many attempts. Request a new code.' }); }
+    if (data.code !== code) { await ref.update({ attempts: (data.attempts || 0) + 1 }); return res.status(400).json({ error: 'Invalid code. Try again.' }); }
+    await ref.delete();
+    const clientSnap = await wsCol('clients').where('phone_norm', '==', phone).limit(1).get();
+    let client = null;
+    if (!clientSnap.empty) {
+      const cd = clientSnap.docs[0].data();
+      client = { id: clientSnap.docs[0].id, name: cd.name || null, email: cd.email || null };
+    }
+    res.json({ ok: true, verified: true, client });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// PUBLIC WAITLIST
+// ============================================================
+app.post('/public/waitlist/:workspace_id', async (req, res) => {
+  try {
+    const wsId = req.params.workspace_id;
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
+    const phone = normPhone(safeStr(req.body?.phone));
+    const barberId = safeStr(req.body?.barber_id);
+    const date = safeStr(req.body?.date);
+    const clientName = safeStr(req.body?.client_name || '');
+    if (!phone) return res.status(400).json({ error: 'phone required' });
+    if (!barberId) return res.status(400).json({ error: 'barber_id required' });
+    if (!date) return res.status(400).json({ error: 'date required (YYYY-MM-DD)' });
+    // Check duplicate
+    const existing = await wsCol('waitlist').where('phone_norm', '==', phone).where('barber_id', '==', barberId).where('date', '==', date).where('notified', '==', false).limit(1).get();
+    if (!existing.empty) return res.json({ ok: true, id: existing.docs[0].id, already: true });
+    const doc = {
+      phone_norm: phone, phone_raw: safeStr(req.body?.phone),
+      client_name: clientName || null, barber_id: barberId,
+      barber_name: safeStr(req.body?.barber_name),
+      date, service_ids: Array.isArray(req.body?.service_ids) ? req.body.service_ids : [],
+      service_names: Array.isArray(req.body?.service_names) ? req.body.service_names : [],
+      duration_minutes: Math.max(1, Number(req.body?.duration_minutes || 30)),
+      preferred_start_min: Math.max(0, Number(req.body?.preferred_start_min || 0)),
+      preferred_end_min: Math.min(1440, Number(req.body?.preferred_end_min || 1440)),
+      notified: false, created_at: toIso(new Date()),
+    };
+    const ref = await wsCol('waitlist').add(doc);
+    sendCrmPushToStaff(wsCol, barberId, 'Waitlist', `${clientName || 'Client'} wants ${date}`, { type: 'waitlist' }).catch(() => {});
+    res.status(201).json({ ok: true, id: ref.id });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// PUBLIC APPLICATIONS
+// ============================================================
+app.post('/public/applications/:workspace_id', async (req, res) => {
+  try {
+    const wsId = req.params.workspace_id;
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const b = req.body || {};
+    const doc = {
+      type: safeStr(b.type || 'application'),
+      role: safeStr(b.role || 'Barber'),
+      name: sanitizeHtml(safeStr(b.name || '')),
+      phone: safeStr(b.phone || ''),
+      email: sanitizeHtml(safeStr(b.email || '')),
+      instagram: sanitizeHtml(safeStr(b.instagram || '')),
+      experience: safeStr(b.experience || ''),
+      english: safeStr(b.english || ''),
+      fulltime: safeStr(b.fulltime || ''),
+      portfolio: sanitizeHtml(safeStr(b.portfolio || '')),
+      motivation: sanitizeHtml(safeStr(b.motivation || '')),
+      license: safeStr(b.license || ''),
+      schedule: safeStr(b.schedule || ''),
+      message: sanitizeHtml(safeStr(b.message || '')),
+      status: 'new', source: safeStr(b.source || 'website'),
+      created_at: toIso(new Date()),
+    };
+    if (!doc.name) return res.status(400).json({ error: 'name required' });
+    if (!doc.phone) return res.status(400).json({ error: 'phone required' });
+    const ref = await db.collection('workspaces').doc(wsId).collection('applications').add(doc);
+    res.status(201).json({ ok: true, id: ref.id });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// BACKGROUND JOBS (multi-tenant)
+// ============================================================
+let _lastReminderRun = 0;
+let _lastMembershipRun = 0;
+
+async function runAutoReminders() {
+  const now = Date.now();
+  if (now - _lastReminderRun < 3 * 60 * 1000) return; // throttle 3 min
+  _lastReminderRun = now;
+  try {
+    const wsSnap = await db.collection('workspaces').limit(100).get();
+    for (const ws of wsSnap.docs) {
+      const wsCol = (col) => db.collection('workspaces').doc(ws.id).collection(col);
+      try {
+        const snap = await wsCol('sms_reminders').where('sent', '==', false).limit(50).get();
+        for (const d of snap.docs) {
+          const r = d.data();
+          if (!r.send_at || new Date(r.send_at) > new Date()) continue;
+          sendSms(r.phone, r.message).catch(() => {});
+          await d.ref.update({ sent: true, sent_at: toIso(new Date()) });
+        }
+      } catch (e) { console.warn('runAutoReminders error for ws', ws.id, e?.message); }
+    }
+  } catch (e) { console.warn('runAutoReminders error:', e?.message); }
+}
+
+async function runAutoMemberships() {
+  const now = Date.now();
+  if (now - _lastMembershipRun < 5 * 60 * 1000) return; // throttle 5 min
+  _lastMembershipRun = now;
+  try {
+    const wsSnap = await db.collection('workspaces').limit(100).get();
+    for (const ws of wsSnap.docs) {
+      const wsCol = (col) => db.collection('workspaces').doc(ws.id).collection(col);
+      try {
+        const snap = await wsCol('memberships').where('status', '==', 'active').get();
+        const settingsDoc = await wsCol('settings').doc('config').get();
+        const timeZone = settingsDoc.exists ? (settingsDoc.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+        const horizon = new Date(Date.now() + 8 * 7 * 86400000); // 8 weeks
+        for (const d of snap.docs) {
+          const m = d.data();
+          let nextAt = parseIso(m.next_booking_at);
+          if (!nextAt || nextAt > horizon) continue;
+          const barberId = m.barber_id;
+          if (!barberId) continue;
+          const durMin = m.duration_minutes || 30;
+          let count = 0;
+          while (nextAt && nextAt <= horizon && count < 20) {
+            count++;
+            try {
+              const endAt = addMinutes(nextAt, durMin);
+              const bookingsRef = wsCol('bookings');
+              const bookingRef = bookingsRef.doc();
+              await db.runTransaction(async (tx) => {
+                await ensureNoConflictTx(tx, bookingsRef, { barberId, startAt: nextAt, endAt });
+                tx.set(bookingRef, {
+                  client_name: m.client_name || 'Membership', barber_id: barberId,
+                  barber_name: m.barber_name || null, service_id: m.service_id || null,
+                  service_name: m.service_name || null,
+                  start_at: toIso(nextAt), end_at: toIso(endAt),
+                  duration_minutes: durMin, status: 'booked', source: 'membership',
+                  membership_id: d.id, paid: false,
+                  created_at: toIso(new Date()), updated_at: toIso(new Date()),
+                });
+              });
+            } catch {}
+            // Advance to next occurrence
+            const freq = m.frequency || 'weekly';
+            if (freq === 'weekly') nextAt = new Date(nextAt.getTime() + 7 * 86400000);
+            else if (freq === 'biweekly') nextAt = new Date(nextAt.getTime() + 14 * 86400000);
+            else if (freq === 'monthly') { nextAt.setMonth(nextAt.getMonth() + 1); }
+            else break;
+          }
+          await d.ref.update({ next_booking_at: toIso(nextAt), updated_at: toIso(new Date()) });
+        }
+      } catch (e) { console.warn('runAutoMemberships error for ws', ws.id, e?.message); }
+    }
+  } catch (e) { console.warn('runAutoMemberships error:', e?.message); }
+}
+
+// Run background jobs every 3 minutes
+setInterval(() => {
+  runAutoReminders().catch(() => {});
+  runAutoMemberships().catch(() => {});
+}, 3 * 60 * 1000);
+
+// ============================================================
+// 404 fallback
+// ============================================================
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found', path: req.path });
+});
+
+// ============================================================
+// ERROR HANDLER
+// ============================================================
+app.use((err, req, res, _next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// ============================================================
+// START
+// ============================================================
+app.listen(PORT, () => {
+  console.log(`VuriumBook API running on port ${PORT}`);
+  console.log(`Environment: ${NODE_ENV}`);
+});
