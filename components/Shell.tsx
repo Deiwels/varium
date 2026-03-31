@@ -741,23 +741,23 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         .pill-bar{
           position:fixed;bottom:0;left:0;right:0;z-index:60;
           display:flex;align-items:center;justify-content:center;
-          padding:8px 16px max(8px, env(safe-area-inset-bottom, 8px));
+          padding:6px 16px max(6px, env(safe-area-inset-bottom, 6px));
           background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(1,1,1,.9) 60%);
           pointer-events:none;
         }
         .pill-inner{
           pointer-events:auto;
           display:flex;align-items:center;gap:2px;
-          padding:4px 6px;border-radius:16px;
-          background:rgba(8,8,14,.65);
+          padding:3px 8px;border-radius:22px;
+          background:rgba(8,8,14,.55);
           backdrop-filter:saturate(180%) blur(30px);
           -webkit-backdrop-filter:saturate(180%) blur(30px);
-          border:1px solid rgba(255,255,255,.06);
-          box-shadow:0 2px 20px rgba(0,0,0,.4);
+          border:1px solid rgba(255,255,255,.05);
+          box-shadow:0 2px 16px rgba(0,0,0,.35);
         }
         .pill-item{
           display:flex;align-items:center;justify-content:center;
-          padding:10px 18px;border-radius:12px;
+          padding:7px 20px;border-radius:18px;
           cursor:pointer;transition:all .2s ease;
           border:1px solid transparent;
           text-decoration:none!important;
@@ -796,7 +796,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         }
 
         @media(max-width:480px){
-          .pill-item{padding:8px 10px;min-width:50px;}
+          .pill-item{padding:6px 14px;min-width:44px;}
           .pill-item .pill-label{font-size:9px;}
         }
 

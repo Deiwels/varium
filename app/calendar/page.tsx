@@ -1735,15 +1735,15 @@ export default function CalendarPage() {
         }
         /* Date dot morph + glow animations */
         @keyframes dotPillGlow {
-          0%, 100% { box-shadow: 0 2px 8px rgba(255,255,255,.08); border-color: rgba(255,255,255,.20); }
-          50% { box-shadow: 0 2px 16px rgba(255,255,255,.20), 0 0 20px rgba(255,255,255,.06); border-color: rgba(255,255,255,.35); }
+          0%, 100% { box-shadow: 0 0 6px rgba(130,150,220,.15), 0 0 12px rgba(130,150,220,.05); border-color: rgba(130,150,220,.30); }
+          50% { box-shadow: 0 0 12px rgba(130,150,220,.30), 0 0 24px rgba(130,150,220,.10); border-color: rgba(130,150,220,.50); }
         }
         .date-dot {
-          transition: width .3s cubic-bezier(.4,0,.2,1), min-width .3s cubic-bezier(.4,0,.2,1), padding .3s cubic-bezier(.4,0,.2,1), background .3s ease, color .3s ease, font-size .2s ease, font-weight .2s ease, box-shadow .3s ease, transform .15s ease;
+          transition: all .3s cubic-bezier(.4,0,.2,1);
         }
-        .date-dot:active { transform: scale(.9) }
+        .date-dot:active { transform: scale(.88) }
         .date-dot-current {
-          animation: dotPillGlow 2.8s ease-in-out infinite;
+          animation: dotPillGlow 3s ease-in-out infinite;
         }
         @keyframes calPickerIn {
           0% { opacity:0; transform:translateY(40px) scale(.85) }
@@ -2391,13 +2391,13 @@ export default function CalendarPage() {
             })
           }
           return (
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 15, padding: '6px 20px max(6px, env(safe-area-inset-bottom, 6px))', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'auto' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 15, padding: '8px 12px 6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'auto', background: 'linear-gradient(180deg, rgba(4,4,12,.95) 0%, rgba(4,4,12,.7) 70%, transparent 100%)' }}>
               {/* Settings button */}
-              <button onClick={() => setSettingsOpen(true)} style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.50)', color: 'rgba(255,255,255,.40)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <button onClick={() => setSettingsOpen(true)} style={{ width: 26, height: 26, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.35)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               </button>
-              {/* Date dots */}
-              <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+              {/* Date dots — Apple style */}
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               {dots.slice(1, -1).map((dot, i) => (
                 <button key={dot.day + '-' + dot.date.getMonth()}
                   className={`date-dot${dot.isCurrent ? ' date-dot-current' : ''}`}
@@ -2409,25 +2409,24 @@ export default function CalendarPage() {
                     setTimeout(() => { setAnchor(targetDate); setDayTransition('in'); setTimeout(() => setDayTransition('idle'), 220) }, 180)
                   }}
                   style={{
-                    height: dot.isCurrent ? 38 : 30,
+                    height: dot.isCurrent ? 36 : 8,
                     padding: dot.isCurrent ? '2px 14px' : '0',
-                    width: dot.isCurrent ? 'auto' : 30,
-                    minWidth: dot.isCurrent ? 80 : 30,
+                    width: dot.isCurrent ? 'auto' : 8,
+                    minWidth: dot.isCurrent ? 90 : 8,
                     borderRadius: 999,
-                    border: `1px solid ${dot.isCurrent ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.15)'}`,
-                    background: dot.isCurrent ? 'rgba(0,0,0,.85)' : 'rgba(0,0,0,.60)',
-                    color: dot.isCurrent ? '#fff' : 'rgba(255,255,255,.60)',
+                    border: `1px solid ${dot.isCurrent ? 'rgba(130,150,220,.35)' : dot.isToday ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.12)'}`,
+                    background: dot.isCurrent ? 'rgba(10,10,30,.90)' : dot.isToday ? 'rgba(255,255,255,.30)' : 'rgba(255,255,255,.12)',
+                    color: dot.isCurrent ? '#fff' : 'transparent',
                     cursor: 'pointer',
-                    fontWeight: dot.isCurrent ? 800 : 600,
-                    fontSize: dot.isCurrent ? 11 : 11,
+                    fontWeight: 800,
+                    fontSize: 11,
                     fontFamily: 'inherit',
-                    letterSpacing: dot.isCurrent ? '.02em' : 0,
-                    display: 'flex', flexDirection: dot.isCurrent ? 'column' as const : 'row' as const, alignItems: 'center', justifyContent: 'center',
+                    letterSpacing: '.02em',
+                    display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center',
                     flexShrink: 0,
                     position: 'relative',
                   }}>
-                  {dot.isCurrent ? (<><div style={{ fontSize: 13, fontWeight: 900, lineHeight: 1 }}>{dot.dayName}</div><div style={{ fontSize: 8, opacity: .45, lineHeight: 1, marginTop: 2 }}>{dot.label}</div></>) : dot.day}
-                  {dot.isToday && !dot.isCurrent && <div style={{ position: 'absolute', bottom: 3, width: 3, height: 3, borderRadius: 999, background: 'rgba(255,255,255,.6)' }} />}
+                  {dot.isCurrent && (<><div style={{ fontSize: 13, fontWeight: 900, lineHeight: 1, letterSpacing: '.03em' }}>{dot.dayName} {dot.day}</div><div style={{ fontSize: 8, opacity: .4, lineHeight: 1, marginTop: 2, textTransform: 'uppercase', letterSpacing: '.08em' }}>{dot.date.toLocaleDateString('en-US', { month: 'long' })}</div></>)}
                 </button>
               ))}
               </div>
