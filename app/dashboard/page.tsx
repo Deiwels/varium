@@ -144,6 +144,7 @@ export default function DashboardPage() {
   })
   const role: string = user?.role || 'owner'
   const isBarber = role === 'barber'
+  const isStudent = role === 'student'
   const myBarberId: string = user?.barber_id || ''
   const myBarberName: string = user?.name || ''
   const isOwnerOrAdmin = role === 'owner' || role === 'admin'
