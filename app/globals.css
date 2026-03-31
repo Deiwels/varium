@@ -545,34 +545,21 @@ section { position: relative; z-index: 2; }
 
 /* ── Buttons ── */
 .btn-primary {
-  position: relative;
   height: 50px;
   padding: 0 32px;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.12);
   background: #000;
   color: rgba(255,255,255,.85);
   font-size: 15px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: transform .25s, color .3s;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
-  overflow: visible;
-  z-index: 0;
-}
-
-.btn-primary::before {
-  content: '';
-  position: absolute;
-  inset: -8px;
-  border-radius: 999px;
-  background: rgba(140,160,230,.28);
-  filter: blur(18px);
+  transition: transform .25s, color .3s;
   animation: glow-breathe 2.8s ease-in-out infinite;
-  z-index: -1;
 }
 
 .btn-primary:hover {
@@ -581,8 +568,16 @@ section { position: relative; z-index: 2; }
 }
 
 @keyframes glow-breathe {
-  0%, 100% { opacity: .3; transform: scale(.96); }
-  50%       { opacity: 1;  transform: scale(1.08); }
+  0%, 100% {
+    box-shadow:
+      0 0 5px 1px rgba(140,160,230,.15),
+      0 0 12px 2px rgba(120,140,220,.06);
+  }
+  50% {
+    box-shadow:
+      0 0 10px 3px rgba(140,160,230,.55),
+      0 0 24px 6px rgba(120,140,220,.22);
+  }
 }
 
 /* keep old name as alias for any stray usage */
