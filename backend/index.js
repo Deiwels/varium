@@ -33,9 +33,12 @@ if (NODE_ENV === 'production' && JWT_SECRET === 'dev-secret-change-in-production
 // MIDDLEWARE
 // ============================================================
 const ALLOWED_ORIGINS = [
+  'https://vurium.com',
+  'https://www.vurium.com',
   'https://vuriumbook.com',
   'https://www.vuriumbook.com',
   'https://varium.vercel.app',
+  'https://varium-murex.vercel.app',
   'http://localhost:3000',
   'http://localhost:3001',
 ];
