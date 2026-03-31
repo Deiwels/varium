@@ -61,7 +61,7 @@ function TabIcon({ id, color }: { id: string; color: string }) {
 }
 
 const TAB_COLORS: Record<string, string> = {
-  general: '#d7ecff', barbers: '#d7ecff', admins: '#c9ffe1', students: '#d4b8ff', requests: '#ffe9a3', applications: '#ffb7d5'
+  general: 'rgba(130,150,220,.6)', barbers: 'rgba(130,150,220,.6)', admins: 'rgba(130,220,170,.5)', students: 'rgba(180,140,220,.6)', requests: 'rgba(220,190,130,.5)', applications: 'rgba(220,130,160,.5)'
 }
 
 const TABS: { id: Tab; label: string; roles: string[] }[] = [
@@ -91,14 +91,14 @@ function initials(name: string) {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  owner: '#ffe9a3', admin: '#c9ffe1', barber: '#d7ecff', student: '#d4b8ff'
+  owner: 'rgba(220,190,130,.5)', admin: 'rgba(130,220,170,.5)', barber: 'rgba(130,150,220,.6)', student: 'rgba(180,140,220,.6)'
 }
 
 const ROLE_GRADIENTS: Record<string, string> = {
-  owner: 'linear-gradient(135deg, #ffe9a3, #f0c040)',
-  admin: 'linear-gradient(135deg, #c9ffe1, #4ade80)',
-  barber: 'linear-gradient(135deg, #d7ecff, #60a5fa)',
-  student: 'linear-gradient(135deg, #d4b8ff, #a78bfa)',
+  owner: 'linear-gradient(135deg, rgba(220,190,130,.5), #f0c040)',
+  admin: 'linear-gradient(135deg, rgba(130,220,170,.5), #4ade80)',
+  barber: 'linear-gradient(135deg, rgba(130,150,220,.6), #60a5fa)',
+  student: 'linear-gradient(135deg, rgba(180,140,220,.6), #a78bfa)',
 }
 
 // ─── Reaction emojis ─────────────────────────────────────────────────────────
@@ -165,7 +165,7 @@ function AudioPlayer({ src, isOwn }: { src: string; isOwn: boolean }) {
 
 // ─── MessageBubble ───────────────────────────────────────────────────────────
 function MessageBubble({ msg, isOwn, onImageClick, isGrouped, onReaction, myUid }: { msg: Message; isOwn: boolean; onImageClick?: (url: string) => void; isGrouped?: boolean; onReaction?: (msgId: string, emoji: string) => void; myUid?: string }) {
-  const roleColor = ROLE_COLORS[msg.senderRole] || '#e9e9e9'
+  const roleColor = ROLE_COLORS[msg.senderRole] || '#e8e8ed'
   const [showReactions, setShowReactions] = React.useState(false)
   const longPressRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLongPress = React.useRef(false)
@@ -222,7 +222,7 @@ function MessageBubble({ msg, isOwn, onImageClick, isGrouped, onReaction, myUid 
               {msg.senderName} <span style={{ color: 'rgba(255,255,255,.20)', fontWeight: 400 }}>· {msg.senderRole}</span>
             </div>
           )}
-          {msg.text && <div style={{ fontSize: 13, lineHeight: 1.5, color: isOwn ? '#fff' : '#e9e9e9', wordBreak: 'break-word' }}>{msg.text}</div>}
+          {msg.text && <div style={{ fontSize: 13, lineHeight: 1.5, color: isOwn ? '#fff' : '#e8e8ed', wordBreak: 'break-word' }}>{msg.text}</div>}
           {msg.imageUrl && (
             <img src={msg.imageUrl} alt="" onClick={() => { if (!didLongPress.current) onImageClick?.(msg.imageUrl!) }}
               style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 10, marginTop: msg.text ? 6 : 0, cursor: 'pointer', objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)' }}
@@ -231,7 +231,7 @@ function MessageBubble({ msg, isOwn, onImageClick, isGrouped, onReaction, myUid 
           {msg.audioUrl && <AudioPlayer src={msg.audioUrl} isOwn={isOwn} />}
           {msg.fileUrl && (
             <a href={msg.fileUrl} download={msg.fileName || 'file'} onClick={e => e.stopPropagation()}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', marginTop: msg.text ? 6 : 0, borderRadius: 10, background: isOwn ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.08)', textDecoration: 'none', color: '#e9e9e9' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', marginTop: msg.text ? 6 : 0, borderRadius: 10, background: isOwn ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.08)', textDecoration: 'none', color: '#e8e8ed' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isOwn ? '#fff' : 'rgba(255,255,255,.50)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.fileName || 'File'}</div>
@@ -253,11 +253,11 @@ function MessageBubble({ msg, isOwn, onImageClick, isGrouped, onReaction, myUid 
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 3, height: 24, padding: '0 7px', borderRadius: 999,
                     border: `1px solid ${isMine ? 'rgba(10,132,255,.45)' : 'rgba(255,255,255,.12)'}`,
                     background: isMine ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.06)',
-                    cursor: 'pointer', fontSize: 12, color: '#e9e9e9', fontFamily: 'inherit',
+                    cursor: 'pointer', fontSize: 12, color: '#e8e8ed', fontFamily: 'inherit',
                     transition: 'all .2s ease',
                   }}>
                   <span>{emoji}</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: isMine ? '#d7ecff' : 'rgba(255,255,255,.50)' }}>{uids.length}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: isMine ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.50)' }}>{uids.length}</span>
                 </button>
               )
             })}
@@ -295,22 +295,22 @@ function MessageBubble({ msg, isOwn, onImageClick, isGrouped, onReaction, myUid 
 
 // ─── RequestCard ─────────────────────────────────────────────────────────────
 const REQ_TYPE_INFO: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  schedule_change: { label: 'Schedule change', color: '#ffe9a3', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ffe9a3" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },
-  photo_change:    { label: 'Photo change', color: '#d7ecff', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d7ecff" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> },
-  profile_change:  { label: 'Profile update', color: '#d4b8ff', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d4b8ff" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
-  service_change:  { label: 'Service change', color: '#35d6c7', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#35d6c7" strokeWidth="2" strokeLinecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> },
-  block_time:      { label: 'Block time', color: '#ffd0d0', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ffd0d0" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> },
+  schedule_change: { label: 'Schedule change', color: 'rgba(220,190,130,.5)', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(220,190,130,.5)" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },
+  photo_change:    { label: 'Photo change', color: 'rgba(130,150,220,.6)', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(130,150,220,.6)" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> },
+  profile_change:  { label: 'Profile update', color: 'rgba(180,140,220,.6)', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(180,140,220,.6)" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
+  service_change:  { label: 'Service change', color: 'rgba(130,200,220,.8)', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(130,200,220,.8)" strokeWidth="2" strokeLinecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> },
+  block_time:      { label: 'Block time', color: 'rgba(220,130,160,.5)', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(220,130,160,.5)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> },
 }
 
 function RequestCard({ req, isOwnerOrAdmin, onReview }: { req: Request; isOwnerOrAdmin: boolean; onReview: (id: string, status: 'approved' | 'rejected') => void }) {
   const isPending = req.status === 'pending'
   const statusColors: Record<string, { bg: string; border: string; color: string }> = {
-    pending:  { bg: 'rgba(255,207,63,.08)', border: 'rgba(255,207,63,.25)', color: '#ffe9a3' },
-    approved: { bg: 'rgba(143,240,177,.08)', border: 'rgba(143,240,177,.25)', color: '#c9ffe1' },
-    rejected: { bg: 'rgba(255,107,107,.08)', border: 'rgba(255,107,107,.25)', color: '#ffd0d0' },
+    pending:  { bg: 'rgba(255,207,63,.08)', border: 'rgba(255,207,63,.25)', color: 'rgba(220,190,130,.5)' },
+    approved: { bg: 'rgba(143,240,177,.08)', border: 'rgba(143,240,177,.25)', color: 'rgba(130,220,170,.5)' },
+    rejected: { bg: 'rgba(255,107,107,.08)', border: 'rgba(255,107,107,.25)', color: 'rgba(220,130,160,.5)' },
   }
   const sc = statusColors[req.status] || statusColors.pending
-  const info = REQ_TYPE_INFO[req.type] || { label: req.type, color: '#e9e9e9', icon: null }
+  const info = REQ_TYPE_INFO[req.type] || { label: req.type, color: '#e8e8ed', icon: null }
   const detailStyle: React.CSSProperties = { padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)', fontSize: 12, color: 'rgba(255,255,255,.55)', marginBottom: isPending && isOwnerOrAdmin ? 10 : 0, lineHeight: 1.6 }
 
   return (
@@ -329,9 +329,9 @@ function RequestCard({ req, isOwnerOrAdmin, onReview }: { req: Request; isOwnerO
       {/* Details per type */}
       {req.type === 'schedule_change' && req.data && (
         <div style={detailStyle}>
-          {req.data.dayName && <div>Day: <strong style={{ color: '#e9e9e9' }}>{req.data.dayName}</strong></div>}
-          {req.data.workDays && <div>Days: <strong style={{ color: '#e9e9e9' }}>{req.data.workDays.join(', ')}</strong></div>}
-          <div>Hours: <strong style={{ color: '#e9e9e9' }}>{req.data.startTime} — {req.data.endTime}</strong></div>
+          {req.data.dayName && <div>Day: <strong style={{ color: '#e8e8ed' }}>{req.data.dayName}</strong></div>}
+          {req.data.workDays && <div>Days: <strong style={{ color: '#e8e8ed' }}>{req.data.workDays.join(', ')}</strong></div>}
+          <div>Hours: <strong style={{ color: '#e8e8ed' }}>{req.data.startTime} — {req.data.endTime}</strong></div>
           {req.data.note && <div style={{ marginTop: 4, color: 'rgba(255,255,255,.40)' }}>Note: {req.data.note}</div>}
         </div>
       )}
@@ -344,14 +344,14 @@ function RequestCard({ req, isOwnerOrAdmin, onReview }: { req: Request; isOwnerO
 
       {req.type === 'profile_change' && req.data?.changes && (
         <div style={detailStyle}>
-          {req.data.changes.about && <div>Bio: <strong style={{ color: '#e9e9e9' }}>{String(req.data.changes.about).slice(0, 60)}{String(req.data.changes.about).length > 60 ? '…' : ''}</strong></div>}
-          {req.data.changes.level && <div>Level: <strong style={{ color: '#e9e9e9' }}>{req.data.changes.level}</strong></div>}
-          {req.data.changes.base_price && <div>Price: <strong style={{ color: '#e9e9e9' }}>${req.data.changes.base_price}</strong></div>}
-          {req.data.changes.public_role && <div>Role: <strong style={{ color: '#e9e9e9' }}>{req.data.changes.public_role}</strong></div>}
+          {req.data.changes.about && <div>Bio: <strong style={{ color: '#e8e8ed' }}>{String(req.data.changes.about).slice(0, 60)}{String(req.data.changes.about).length > 60 ? '…' : ''}</strong></div>}
+          {req.data.changes.level && <div>Level: <strong style={{ color: '#e8e8ed' }}>{req.data.changes.level}</strong></div>}
+          {req.data.changes.base_price && <div>Price: <strong style={{ color: '#e8e8ed' }}>${req.data.changes.base_price}</strong></div>}
+          {req.data.changes.public_role && <div>Role: <strong style={{ color: '#e8e8ed' }}>{req.data.changes.public_role}</strong></div>}
           {req.data.scheduleSummary && Array.isArray(req.data.scheduleSummary) && (
-            <div>Schedule: <strong style={{ color: '#e9e9e9' }}>{req.data.scheduleSummary.join(', ')}</strong></div>
+            <div>Schedule: <strong style={{ color: '#e8e8ed' }}>{req.data.scheduleSummary.join(', ')}</strong></div>
           )}
-          {!req.data.scheduleSummary && req.data.changes.schedule && <div>Schedule: <strong style={{ color: '#e9e9e9' }}>Updated</strong></div>}
+          {!req.data.scheduleSummary && req.data.changes.schedule && <div>Schedule: <strong style={{ color: '#e8e8ed' }}>Updated</strong></div>}
           {req.data.changes.photo_url && (
             <div style={{ marginTop: 6 }}>
               <div style={{ marginBottom: 4 }}>New photo:</div>
@@ -363,26 +363,26 @@ function RequestCard({ req, isOwnerOrAdmin, onReview }: { req: Request; isOwnerO
 
       {req.type === 'service_change' && req.data && (
         <div style={detailStyle}>
-          <div>Service: <strong style={{ color: '#e9e9e9' }}>{req.data.serviceName || req.data.changes?.name || '—'}</strong></div>
-          {req.data.changes?.duration_minutes && <div>Duration: <strong style={{ color: '#e9e9e9' }}>{req.data.changes.duration_minutes} min</strong></div>}
-          {req.data.changes?.price_cents != null && <div>Price: <strong style={{ color: '#e9e9e9' }}>${(req.data.changes.price_cents / 100).toFixed(2)}</strong></div>}
-          {req.data.changes?.name && <div>New name: <strong style={{ color: '#e9e9e9' }}>{req.data.changes.name}</strong></div>}
+          <div>Service: <strong style={{ color: '#e8e8ed' }}>{req.data.serviceName || req.data.changes?.name || '—'}</strong></div>
+          {req.data.changes?.duration_minutes && <div>Duration: <strong style={{ color: '#e8e8ed' }}>{req.data.changes.duration_minutes} min</strong></div>}
+          {req.data.changes?.price_cents != null && <div>Price: <strong style={{ color: '#e8e8ed' }}>${(req.data.changes.price_cents / 100).toFixed(2)}</strong></div>}
+          {req.data.changes?.name && <div>New name: <strong style={{ color: '#e8e8ed' }}>{req.data.changes.name}</strong></div>}
         </div>
       )}
 
       {req.type === 'block_time' && req.data && (
         <div style={detailStyle}>
-          <div>Date: <strong style={{ color: '#e9e9e9' }}>{req.data.date || '—'}</strong></div>
-          <div>Time: <strong style={{ color: '#e9e9e9' }}>{req.data.startAt ? new Date(req.data.startAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—'} — {req.data.endAt ? new Date(req.data.endAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—'}</strong></div>
-          {req.data.barberName && <div>Barber: <strong style={{ color: '#e9e9e9' }}>{req.data.barberName}</strong></div>}
+          <div>Date: <strong style={{ color: '#e8e8ed' }}>{req.data.date || '—'}</strong></div>
+          <div>Time: <strong style={{ color: '#e8e8ed' }}>{req.data.startAt ? new Date(req.data.startAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—'} — {req.data.endAt ? new Date(req.data.endAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—'}</strong></div>
+          {req.data.barberName && <div>Barber: <strong style={{ color: '#e8e8ed' }}>{req.data.barberName}</strong></div>}
         </div>
       )}
 
       {/* Actions */}
       {isPending && isOwnerOrAdmin && (
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => onReview(req.id, 'approved')} style={{ flex: 1, height: 36, borderRadius: 10, border: '1px solid rgba(143,240,177,.45)', background: 'rgba(143,240,177,.10)', color: '#c9ffe1', cursor: 'pointer', fontWeight: 800, fontSize: 12, fontFamily: 'inherit' }}>Approve</button>
-          <button onClick={() => onReview(req.id, 'rejected')} style={{ flex: 1, height: 36, borderRadius: 10, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: '#ffd0d0', cursor: 'pointer', fontWeight: 800, fontSize: 12, fontFamily: 'inherit' }}>Reject</button>
+          <button onClick={() => onReview(req.id, 'approved')} style={{ flex: 1, height: 36, borderRadius: 10, border: '1px solid rgba(143,240,177,.45)', background: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)', cursor: 'pointer', fontWeight: 800, fontSize: 12, fontFamily: 'inherit' }}>Approve</button>
+          <button onClick={() => onReview(req.id, 'rejected')} style={{ flex: 1, height: 36, borderRadius: 10, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 800, fontSize: 12, fontFamily: 'inherit' }}>Reject</button>
         </div>
       )}
       {req.reviewedBy && (
@@ -416,9 +416,9 @@ function NewRequestModal({ onClose, onCreated }: { onClose: () => void; onCreate
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 16 }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={{ width: 'min(440px,100%)', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.60)', color: '#e9e9e9', fontFamily: 'Inter,sans-serif' }}>
+      <div style={{ width: 'min(440px,100%)', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.60)', color: '#e8e8ed', fontFamily: 'Inter,sans-serif' }}>
         <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid rgba(255,255,255,.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13 }}>New request</div>
+          <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13 }}>New request</div>
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
         <div style={{ padding: '16px 20px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -438,7 +438,7 @@ function NewRequestModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {DAY_NAMES.map(d => (
                     <button key={d} onClick={() => setDays(prev => prev.includes(d) ? prev.filter(x=>x!==d) : [...prev, d])}
-                      style={{ width: 42, height: 34, borderRadius: 8, border: `1px solid ${days.includes(d) ? 'rgba(10,132,255,.50)' : 'rgba(255,255,255,.10)'}`, background: days.includes(d) ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.04)', color: days.includes(d) ? '#d7ecff' : 'rgba(255,255,255,.40)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>{d}</button>
+                      style={{ width: 42, height: 34, borderRadius: 8, border: `1px solid ${days.includes(d) ? 'rgba(10,132,255,.50)' : 'rgba(255,255,255,.10)'}`, background: days.includes(d) ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.04)', color: days.includes(d) ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.40)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>{d}</button>
                   ))}
                 </div>
               </div>
@@ -468,7 +468,7 @@ function NewRequestModal({ onClose, onCreated }: { onClose: () => void; onCreate
           )}
 
           <button onClick={submit} disabled={saving}
-            style={{ height: 42, borderRadius: 12, border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.14)', color: '#d7ecff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
+            style={{ height: 42, borderRadius: 12, border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.14)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
             {saving ? 'Sending…' : 'Send request'}
           </button>
         </div>
@@ -851,10 +851,10 @@ export default function MessagesPage() {
         .msg-tabs-scroll::-webkit-scrollbar { display: none; }
       `}</style>
 
-      <div className="msg-container" style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Inter,sans-serif', color: '#e9e9e9' }}>
+      <div className="msg-container" style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Inter,sans-serif', color: '#e8e8ed' }}>
         {/* Header — glass morphism */}
         <div style={{ padding: '18px 20px 0', flexShrink: 0, background: 'rgba(0,0,0,.60)', backdropFilter: 'blur(30px) saturate(200%)', WebkitBackdropFilter: 'blur(30px) saturate(200%)' } as React.CSSProperties}>
-          <h2 style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 'clamp(16px,3vw,20px)', margin: 0, fontWeight: 400, textAlign: 'center' }}>Messages</h2>
+          <h2 style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 'clamp(16px,3vw,20px)', margin: 0, fontWeight: 400, textAlign: 'center' }}>Messages</h2>
           <div style={{ textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 2, letterSpacing: '.06em' }}>Team communication</div>
 
           {/* Tabs — pill shape, frosted glass */}
@@ -896,14 +896,14 @@ export default function MessagesPage() {
               const isBarber = roleType.includes('barber') && !roleType.includes('academy')
               const isAcademy = roleType.includes('academy')
               const statusColors: Record<string,{bg:string;border:string;color:string}> = {
-                new:       { bg: 'rgba(10,132,255,.08)', border: 'rgba(10,132,255,.35)', color: '#d7ecff' },
-                reviewed:  { bg: 'rgba(255,207,63,.08)', border: 'rgba(255,207,63,.35)', color: '#ffe9a3' },
-                interview: { bg: 'rgba(168,107,255,.08)', border: 'rgba(168,107,255,.35)', color: '#d4b8ff' },
-                hired:     { bg: 'rgba(143,240,177,.08)', border: 'rgba(143,240,177,.35)', color: '#c9ffe1' },
-                rejected:  { bg: 'rgba(255,107,107,.08)', border: 'rgba(255,107,107,.35)', color: '#ffd0d0' },
+                new:       { bg: 'rgba(10,132,255,.08)', border: 'rgba(10,132,255,.35)', color: 'rgba(130,150,220,.6)' },
+                reviewed:  { bg: 'rgba(255,207,63,.08)', border: 'rgba(255,207,63,.35)', color: 'rgba(220,190,130,.5)' },
+                interview: { bg: 'rgba(168,107,255,.08)', border: 'rgba(168,107,255,.35)', color: 'rgba(180,140,220,.6)' },
+                hired:     { bg: 'rgba(143,240,177,.08)', border: 'rgba(143,240,177,.35)', color: 'rgba(130,220,170,.5)' },
+                rejected:  { bg: 'rgba(255,107,107,.08)', border: 'rgba(255,107,107,.35)', color: 'rgba(220,130,160,.5)' },
               }
               const sc = statusColors[app.status] || statusColors.new
-              const roleBadge = isAcademy ? { bg: 'rgba(168,107,255,.12)', border: 'rgba(168,107,255,.40)', color: '#d4b8ff', label: 'ACADEMY' } : isBarber ? { bg: 'rgba(10,132,255,.12)', border: 'rgba(10,132,255,.40)', color: '#d7ecff', label: 'BARBER' } : { bg: 'rgba(143,240,177,.12)', border: 'rgba(143,240,177,.40)', color: '#c9ffe1', label: 'ADMIN' }
+              const roleBadge = isAcademy ? { bg: 'rgba(168,107,255,.12)', border: 'rgba(168,107,255,.40)', color: 'rgba(180,140,220,.6)', label: 'ACADEMY' } : isBarber ? { bg: 'rgba(10,132,255,.12)', border: 'rgba(10,132,255,.40)', color: 'rgba(130,150,220,.6)', label: 'BARBER' } : { bg: 'rgba(143,240,177,.12)', border: 'rgba(143,240,177,.40)', color: 'rgba(130,220,170,.5)', label: 'ADMIN' }
               return (
                 <div key={app.id} style={{ padding: '14px 16px', borderRadius: 16, border: `1px solid ${sc.border}`, background: sc.bg, marginBottom: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
@@ -989,7 +989,7 @@ export default function MessagesPage() {
                     <span style={{ fontSize: 12, color: 'rgba(255,255,255,.70)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{filePreview.name}</span>
                   </div>
                 )}
-                <button onClick={() => { setImagePreview(''); setFilePreview(null) }} style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.08)', color: '#ffd0d0', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <button onClick={() => { setImagePreview(''); setFilePreview(null) }} style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.08)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
@@ -999,7 +999,7 @@ export default function MessagesPage() {
               {isRecording && voiceSupported ? (
                 /* Recording UI */
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, height: 36 }}>
-                  <button onClick={cancelRecording} style={{ width: 36, height: 36, borderRadius: 999, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.10)', color: '#ffd0d0', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                  <button onClick={cancelRecording} style={{ width: 36, height: 36, borderRadius: 999, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.10)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                   <div className="rec-pulse" style={{ width: 8, height: 8, borderRadius: 999, background: '#ff3b30', flexShrink: 0 }} />
                   <span style={{ fontSize: 13, color: '#ff6b6b', fontWeight: 600, fontVariantNumeric: 'tabular-nums', minWidth: 36 }}>{fmtDur(recordingDuration)}</span>
                   <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2, height: 24 }}>
@@ -1016,20 +1016,20 @@ export default function MessagesPage() {
                 <>
                   <div style={{ position: 'relative', flexShrink: 0 }}>
                     <button onClick={() => setShowAttachMenu(v => !v)}
-                      style={{ width: 34, height: 34, borderRadius: 999, border: `1px solid ${showAttachMenu ? 'rgba(10,132,255,.40)' : 'rgba(255,255,255,.08)'}`, background: showAttachMenu ? 'rgba(10,132,255,.10)' : 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all .2s ease', transform: showAttachMenu ? 'rotate(45deg)' : 'none', color: showAttachMenu ? '#d7ecff' : 'rgba(255,255,255,.40)' }}>
+                      style={{ width: 34, height: 34, borderRadius: 999, border: `1px solid ${showAttachMenu ? 'rgba(10,132,255,.40)' : 'rgba(255,255,255,.08)'}`, background: showAttachMenu ? 'rgba(10,132,255,.10)' : 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all .2s ease', transform: showAttachMenu ? 'rotate(45deg)' : 'none', color: showAttachMenu ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.40)' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>
                     {showAttachMenu && (
                       <>
                         <div style={{ position: 'fixed', inset: 0, zIndex: 98 }} onClick={() => setShowAttachMenu(false)} />
                         <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 8, zIndex: 99, display: 'flex', flexDirection: 'column', gap: 4, padding: '6px', borderRadius: 16, background: 'rgba(20,20,20,.92)', border: '1px solid rgba(255,255,255,.12)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', boxShadow: '0 8px 32px rgba(0,0,0,.5)', animation: 'reactionPopIn .2s ease', minWidth: 150 }}>
-                          <label onClick={() => setShowAttachMenu(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', background: 'transparent', border: 'none', color: '#e9e9e9', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
+                          <label onClick={() => setShowAttachMenu(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', background: 'transparent', border: 'none', color: '#e8e8ed', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
                             onPointerDown={e => (e.currentTarget.style.background = 'rgba(255,255,255,.06)')} onPointerUp={e => (e.currentTarget.style.background = 'transparent')}>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(10,132,255,.80)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
                             Photo
                             <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { handleImageAttach(e.target.files?.[0] || null); e.target.value = '' }} />
                           </label>
-                          <label onClick={() => setShowAttachMenu(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', background: 'transparent', border: 'none', color: '#e9e9e9', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
+                          <label onClick={() => setShowAttachMenu(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', background: 'transparent', border: 'none', color: '#e8e8ed', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
                             onPointerDown={e => (e.currentTarget.style.background = 'rgba(255,255,255,.06)')} onPointerUp={e => (e.currentTarget.style.background = 'transparent')}>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,207,63,.80)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                             File

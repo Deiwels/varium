@@ -49,7 +49,7 @@ function SectionCard({ title, children, action }: { title: string; children: Rea
 function SmBtn({ onClick, children, danger, disabled }: { onClick: () => void; children: React.ReactNode; danger?: boolean; disabled?: boolean }) {
   return (
     <button onClick={onClick} disabled={disabled}
-      style={{ height: 36, padding: '0 14px', borderRadius: 999, border: `1px solid ${danger ? 'rgba(255,107,107,.45)' : 'rgba(255,255,255,.14)'}`, background: danger ? 'rgba(255,107,107,.10)' : 'rgba(255,255,255,.05)', color: danger ? '#ffd0d0' : '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', opacity: disabled ? .5 : 1 }}>
+      style={{ height: 36, padding: '0 14px', borderRadius: 999, border: `1px solid ${danger ? 'rgba(255,107,107,.45)' : 'rgba(255,255,255,.14)'}`, background: danger ? 'rgba(255,107,107,.10)' : 'rgba(255,255,255,.05)', color: danger ? 'rgba(220,130,160,.5)' : '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', opacity: disabled ? .5 : 1 }}>
       {children}
     </button>
   )
@@ -164,7 +164,7 @@ function HeroMediaCard({ settings: s, onUpdate, onSave }: { settings: any; onUpd
             <div style={{ height: '100%', width: `${progress}%`, background: 'rgba(10,132,255,.65)', borderRadius: 2, transition: 'width .3s' }} />
           </div>
         )}
-        {uploadMsg && <div style={{ fontSize: 11, color: uploadMsg.includes('error') || uploadMsg.includes('failed') || uploadMsg.includes('large') ? '#ffb7b7' : '#c9ffe1' }}>{uploadMsg}</div>}
+        {uploadMsg && <div style={{ fontSize: 11, color: uploadMsg.includes('error') || uploadMsg.includes('failed') || uploadMsg.includes('large') ? '#ffb7b7' : 'rgba(130,220,170,.5)' }}>{uploadMsg}</div>}
 
         {/* Or paste URL */}
         <Field label="Or paste URL directly">
@@ -237,7 +237,7 @@ function ScheduleEditor({ userId, userName, currentSchedule, onSaved }: { userId
           <div key={i} style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,.50)', marginBottom: 4, fontWeight: 900 }}>{day}</div>
             <button onClick={() => { const n = [...sched]; n[i] = { ...n[i], enabled: !n[i].enabled }; setSched(n) }}
-              style={{ width: '100%', height: 24, borderRadius: 6, border: `1px solid ${sched[i].enabled ? 'rgba(10,132,255,.50)' : 'rgba(255,255,255,.12)'}`, background: sched[i].enabled ? 'rgba(10,132,255,.15)' : 'rgba(255,255,255,.04)', color: sched[i].enabled ? '#d7ecff' : 'rgba(255,255,255,.35)', cursor: 'pointer', fontSize: 9, fontWeight: 900, fontFamily: 'inherit' }}>
+              style={{ width: '100%', height: 24, borderRadius: 6, border: `1px solid ${sched[i].enabled ? 'rgba(10,132,255,.50)' : 'rgba(255,255,255,.12)'}`, background: sched[i].enabled ? 'rgba(10,132,255,.15)' : 'rgba(255,255,255,.04)', color: sched[i].enabled ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.35)', cursor: 'pointer', fontSize: 9, fontWeight: 900, fontFamily: 'inherit' }}>
               {sched[i].enabled ? 'ON' : 'OFF'}
             </button>
             {sched[i].enabled && (
@@ -252,7 +252,7 @@ function ScheduleEditor({ userId, userName, currentSchedule, onSaved }: { userId
         ))}
       </div>
       <button onClick={save} disabled={saving}
-        style={{ marginTop: 8, width: '100%', height: 34, borderRadius: 10, border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.12)', color: '#d7ecff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
+        style={{ marginTop: 8, width: '100%', height: 34, borderRadius: 10, border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.12)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
         {saving ? 'Saving…' : 'Save schedule'}
       </button>
     </div>
@@ -319,10 +319,10 @@ function UsersTab() {
   }
 
   const roleColors: Record<string, { border: string; color: string }> = {
-    owner: { border: 'rgba(255,207,63,.35)', color: '#ffe9a3' },
-    admin: { border: 'rgba(143,240,177,.35)', color: '#c9ffe1' },
-    barber: { border: 'rgba(10,132,255,.35)', color: '#d7ecff' },
-    student: { border: 'rgba(168,107,255,.35)', color: '#d4b8ff' },
+    owner: { border: 'rgba(255,207,63,.35)', color: 'rgba(220,190,130,.5)' },
+    admin: { border: 'rgba(143,240,177,.35)', color: 'rgba(130,220,170,.5)' },
+    barber: { border: 'rgba(10,132,255,.35)', color: 'rgba(130,150,220,.6)' },
+    student: { border: 'rgba(168,107,255,.35)', color: 'rgba(180,140,220,.6)' },
   }
 
   return (
@@ -359,14 +359,14 @@ function UsersTab() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.14)' }}>
                   {barbers.length === 0 && <div style={{ fontSize: 12, color: 'rgba(255,255,255,.30)' }}>No barbers found</div>}
                   {barbers.map(b => (
-                    <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, color: '#e9e9e9' }}>
+                    <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, color: '#e8e8ed' }}>
                       <input type="checkbox"
                         checked={mentorBarberIds.includes(b.id)}
                         onChange={e => {
                           if (e.target.checked) setMentorBarberIds(prev => [...prev, b.id])
                           else setMentorBarberIds(prev => prev.filter(id => id !== b.id))
                         }}
-                        style={{ accentColor: '#a86bff', width: 16, height: 16 }}
+                        style={{ accentColor: 'rgba(180,140,220,.8)', width: 16, height: 16 }}
                       />
                       {b.name}
                     </label>
@@ -379,9 +379,9 @@ function UsersTab() {
             </div>
           )}
         </div>
-        {msg && <div style={{ fontSize: 12, color: msg.includes('Error') ? '#ffd0d0' : '#c9ffe1', padding: '8px 12px', borderRadius: 10, border: `1px solid ${msg.includes('Error') ? 'rgba(255,107,107,.30)' : 'rgba(143,240,177,.30)'}`, background: msg.includes('Error') ? 'rgba(255,107,107,.08)' : 'rgba(143,240,177,.08)' }}>{msg}</div>}
+        {msg && <div style={{ fontSize: 12, color: msg.includes('Error') ? 'rgba(220,130,160,.5)' : 'rgba(130,220,170,.5)', padding: '8px 12px', borderRadius: 10, border: `1px solid ${msg.includes('Error') ? 'rgba(255,107,107,.30)' : 'rgba(143,240,177,.30)'}`, background: msg.includes('Error') ? 'rgba(255,107,107,.08)' : 'rgba(143,240,177,.08)' }}>{msg}</div>}
         <button onClick={createUser} disabled={creating}
-          style={{ height: 44, borderRadius: 12, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.14)', color: '#d7ecff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: creating ? .5 : 1 }}>
+          style={{ height: 44, borderRadius: 12, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.14)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: creating ? .5 : 1 }}>
           {creating ? 'Creating…' : '+ Create account'}
         </button>
       </SectionCard>
@@ -456,7 +456,7 @@ function UsersTab() {
                   <td style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,.05)', color: 'rgba(255,255,255,.70)' }}>{feat as string}</td>
                   {[owner, admin, barber, student].map((v, i) => (
                     <td key={i} style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,.05)', textAlign: 'center' }}>
-                      {v ? <span style={{ color: '#8ff0b1', fontSize: 16 }}>✓</span> : <span style={{ color: 'rgba(255,255,255,.20)', fontSize: 14 }}>—</span>}
+                      {v ? <span style={{ color: 'rgba(130,220,170,.8)', fontSize: 16 }}>✓</span> : <span style={{ color: 'rgba(255,255,255,.20)', fontSize: 14 }}>—</span>}
                     </td>
                   ))}
                 </tr>
@@ -595,12 +595,12 @@ export default function SettingsPage() {
           .set-create-grid{grid-template-columns:1fr!important;}
         }
       `}</style>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#000', color: '#e9e9e9', fontFamily: 'Inter,system-ui,sans-serif' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#000', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
 
         {/* Topbar */}
         <div style={{ padding: '12px 20px', background: 'rgba(0,0,0,.80)', backdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,.08)', position: 'sticky', top: 0, zIndex: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div>
-            <h2 className="page-title" style={{ margin: 0, fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 15 }}>Settings</h2>
+            <h2 className="page-title" style={{ margin: 0, fontFamily: '"Inter",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 15 }}>Settings</h2>
             <p style={{ margin: '3px 0 0', color: 'rgba(255,255,255,.40)', fontSize: 11, letterSpacing: '.08em' }}>
               {loading ? 'Loading…' : s.updated_at ? `Last saved ${new Date(s.updated_at).toLocaleString()}` : 'Not saved yet'}
             </p>
@@ -609,7 +609,7 @@ export default function SettingsPage() {
             {dirty && <span style={{ fontSize: 11, padding: '4px 12px', borderRadius: 999, border: '1px solid rgba(255,255,255,.30)', background: 'rgba(255,255,255,.08)', color: '#fff', fontWeight: 900 }}>Unsaved</span>}
             <SmBtn onClick={load}>↻</SmBtn>
             <button onClick={save} disabled={saving || loading}
-              style={{ height: 40, padding: '0 20px', borderRadius: 999, border: '1px solid rgba(10,132,255,.75)', background: 'rgba(0,0,0,.75)', color: '#d7ecff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', boxShadow: '0 0 18px rgba(10,132,255,.25)', opacity: saving ? .5 : 1 }}>
+              style={{ height: 40, padding: '0 20px', borderRadius: 999, border: '1px solid rgba(10,132,255,.75)', background: 'rgba(0,0,0,.75)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', boxShadow: '0 0 18px rgba(10,132,255,.25)', opacity: saving ? .5 : 1 }}>
               {saving ? 'Saving…' : 'Save all'}
             </button>
           </div>
@@ -619,7 +619,7 @@ export default function SettingsPage() {
         <div style={{ display: 'flex', gap: 6, padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.30)', overflowX: 'auto', flexShrink: 0 }}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              style={{ height: 36, padding: '0 16px', borderRadius: 999, border: `1px solid ${tab===t.id ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)'}`, background: tab===t.id ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.04)', color: tab===t.id ? '#d7ecff' : 'rgba(255,255,255,.65)', cursor: 'pointer', fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+              style={{ height: 36, padding: '0 16px', borderRadius: 999, border: `1px solid ${tab===t.id ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)'}`, background: tab===t.id ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.04)', color: tab===t.id ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.65)', cursor: 'pointer', fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
               {t.label}
             </button>
           ))}
@@ -698,7 +698,7 @@ export default function SettingsPage() {
                 </SectionCard>
 
                 <SectionCard title="Custom charges & categories"
-                  action={<SmBtn onClick={() => { setCharges(c => [...c, { id: 'charge_'+Date.now(), name: '', type: 'percent', value: 0, color: '#0a84ff', enabled: true }]); setDirty(true) }}>+ Add</SmBtn>}>
+                  action={<SmBtn onClick={() => { setCharges(c => [...c, { id: 'charge_'+Date.now(), name: '', type: 'percent', value: 0, color: 'rgba(130,150,220,.9)', enabled: true }]); setDirty(true) }}>+ Add</SmBtn>}>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)' }}>Promotions, membership discounts, product sales</div>
                   {charges.length === 0 ? <div style={{ color: 'rgba(255,255,255,.30)', fontSize: 12 }}>No custom charges</div> :
                     charges.map((c, i) => (
@@ -710,7 +710,7 @@ export default function SettingsPage() {
                           <option value="label">Label only</option>
                         </select>
                         <input type="number" min={0} step={0.01} value={c.value||''} disabled={c.type==='label'} onChange={e => { const n=[...charges]; n[i]={...n[i],value:Number(e.target.value)}; setCharges(n); setDirty(true) }} placeholder="Value" style={{...inpSm,opacity:c.type==='label'?.4:1}} />
-                        <input type="color" value={c.color||'#0a84ff'} onChange={e => { const n=[...charges]; n[i]={...n[i],color:e.target.value}; setCharges(n); setDirty(true) }} style={{ height: 34, width: '100%', borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'none', cursor: 'pointer', padding: 2 }} />
+                        <input type="color" value={c.color||'rgba(130,150,220,.9)'} onChange={e => { const n=[...charges]; n[i]={...n[i],color:e.target.value}; setCharges(n); setDirty(true) }} style={{ height: 34, width: '100%', borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'none', cursor: 'pointer', padding: 2 }} />
                         <button onClick={() => { setCharges(charges.filter((_,j)=>j!==i)); setDirty(true) }} style={{ height: 34, width: 34, borderRadius: 10, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: '#ff6b6b', cursor: 'pointer', fontSize: 15 }}>✕</button>
                       </div>
                     ))
@@ -789,7 +789,7 @@ export default function SettingsPage() {
                       <div style={{ marginTop: 10, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)', fontSize: 12, color: 'rgba(255,255,255,.55)' }}>
                         Preview on Terminal: {' '}
                         {(payroll.tip_options || [15,20,25]).map((p: number, i: number) => (
-                          <span key={i} style={{ marginRight: 8, padding: '2px 10px', borderRadius: 999, border: '1px solid rgba(10,132,255,.40)', background: 'rgba(10,132,255,.10)', color: '#d7ecff', fontSize: 11 }}>{p}%</span>
+                          <span key={i} style={{ marginRight: 8, padding: '2px 10px', borderRadius: 999, border: '1px solid rgba(10,132,255,.40)', background: 'rgba(10,132,255,.10)', color: 'rgba(130,150,220,.6)', fontSize: 11 }}>{p}%</span>
                         ))}
                         <span style={{ padding: '2px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.55)', fontSize: 11 }}>No tip</span>
                       </div>
@@ -814,8 +814,8 @@ export default function SettingsPage() {
                   {squareOAuth.connected ? (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', borderRadius: 12, border: '1px solid rgba(143,240,177,.25)', background: 'rgba(143,240,177,.06)' }}>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#8ff0b1', display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ width: 8, height: 8, borderRadius: 999, background: '#8ff0b1', display: 'inline-block' }} />
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(130,220,170,.8)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(130,220,170,.8)', display: 'inline-block' }} />
                           Connected to Square
                         </div>
                         {squareOAuth.merchant_id && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', marginTop: 3 }}>Merchant: {squareOAuth.merchant_id}</div>}
@@ -855,12 +855,12 @@ export default function SettingsPage() {
             <div style={{ marginTop: 24, padding: '14px 16px', borderRadius: 16, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#e9e9e9' }}>Quick PIN</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#e8e8ed' }}>Quick PIN</div>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 2 }}>{hasPinSetup() ? 'PIN is set up for fast login' : 'No PIN set — login with password each time'}</div>
                 </div>
                 {hasPinSetup() && (
                   <button onClick={() => { clearPin(); showToast('PIN reset — you will set a new one on next login') }}
-                    style={{ height: 32, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.06)', color: '#ffd0d0', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                    style={{ height: 32, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.06)', color: 'rgba(220,130,160,.5)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                     Reset PIN
                   </button>
                 )}
@@ -873,8 +873,8 @@ export default function SettingsPage() {
 
       {/* Toast */}
       {toast && (
-        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: 'rgba(8,8,8,.92)', border: '1px solid rgba(255,255,255,.14)', borderRadius: 999, padding: '10px 20px', boxShadow: '0 20px 60px rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', gap: 10, backdropFilter: 'blur(18px)', fontSize: 13, zIndex: 5000, whiteSpace: 'nowrap', color: '#e9e9e9', fontFamily: 'inherit' }}>
-          <span style={{ width: 8, height: 8, borderRadius: 999, background: toast.includes('Error') || toast.includes('❌') ? '#ff6b6b' : toast.includes('⚠') ? '#ffd18a' : '#8ff0b1', flexShrink: 0 }} />
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: 'rgba(8,8,8,.92)', border: '1px solid rgba(255,255,255,.14)', borderRadius: 999, padding: '10px 20px', boxShadow: '0 20px 60px rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', gap: 10, backdropFilter: 'blur(18px)', fontSize: 13, zIndex: 5000, whiteSpace: 'nowrap', color: '#e8e8ed', fontFamily: 'inherit' }}>
+          <span style={{ width: 8, height: 8, borderRadius: 999, background: toast.includes('Error') || toast.includes('❌') ? '#ff6b6b' : toast.includes('⚠') ? '#ffd18a' : 'rgba(130,220,170,.8)', flexShrink: 0 }} />
           {toast}
         </div>
       )}

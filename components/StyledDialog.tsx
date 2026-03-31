@@ -91,10 +91,10 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
 
   const isConfirm = dialog?.type === 'confirm'
   const isError = dialog?.type === 'error'
-  const iconColor = isError ? '#ff6b6b' : isConfirm ? '#ffcf3f' : '#0a84ff'
+  const iconColor = isError ? '#ff6b6b' : isConfirm ? 'rgba(220,190,100,.8)' : 'rgba(130,150,220,.9)'
   const iconBg = isError ? 'rgba(255,107,107,.12)' : isConfirm ? 'rgba(255,207,63,.12)' : 'rgba(10,132,255,.12)'
   const iconBorder = isError ? 'rgba(255,107,107,.25)' : isConfirm ? 'rgba(255,207,63,.25)' : 'rgba(10,132,255,.25)'
-  const titleColor = isError ? '#ffd0d0' : isConfirm ? '#ffe9a3' : '#d7ecff'
+  const titleColor = isError ? 'rgba(220,130,160,.5)' : isConfirm ? 'rgba(220,190,130,.5)' : 'rgba(130,150,220,.6)'
 
   return (
     <DialogContext.Provider value={{ showAlert, showError, showConfirm }}>

@@ -2,14 +2,14 @@
 import { useEffect, useState, useCallback } from 'react'
 import Shell from '@/components/Shell'
 
-import { apiFetch, API, API_KEY } from '@/lib/api'
+import { apiFetch, API } from '@/lib/api'
 
 const isoToday = () => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` }
 const fmtTime = (iso?: string) => { if (!iso) return '—'; try { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) } catch { return '—' } }
 const fmtMins = (m: number) => { const h = Math.floor(m / 60); const mm = m % 60; return h > 0 ? `${h}h ${mm}m` : `${mm}m` }
 const fmtHours = (m: number) => (m / 60).toFixed(1) + 'h'
 
-const ROLE_COLORS: Record<string, string> = { owner: '#ffe9a3', admin: '#c9ffe1', barber: '#d7ecff', student: '#d4b8ff' }
+const ROLE_COLORS: Record<string, string> = { owner: 'rgba(220,190,130,.5)', admin: 'rgba(130,220,170,.5)', barber: 'rgba(130,150,220,.6)', student: 'rgba(180,140,220,.6)' }
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 interface AttRecord {
@@ -103,7 +103,7 @@ export default function AttendancePage() {
       const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
       const res = await fetch(`${API}/api/attendance/admin-clock-out`, {
         method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-API-KEY': API_KEY },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ attendance_id: attendanceId, user_id: userId })
       })
       const data = await res.json()
@@ -173,7 +173,7 @@ export default function AttendancePage() {
 
   return (
     <Shell page="attendance">
-      <div style={{ padding: '18px 18px 40px', maxWidth: 1400, margin: '0 auto', overflowY: 'auto', height: '100vh', color: '#e9e9e9', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div style={{ padding: '18px 18px 40px', maxWidth: 1400, margin: '0 auto', overflowY: 'auto', height: '100vh', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif' }}>
         <style>{`
           @keyframes latePulse { 0%,100%{opacity:.7} 50%{opacity:1} }
           .late-badge { animation: latePulse 2s ease-in-out infinite; }
@@ -196,7 +196,7 @@ export default function AttendancePage() {
         <div style={{ position: 'sticky', top: 0, zIndex: 20, padding: '10px 0 12px', background: 'linear-gradient(to bottom,rgba(0,0,0,.88),rgba(0,0,0,.68),transparent)', backdropFilter: 'blur(14px)', marginBottom: 16 } as React.CSSProperties}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <div>
-              <h2 style={{ margin: 0, fontFamily: '"Julius Sans One", sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 16 }}>Attendance</h2>
+              <h2 style={{ margin: 0, fontFamily: '"Inter", sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 16 }}>Attendance</h2>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginTop: 2 }}>Hours & clock history</div>
             </div>
             <div className="att-topbar-controls">
@@ -234,13 +234,13 @@ export default function AttendancePage() {
                       return (
                         <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 12, background: late > 0 ? 'rgba(255,107,107,.06)' : 'rgba(255,255,255,.03)', border: `1px solid ${late > 0 ? 'rgba(255,107,107,.15)' : 'rgba(255,255,255,.06)'}` }}>
                           {/* Clock icon */}
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={r.clock_out ? 'rgba(255,255,255,.30)' : '#8ff0b1'} strokeWidth="2" strokeLinecap="round">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={r.clock_out ? 'rgba(255,255,255,.30)' : 'rgba(130,220,170,.8)'} strokeWidth="2" strokeLinecap="round">
                             <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                           </svg>
                           {/* Name + role */}
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span style={{ fontWeight: 700, fontSize: 13, color: '#e9e9e9' }}>{r.user_name}</span>
+                              <span style={{ fontWeight: 700, fontSize: 13, color: '#e8e8ed' }}>{r.user_name}</span>
                               <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: ROLE_COLORS[r.role] || 'rgba(255,255,255,.50)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{r.role}</span>
                               {late > 0 && (
                                 <span className="late-badge" style={{ fontSize: 10, padding: '2px 6px', borderRadius: 999, background: 'rgba(255,107,107,.15)', border: '1px solid rgba(255,107,107,.30)', color: '#ff6b6b', fontWeight: 700 }}>
@@ -257,9 +257,9 @@ export default function AttendancePage() {
                           {/* Times */}
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
                             <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)' }}>
-                              {fmtTime(r.clock_in || undefined)} → {r.clock_out ? (<>{fmtTime(r.clock_out)}{r.auto_closed && <span style={{ fontSize: 9, color: '#ffb000', marginLeft: 4 }} title="Auto-closed: forgot to clock out">AUTO</span>}{r.capped_to_schedule && <span style={{ fontSize: 9, color: '#ff6b6b', marginLeft: 4 }} title={`Capped to schedule end (was ${r.distance_meters}m away)`}>CAPPED</span>}{r.at_shop === false && !r.auto_closed && !r.capped_to_schedule && <span style={{ fontSize: 9, color: 'rgba(255,255,255,.35)', marginLeft: 4 }}>OUT</span>}</>) : (<><span style={{ color: '#8ff0b1' }}>Still in</span>{isOwner && <button onClick={() => forceClockOut(r.id, r.user_name || '?', r.user_id || '')} style={{ marginLeft: 6, height: 20, padding: '0 8px', borderRadius: 6, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: '#ffd0d0', cursor: 'pointer', fontSize: 9, fontWeight: 700, fontFamily: 'inherit' }}>Clock out</button>}</>)}
+                              {fmtTime(r.clock_in || undefined)} → {r.clock_out ? (<>{fmtTime(r.clock_out)}{r.auto_closed && <span style={{ fontSize: 9, color: '#ffb000', marginLeft: 4 }} title="Auto-closed: forgot to clock out">AUTO</span>}{r.capped_to_schedule && <span style={{ fontSize: 9, color: '#ff6b6b', marginLeft: 4 }} title={`Capped to schedule end (was ${r.distance_meters}m away)`}>CAPPED</span>}{r.at_shop === false && !r.auto_closed && !r.capped_to_schedule && <span style={{ fontSize: 9, color: 'rgba(255,255,255,.35)', marginLeft: 4 }}>OUT</span>}</>) : (<><span style={{ color: 'rgba(130,220,170,.8)' }}>Still in</span>{isOwner && <button onClick={() => forceClockOut(r.id, r.user_name || '?', r.user_id || '')} style={{ marginLeft: 6, height: 20, padding: '0 8px', borderRadius: 6, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontSize: 9, fontWeight: 700, fontFamily: 'inherit' }}>Clock out</button>}</>)}
                             </div>
-                            <div style={{ fontSize: 11, color: '#8ff0b1', fontWeight: 700 }}>
+                            <div style={{ fontSize: 11, color: 'rgba(130,220,170,.8)', fontWeight: 700 }}>
                               {r.duration_minutes ? fmtMins(r.duration_minutes) : (r.clock_in ? fmtMins(Math.round((Date.now() - new Date(r.clock_in).getTime()) / 60000)) : '—')}
                             </div>
                           </div>
@@ -292,17 +292,17 @@ export default function AttendancePage() {
                 {summaryList.map(([uid, u]) => (
                   <div key={uid} style={{ padding: '8px 10px', borderRadius: 12, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: '#e9e9e9', flex: 1 }}>{u.name}</span>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: '#e8e8ed', flex: 1 }}>{u.name}</span>
                       <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: ROLE_COLORS[u.role] || 'rgba(255,255,255,.50)', textTransform: 'uppercase' }}>{u.role}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 16, fontSize: 12 }}>
                       <div>
                         <span style={{ color: 'rgba(255,255,255,.40)' }}>Hours: </span>
-                        <span style={{ color: '#8ff0b1', fontWeight: 700 }}>{fmtHours(u.total_minutes)}</span>
+                        <span style={{ color: 'rgba(130,220,170,.8)', fontWeight: 700 }}>{fmtHours(u.total_minutes)}</span>
                       </div>
                       <div>
                         <span style={{ color: 'rgba(255,255,255,.40)' }}>Shifts: </span>
-                        <span style={{ color: '#d7ecff', fontWeight: 700 }}>{u.shifts}</span>
+                        <span style={{ color: 'rgba(130,150,220,.6)', fontWeight: 700 }}>{u.shifts}</span>
                       </div>
                       {u.late_count > 0 && (
                         <div>

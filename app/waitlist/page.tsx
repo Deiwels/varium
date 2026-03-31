@@ -211,17 +211,17 @@ export default function WaitlistPage() {
         {/* Header */}
         <div className="wl-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', position: 'relative' }}>
           <div style={{ position: 'absolute', left: 0, right: 0, textAlign: 'center', pointerEvents: 'none' }}>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#e9e9e9', fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.12em', textTransform: 'uppercase' }}>Waitlist</h2>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#e8e8ed', fontFamily: '"Inter",sans-serif', letterSpacing: '.12em', textTransform: 'uppercase' }}>Waitlist</h2>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginTop: 2 }}>{filtered.length} waiting</div>
           </div>
           <div style={{ visibility: 'hidden', pointerEvents: 'none' }}>
             <div style={{ height: 36 }}>placeholder</div>
           </div>
           <div style={{ display: 'flex', gap: 8, position: 'relative', zIndex: 1 }}>
-            <button onClick={checkWaitlist} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(143,240,177,.35)', background: 'rgba(143,240,177,.08)', color: '#c9ffe1', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit' }}>
+            <button onClick={checkWaitlist} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(143,240,177,.35)', background: 'rgba(143,240,177,.08)', color: 'rgba(130,220,170,.5)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit' }}>
               Check & notify
             </button>
-            <button onClick={() => setAdding(!adding)} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.12)', color: '#d7ecff', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit' }}>
+            <button onClick={() => setAdding(!adding)} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.12)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit' }}>
               {adding ? 'Cancel' : '+ Add'}
             </button>
           </div>
@@ -236,7 +236,7 @@ export default function WaitlistPage() {
           </button>
           {barbers.map(b => (
             <button key={b.id} onClick={() => setFilter(b.id)}
-              style={{ height: 32, padding: '0 12px', borderRadius: 999, border: `1px solid ${filter === b.id ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)'}`, background: filter === b.id ? 'rgba(10,132,255,.12)' : 'transparent', color: filter === b.id ? '#d7ecff' : 'rgba(255,255,255,.65)', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
+              style={{ height: 32, padding: '0 12px', borderRadius: 999, border: `1px solid ${filter === b.id ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)'}`, background: filter === b.id ? 'rgba(10,132,255,.12)' : 'transparent', color: filter === b.id ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.65)', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
               {b.name}
             </button>
           ))}
@@ -246,7 +246,7 @@ export default function WaitlistPage() {
         {/* Add form */}
         {adding && (
           <div style={{ padding: 16, borderRadius: 18, border: '1px solid rgba(10,132,255,.25)', background: 'rgba(10,132,255,.06)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#d7ecff', letterSpacing: '.08em', textTransform: 'uppercase' }}>Add to waitlist</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(130,150,220,.6)', letterSpacing: '.08em', textTransform: 'uppercase' }}>Add to waitlist</div>
 
             {/* Selected client card */}
             {selectedClient ? (
@@ -275,7 +275,7 @@ export default function WaitlistPage() {
                       style={{ ...inp, paddingLeft: 38 }}
                       type="tel" autoComplete="off"
                     />
-                    {phoneSearching && <div style={{ position: 'absolute', right: 14, width: 16, height: 16, border: '2px solid rgba(255,255,255,.20)', borderTop: '2px solid #0a84ff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />}
+                    {phoneSearching && <div style={{ position: 'absolute', right: 14, width: 16, height: 16, border: '2px solid rgba(255,255,255,.20)', borderTop: '2px solid rgba(130,150,220,.9)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />}
                   </div>
                 </div>
 
@@ -367,7 +367,7 @@ export default function WaitlistPage() {
                               onClick={() => { if (disabled) return; const y = c.date.getFullYear(), m = c.date.getMonth(), d = c.date.getDate(); setNewDate(`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`); setCalOpen(false) }}
                               style={{ height: 36, borderRadius: 999, border: 'none', cursor: disabled ? 'default' : 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
                                 background: isSel ? 'rgba(10,132,255,.22)' : 'transparent',
-                                color: disabled ? 'rgba(255,255,255,.18)' : isSel ? '#fff' : c.inMonth ? '#e9e9e9' : 'rgba(255,255,255,.18)',
+                                color: disabled ? 'rgba(255,255,255,.18)' : isSel ? '#fff' : c.inMonth ? '#e8e8ed' : 'rgba(255,255,255,.18)',
                                 boxShadow: isSel ? '0 0 0 2px rgba(10,132,255,.75) inset, 0 0 14px rgba(10,132,255,.30)' : isToday && c.inMonth ? '0 0 0 1px rgba(255,255,255,.20) inset' : 'none',
                               }}>
                               {c.day}
@@ -388,7 +388,7 @@ export default function WaitlistPage() {
                 <div className="wl-services-wrap" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {services.filter((s: any) => !s.barber_ids?.length || s.barber_ids.includes(newBarberId)).map((s: any) => (
                     <button key={s.id} onClick={() => setNewServiceIds(prev => prev.includes(s.id) ? prev.filter(x => x !== s.id) : [...prev, s.id])}
-                      style={{ height: 32, padding: '0 12px', borderRadius: 999, border: `1px solid ${newServiceIds.includes(s.id) ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.12)'}`, background: newServiceIds.includes(s.id) ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.04)', color: newServiceIds.includes(s.id) ? '#d7ecff' : 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}>
+                      style={{ height: 32, padding: '0 12px', borderRadius: 999, border: `1px solid ${newServiceIds.includes(s.id) ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.12)'}`, background: newServiceIds.includes(s.id) ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.04)', color: newServiceIds.includes(s.id) ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}>
                       {s.name} ({s.duration_minutes}min)
                     </button>
                   ))}
@@ -434,7 +434,7 @@ export default function WaitlistPage() {
             )}
 
             <button onClick={addEntry} disabled={saving || (!(selectedClient?.name || newName.trim())) || !newBarberId}
-              style={{ height: 44, borderRadius: 12, border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.14)', color: '#d7ecff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
+              style={{ height: 44, borderRadius: 12, border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.14)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
               {saving ? 'Adding…' : 'Add to waitlist'}
             </button>
           </div>
@@ -461,7 +461,7 @@ export default function WaitlistPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <span style={{ fontWeight: 800, fontSize: 14 }}>{entry.client_name || 'Unknown'}</span>
-                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, border: '1px solid rgba(255,207,63,.30)', background: 'rgba(255,207,63,.08)', color: '#ffe9a3', letterSpacing: '.06em', textTransform: 'uppercase', fontWeight: 700 }}>WAITING</span>
+                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, border: '1px solid rgba(255,207,63,.30)', background: 'rgba(255,207,63,.08)', color: 'rgba(220,190,130,.5)', letterSpacing: '.06em', textTransform: 'uppercase', fontWeight: 700 }}>WAITING</span>
                     </div>
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,.45)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                       <span>{barber?.name || entry.barber_name || '—'}</span>
@@ -480,11 +480,11 @@ export default function WaitlistPage() {
                   </div>
                   <div className="wl-entry-actions" style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                     <button onClick={() => confirm(entry.id)}
-                      style={{ height: 32, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(143,240,177,.40)', background: 'rgba(143,240,177,.10)', color: '#c9ffe1', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
+                      style={{ height: 32, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(143,240,177,.40)', background: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
                       Confirm
                     </button>
                     <button onClick={() => remove(entry.id)}
-                      style={{ height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.06)', color: '#ffd0d0', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
+                      style={{ height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.06)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
                       ✕
                     </button>
                   </div>

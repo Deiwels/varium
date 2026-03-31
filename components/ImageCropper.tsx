@@ -232,13 +232,13 @@ export default function ImageCropper({ src, onSave, onClose, shape = 'square' }:
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,.70)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, opacity: visible ? 1 : 0, transition: 'opacity .25s ease' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={{ width: 'min(400px, 100%)', maxHeight: '92vh', borderRadius: 24, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', color: '#e9e9e9', fontFamily: 'Inter,sans-serif', boxShadow: '0 30px 80px rgba(0,0,0,.55), inset 0 0 0 0.5px rgba(255,255,255,.06)', overflow: 'hidden', display: 'flex', flexDirection: 'column', transform: visible ? 'scale(1)' : 'scale(0.95)', transition: 'transform .25s ease' }}>
+      <div style={{ width: 'min(400px, 100%)', maxHeight: '92vh', borderRadius: 24, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', color: '#e8e8ed', fontFamily: 'Inter,sans-serif', boxShadow: '0 30px 80px rgba(0,0,0,.55), inset 0 0 0 0.5px rgba(255,255,255,.06)', overflow: 'hidden', display: 'flex', flexDirection: 'column', transform: visible ? 'scale(1)' : 'scale(0.95)', transition: 'transform .25s ease' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,.07)', flexShrink: 0 }}>
           <button onClick={onClose} style={{ height: 32, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>Cancel</button>
-          <div style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.14em', textTransform: 'uppercase', fontSize: 11 }}>Edit Photo</div>
-          <button onClick={handleSave} style={{ height: 32, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(10,132,255,.50)', background: 'rgba(10,132,255,.12)', color: '#d7ecff', cursor: 'pointer', fontWeight: 900, fontSize: 11, fontFamily: 'inherit', boxShadow: '0 0 10px rgba(10,132,255,.15)' }}>Save</button>
+          <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.14em', textTransform: 'uppercase', fontSize: 11 }}>Edit Photo</div>
+          <button onClick={handleSave} style={{ height: 32, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(10,132,255,.50)', background: 'rgba(10,132,255,.12)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 11, fontFamily: 'inherit', boxShadow: '0 0 10px rgba(10,132,255,.15)' }}>Save</button>
         </div>
 
         {/* Preview */}
@@ -267,7 +267,7 @@ export default function ImageCropper({ src, onSave, onClose, shape = 'square' }:
         <div style={{ display: 'flex', gap: 4, padding: '0 16px 8px', justifyContent: 'center', flexShrink: 0 }}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              style={{ height: 32, padding: '0 14px', borderRadius: 999, border: `1px solid ${tab === t.id ? 'rgba(10,132,255,.40)' : 'rgba(255,255,255,.08)'}`, background: tab === t.id ? 'rgba(10,132,255,.12)' : 'rgba(255,255,255,.03)', color: tab === t.id ? '#d7ecff' : 'rgba(255,255,255,.45)', cursor: 'pointer', fontWeight: 800, fontSize: 10, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, transition: 'all .2s ease' }}>
+              style={{ height: 32, padding: '0 14px', borderRadius: 999, border: `1px solid ${tab === t.id ? 'rgba(10,132,255,.40)' : 'rgba(255,255,255,.08)'}`, background: tab === t.id ? 'rgba(10,132,255,.12)' : 'rgba(255,255,255,.03)', color: tab === t.id ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.45)', cursor: 'pointer', fontWeight: 800, fontSize: 10, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, transition: 'all .2s ease' }}>
               {t.icon}{t.label}
             </button>
           ))}
@@ -290,7 +290,7 @@ export default function ImageCropper({ src, onSave, onClose, shape = 'square' }:
               <div style={{ display: 'flex', gap: 6 }}>
                 {[0, 90, 180, 270].map(deg => (
                   <button key={deg} onClick={() => setRotation(deg)}
-                    style={{ flex: 1, height: 34, borderRadius: 10, border: `1px solid ${rotation === deg ? 'rgba(10,132,255,.40)' : 'rgba(255,255,255,.08)'}`, background: rotation === deg ? 'rgba(10,132,255,.10)' : 'rgba(255,255,255,.03)', color: rotation === deg ? '#d7ecff' : 'rgba(255,255,255,.45)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
+                    style={{ flex: 1, height: 34, borderRadius: 10, border: `1px solid ${rotation === deg ? 'rgba(10,132,255,.40)' : 'rgba(255,255,255,.08)'}`, background: rotation === deg ? 'rgba(10,132,255,.10)' : 'rgba(255,255,255,.03)', color: rotation === deg ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.45)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
                     {deg === 0 ? 'Original' : `${deg}°`}
                   </button>
                 ))}
@@ -304,7 +304,7 @@ export default function ImageCropper({ src, onSave, onClose, shape = 'square' }:
               {FILTERS.map(f => (
                 <button key={f.id} onClick={() => setFilter(f.id)} style={{ padding: 0, border: `2px solid ${filter === f.id ? 'rgba(10,132,255,.60)' : 'rgba(255,255,255,.06)'}`, borderRadius: 10, overflow: 'hidden', cursor: 'pointer', background: '#000', position: 'relative', aspectRatio: '1', boxShadow: filter === f.id ? '0 0 10px rgba(10,132,255,.20)' : 'none', transition: 'all .2s ease' }}>
                   <img src={src} alt={f.label} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: getFilterCSS(f.id) || 'none', display: 'block' }} />
-                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,.75)', padding: '3px 0', fontSize: 7, fontWeight: 800, letterSpacing: '.06em', textAlign: 'center', color: filter === f.id ? '#d7ecff' : 'rgba(255,255,255,.55)', textTransform: 'uppercase' }}>{f.label}</div>
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,.75)', padding: '3px 0', fontSize: 7, fontWeight: 800, letterSpacing: '.06em', textAlign: 'center', color: filter === f.id ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.55)', textTransform: 'uppercase' }}>{f.label}</div>
                 </button>
               ))}
             </div>

@@ -27,8 +27,8 @@ const isSquareId   = (s: string) => s.length > 14 && /^[A-Za-z0-9]{14,}$/.test(s
 // ─── StatusChip ───────────────────────────────────────────────────────────────
 function StatusChip({ status }: { status: string }) {
   const styles: Record<string, React.CSSProperties> = {
-    paid:     { borderColor: 'rgba(143,240,177,.45)', background: 'rgba(143,240,177,.10)', color: '#c9ffe1' },
-    refunded: { borderColor: 'rgba(255,107,107,.45)', background: 'rgba(255,107,107,.10)', color: '#ffd0d0' },
+    paid:     { borderColor: 'rgba(143,240,177,.45)', background: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)' },
+    refunded: { borderColor: 'rgba(255,107,107,.45)', background: 'rgba(255,107,107,.10)', color: 'rgba(220,130,160,.5)' },
     pending:  { borderColor: 'rgba(255,207,63,.45)',  background: 'rgba(255,207,63,.10)',  color: '#ffe7c8' },
   }
   const s = styles[status] || {}
@@ -77,9 +77,9 @@ function DatePicker({ from, to, onChange, onClose }: { from: string; to: string;
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(8px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={{ width: 'min(520px,96vw)', borderRadius: 20, border: '1px solid rgba(255,255,255,.12)', background: 'linear-gradient(180deg,rgba(20,20,30,.90),rgba(10,10,20,.88))', backdropFilter: 'blur(24px)', padding: 18, color: '#e9e9e9', fontFamily: 'Inter,sans-serif', boxShadow: '0 20px 60px rgba(0,0,0,.6)' }}>
+      <div style={{ width: 'min(520px,96vw)', borderRadius: 20, border: '1px solid rgba(255,255,255,.12)', background: 'linear-gradient(180deg,rgba(20,20,30,.90),rgba(10,10,20,.88))', backdropFilter: 'blur(24px)', padding: 18, color: '#e8e8ed', fontFamily: 'Inter,sans-serif', boxShadow: '0 20px 60px rgba(0,0,0,.6)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid rgba(255,255,255,.08)' }}>
-          <div style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13 }}>Date range</div>
+          <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13 }}>Date range</div>
           <button onClick={onClose} style={{ height: 32, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit' }}>Close</button>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -96,7 +96,7 @@ function DatePicker({ from, to, onChange, onClose }: { from: string; to: string;
             <button onClick={() => { const m = new Date(month); m.setMonth(m.getMonth()+1); setMonth(m) }} style={{ height: 34, width: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit' }}>→</button>
           </div>
           <div style={{ fontWeight: 900, fontSize: 14 }}>{month.toLocaleDateString([], { month: 'long', year: 'numeric' })}</div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: step==='from' ? '#0a84ff' : '#8ff0b1' }}>{step==='from' ? 'Pick start →' : '← Pick end'}</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: step==='from' ? 'rgba(130,150,220,.9)' : 'rgba(130,220,170,.8)' }}>{step==='from' ? 'Pick start →' : '← Pick end'}</div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 4 }}>
           {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', padding: '4px 0' }}>{d}</div>)}
@@ -107,7 +107,7 @@ function DatePicker({ from, to, onChange, onClose }: { from: string; to: string;
             const isFrom = iso === selFrom, isTo = iso === selTo, inRange = iso > selFrom && iso < selTo
             return (
               <button key={iso} onClick={() => pick(iso)}
-                style={{ height: 38, borderRadius: 10, border: `1px solid ${isFrom ? 'rgba(10,132,255,.75)' : isTo ? 'rgba(143,240,177,.65)' : iso===todayStr ? 'rgba(255,207,63,.50)' : 'rgba(255,255,255,.08)'}`, background: isFrom ? 'rgba(10,132,255,.20)' : isTo ? 'rgba(143,240,177,.15)' : inRange ? 'rgba(10,132,255,.08)' : 'rgba(0,0,0,.18)', color: isTo ? '#c9ffe1' : '#fff', cursor: 'pointer', opacity: inMonth ? 1 : 0.3, fontWeight: isFrom||isTo ? 900 : 500, fontSize: 12, fontFamily: 'inherit' }}>
+                style={{ height: 38, borderRadius: 10, border: `1px solid ${isFrom ? 'rgba(10,132,255,.75)' : isTo ? 'rgba(143,240,177,.65)' : iso===todayStr ? 'rgba(255,207,63,.50)' : 'rgba(255,255,255,.08)'}`, background: isFrom ? 'rgba(10,132,255,.20)' : isTo ? 'rgba(143,240,177,.15)' : inRange ? 'rgba(10,132,255,.08)' : 'rgba(0,0,0,.18)', color: isTo ? 'rgba(130,220,170,.5)' : '#fff', cursor: 'pointer', opacity: inMonth ? 1 : 0.3, fontWeight: isFrom||isTo ? 900 : 500, fontSize: 12, fontFamily: 'inherit' }}>
                 {parseInt(iso.slice(8))}
               </button>
             )
@@ -141,8 +141,8 @@ function RefundModal({ payment, onClose, onDone }: { payment: Payment; onClose: 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.60)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, backdropFilter: 'blur(10px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={{ width: 'min(380px,92vw)', borderRadius: 20, border: '1px solid rgba(255,255,255,.12)', background: 'linear-gradient(180deg,rgba(22,22,32,.92),rgba(12,12,20,.90))', backdropFilter: 'blur(24px)', padding: 22, color: '#e9e9e9', fontFamily: 'Inter,sans-serif', boxShadow: '0 24px 80px rgba(0,0,0,.6)' }}>
-        <div style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 12, color: 'rgba(255,255,255,.55)', marginBottom: 12 }}>Refund payment</div>
+      <div style={{ width: 'min(380px,92vw)', borderRadius: 20, border: '1px solid rgba(255,255,255,.12)', background: 'linear-gradient(180deg,rgba(22,22,32,.92),rgba(12,12,20,.90))', backdropFilter: 'blur(24px)', padding: 22, color: '#e8e8ed', fontFamily: 'Inter,sans-serif', boxShadow: '0 24px 80px rgba(0,0,0,.6)' }}>
+        <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 12, color: 'rgba(255,255,255,.55)', marginBottom: 12 }}>Refund payment</div>
         <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 18, lineHeight: 1.5 }}>
           {payment.client_name || '—'}<br/>
           <span style={{ fontWeight: 400, color: 'rgba(255,255,255,.55)', fontSize: 13 }}>{methodLabel(payment.method)} · {fmtMoney(payment.amount)}{payment.tip ? ` + ${fmtMoney(payment.tip)} tip` : ''}</span>
@@ -157,7 +157,7 @@ function RefundModal({ payment, onClose, onDone }: { payment: Payment; onClose: 
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{ height: 38, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
-          <button onClick={confirm} disabled={saving} style={{ height: 38, padding: '0 18px', borderRadius: 999, border: '1px solid rgba(255,107,107,.55)', background: 'rgba(255,107,107,.12)', color: '#ffd0d0', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13 }}>
+          <button onClick={confirm} disabled={saving} style={{ height: 38, padding: '0 18px', borderRadius: 999, border: '1px solid rgba(255,107,107,.55)', background: 'rgba(255,107,107,.12)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13 }}>
             {saving ? 'Processing…' : 'Refund'}
           </button>
         </div>
@@ -345,13 +345,13 @@ export default function PaymentsPage() {
         }
         @keyframes paySpin { to { transform:rotate(360deg) } }
       `}</style>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#000', color: '#e9e9e9', fontFamily: 'Inter,system-ui,sans-serif' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#000', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
 
         {/* Topbar */}
         <div style={{ padding: '10px 14px', background: 'rgba(0,0,0,.80)', backdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,.08)', position: 'sticky', top: 0, zIndex: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
             <div style={{ minWidth: 0 }}>
-              <h2 className="page-title" style={{ margin: 0, fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 14 }}>Payments</h2>
+              <h2 className="page-title" style={{ margin: 0, fontFamily: '"Inter",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 14 }}>Payments</h2>
               <p style={{ margin: '2px 0 0', color: 'rgba(255,255,255,.35)', fontSize: 10, letterSpacing: '.06em' }}>
                 {visible.length} · {fmtDateShort(from)} → {fmtDateShort(to)}
               </p>
@@ -362,17 +362,17 @@ export default function PaymentsPage() {
                 {from === to && from === todayIso() ? 'Today' : `${fmtDateShort(from)} → ${fmtDateShort(to)}`}
               </button>
               <button onClick={exportCSV}
-                style={{ height: 34, padding: '0 10px', borderRadius: 999, border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.08)', color: '#d7ecff', cursor: 'pointer', fontWeight: 800, fontSize: 10, fontFamily: 'inherit' }}>
+                style={{ height: 34, padding: '0 10px', borderRadius: 999, border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.08)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 800, fontSize: 10, fontFamily: 'inherit' }}>
                 CSV
               </button>
               {isOwner && (
                 <button onClick={syncTips} disabled={syncing}
-                  style={{ height: 34, padding: '0 10px', borderRadius: 999, border: '1px solid rgba(143,240,177,.35)', background: 'rgba(143,240,177,.06)', color: '#c9ffe1', cursor: syncing ? 'wait' : 'pointer', fontWeight: 800, fontSize: 10, fontFamily: 'inherit', opacity: syncing ? .5 : 1 }}>
+                  style={{ height: 34, padding: '0 10px', borderRadius: 999, border: '1px solid rgba(143,240,177,.35)', background: 'rgba(143,240,177,.06)', color: 'rgba(130,220,170,.5)', cursor: syncing ? 'wait' : 'pointer', fontWeight: 800, fontSize: 10, fontFamily: 'inherit', opacity: syncing ? .5 : 1 }}>
                   {syncing ? '…' : 'Sync'}
                 </button>
               )}
             </div>
-            {syncResult && <div style={{ padding: '8px 14px', borderRadius: 10, background: 'rgba(143,240,177,.06)', border: '1px solid rgba(143,240,177,.15)', color: '#c9ffe1', fontSize: 12, marginTop: 8 }}>{syncResult}</div>}
+            {syncResult && <div style={{ padding: '8px 14px', borderRadius: 10, background: 'rgba(143,240,177,.06)', border: '1px solid rgba(143,240,177,.15)', color: 'rgba(130,220,170,.5)', fontSize: 12, marginTop: 8 }}>{syncResult}</div>}
           </div>
           {/* Filters — horizontal scrolling chips on mobile */}
           <div style={{ display: 'flex', gap: 6, overflowX: 'auto', alignItems: 'center', paddingBottom: 2, scrollbarWidth: 'none' as any, WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
@@ -441,7 +441,7 @@ export default function PaymentsPage() {
                             <div style={{ minWidth: 0 }}>
                               <div style={{ fontWeight: 900, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
                                 {clientName || <span style={{ color: 'rgba(255,255,255,.30)' }}>—</span>}
-                                {isTerminal && <span style={{ fontSize: 9, letterSpacing: '.06em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 999, border: '1px solid rgba(10,132,255,.40)', background: 'rgba(10,132,255,.10)', color: '#d7ecff' }}>Terminal</span>}
+                                {isTerminal && <span style={{ fontSize: 9, letterSpacing: '.06em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 999, border: '1px solid rgba(10,132,255,.40)', background: 'rgba(10,132,255,.10)', color: 'rgba(130,150,220,.6)' }}>Terminal</span>}
                               </div>
                               <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
                                 {[p.barber_name, service].filter(Boolean).join(' · ')}
@@ -486,7 +486,7 @@ export default function PaymentsPage() {
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <div style={{ fontWeight: 900, fontSize: 14 }}>{fmtMoney(p.amount)}</div>
-                      {(p.tip || 0) > 0 && <div style={{ fontSize: 10, color: '#ffe9a3', marginTop: 1 }}>+{fmtMoney(p.tip || 0)} tip</div>}
+                      {(p.tip || 0) > 0 && <div style={{ fontSize: 10, color: 'rgba(220,190,130,.5)', marginTop: 1 }}>+{fmtMoney(p.tip || 0)} tip</div>}
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
@@ -553,7 +553,7 @@ export default function PaymentsPage() {
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {p.status === 'paid' && p.square_id && (
                     <button onClick={() => setRefundTarget(p)}
-                      style={{ height: 36, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,107,107,.55)', background: 'rgba(255,107,107,.10)', color: '#ffd0d0', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>
+                      style={{ height: 36, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,107,107,.55)', background: 'rgba(255,107,107,.10)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>
                       Refund
                     </button>
                   )}

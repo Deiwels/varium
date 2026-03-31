@@ -18,9 +18,9 @@ const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Satur
 const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 const FREQ_LABELS: Record<string,string> = { weekly: 'Weekly', biweekly: 'Every 2 weeks', monthly: 'Monthly' }
 const STATUS_STYLES: Record<string, { color: string; bg: string; border: string }> = {
-  active: { color: '#8ff0b1', bg: 'rgba(143,240,177,.10)', border: 'rgba(143,240,177,.30)' },
-  paused: { color: '#ffe9a3', bg: 'rgba(255,207,63,.08)', border: 'rgba(255,207,63,.30)' },
-  cancelled: { color: '#ffd0d0', bg: 'rgba(255,107,107,.08)', border: 'rgba(255,107,107,.25)' },
+  active: { color: 'rgba(130,220,170,.8)', bg: 'rgba(143,240,177,.10)', border: 'rgba(143,240,177,.30)' },
+  paused: { color: 'rgba(220,190,130,.5)', bg: 'rgba(255,207,63,.08)', border: 'rgba(255,207,63,.30)' },
+  cancelled: { color: 'rgba(220,130,160,.5)', bg: 'rgba(255,107,107,.08)', border: 'rgba(255,107,107,.25)' },
 }
 
 const money = (cents: number) => '$' + (cents / 100).toFixed(2)
@@ -160,7 +160,7 @@ export default function MembershipPage() {
             <img src="/Element_logo-05.jpg" alt="Element" style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover' }} />
             <svg viewBox="0 0 80 80" fill="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', animation: 'memSpin 1.2s linear infinite' }}>
               <circle cx="40" cy="40" r="38" stroke="rgba(255,255,255,.08)" strokeWidth="2.5" />
-              <path d="M40 2a38 38 0 0 1 38 38" stroke="#d7ecff" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M40 2a38 38 0 0 1 38 38" stroke="rgba(130,150,220,.6)" strokeWidth="2.5" strokeLinecap="round" />
             </svg>
           </div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,.30)', letterSpacing: '.08em' }}>Loading memberships…</div>
@@ -171,10 +171,10 @@ export default function MembershipPage() {
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
           <div>
-            <div style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.22em', textTransform: 'uppercase', fontSize: 18 }}>Membership</div>
+            <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.22em', textTransform: 'uppercase', fontSize: 18 }}>Membership</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,.40)', marginTop: 2 }}>{active.length} active · {paused.length} paused · {cancelled.length} cancelled</div>
           </div>
-          <button onClick={openAdd} style={{ height: 38, padding: '0 18px', borderRadius: 12, border: '1px solid rgba(143,240,177,.35)', background: 'rgba(143,240,177,.08)', color: '#c9ffe1', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', letterSpacing: '.06em', display: 'flex', alignItems: 'center', gap: 6, transition: 'all .2s' }}>
+          <button onClick={openAdd} style={{ height: 38, padding: '0 18px', borderRadius: 12, border: '1px solid rgba(143,240,177,.35)', background: 'rgba(143,240,177,.08)', color: 'rgba(130,220,170,.5)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', letterSpacing: '.06em', display: 'flex', alignItems: 'center', gap: 6, transition: 'all .2s' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add membership
           </button>
@@ -200,16 +200,16 @@ export default function MembershipPage() {
                     <span style={{ color: 'rgba(255,255,255,.20)' }}>·</span>
                     <span>{m.service_name || 'No service'}</span>
                     <span style={{ color: 'rgba(255,255,255,.20)' }}>·</span>
-                    <span style={{ color: '#d7ecff', fontWeight: 700 }}>{FREQ_LABELS[m.frequency] || m.frequency}</span>
+                    <span style={{ color: 'rgba(130,150,220,.6)', fontWeight: 700 }}>{FREQ_LABELS[m.frequency] || m.frequency}</span>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,.40)' }}>
                     <span>Every {DAYS[m.preferred_day]} at {minToTime(m.preferred_time_min)}</span>
-                    {m.amount_cents > 0 && <span style={{ color: '#ffe9a3', fontWeight: 700 }}>{money(m.amount_cents)}</span>}
-                    {(m as any).discount_pct > 0 && <span style={{ fontSize: 9, fontWeight: 800, color: '#8ff0b1', background: 'rgba(143,240,177,.12)', padding: '2px 6px', borderRadius: 999 }}>-{(m as any).discount_pct}%</span>}
+                    {m.amount_cents > 0 && <span style={{ color: 'rgba(220,190,130,.5)', fontWeight: 700 }}>{money(m.amount_cents)}</span>}
+                    {(m as any).discount_pct > 0 && <span style={{ fontSize: 9, fontWeight: 800, color: 'rgba(130,220,170,.8)', background: 'rgba(143,240,177,.12)', padding: '2px 6px', borderRadius: 999 }}>-{(m as any).discount_pct}%</span>}
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6, fontSize: 11 }}>
                     {m.next_booking_at && m.status === 'active' && (
-                      <span style={{ color: '#8ff0b1' }}>Next: {fmtDateTime(m.next_booking_at)}</span>
+                      <span style={{ color: 'rgba(130,220,170,.8)' }}>Next: {fmtDateTime(m.next_booking_at)}</span>
                     )}
                     {m.charge_count > 0 && (
                       <span style={{ color: 'rgba(255,255,255,.30)' }}>{m.charge_count} booking{m.charge_count !== 1 ? 's' : ''} created</span>
@@ -219,12 +219,12 @@ export default function MembershipPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
                   <button onClick={() => openEdit(m)} style={{ height: 28, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 10, fontWeight: 700, fontFamily: 'inherit' }}>Edit</button>
                   {m.status !== 'cancelled' && (
-                    <button onClick={() => toggleStatus(m)} style={{ height: 28, padding: '0 10px', borderRadius: 8, border: `1px solid ${m.status === 'active' ? 'rgba(255,207,63,.30)' : 'rgba(143,240,177,.30)'}`, background: m.status === 'active' ? 'rgba(255,207,63,.06)' : 'rgba(143,240,177,.06)', color: m.status === 'active' ? '#ffe9a3' : '#c9ffe1', cursor: 'pointer', fontSize: 10, fontWeight: 700, fontFamily: 'inherit' }}>
+                    <button onClick={() => toggleStatus(m)} style={{ height: 28, padding: '0 10px', borderRadius: 8, border: `1px solid ${m.status === 'active' ? 'rgba(255,207,63,.30)' : 'rgba(143,240,177,.30)'}`, background: m.status === 'active' ? 'rgba(255,207,63,.06)' : 'rgba(143,240,177,.06)', color: m.status === 'active' ? 'rgba(220,190,130,.5)' : 'rgba(130,220,170,.5)', cursor: 'pointer', fontSize: 10, fontWeight: 700, fontFamily: 'inherit' }}>
                       {m.status === 'active' ? 'Pause' : 'Resume'}
                     </button>
                   )}
                   {m.status !== 'cancelled' && (
-                    <button onClick={() => cancelMembership(m)} style={{ height: 28, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,107,107,.25)', background: 'rgba(255,107,107,.06)', color: '#ffd0d0', cursor: 'pointer', fontSize: 10, fontWeight: 700, fontFamily: 'inherit' }}>Cancel</button>
+                    <button onClick={() => cancelMembership(m)} style={{ height: 28, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,107,107,.25)', background: 'rgba(255,107,107,.06)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontSize: 10, fontWeight: 700, fontFamily: 'inherit' }}>Cancel</button>
                   )}
                   <button onClick={() => deleteMembership(m)} style={{ height: 28, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,107,107,.40)', background: 'rgba(255,107,107,.10)', color: '#ff6b6b', cursor: 'pointer', fontSize: 10, fontWeight: 700, fontFamily: 'inherit' }}>Delete</button>
                 </div>
@@ -237,9 +237,9 @@ export default function MembershipPage() {
       {/* Add/Edit Modal */}
       {showModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,.65)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={e => { if (e.target === e.currentTarget) setShowModal(false) }}>
-          <div style={{ width: 'min(440px,100%)', maxHeight: '90vh', overflowY: 'auto', borderRadius: 24, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(6,6,6,.96)', color: '#e9e9e9', fontFamily: 'Inter,sans-serif', boxShadow: '0 30px 80px rgba(0,0,0,.7)', animation: 'memModalIn .3s cubic-bezier(.4,0,.2,1)', WebkitOverflowScrolling: 'touch' as any }}>
+          <div style={{ width: 'min(440px,100%)', maxHeight: '90vh', overflowY: 'auto', borderRadius: 24, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(6,6,6,.96)', color: '#e8e8ed', fontFamily: 'Inter,sans-serif', boxShadow: '0 30px 80px rgba(0,0,0,.7)', animation: 'memModalIn .3s cubic-bezier(.4,0,.2,1)', WebkitOverflowScrolling: 'touch' as any }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,.07)' }}>
-              <div style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13 }}>
+              <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13 }}>
                 {editing ? 'Edit membership' : 'New membership'}
               </div>
               <button onClick={() => setShowModal(false)} style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: 'pointer', fontSize: 15, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
@@ -258,9 +258,9 @@ export default function MembershipPage() {
                         if (list.length > 0) { setFClient(list[0].name || ''); showToast(`Found: ${list[0].name}`) }
                         else showToast('Client not found')
                       } catch { showToast('Search failed') }
-                    }} style={{ height: 44, padding: '0 14px', borderRadius: 12, border: '1px solid rgba(10,132,255,.40)', background: 'rgba(10,132,255,.08)', color: '#d7ecff', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Search</button>
+                    }} style={{ height: 44, padding: '0 14px', borderRadius: 12, border: '1px solid rgba(10,132,255,.40)', background: 'rgba(10,132,255,.08)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Search</button>
                   </div>
-                  {fClient && <div style={{ marginTop: 6, fontSize: 13, color: '#c9ffe1', fontWeight: 700 }}>{fClient}</div>}
+                  {fClient && <div style={{ marginTop: 6, fontSize: 13, color: 'rgba(130,220,170,.5)', fontWeight: 700 }}>{fClient}</div>}
                   {!fClient && <div style={{ marginTop: 6 }}><label style={lbl}>Or enter name manually</label><input value={fClient} onChange={e => setFClient(e.target.value)} placeholder="John Smith" style={inp} /></div>}
                 </div>
               </>}
@@ -276,7 +276,7 @@ export default function MembershipPage() {
                     const on = fServiceIds.includes(s.id)
                     return (
                       <button key={s.id} onClick={() => setFServiceIds(prev => on ? prev.filter(x => x !== s.id) : [...prev, s.id])}
-                        style={{ height: 36, padding: '0 12px', borderRadius: 10, border: `1px solid ${on ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)'}`, background: on ? 'rgba(10,132,255,.15)' : 'rgba(255,255,255,.03)', color: on ? '#d7ecff' : 'rgba(255,255,255,.50)', cursor: 'pointer', fontSize: 12, fontWeight: on ? 800 : 500, fontFamily: 'inherit', transition: 'all .2s', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        style={{ height: 36, padding: '0 12px', borderRadius: 10, border: `1px solid ${on ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)'}`, background: on ? 'rgba(10,132,255,.15)' : 'rgba(255,255,255,.03)', color: on ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.50)', cursor: 'pointer', fontSize: 12, fontWeight: on ? 800 : 500, fontFamily: 'inherit', transition: 'all .2s', display: 'flex', alignItems: 'center', gap: 6 }}>
                         {on && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
                         {s.name}{s.price ? ` $${s.price}` : ''}
                       </button>
@@ -288,7 +288,7 @@ export default function MembershipPage() {
                 <div style={{ display: 'flex', gap: 6 }}>
                   {(['weekly', 'biweekly', 'monthly'] as const).map(f => (
                     <button key={f} onClick={() => setFFreq(f)}
-                      style={{ flex: 1, height: 38, borderRadius: 10, border: `1px solid ${fFreq === f ? 'rgba(10,132,255,.50)' : 'rgba(255,255,255,.10)'}`, background: fFreq === f ? 'rgba(10,132,255,.12)' : 'rgba(255,255,255,.03)', color: fFreq === f ? '#d7ecff' : 'rgba(255,255,255,.45)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit', transition: 'all .2s' }}>
+                      style={{ flex: 1, height: 38, borderRadius: 10, border: `1px solid ${fFreq === f ? 'rgba(10,132,255,.50)' : 'rgba(255,255,255,.10)'}`, background: fFreq === f ? 'rgba(10,132,255,.12)' : 'rgba(255,255,255,.03)', color: fFreq === f ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.45)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit', transition: 'all .2s' }}>
                       {FREQ_LABELS[f]}
                     </button>
                   ))}
@@ -312,7 +312,7 @@ export default function MembershipPage() {
                 <div style={{ display: 'flex', gap: 6 }}>
                   {[0, 5, 10, 15, 20].map(d => (
                     <button key={d} onClick={() => setFDiscount(d)}
-                      style={{ flex: 1, height: 36, borderRadius: 10, border: `1px solid ${fDiscount === d ? 'rgba(143,240,177,.50)' : 'rgba(255,255,255,.10)'}`, background: fDiscount === d ? 'rgba(143,240,177,.12)' : 'rgba(255,255,255,.03)', color: fDiscount === d ? '#c9ffe1' : 'rgba(255,255,255,.45)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', transition: 'all .2s' }}>
+                      style={{ flex: 1, height: 36, borderRadius: 10, border: `1px solid ${fDiscount === d ? 'rgba(143,240,177,.50)' : 'rgba(255,255,255,.10)'}`, background: fDiscount === d ? 'rgba(143,240,177,.12)' : 'rgba(255,255,255,.03)', color: fDiscount === d ? 'rgba(130,220,170,.5)' : 'rgba(255,255,255,.45)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', transition: 'all .2s' }}>
                       {d}%
                     </button>
                   ))}
@@ -328,16 +328,16 @@ export default function MembershipPage() {
                       <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', letterSpacing: '.08em', textTransform: 'uppercase' }}>Per visit price</div>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 3 }}>
                         {fDiscount > 0 && <span style={{ fontSize: 13, color: 'rgba(255,255,255,.30)', textDecoration: 'line-through' }}>${raw.toFixed(2)}</span>}
-                        <span style={{ fontSize: 20, fontWeight: 900, color: '#c9ffe1' }}>${discounted.toFixed(2)}</span>
+                        <span style={{ fontSize: 20, fontWeight: 900, color: 'rgba(130,220,170,.5)' }}>${discounted.toFixed(2)}</span>
                       </div>
                     </div>
-                    {fDiscount > 0 && <span style={{ fontSize: 11, fontWeight: 800, color: '#8ff0b1', background: 'rgba(143,240,177,.15)', padding: '4px 10px', borderRadius: 999 }}>SAVE {fDiscount}%</span>}
+                    {fDiscount > 0 && <span style={{ fontSize: 11, fontWeight: 800, color: 'rgba(130,220,170,.8)', background: 'rgba(143,240,177,.15)', padding: '4px 10px', borderRadius: 999 }}>SAVE {fDiscount}%</span>}
                   </div>
                 )
               })()}
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <button onClick={() => setShowModal(false)} style={{ flex: 1, height: 44, borderRadius: 12, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit' }}>Cancel</button>
-                <button onClick={handleSave} disabled={saving} style={{ flex: 1, height: 44, borderRadius: 12, border: '1px solid rgba(10,132,255,.50)', background: 'rgba(10,132,255,.12)', color: '#d7ecff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
+                <button onClick={handleSave} disabled={saving} style={{ flex: 1, height: 44, borderRadius: 12, border: '1px solid rgba(10,132,255,.50)', background: 'rgba(10,132,255,.12)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
                   {saving ? 'Saving…' : editing ? 'Update' : 'Create membership'}
                 </button>
               </div>
@@ -348,7 +348,7 @@ export default function MembershipPage() {
 
       {/* Toast */}
       {toast && (
-        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: 'rgba(8,8,8,.92)', border: '1px solid rgba(255,255,255,.14)', borderRadius: 999, padding: '10px 20px', boxShadow: '0 20px 60px rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', gap: 10, backdropFilter: 'blur(18px)', fontSize: 13, zIndex: 5000, whiteSpace: 'nowrap', color: '#e9e9e9', fontFamily: 'inherit', animation: 'memSlide .25s ease' }}>
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: 'rgba(8,8,8,.92)', border: '1px solid rgba(255,255,255,.14)', borderRadius: 999, padding: '10px 20px', boxShadow: '0 20px 60px rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', gap: 10, backdropFilter: 'blur(18px)', fontSize: 13, zIndex: 5000, whiteSpace: 'nowrap', color: '#e8e8ed', fontFamily: 'inherit', animation: 'memSlide .25s ease' }}>
           {toast}
         </div>
       )}

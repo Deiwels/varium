@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Shell from '@/components/Shell'
 
-const API = 'https://vuriumbook-api-431945333485.us-central1.run.app'
+const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
 
 // Decode HTML entities like &#x27; → '
 function decHtml(s: string) {
@@ -11,7 +11,6 @@ function decHtml(s: string) {
   if (!el) return s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#x27;/g,"'").replace(/&#39;/g,"'")
   el.innerHTML = s; return el.value
 }
-const API_KEY = 'R1403ss81fxrx*rx1403'
 
 interface Booking {
   id: string; client_name?: string; barber_name?: string; barber?: string
@@ -56,12 +55,12 @@ function getDateRange(period: EarningsPeriod, offset: number): { from: string; t
 const fmtDateLong = () => new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
 
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
-  paid:      { borderColor: 'rgba(143,240,177,.40)', background: 'rgba(143,240,177,.10)', color: '#c9ffe1' },
-  booked:    { borderColor: 'rgba(10,132,255,.40)',  background: 'rgba(10,132,255,.10)',  color: '#d7ecff' },
-  arrived:   { borderColor: 'rgba(143,240,177,.40)', background: 'rgba(143,240,177,.10)', color: '#c9ffe1' },
-  done:      { borderColor: 'rgba(255,207,63,.40)',  background: 'rgba(255,207,63,.08)',  color: '#ffe9a3' },
-  noshow:    { borderColor: 'rgba(255,107,107,.40)', background: 'rgba(255,107,107,.10)', color: '#ffd0d0' },
-  cancelled: { borderColor: 'rgba(255,107,107,.30)', background: 'rgba(255,107,107,.07)', color: '#ffd0d0' },
+  paid:      { borderColor: 'rgba(143,240,177,.40)', background: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)' },
+  booked:    { borderColor: 'rgba(10,132,255,.40)',  background: 'rgba(10,132,255,.10)',  color: 'rgba(130,150,220,.6)' },
+  arrived:   { borderColor: 'rgba(143,240,177,.40)', background: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)' },
+  done:      { borderColor: 'rgba(255,207,63,.40)',  background: 'rgba(255,207,63,.08)',  color: 'rgba(220,190,130,.5)' },
+  noshow:    { borderColor: 'rgba(255,107,107,.40)', background: 'rgba(255,107,107,.10)', color: 'rgba(220,130,160,.5)' },
+  cancelled: { borderColor: 'rgba(255,107,107,.30)', background: 'rgba(255,107,107,.07)', color: 'rgba(220,130,160,.5)' },
 }
 
 function Chip({ label, type }: { label: string; type: string }) {
@@ -70,7 +69,7 @@ function Chip({ label, type }: { label: string; type: string }) {
 }
 
 function KpiCard({ title, value, sub, color }: { title: string; value: string; sub: string; color?: string }) {
-  const dots: Record<string, string> = { ok: '#8ff0b1', bad: '#ff6b6b', blue: '#0a84ff', gold: '#ffcf3f' }
+  const dots: Record<string, string> = { ok: 'rgba(130,220,170,.8)', bad: '#ff6b6b', blue: 'rgba(130,150,220,.9)', gold: 'rgba(220,190,100,.8)' }
   return (
     <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.10)', background: 'linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02))', boxShadow: '0 10px 40px rgba(0,0,0,.35)', padding: 16 }}>
       <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.55)', marginBottom: 10 }}>{title}</div>
@@ -151,7 +150,7 @@ export default function DashboardPage() {
 
   const loadAll = useCallback(async () => {
     const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
-    const headers: Record<string,string> = { Authorization: `Bearer ${token}`, 'X-API-KEY': API_KEY, Accept: 'application/json' }
+    const headers: Record<string,string> = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
     const today = isoToday()
     const range = getDateRange(earningsPeriod, earningsOffset)
     if (!bookings.length && !myPayroll) setLoading(true) // only show loading on first load
@@ -308,7 +307,7 @@ export default function DashboardPage() {
       const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
       await fetch(`${API}/api/settings`, { credentials: 'include',
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'X-API-KEY': API_KEY, 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ shopStatusMode: mode })
       })
       setStatusMsg('Saved ✓')
@@ -323,7 +322,7 @@ export default function DashboardPage() {
       const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
       await fetch(`${API}/api/settings`, { credentials: 'include',
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'X-API-KEY': API_KEY, 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ banner: { enabled: bannerEnabled, text: bannerText } })
       })
       setStatusMsg('Banner saved ✓')
@@ -381,7 +380,7 @@ export default function DashboardPage() {
       const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
       const res = await fetch(`${API}${endpoint}`, {
         method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-API-KEY': API_KEY },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ lat, lng })
       })
       const data = await res.json()
@@ -390,7 +389,7 @@ export default function DashboardPage() {
         // Clock out — fetch today's payroll for summary
         try {
           const today = isoToday()
-          const pr = await fetch(`${API}/api/payroll?from=${today}T00:00:00.000Z&to=${today}T23:59:59.999Z`, { credentials: 'include', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-API-KEY': API_KEY } })
+          const pr = await fetch(`${API}/api/payroll?from=${today}T00:00:00.000Z&to=${today}T23:59:59.999Z`, { credentials: 'include', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } })
           const prData = await pr.json()
           const uid = user?.barber_id || user?.uid || ''
           const mine = (prData?.barbers || []).find((b: any) => b.barber_id === uid)
@@ -438,7 +437,7 @@ export default function DashboardPage() {
       const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
       const res = await fetch(`${API}/api/attendance?from=${attFrom}&to=${attTo}`, {
         credentials: 'include',
-        headers: { Authorization: `Bearer ${token}`, 'X-API-KEY': API_KEY, Accept: 'application/json' }
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
       })
       const data = await res.json()
       setAttHistory(data?.attendance || [])
@@ -449,13 +448,13 @@ export default function DashboardPage() {
 
   return (
     <Shell page="dashboard">
-      <div className="dash-container" style={{ padding: '18px 18px 40px', maxWidth: 1400, margin: '0 auto', overflowY: 'auto', height: '100vh', color: '#e9e9e9', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div className="dash-container" style={{ padding: '18px 18px 40px', maxWidth: 1400, margin: '0 auto', overflowY: 'auto', height: '100vh', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif' }}>
 
         {/* Topbar */}
         <div style={{ position: 'sticky', top: 0, zIndex: 20, padding: '10px 0 12px', background: 'linear-gradient(to bottom,rgba(0,0,0,.88),rgba(0,0,0,.68),transparent)', backdropFilter: 'blur(14px)', marginBottom: 16 } as React.CSSProperties}>
           <div className="dash-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <div>
-              <h2 className="page-title" style={{ margin: 0, fontFamily: '"Julius Sans One", sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 16 }}>
+              <h2 className="page-title" style={{ margin: 0, fontFamily: '"Inter", sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 16 }}>
                 {isBarber ? `Hey, ${myBarberName.split(' ')[0]}` : 'Dashboard'}
               </h2>
               <p style={{ margin: '5px 0 0', color: 'rgba(255,255,255,.45)', fontSize: 12, letterSpacing: '.08em', textTransform: 'uppercase' }}>
@@ -560,10 +559,10 @@ export default function DashboardPage() {
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
               <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(143,240,177,.10)', border: '1px solid rgba(143,240,177,.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8ff0b1" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(130,220,170,.8)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
               <div>
-                <div style={{ fontWeight: 800, fontSize: 14, color: '#c9ffe1' }}>Clocked out</div>
+                <div style={{ fontWeight: 800, fontSize: 14, color: 'rgba(130,220,170,.5)' }}>Clocked out</div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', marginTop: 1 }}>{clockOutSummary.hours} <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.40)' }}>today</span></div>
               </div>
             </div>
@@ -571,15 +570,15 @@ export default function DashboardPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <div className="clock-summary-item" style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)' }}>
                 <div style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>Earnings</div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: '#8ff0b1' }}>{clockOutSummary.earnings}</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: 'rgba(130,220,170,.8)' }}>{clockOutSummary.earnings}</div>
               </div>
               <div className="clock-summary-item" style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)' }}>
                 <div style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>Tips</div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: '#ffcf3f' }}>{clockOutSummary.tips}</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: 'rgba(220,190,100,.8)' }}>{clockOutSummary.tips}</div>
               </div>
               <div className="clock-summary-item" style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)' }}>
                 <div style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>Services</div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: '#d7ecff' }}>{clockOutSummary.services}</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: 'rgba(130,150,220,.6)' }}>{clockOutSummary.services}</div>
               </div>
               <div className="clock-summary-item" style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)' }}>
                 <div style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>Clients</div>
@@ -594,12 +593,12 @@ export default function DashboardPage() {
             <div style={{ width: 44, height: 44, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <svg width="32" height="32" viewBox="0 0 60 60">
                 <circle cx="30" cy="30" r="24" fill="none" stroke="rgba(143,240,177,.70)" strokeWidth="2.5" strokeDasharray="160" strokeDashoffset="160" strokeLinecap="round" style={{ animation: 'clockRingDraw .5s ease-out .1s forwards' }} />
-                <polyline points="20,32 27,39 40,24" fill="none" stroke="#8ff0b1" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="32" strokeDashoffset="32" style={{ animation: 'clockCheckDraw .3s ease-out .35s forwards' }} />
+                <polyline points="20,32 27,39 40,24" fill="none" stroke="rgba(130,220,170,.8)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="32" strokeDashoffset="32" style={{ animation: 'clockCheckDraw .3s ease-out .35s forwards' }} />
               </svg>
             </div>
           ) : (
             <div style={{ width: 44, height: 44, borderRadius: 14, background: clockedIn ? 'rgba(143,240,177,.12)' : 'rgba(255,255,255,.06)', border: `1px solid ${clockedIn ? 'rgba(143,240,177,.30)' : 'rgba(255,255,255,.12)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .4s' }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={clockedIn ? '#8ff0b1' : 'rgba(255,255,255,.45)'} strokeWidth="2" strokeLinecap="round">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={clockedIn ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.45)'} strokeWidth="2" strokeLinecap="round">
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
             </div>
@@ -607,8 +606,8 @@ export default function DashboardPage() {
           {/* Text */}
           <div style={{ flex: 1, minWidth: 120 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {clockedIn && !clockSuccess && <span style={{ width: 8, height: 8, borderRadius: 999, background: '#8ff0b1', display: 'inline-block', animation: 'clockDot 2s ease-in-out infinite' }} />}
-              <span style={{ fontWeight: 800, fontSize: 14, color: clockSuccess === 'in' ? '#8ff0b1' : clockedIn ? '#c9ffe1' : 'rgba(255,255,255,.70)', transition: 'color .3s' }}>
+              {clockedIn && !clockSuccess && <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(130,220,170,.8)', display: 'inline-block', animation: 'clockDot 2s ease-in-out infinite' }} />}
+              <span style={{ fontWeight: 800, fontSize: 14, color: clockSuccess === 'in' ? 'rgba(130,220,170,.8)' : clockedIn ? 'rgba(130,220,170,.5)' : 'rgba(255,255,255,.70)', transition: 'color .3s' }}>
                 {clockSuccess === 'in' ? 'Clocked in!' : clockedIn ? `Clocked in since ${clockInSince}` : 'Not clocked in'}
               </span>
             </div>
@@ -625,7 +624,7 @@ export default function DashboardPage() {
                 fontWeight: 900, fontSize: 13, fontFamily: 'inherit', letterSpacing: '.04em', textTransform: 'uppercase',
                 border: `1px solid ${clockedIn ? 'rgba(255,107,107,.45)' : 'rgba(143,240,177,.45)'}`,
                 background: clockedIn ? 'rgba(255,107,107,.12)' : 'rgba(143,240,177,.12)',
-                color: clockedIn ? '#ffd0d0' : '#c9ffe1',
+                color: clockedIn ? 'rgba(220,130,160,.5)' : 'rgba(130,220,170,.5)',
                 opacity: clockLoading ? .5 : 1,
                 animation: !clockLoading && !clockedIn ? 'clockPulse 2.6s ease-in-out infinite' : 'none',
                 flexShrink: 0,
@@ -667,7 +666,7 @@ export default function DashboardPage() {
             </div>
             {/* Error text */}
             <div className="radar-text" style={{ textAlign: 'center', padding: '0 32px' }}>
-              <div style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13, color: '#ffd0d0', marginBottom: 6 }}>Location failed</div>
+              <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13, color: 'rgba(220,130,160,.5)', marginBottom: 6 }}>Location failed</div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,.50)', lineHeight: 1.5 }}>{clockError}</div>
             </div>
           </div>
@@ -683,11 +682,11 @@ export default function DashboardPage() {
                 const elapsed = s.clock_in ? Math.round((Date.now() - new Date(s.clock_in).getTime()) / 60000) : 0
                 return (
                   <div key={s.id || s.user_id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: 999, background: '#8ff0b1', animation: 'clockDot 2s ease-in-out infinite', flexShrink: 0 }} />
-                    <span style={{ fontWeight: 700, fontSize: 13, color: '#e9e9e9', flex: 1 }}>{s.user_name || 'Staff'}</span>
+                    <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(130,220,170,.8)', animation: 'clockDot 2s ease-in-out infinite', flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, fontSize: 13, color: '#e8e8ed', flex: 1 }}>{s.user_name || 'Staff'}</span>
                     <span style={{ fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.50)' }}>{s.role}</span>
                     <span style={{ fontSize: 12, color: 'rgba(255,255,255,.45)' }}>since {since}</span>
-                    <span style={{ fontSize: 12, color: '#8ff0b1', fontWeight: 700 }}>{fmtMins(elapsed)}</span>
+                    <span style={{ fontSize: 12, color: 'rgba(130,220,170,.8)', fontWeight: 700 }}>{fmtMins(elapsed)}</span>
                   </div>
                 )
               })}
@@ -705,7 +704,7 @@ export default function DashboardPage() {
                       <button key={p} onClick={() => { setEarningsPeriod(p); setEarningsOffset(0) }} style={{
                         height: 24, padding: '0 8px', borderRadius: 6, border: `1px solid ${earningsPeriod === p ? 'rgba(10,132,255,.45)' : 'rgba(255,255,255,.10)'}`,
                         background: earningsPeriod === p ? 'rgba(10,132,255,.12)' : 'transparent',
-                        color: earningsPeriod === p ? '#d7ecff' : 'rgba(255,255,255,.35)', fontSize: 9, fontWeight: 700,
+                        color: earningsPeriod === p ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.35)', fontSize: 9, fontWeight: 700,
                         cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '.06em', textTransform: 'uppercase',
                       }}>{p === 'today' ? 'Day' : p === 'week' ? 'Week' : 'Month'}</button>
                     ))}
@@ -714,7 +713,7 @@ export default function DashboardPage() {
                 {/* Period navigation */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 10 }}>
                   <button onClick={() => setEarningsOffset(o => o - 1)} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.50)', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&lsaquo;</button>
-                  <div style={{ fontSize: 12, color: earningsOffset === 0 ? 'rgba(255,255,255,.60)' : '#d7ecff', fontWeight: 600, minWidth: 120, textAlign: 'center' }}>
+                  <div style={{ fontSize: 12, color: earningsOffset === 0 ? 'rgba(255,255,255,.60)' : 'rgba(130,150,220,.6)', fontWeight: 600, minWidth: 120, textAlign: 'center' }}>
                     {getDateRange(earningsPeriod, earningsOffset).label}
                   </div>
                   <button onClick={() => setEarningsOffset(o => Math.min(0, o + 1))} disabled={earningsOffset >= 0} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: earningsOffset >= 0 ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.50)', cursor: earningsOffset >= 0 ? 'not-allowed' : 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&rsaquo;</button>
@@ -722,8 +721,8 @@ export default function DashboardPage() {
                 {loading && !myPayroll ? <div style={{ color: 'rgba(255,255,255,.35)', fontSize: 12 }}>Loading…</div> : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {[
-                      { label: 'Services', value: money(myPayroll?.barber_service_share || 0), color: '#d7ecff' },
-                      { label: 'Tips', value: money(barberTips), color: '#8ff0b1' },
+                      { label: 'Services', value: money(myPayroll?.barber_service_share || 0), color: 'rgba(130,150,220,.6)' },
+                      { label: 'Tips', value: money(barberTips), color: 'rgba(130,220,170,.8)' },
                       { label: 'Total payout', value: money(barberEarnings), color: '#fff', big: true },
                     ].map(row => (
                       <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: row.big ? 'rgba(10,132,255,.08)' : 'rgba(0,0,0,.14)', borderColor: row.big ? 'rgba(10,132,255,.30)' : 'rgba(255,255,255,.08)' }}>
@@ -777,7 +776,7 @@ export default function DashboardPage() {
                   <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
                     <span style={{ width: 70, fontWeight: 700, fontSize: 12, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
                     <div style={{ flex: 1, height: 6, borderRadius: 999, background: 'rgba(255,255,255,.08)' }}>
-                      <div style={{ height: 6, borderRadius: 999, background: 'linear-gradient(90deg,#0a84ff,rgba(10,132,255,.5))', width: `${Math.round(count / maxCount * 100)}%`, transition: 'width .6s ease' }} />
+                      <div style={{ height: 6, borderRadius: 999, background: 'linear-gradient(90deg,rgba(130,150,220,.9),rgba(10,132,255,.5))', width: `${Math.round(count / maxCount * 100)}%`, transition: 'width .6s ease' }} />
                     </div>
                     <span style={{ width: 50, textAlign: 'right', fontSize: 12, color: 'rgba(255,255,255,.55)' }}>{count} bk</span>
                   </div>
@@ -796,7 +795,7 @@ export default function DashboardPage() {
               <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.10)', background: 'linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02))', padding: 16 }}>
                 <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)', marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>Shop status</span>
-                  {statusMsg && <span style={{ fontSize: 11, color: '#8ff0b1' }}>{statusMsg}</span>}
+                  {statusMsg && <span style={{ fontSize: 11, color: 'rgba(130,220,170,.8)' }}>{statusMsg}</span>}
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {(['auto','open','closed'] as const).map(mode => {
@@ -825,7 +824,7 @@ export default function DashboardPage() {
               <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.10)', background: 'linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02))', padding: 16 }}>
                 <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)', marginBottom: 12 }}>Top banner</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                  <button onClick={() => { setBannerEnabled(v => !v); }} style={{ height: 28, padding: '0 12px', borderRadius: 999, border: `1px solid ${bannerEnabled ? 'rgba(143,240,177,.40)' : 'rgba(255,255,255,.12)'}`, background: bannerEnabled ? 'rgba(143,240,177,.12)' : 'rgba(255,255,255,.04)', color: bannerEnabled ? '#8ff0b1' : 'rgba(255,255,255,.55)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+                  <button onClick={() => { setBannerEnabled(v => !v); }} style={{ height: 28, padding: '0 12px', borderRadius: 999, border: `1px solid ${bannerEnabled ? 'rgba(143,240,177,.40)' : 'rgba(255,255,255,.12)'}`, background: bannerEnabled ? 'rgba(143,240,177,.12)' : 'rgba(255,255,255,.04)', color: bannerEnabled ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.55)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
                     {bannerEnabled ? 'Enabled' : 'Disabled'}
                   </button>
                   <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>Shown on main website</span>
@@ -864,7 +863,7 @@ export default function DashboardPage() {
                             {DAY_NAMES_SHORT.map((day, i) => {
                               const works = workDays.includes(i)
                               return (
-                                <span key={day} style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, border: `1px solid ${works ? 'rgba(143,240,177,.40)' : 'rgba(255,107,107,.28)'}`, background: works ? 'rgba(143,240,177,.10)' : 'rgba(255,107,107,.07)', color: works ? '#8ff0b1' : '#ffd0d0', letterSpacing: '.06em', textTransform: 'uppercase', fontWeight: 700 }}>
+                                <span key={day} style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, border: `1px solid ${works ? 'rgba(143,240,177,.40)' : 'rgba(255,107,107,.28)'}`, background: works ? 'rgba(143,240,177,.10)' : 'rgba(255,107,107,.07)', color: works ? 'rgba(130,220,170,.8)' : 'rgba(220,130,160,.5)', letterSpacing: '.06em', textTransform: 'uppercase', fontWeight: 700 }}>
                                   {day}
                                 </span>
                               )
@@ -901,7 +900,7 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button onClick={() => setAddingReview(!addingReview)}
-                    style={{ height: 30, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(255,207,63,.45)', background: 'rgba(255,207,63,.08)', color: '#ffe9a3', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
+                    style={{ height: 30, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(255,207,63,.45)', background: 'rgba(255,207,63,.08)', color: 'rgba(220,190,130,.5)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
                     {addingReview ? 'Cancel' : '+ Add review'}
                   </button>
                 </div>
@@ -930,7 +929,7 @@ export default function DashboardPage() {
                     <div style={{ display: 'flex', gap: 4 }}>
                       {[1,2,3,4,5].map(n => (
                         <button key={n} onClick={() => setRvRating(n)} type="button"
-                          style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${n <= rvRating ? 'rgba(255,207,63,.55)' : 'rgba(255,255,255,.10)'}`, background: n <= rvRating ? 'rgba(255,207,63,.14)' : 'rgba(255,255,255,.04)', color: n <= rvRating ? '#ffe9a3' : 'rgba(255,255,255,.30)', cursor: 'pointer', fontSize: 16, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${n <= rvRating ? 'rgba(255,207,63,.55)' : 'rgba(255,255,255,.10)'}`, background: n <= rvRating ? 'rgba(255,207,63,.14)' : 'rgba(255,255,255,.04)', color: n <= rvRating ? 'rgba(220,190,130,.5)' : 'rgba(255,255,255,.30)', cursor: 'pointer', fontSize: 16, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           ★
                         </button>
                       ))}
@@ -947,12 +946,12 @@ export default function DashboardPage() {
                     try {
                       const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
                       const barber = barbers.find((b: any) => b.id === rvBarber)
-                      await fetch(`${API}/api/reviews`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-API-KEY': API_KEY }, body: JSON.stringify({ barber_id: rvBarber, barber_name: barber?.name || '', name: rvName.trim(), rating: rvRating, text: rvText.trim(), source: 'crm', status: 'approved' }) })
+                      await fetch(`${API}/api/reviews`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ barber_id: rvBarber, barber_name: barber?.name || '', name: rvName.trim(), rating: rvRating, text: rvText.trim(), source: 'crm', status: 'approved' }) })
                       setRvName(''); setRvText(''); setRvRating(5); setAddingReview(false); loadAll()
                     } catch {}
                     setRvSaving(false)
                   }} disabled={rvSaving || !rvBarber || !rvName.trim()}
-                    style={{ height: 40, borderRadius: 10, border: '1px solid rgba(255,207,63,.55)', background: 'rgba(255,207,63,.12)', color: '#ffe9a3', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: rvSaving ? .5 : 1 }}>
+                    style={{ height: 40, borderRadius: 10, border: '1px solid rgba(255,207,63,.55)', background: 'rgba(255,207,63,.12)', color: 'rgba(220,190,130,.5)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: rvSaving ? .5 : 1 }}>
                     {rvSaving ? 'Saving…' : 'Add review'}
                   </button>
                 </div>
@@ -968,7 +967,7 @@ export default function DashboardPage() {
                   const cnt = reviews.filter(r => r.barber_id === b.id).length
                   return (
                     <button key={b.id} onClick={() => setReviewFilter(b.id)}
-                      style={{ height: 28, padding: '0 10px', borderRadius: 999, border: `1px solid ${reviewFilter === b.id ? 'rgba(10,132,255,.45)' : 'rgba(255,255,255,.08)'}`, background: reviewFilter === b.id ? 'rgba(10,132,255,.10)' : 'transparent', color: reviewFilter === b.id ? '#d7ecff' : 'rgba(255,255,255,.55)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' }}>
+                      style={{ height: 28, padding: '0 10px', borderRadius: 999, border: `1px solid ${reviewFilter === b.id ? 'rgba(10,132,255,.45)' : 'rgba(255,255,255,.08)'}`, background: reviewFilter === b.id ? 'rgba(10,132,255,.10)' : 'transparent', color: reviewFilter === b.id ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.55)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' }}>
                       {b.name} ({cnt})
                     </button>
                   )
@@ -987,9 +986,9 @@ export default function DashboardPage() {
                         <div key={r.id} style={{ padding: '12px 14px', borderRadius: 14, border: '1px solid rgba(255,207,63,.25)', background: 'rgba(255,207,63,.04)' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span style={{ color: '#ffcf3f', fontSize: 13 }}>{'★'.repeat(r.rating || 5)}{'☆'.repeat(5 - (r.rating || 5))}</span>
+                              <span style={{ color: 'rgba(220,190,100,.8)', fontSize: 13 }}>{'★'.repeat(r.rating || 5)}{'☆'.repeat(5 - (r.rating || 5))}</span>
                               <span style={{ fontWeight: 700, fontSize: 13 }}>{r.name || 'Anonymous'}</span>
-                              <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 999, border: '1px solid rgba(255,207,63,.35)', background: 'rgba(255,207,63,.10)', color: '#ffe9a3', letterSpacing: '.06em', textTransform: 'uppercase' }}>PENDING</span>
+                              <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 999, border: '1px solid rgba(255,207,63,.35)', background: 'rgba(255,207,63,.10)', color: 'rgba(220,190,130,.5)', letterSpacing: '.06em', textTransform: 'uppercase' }}>PENDING</span>
                             </div>
                             {r.barber_name && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, border: '1px solid rgba(10,132,255,.25)', background: 'rgba(10,132,255,.06)', color: 'rgba(10,132,255,.80)', letterSpacing: '.06em', textTransform: 'uppercase' }}>{r.barber_name}</span>}
                           </div>
@@ -997,21 +996,21 @@ export default function DashboardPage() {
                           <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                             <button onClick={async () => {
                               const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
-                              await fetch(`${API}/api/reviews/${encodeURIComponent(r.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-API-KEY': API_KEY }, body: JSON.stringify({ status: 'approved' }) })
+                              await fetch(`${API}/api/reviews/${encodeURIComponent(r.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: 'approved' }) })
                               loadAll()
-                            }} style={{ height: 28, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(143,240,177,.45)', background: 'rgba(143,240,177,.10)', color: '#c9ffe1', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
+                            }} style={{ height: 28, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(143,240,177,.45)', background: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
                               Approve
                             </button>
                             <button onClick={async () => {
                               const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
-                              await fetch(`${API}/api/reviews/${encodeURIComponent(r.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-API-KEY': API_KEY }, body: JSON.stringify({ status: 'rejected' }) })
+                              await fetch(`${API}/api/reviews/${encodeURIComponent(r.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: 'rejected' }) })
                               loadAll()
-                            }} style={{ height: 28, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.06)', color: '#ffd0d0', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
+                            }} style={{ height: 28, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.06)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
                               Reject
                             </button>
                             <button onClick={async () => {
                               const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
-                              await fetch(`${API}/api/reviews/${encodeURIComponent(r.id)}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}`, 'X-API-KEY': API_KEY } })
+                              await fetch(`${API}/api/reviews/${encodeURIComponent(r.id)}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
                               loadAll()
                             }} style={{ height: 28, padding: '0 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'transparent', color: 'rgba(255,255,255,.35)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
                               Delete
@@ -1030,9 +1029,9 @@ export default function DashboardPage() {
                   <div key={r.id} style={{ padding: '10px 12px', borderRadius: 14, border: `1px solid ${r.status === 'rejected' ? 'rgba(255,107,107,.15)' : 'rgba(255,255,255,.06)'}`, background: r.status === 'rejected' ? 'rgba(255,107,107,.03)' : 'rgba(255,255,255,.02)', opacity: r.status === 'rejected' ? 0.5 : 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ color: '#ffcf3f', fontSize: 13 }}>{'★'.repeat(r.rating || 5)}{'☆'.repeat(5 - (r.rating || 5))}</span>
+                        <span style={{ color: 'rgba(220,190,100,.8)', fontSize: 13 }}>{'★'.repeat(r.rating || 5)}{'☆'.repeat(5 - (r.rating || 5))}</span>
                         <span style={{ fontWeight: 700, fontSize: 13 }}>{r.name || 'Anonymous'}</span>
-                        {r.status === 'rejected' && <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 999, border: '1px solid rgba(255,107,107,.30)', color: '#ffd0d0', letterSpacing: '.06em', textTransform: 'uppercase' }}>REJECTED</span>}
+                        {r.status === 'rejected' && <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 999, border: '1px solid rgba(255,107,107,.30)', color: 'rgba(220,130,160,.5)', letterSpacing: '.06em', textTransform: 'uppercase' }}>REJECTED</span>}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         {r.barber_name && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, border: '1px solid rgba(10,132,255,.25)', background: 'rgba(10,132,255,.06)', color: 'rgba(10,132,255,.80)', letterSpacing: '.06em', textTransform: 'uppercase' }}>{r.barber_name}</span>}
@@ -1050,14 +1049,14 @@ export default function DashboardPage() {
       {/* Phone access log — owner only */}
       {role === 'owner' && phoneAccessLog.length > 0 && (
         <div style={{ borderRadius: 18, border: '1px solid rgba(168,107,255,.20)', background: 'linear-gradient(180deg,rgba(168,107,255,.06),rgba(168,107,255,.01))', boxShadow: '0 10px 40px rgba(0,0,0,.35)', padding: 16, marginTop: 14 }}>
-          <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#d4b8ff', marginBottom: 10, fontWeight: 900 }}>
+          <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(180,140,220,.6)', marginBottom: 10, fontWeight: 900 }}>
             Phone access log
           </div>
           <div style={{ maxHeight: 260, overflowY: 'auto' }}>
             {phoneAccessLog.map((l: any) => (
               <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.06)', fontSize: 12 }}>
-                <span style={{ width: 6, height: 6, borderRadius: 999, background: l.result === 'granted' ? '#8ff0b1' : '#ff6b6b', flexShrink: 0 }} />
-                <span style={{ fontWeight: 700, color: '#e9e9e9', minWidth: 70 }}>{l.admin_name}</span>
+                <span style={{ width: 6, height: 6, borderRadius: 999, background: l.result === 'granted' ? 'rgba(130,220,170,.8)' : '#ff6b6b', flexShrink: 0 }} />
+                <span style={{ fontWeight: 700, color: '#e8e8ed', minWidth: 70 }}>{l.admin_name}</span>
                 <span style={{ color: 'rgba(255,255,255,.55)', flex: 1 }}>→ {l.client_name || l.client_id?.slice(0,8)}</span>
                 <span style={{ color: 'rgba(255,255,255,.30)', fontSize: 10 }}>{l.reason || ''}</span>
                 <span style={{ color: 'rgba(255,255,255,.30)', fontSize: 10, minWidth: 60, textAlign: 'right' as const }}>

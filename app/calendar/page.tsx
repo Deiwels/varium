@@ -4,7 +4,7 @@ import Shell from '@/components/Shell'
 import { BookingModal } from '@/app/calendar/booking-modal'
 import ImageCropper from '@/components/ImageCropper'
 
-import { apiFetch, API, API_KEY } from '@/lib/api'
+import { apiFetch, API } from '@/lib/api'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Barber {
@@ -30,7 +30,7 @@ const slotH_DEFAULT = 11
 const START_HOUR = 0
 const END_HOUR = 24
 const COL_MIN = 190
-const BARBER_COLORS = ['#99d100','#a86bff','#0a84ff','#ffb000','#ff5aa5','#35d6c7','#ff6b6b']
+const BARBER_COLORS = ['#99d100','rgba(180,140,220,.8)','rgba(130,150,220,.9)','#ffb000','rgba(220,130,160,.8)','rgba(130,200,220,.8)','#ff6b6b']
 const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 const DAY_DEFAULTS: DaySchedule[] = [
   { enabled: false, startMin: 10*60, endMin: 20*60 },
@@ -63,13 +63,13 @@ const minToTimeStr = (min: number) => `${pad2(Math.floor(min/60))}:${pad2(min%60
 
 // ─── Status Chip ──────────────────────────────────────────────────────────────
 const STATUS_COLORS: Record<string, { border: string; bg: string; color: string }> = {
-  paid:      { border: 'rgba(143,240,177,.40)', bg: 'rgba(143,240,177,.10)', color: '#c9ffe1' },
-  booked:    { border: 'rgba(10,132,255,.40)',  bg: 'rgba(10,132,255,.10)',  color: '#d7ecff' },
-  arrived:   { border: 'rgba(143,240,177,.40)', bg: 'rgba(143,240,177,.10)', color: '#c9ffe1' },
-  done:      { border: 'rgba(255,207,63,.40)',  bg: 'rgba(255,207,63,.08)',  color: '#ffe9a3' },
-  noshow:    { border: 'rgba(255,107,107,.40)', bg: 'rgba(255,107,107,.10)', color: '#ffd0d0' },
-  cancelled: { border: 'rgba(255,107,107,.30)', bg: 'rgba(255,107,107,.07)', color: '#ffd0d0' },
-  model:     { border: 'rgba(168,107,255,.40)', bg: 'rgba(168,107,255,.10)', color: '#d4b8ff' },
+  paid:      { border: 'rgba(143,240,177,.40)', bg: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)' },
+  booked:    { border: 'rgba(10,132,255,.40)',  bg: 'rgba(10,132,255,.10)',  color: 'rgba(130,150,220,.6)' },
+  arrived:   { border: 'rgba(143,240,177,.40)', bg: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)' },
+  done:      { border: 'rgba(255,207,63,.40)',  bg: 'rgba(255,207,63,.08)',  color: 'rgba(220,190,130,.5)' },
+  noshow:    { border: 'rgba(255,107,107,.40)', bg: 'rgba(255,107,107,.10)', color: 'rgba(220,130,160,.5)' },
+  cancelled: { border: 'rgba(255,107,107,.30)', bg: 'rgba(255,107,107,.07)', color: 'rgba(220,130,160,.5)' },
+  model:     { border: 'rgba(168,107,255,.40)', bg: 'rgba(168,107,255,.10)', color: 'rgba(180,140,220,.6)' },
 }
 function Chip({ label, type }: { label: string; type: string }) {
   const s = STATUS_COLORS[type] || STATUS_COLORS.booked
@@ -89,9 +89,9 @@ function DatePickerModal({ current, onSelect, onClose }: {
   const btn: React.CSSProperties = { height: 44, borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit' }
   return (
     <div className="cal-picker-bg" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.50)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 100, padding: '16px 12px max(16px, env(safe-area-inset-bottom, 16px))' }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="cal-picker-card" style={{ width: 'min(460px,100%)', borderRadius: 24, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(8,8,12,.85)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', padding: 18, color: '#e9e9e9', fontFamily: 'Inter,sans-serif', boxShadow: '0 -8px 60px rgba(0,0,0,.50), inset 0 1px 0 rgba(255,255,255,.06)' }}>
+      <div className="cal-picker-card" style={{ width: 'min(460px,100%)', borderRadius: 24, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(8,8,12,.85)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', padding: 18, color: '#e8e8ed', fontFamily: 'Inter,sans-serif', boxShadow: '0 -8px 60px rgba(0,0,0,.50), inset 0 1px 0 rgba(255,255,255,.06)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid rgba(255,255,255,.10)' }}>
-          <div style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 13 }}>Choose date</div>
+          <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 13 }}>Choose date</div>
           <button onClick={onClose} style={{ height: 32, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 12 }}>Close</button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -129,7 +129,7 @@ function SchedGrid({ schedule, onChange }: { schedule: DaySchedule[]; onChange: 
         return (
           <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3, border: `1px solid ${day.enabled ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)'}`, borderRadius: 10, padding: '5px 4px', background: day.enabled ? 'rgba(10,132,255,.08)' : 'rgba(0,0,0,.18)', opacity: day.enabled ? 1 : 0.55 }}>
             <div style={{ fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase', textAlign: 'center', fontWeight: 900, color: 'rgba(255,255,255,.60)' }}>{name}</div>
-            <button onClick={() => toggle(i)} style={{ height: 22, borderRadius: 999, border: `1px solid ${day.enabled ? 'rgba(10,132,255,.65)' : 'rgba(255,255,255,.16)'}`, background: day.enabled ? 'rgba(10,132,255,.16)' : 'rgba(255,255,255,.05)', color: day.enabled ? '#d7ecff' : '#fff', cursor: 'pointer', fontSize: 8, textTransform: 'uppercase', fontWeight: 900, fontFamily: 'inherit', width: '100%' }}>{day.enabled ? 'ON' : 'OFF'}</button>
+            <button onClick={() => toggle(i)} style={{ height: 22, borderRadius: 999, border: `1px solid ${day.enabled ? 'rgba(10,132,255,.65)' : 'rgba(255,255,255,.16)'}`, background: day.enabled ? 'rgba(10,132,255,.16)' : 'rgba(255,255,255,.05)', color: day.enabled ? 'rgba(130,150,220,.6)' : '#fff', cursor: 'pointer', fontSize: 8, textTransform: 'uppercase', fontWeight: 900, fontFamily: 'inherit', width: '100%' }}>{day.enabled ? 'ON' : 'OFF'}</button>
             <div style={{ opacity: day.enabled ? 1 : 0.3, pointerEvents: day.enabled ? 'auto' : 'none' }}>
               <input type="time" value={minToTimeStr(day.startMin)} onChange={e => setTime(i,'startMin',e.target.value)} style={{ height: 24, borderRadius: 6, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.05)', color: '#fff', padding: '0 3px', fontSize: 9, outline: 'none', width: '100%', colorScheme: 'dark' as any }} />
               <input type="time" value={minToTimeStr(day.endMin)} onChange={e => setTime(i,'endMin',e.target.value)} style={{ height: 24, borderRadius: 6, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.05)', color: '#fff', padding: '0 3px', fontSize: 9, outline: 'none', width: '100%', colorScheme: 'dark' as any, marginTop: 2 }} />
@@ -197,12 +197,12 @@ function RadarEditor({ labelsStr, valuesStr, onLabelsChange, onValuesChange }: {
             min={0} max={5} step={0.5}
             value={values[i] ?? 0}
             onChange={e => updateValue(i, parseFloat(e.target.value))}
-            style={{ flex: 1, height: 4, accentColor: '#0a84ff', cursor: 'pointer' }}
+            style={{ flex: 1, height: 4, accentColor: 'rgba(130,150,220,.9)', cursor: 'pointer' }}
           />
           <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', minWidth: 24, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{(values[i] ?? 0).toFixed(1)}</span>
           <button
             onClick={() => removeSkill(i)}
-            style={{ width: 20, height: 20, borderRadius: 6, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.06)', color: '#ffd0d0', cursor: 'pointer', fontSize: 10, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}
+            style={{ width: 20, height: 20, borderRadius: 6, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.06)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontSize: 10, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}
           >✕</button>
         </div>
       ))}
@@ -331,11 +331,11 @@ function BarberEditCard({ b, onDelete, onSaved, onError, isBarberSelf }: {
               {(() => {
                 const lvl = (b.level || 'Barber').toLowerCase()
                 const badgeColors = lvl.includes('ambassador')
-                  ? { border: 'rgba(255,207,63,.45)', bg: 'rgba(255,207,63,.10)', color: '#ffe9a3', shadow: '0 0 8px rgba(255,207,63,.20)' }
+                  ? { border: 'rgba(255,207,63,.45)', bg: 'rgba(255,207,63,.10)', color: 'rgba(220,190,130,.5)', shadow: '0 0 8px rgba(255,207,63,.20)' }
                   : lvl.includes('senior')
-                  ? { border: 'rgba(10,132,255,.45)', bg: 'rgba(10,132,255,.10)', color: '#d7ecff', shadow: '0 0 8px rgba(10,132,255,.20)' }
+                  ? { border: 'rgba(10,132,255,.45)', bg: 'rgba(10,132,255,.10)', color: 'rgba(130,150,220,.6)', shadow: '0 0 8px rgba(10,132,255,.20)' }
                   : lvl.includes('expert')
-                  ? { border: 'rgba(143,240,177,.45)', bg: 'rgba(143,240,177,.10)', color: '#c9ffe1', shadow: '0 0 8px rgba(143,240,177,.20)' }
+                  ? { border: 'rgba(143,240,177,.45)', bg: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)', shadow: '0 0 8px rgba(143,240,177,.20)' }
                   : { border: 'rgba(255,255,255,.16)', bg: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.55)', shadow: 'none' }
                 return <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', fontWeight: 900, border: `1px solid ${badgeColors.border}`, background: badgeColors.bg, color: badgeColors.color, boxShadow: badgeColors.shadow }}>{b.level || 'Barber'}</span>
               })()}
@@ -345,8 +345,8 @@ function BarberEditCard({ b, onDelete, onSaved, onError, isBarberSelf }: {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          <button onClick={() => setOpen(v => !v)} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: `1px solid ${open ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.14)'}`, background: open ? 'rgba(10,132,255,.12)' : 'rgba(255,255,255,.05)', color: open ? '#d7ecff' : '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>{open ? 'Collapse' : 'Edit'}</button>
-          {!isBarberSelf && onDelete && <button onClick={() => onDelete(b.id, b.name)} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: '#ffd0d0', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>Remove</button>}
+          <button onClick={() => setOpen(v => !v)} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: `1px solid ${open ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.14)'}`, background: open ? 'rgba(10,132,255,.12)' : 'rgba(255,255,255,.05)', color: open ? 'rgba(130,150,220,.6)' : '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>{open ? 'Collapse' : 'Edit'}</button>
+          {!isBarberSelf && onDelete && <button onClick={() => onDelete(b.id, b.name)} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>Remove</button>}
         </div>
       </div>
 
@@ -372,7 +372,7 @@ function BarberEditCard({ b, onDelete, onSaved, onError, isBarberSelf }: {
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handlePhoto(e.target.files?.[0] || null)} />
                 </label>
                 {(photoPreview || b.photo) && <img src={photoPreview || b.photo} alt="" style={{ width: 80, height: 80, borderRadius: 14, objectFit: 'cover', border: '1px solid rgba(255,255,255,.12)', boxShadow: '0 4px 20px rgba(0,0,0,.5)' }} onError={e => (e.currentTarget.style.display='none')} />}
-                {photoPreview && <button onClick={() => { setPhotoFile(null); setPhotoPreview('') }} style={{ height: 30, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.06)', color: '#ffd0d0', cursor: 'pointer', fontFamily: 'inherit' }}>✕</button>}
+                {photoPreview && <button onClick={() => { setPhotoFile(null); setPhotoPreview('') }} style={{ height: 30, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.06)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontFamily: 'inherit' }}>✕</button>}
               </div>
             </div>
           </div>
@@ -380,7 +380,7 @@ function BarberEditCard({ b, onDelete, onSaved, onError, isBarberSelf }: {
             <label style={lbl}>Working schedule</label>
             <SchedGrid schedule={sched} onChange={setSched} />
           </div>
-          <button onClick={save} disabled={saving} style={{ width: '100%', height: 42, borderRadius: 12, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.10)', color: '#d7ecff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', marginTop: 12 }}>
+          <button onClick={save} disabled={saving} style={{ width: '100%', height: 42, borderRadius: 12, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.10)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', marginTop: 12 }}>
             {saving ? 'Saving…' : isBarberSelf ? 'Send for approval' : 'Save changes — update on website'}
           </button>
         </div>
@@ -471,9 +471,9 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 90, padding: 'clamp(8px,2vw,16px)' }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={{ width: 'min(680px,100%)', maxWidth: 'calc(100vw - 16px)', height: 'min(800px,calc(100dvh - 32px))', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', color: '#e9e9e9', fontFamily: 'Inter,sans-serif', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,.55), inset 0 0 0 0.5px rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', margin: '0 auto' }}>
+      <div style={{ width: 'min(680px,100%)', maxWidth: 'calc(100vw - 16px)', height: 'min(800px,calc(100dvh - 32px))', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', color: '#e8e8ed', fontFamily: 'Inter,sans-serif', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,.55), inset 0 0 0 0.5px rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,.08)' }}>
-          <div style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 14 }}>Settings</div>
+          <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 14 }}>Settings</div>
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontSize: 16, fontFamily: 'inherit' }}>✕</button>
         </div>
 
@@ -484,7 +484,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
         </div>
 
         <div style={{ padding: '16px 18px 20px', flex: 1, overflowY: 'auto' }}>
-          {msg && <div style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', fontSize: 12, color: '#e9e9e9', marginBottom: 14 }}>{msg}</div>}
+          {msg && <div style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', fontSize: 12, color: '#e8e8ed', marginBottom: 14 }}>{msg}</div>}
 
           {/* Barbers tab */}
           {tab === 'barbers' && (
@@ -542,7 +542,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                     <SchedGrid schedule={bSchedule} onChange={setBSchedule} />
                   </div>
                 </div>
-                <button onClick={addBarber} disabled={saving} style={{ width: '100%', height: 42, borderRadius: 12, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.10)', color: '#d7ecff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', marginTop: 12 }}>
+                <button onClick={addBarber} disabled={saving} style={{ width: '100%', height: 42, borderRadius: 12, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.10)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', marginTop: 12 }}>
                   {saving ? 'Saving…' : '+ Add barber'}
                 </button>
               </div>}
@@ -563,7 +563,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ fontWeight: 700, fontSize: 13 }}>{s.name}</span>
-                            <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4, border: `1px solid ${s.service_type === 'addon' ? 'rgba(255,207,63,.35)' : 'rgba(10,132,255,.35)'}`, background: s.service_type === 'addon' ? 'rgba(255,207,63,.12)' : 'rgba(10,132,255,.12)', color: s.service_type === 'addon' ? '#ffe9a3' : '#d7ecff' }}>{s.service_type === 'addon' ? 'Add-on' : 'Primary'}</span>
+                            <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4, border: `1px solid ${s.service_type === 'addon' ? 'rgba(255,207,63,.35)' : 'rgba(10,132,255,.35)'}`, background: s.service_type === 'addon' ? 'rgba(255,207,63,.12)' : 'rgba(10,132,255,.12)', color: s.service_type === 'addon' ? 'rgba(220,190,130,.5)' : 'rgba(130,150,220,.6)' }}>{s.service_type === 'addon' ? 'Add-on' : 'Primary'}</span>
                           </div>
                           <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginTop: 2 }}>
                             {s.durationMin}min{s.price ? ` · $${s.price}` : ''}
@@ -590,7 +590,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                           }} style={{ height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.14)', background: isEditing ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.04)', color: '#fff', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
                             {isEditing ? 'Cancel' : 'Edit'}
                           </button>
-                          {!isBarber && <button onClick={async () => { if (!confirm(`Delete ${s.name}?`)) return; try { await apiFetch(`/api/services/${encodeURIComponent(s.id)}`, { method: 'DELETE' }); setMsg('Deleted'); onReload() } catch (e: any) { setMsg('Error: ' + e.message) } }} style={{ height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.06)', color: '#ffd0d0', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✕</button>}
+                          {!isBarber && <button onClick={async () => { if (!confirm(`Delete ${s.name}?`)) return; try { await apiFetch(`/api/services/${encodeURIComponent(s.id)}`, { method: 'DELETE' }); setMsg('Deleted'); onReload() } catch (e: any) { setMsg('Error: ' + e.message) } }} style={{ height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.06)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✕</button>}
                         </div>
                       </div>
                       {/* Edit form inline */}
@@ -608,7 +608,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                             <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                               {(['primary', 'addon'] as const).map(t => (
                                 <button key={t} onClick={() => setSType(t)}
-                                  style={{ height: 30, padding: '0 12px', borderRadius: 999, border: `1px solid ${sType === t ? (t === 'addon' ? 'rgba(255,207,63,.40)' : 'rgba(10,132,255,.40)') : 'rgba(255,255,255,.10)'}`, background: sType === t ? (t === 'addon' ? 'rgba(255,207,63,.12)' : 'rgba(10,132,255,.12)') : 'rgba(255,255,255,.03)', color: sType === t ? (t === 'addon' ? '#ffe9a3' : '#d7ecff') : 'rgba(255,255,255,.45)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', transition: 'all .2s' }}>
+                                  style={{ height: 30, padding: '0 12px', borderRadius: 999, border: `1px solid ${sType === t ? (t === 'addon' ? 'rgba(255,207,63,.40)' : 'rgba(10,132,255,.40)') : 'rgba(255,255,255,.10)'}`, background: sType === t ? (t === 'addon' ? 'rgba(255,207,63,.12)' : 'rgba(10,132,255,.12)') : 'rgba(255,255,255,.03)', color: sType === t ? (t === 'addon' ? 'rgba(220,190,130,.5)' : 'rgba(130,150,220,.6)') : 'rgba(255,255,255,.45)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', transition: 'all .2s' }}>
                                   {t === 'primary' ? 'Primary' : 'Add-on'}
                                 </button>
                               ))}
@@ -643,7 +643,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                               }
                             } catch (e: any) { setMsg('Error: ' + e.message) }
                             setSaving(false)
-                          }} disabled={saving} style={{ width: '100%', height: 38, borderRadius: 10, border: `1px solid ${isBarber ? 'rgba(168,107,255,.40)' : 'rgba(255,255,255,.20)'}`, background: isBarber ? 'rgba(168,107,255,.10)' : 'rgba(255,255,255,.08)', color: isBarber ? '#d4b8ff' : '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', marginTop: 10 }}>
+                          }} disabled={saving} style={{ width: '100%', height: 38, borderRadius: 10, border: `1px solid ${isBarber ? 'rgba(168,107,255,.40)' : 'rgba(255,255,255,.20)'}`, background: isBarber ? 'rgba(168,107,255,.10)' : 'rgba(255,255,255,.08)', color: isBarber ? 'rgba(180,140,220,.6)' : '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', marginTop: 10 }}>
                             {saving ? 'Saving…' : isBarber ? 'Send for approval' : 'Save changes'}
                           </button>
                         </div>
@@ -663,7 +663,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                     <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                       {(['primary', 'addon'] as const).map(t => (
                         <button key={t} onClick={() => { if (!editSvcId) setSType(t) }}
-                          style={{ height: 30, padding: '0 12px', borderRadius: 999, border: `1px solid ${!editSvcId && sType === t ? (t === 'addon' ? 'rgba(255,207,63,.40)' : 'rgba(10,132,255,.40)') : 'rgba(255,255,255,.10)'}`, background: !editSvcId && sType === t ? (t === 'addon' ? 'rgba(255,207,63,.12)' : 'rgba(10,132,255,.12)') : 'rgba(255,255,255,.03)', color: !editSvcId && sType === t ? (t === 'addon' ? '#ffe9a3' : '#d7ecff') : 'rgba(255,255,255,.45)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', opacity: editSvcId ? 0.4 : 1, transition: 'all .2s' }}>
+                          style={{ height: 30, padding: '0 12px', borderRadius: 999, border: `1px solid ${!editSvcId && sType === t ? (t === 'addon' ? 'rgba(255,207,63,.40)' : 'rgba(10,132,255,.40)') : 'rgba(255,255,255,.10)'}`, background: !editSvcId && sType === t ? (t === 'addon' ? 'rgba(255,207,63,.12)' : 'rgba(10,132,255,.12)') : 'rgba(255,255,255,.03)', color: !editSvcId && sType === t ? (t === 'addon' ? 'rgba(220,190,130,.5)' : 'rgba(130,150,220,.6)') : 'rgba(255,255,255,.45)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', opacity: editSvcId ? 0.4 : 1, transition: 'all .2s' }}>
                           {t === 'primary' ? 'Primary' : 'Add-on'}
                         </button>
                       ))}
@@ -684,7 +684,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                     </div>
                   </div>
                 </div>
-                <button onClick={addService} disabled={saving || !!editSvcId} style={{ width: '100%', height: 42, borderRadius: 12, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.10)', color: '#d7ecff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: editSvcId ? 0.4 : 1 }}>
+                <button onClick={addService} disabled={saving || !!editSvcId} style={{ width: '100%', height: 42, borderRadius: 12, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.10)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: editSvcId ? 0.4 : 1 }}>
                   {saving ? 'Saving…' : '+ Add service'}
                 </button>
               </div>}
@@ -704,13 +704,13 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
               {/* Student schedule editor */}
               {isStudent && studentSchedule && onStudentScheduleChange && (
                 <div style={{ padding: '14px', borderRadius: 14, border: '1px solid rgba(168,107,255,.20)', background: 'rgba(168,107,255,.04)' }}>
-                  <div style={{ fontWeight: 900, marginBottom: 8, color: '#d4b8ff' }}>My schedule</div>
+                  <div style={{ fontWeight: 900, marginBottom: 8, color: 'rgba(180,140,220,.6)' }}>My schedule</div>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginBottom: 12 }}>Set your working hours — off-hours will be grayed out on your calendar</div>
                   <SchedGrid schedule={studentSchedule} onChange={onStudentScheduleChange} />
                 </div>
               )}
 
-              <button onClick={() => { localStorage.removeItem('VURIUMBOOK_TOKEN'); localStorage.removeItem('VURIUMBOOK_USER'); window.location.href = '/signin' }} style={{ height: 42, borderRadius: 12, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: '#ffd0d0', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>Log out</button>
+              <button onClick={() => { localStorage.removeItem('VURIUMBOOK_TOKEN'); localStorage.removeItem('VURIUMBOOK_USER'); window.location.href = '/signin' }} style={{ height: 42, borderRadius: 12, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>Log out</button>
             </div>
           )}
         </div>
@@ -982,7 +982,7 @@ export default function CalendarPage() {
   const myBarberObj = isBarber ? barbers.find(b => b.id === myBarberId) : null
   const studentColumn: Barber | null = isStudent ? {
     id: '__student__', name: currentUser?.name || currentUser?.username || 'My Schedule',
-    color: '#a86bff', schedule: undefined,
+    color: 'rgba(180,140,220,.8)', schedule: undefined,
   } : null
   const visibleBarbers = isStudent
     ? (studentColumn ? [studentColumn] : [])
@@ -1526,7 +1526,7 @@ export default function CalendarPage() {
       // Send as system notification (API key only, no user token) so it works even with expired session
       fetch(`${API}/api/messages`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-KEY': API_KEY },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chatType: 'barbers', text: msgText, system: true })
       })
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json() })
@@ -1811,19 +1811,19 @@ export default function CalendarPage() {
           .cal-topbar-wrap{ display:none !important; }
         }
         input[type=range] { -webkit-appearance: none; appearance: none; background: rgba(255,255,255,.12); border-radius: 4px; height: 4px; outline: none; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #0a84ff; cursor: pointer; border: 2px solid rgba(0,0,0,.40); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
-        input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #0a84ff; cursor: pointer; border: 2px solid rgba(0,0,0,.40); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: rgba(130,150,220,.9); cursor: pointer; border: 2px solid rgba(0,0,0,.40); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+        input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: rgba(130,150,220,.9); cursor: pointer; border: 2px solid rgba(0,0,0,.40); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
         select option { background: #111; }
         input[type=date],input[type=time] { color-scheme: dark; }
       `}</style>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: '#000', color: '#e9e9e9', fontFamily: 'Inter,system-ui,sans-serif' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: '#000', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
 
         {/* Topbar */}
         <div className="cal-topbar-wrap" style={{ padding: '10px 18px 12px', background: 'rgba(0,0,0,.85)', backdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,.08)', flexShrink: 0 }}>
           <div className="cal-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             {!isMobile && (
               <div className="cal-topbar-left">
-                <h2 className="page-title" style={{ margin: 0, fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 15 }}>Calendar</h2>
+                <h2 className="page-title" style={{ margin: 0, fontFamily: '"Inter",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 15 }}>Calendar</h2>
                 <p style={{ margin: '3px 0 0', color: 'rgba(255,255,255,.40)', fontSize: 11, letterSpacing: '.08em' }}>{anchor.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
               </div>
             )}
@@ -1879,9 +1879,9 @@ export default function CalendarPage() {
                   }
                   if (!freeSlots.length) { showToast('No free 90min slot available today'); return }
                   setSlotPicker(freeSlots)
-                }} className="cal-student-btn" style={{ height: 36, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(168,107,255,.80)', background: 'rgba(0,0,0,.75)', color: '#d4b8ff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', boxShadow: '0 0 14px rgba(168,107,255,.20)', whiteSpace: 'nowrap', flexShrink: 0 }}>+ Model</button>
+                }} className="cal-student-btn" style={{ height: 36, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(168,107,255,.80)', background: 'rgba(0,0,0,.75)', color: 'rgba(180,140,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', boxShadow: '0 0 14px rgba(168,107,255,.20)', whiteSpace: 'nowrap', flexShrink: 0 }}>+ Model</button>
               ) : (
-                <button className="cal-new-btn" onClick={() => openCreate(isBarber ? myBarberId : (barbers[0]?.id || ''), clamp(new Date().getHours()*60))} style={{ height: 36, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(10,132,255,.80)', background: 'rgba(0,0,0,.75)', color: '#d7ecff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', boxShadow: '0 0 14px rgba(10,132,255,.20)', whiteSpace: 'nowrap', flexShrink: 0 }}>+ New</button>
+                <button className="cal-new-btn" onClick={() => openCreate(isBarber ? myBarberId : (barbers[0]?.id || ''), clamp(new Date().getHours()*60))} style={{ height: 36, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(10,132,255,.80)', background: 'rgba(0,0,0,.75)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', boxShadow: '0 0 14px rgba(10,132,255,.20)', whiteSpace: 'nowrap', flexShrink: 0 }}>+ New</button>
               )}
 
               {/* Zoom +/- — desktop only */}
@@ -1920,7 +1920,7 @@ export default function CalendarPage() {
                   <div key={b.id} style={{ padding: compact ? '6px 4px' : '10px 12px', borderRight: i < visibleBarbers.length-1 ? '1px solid rgba(255,255,255,.08)' : 'none', display: 'flex', flexDirection: compact ? 'column' : 'row', alignItems: 'center', gap: compact ? 2 : 10, overflow: 'hidden' }}>
                     {b.id === '__student__' ? (
                       <div style={{ width: photoSize, height: photoSize, borderRadius: compact ? 7 : 10, background: 'rgba(168,107,255,.20)', border: '1px solid rgba(168,107,255,.30)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <svg width={compact ? 11 : 15} height={compact ? 11 : 15} viewBox="0 0 24 24" fill="none" stroke="#d4b8ff" strokeWidth="2" strokeLinecap="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 3 3 6 3s6-1 6-3v-5"/></svg>
+                        <svg width={compact ? 11 : 15} height={compact ? 11 : 15} viewBox="0 0 24 24" fill="none" stroke="rgba(180,140,220,.6)" strokeWidth="2" strokeLinecap="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 3 3 6 3s6-1 6-3v-5"/></svg>
                       </div>
                     ) : b.photo ? <img src={b.photo} alt={b.name} style={{ width: photoSize, height: photoSize, borderRadius: compact ? 7 : 10, objectFit: 'cover', border: '1px solid rgba(255,255,255,.14)', flexShrink: 0 }} onError={e => (e.currentTarget.style.display='none')} /> : <div style={{ width: compact ? 8 : 10, height: compact ? 8 : 10, borderRadius: 999, background: b.color, flexShrink: 0 }} />}
                     <div style={{ minWidth: 0, textAlign: compact ? 'center' : 'left', overflow: 'hidden' }}>
@@ -2168,7 +2168,7 @@ export default function CalendarPage() {
                     {/* Now line — full width across all columns */}
                     {showNow && (
                       <div style={{ position: 'absolute', left: 0, right: 0, top: nowY, height: 2, background: 'rgba(10,132,255,.85)', boxShadow: '0 0 14px rgba(10,132,255,.40)', pointerEvents: 'none', zIndex: 20 }}>
-                        {bi === 0 && <div style={{ position: 'absolute', left: -4, top: -4, width: 10, height: 10, borderRadius: 999, background: '#0a84ff', boxShadow: '0 0 0 3px rgba(10,132,255,.25)' }} />}
+                        {bi === 0 && <div style={{ position: 'absolute', left: -4, top: -4, width: 10, height: 10, borderRadius: 999, background: 'rgba(130,150,220,.9)', boxShadow: '0 0 0 3px rgba(10,132,255,.25)' }} />}
                       </div>
                     )}
                     {/* Touch indicator — crosshair + time tooltip */}
@@ -2195,7 +2195,7 @@ export default function CalendarPage() {
                     {/* Ghost */}
                     {drag?.ghostBarberIdx===bi && (() => {
                       const dragEv = events.find(e => e.id === drag.eventId); if (!dragEv) return null
-                      return <div className="cal-event-drag-ghost" style={{ position: 'absolute', left: 8, right: 8, top: minToY(drag.ghostMin), height: Math.max(slotH*6, (dragEv.durMin/5)*slotH)-2, borderRadius: 14, pointerEvents: 'none', zIndex: 40 }}><div style={{ padding: '6px 10px', fontWeight: 900, fontSize: 11, color: '#d7ecff' }}>{dragEv.clientName} — {minToAMPM(drag.ghostMin)}</div></div>
+                      return <div className="cal-event-drag-ghost" style={{ position: 'absolute', left: 8, right: 8, top: minToY(drag.ghostMin), height: Math.max(slotH*6, (dragEv.durMin/5)*slotH)-2, borderRadius: 14, pointerEvents: 'none', zIndex: 40 }}><div style={{ padding: '6px 10px', fontWeight: 900, fontSize: 11, color: 'rgba(130,150,220,.6)' }}>{dragEv.clientName} — {minToAMPM(drag.ghostMin)}</div></div>
                     })()}
                     {/* Block drag ghost */}
                     {blockDrag?.barberIdx === bi && (() => {
@@ -2309,7 +2309,7 @@ export default function CalendarPage() {
                           {tinyCol ? (<>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                               <span style={{ fontWeight: 900, fontSize: 9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{ev.clientName.split(' ')[0]}</span>
-                              {(() => { const cs = ev._raw?.client_status || (ev.status === 'noshow' ? 'at_risk' : ''); const m: Record<string,{l:string,c:string,bg:string}> = { vip:{l:'V',c:'#ffd700',bg:'rgba(255,215,0,.25)'}, active:{l:'A',c:'#8ff0b1',bg:'rgba(143,240,177,.20)'}, new:{l:'N',c:'#7abaff',bg:'rgba(10,132,255,.25)'}, at_risk:{l:'!',c:'#ff6b6b',bg:'rgba(255,107,107,.25)'}, risk:{l:'!',c:'#ff6b6b',bg:'rgba(255,107,107,.25)'} }; const b = m[cs]; return b ? <span style={{ fontSize: 7, fontWeight: 900, color: b.c, background: b.bg, borderRadius: 3, padding: '0 2px', lineHeight: '11px', flexShrink: 0 }}>{b.l}</span> : null })()}
+                              {(() => { const cs = ev._raw?.client_status || (ev.status === 'noshow' ? 'at_risk' : ''); const m: Record<string,{l:string,c:string,bg:string}> = { vip:{l:'V',c:'#ffd700',bg:'rgba(255,215,0,.25)'}, active:{l:'A',c:'rgba(130,220,170,.8)',bg:'rgba(143,240,177,.20)'}, new:{l:'N',c:'#7abaff',bg:'rgba(10,132,255,.25)'}, at_risk:{l:'!',c:'#ff6b6b',bg:'rgba(255,107,107,.25)'}, risk:{l:'!',c:'#ff6b6b',bg:'rgba(255,107,107,.25)'} }; const b = m[cs]; return b ? <span style={{ fontSize: 7, fontWeight: 900, color: b.c, background: b.bg, borderRadius: 3, padding: '0 2px', lineHeight: '11px', flexShrink: 0 }}>{b.l}</span> : null })()}
                             </div>
                             {height > 24 && <div style={{ fontSize: 7, color: 'rgba(255,255,255,.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{minToAMPM(ev.startMin)}</div>}
                             {height > 36 && ev.serviceName && ev.serviceName !== 'Service' && <div style={{ fontSize: 7, color: 'rgba(255,255,255,.35)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.serviceName.split(' + ')[0]}</div>}
@@ -2320,7 +2320,7 @@ export default function CalendarPage() {
                             </div>}
                           </>) : (<>
                           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
-                            <div style={{ fontWeight: 900, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, display: 'flex', alignItems: 'center', gap: 3 }}>{ev.clientName}{(() => { const cs = ev._raw?.client_status; const badges: Record<string,{label:string,color:string,bg:string,border:string}> = { vip:{label:'VIP',color:'#ffd700',bg:'rgba(255,215,0,.18)',border:'rgba(255,215,0,.35)'}, active:{label:'ACTIVE',color:'#8ff0b1',bg:'rgba(143,240,177,.14)',border:'rgba(143,240,177,.30)'}, new:{label:'NEW',color:'#7abaff',bg:'rgba(10,132,255,.18)',border:'rgba(10,132,255,.35)'}, at_risk:{label:'RISK',color:'#ff6b6b',bg:'rgba(255,107,107,.18)',border:'rgba(255,107,107,.35)'} }; const b = badges[cs] || badges[(cs === 'risk' ? 'at_risk' : '')]; return b ? <span style={{ fontSize: 7, fontWeight: 900, letterSpacing: '.04em', color: b.color, background: b.bg, border: `1px solid ${b.border}`, borderRadius: 4, padding: '1px 4px', lineHeight: '12px', flexShrink: 0 }}>{b.label}</span> : null })()}</div>
+                            <div style={{ fontWeight: 900, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, display: 'flex', alignItems: 'center', gap: 3 }}>{ev.clientName}{(() => { const cs = ev._raw?.client_status; const badges: Record<string,{label:string,color:string,bg:string,border:string}> = { vip:{label:'VIP',color:'#ffd700',bg:'rgba(255,215,0,.18)',border:'rgba(255,215,0,.35)'}, active:{label:'ACTIVE',color:'rgba(130,220,170,.8)',bg:'rgba(143,240,177,.14)',border:'rgba(143,240,177,.30)'}, new:{label:'NEW',color:'#7abaff',bg:'rgba(10,132,255,.18)',border:'rgba(10,132,255,.35)'}, at_risk:{label:'RISK',color:'#ff6b6b',bg:'rgba(255,107,107,.18)',border:'rgba(255,107,107,.35)'} }; const b = badges[cs] || badges[(cs === 'risk' ? 'at_risk' : '')]; return b ? <span style={{ fontSize: 7, fontWeight: 900, letterSpacing: '.04em', color: b.color, background: b.bg, border: `1px solid ${b.border}`, borderRadius: 4, padding: '1px 4px', lineHeight: '12px', flexShrink: 0 }}>{b.label}</span> : null })()}</div>
                             <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
                               {ev._raw?.booking_type === 'membership' && <Chip label="Member" type="arrived" />}
                               {ev._raw?.booking_type === 'model' && <Chip label="Model" type="model" />}
@@ -2491,14 +2491,14 @@ export default function CalendarPage() {
                 } else {
                   openCreate(isBarber ? myBarberId : (barbers[0]?.id || ''), clamp(new Date().getHours()*60))
                 }
-              }} style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid rgba(10,132,255,.45)', background: 'rgba(0,0,0,.50)', color: '#d7ecff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              }} style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid rgba(10,132,255,.45)', background: 'rgba(0,0,0,.50)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               </button>
             </div>
           )
         })()}
 
-        {loading && dayTransition === 'idle' && !isMobile && <div style={{ position: 'fixed', bottom: 20, right: 20, padding: '8px 16px', borderRadius: 999, background: 'rgba(10,132,255,.20)', border: '1px solid rgba(10,132,255,.40)', color: '#d7ecff', fontSize: 12, zIndex: 99 }}>Loading…</div>}
+        {loading && dayTransition === 'idle' && !isMobile && <div style={{ position: 'fixed', bottom: 20, right: 20, padding: '8px 16px', borderRadius: 999, background: 'rgba(10,132,255,.20)', border: '1px solid rgba(10,132,255,.40)', color: 'rgba(130,150,220,.6)', fontSize: 12, zIndex: 99 }}>Loading…</div>}
       </div>
 
       {/* Context menu */}
@@ -2506,9 +2506,9 @@ export default function CalendarPage() {
         const cmBarber = barbers.find(b=>b.id===contextMenu.barberId)
         const hasStudents = studentUsers.some(s => s.mentorIds.includes(contextMenu.barberId))
         const cmItems = [
-          { label: 'Booking', icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#d7ecff" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>, bg: 'rgba(10,132,255,.18)', brd: 'rgba(10,132,255,.35)', col: '#d7ecff', fn: () => { setContextMenu(null); openCreate(contextMenu.barberId, contextMenu.min) } },
+          { label: 'Booking', icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(130,150,220,.6)" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>, bg: 'rgba(10,132,255,.18)', brd: 'rgba(10,132,255,.35)', col: 'rgba(130,150,220,.6)', fn: () => { setContextMenu(null); openCreate(contextMenu.barberId, contextMenu.min) } },
           ...(hasStudents ? [{
-            label: 'Training', icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#d4b8ff" strokeWidth="2.2" strokeLinecap="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 3 3 6 3s6-1 6-3v-5"/></svg>, bg: 'rgba(168,107,255,.18)', brd: 'rgba(168,107,255,.35)', col: '#d4b8ff', fn: () => { setContextMenu(null); setTrainingModal({ barberId: contextMenu.barberId, barberName: cmBarber?.name || '', min: contextMenu.min }) }
+            label: 'Training', icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(180,140,220,.6)" strokeWidth="2.2" strokeLinecap="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 3 3 6 3s6-1 6-3v-5"/></svg>, bg: 'rgba(168,107,255,.18)', brd: 'rgba(168,107,255,.35)', col: 'rgba(180,140,220,.6)', fn: () => { setContextMenu(null); setTrainingModal({ barberId: contextMenu.barberId, barberName: cmBarber?.name || '', min: contextMenu.min }) }
           }] : []),
         ]
         // Clamp position to screen
@@ -2541,8 +2541,8 @@ export default function CalendarPage() {
         const ev = events.find(e => e.id === dragConfirm.eventId); if (!ev) return null
         return (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-            <div style={{ width: 'min(380px,92vw)', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.55), inset 0 0 0 0.5px rgba(255,255,255,.06)', padding: 20, color: '#e9e9e9', fontFamily: 'Inter,sans-serif' }}>
-              <div style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13, color: 'rgba(255,255,255,.70)', marginBottom: 14 }}>Move booking</div>
+            <div style={{ width: 'min(380px,92vw)', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.55), inset 0 0 0 0.5px rgba(255,255,255,.06)', padding: 20, color: '#e8e8ed', fontFamily: 'Inter,sans-serif' }}>
+              <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13, color: 'rgba(255,255,255,.70)', marginBottom: 14 }}>Move booking</div>
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,.50)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.08em' }}>{dragConfirm.newBarberName}</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 4 }}>{minToAMPM(dragConfirm.newMin)}</div>
@@ -2550,7 +2550,7 @@ export default function CalendarPage() {
               </div>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                 <button onClick={() => setDragConfirm(null)} style={{ height: 40, padding: '0 18px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
-                <button onClick={confirmDragMove} style={{ height: 40, padding: '0 20px', borderRadius: 999, border: '1px solid rgba(10,132,255,.75)', background: 'rgba(10,132,255,.18)', color: '#d7ecff', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13 }}>Move</button>
+                <button onClick={confirmDragMove} style={{ height: 40, padding: '0 20px', borderRadius: 999, border: '1px solid rgba(10,132,255,.75)', background: 'rgba(10,132,255,.18)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13 }}>Move</button>
               </div>
             </div>
           </div>
@@ -2561,13 +2561,13 @@ export default function CalendarPage() {
       {blockConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.50)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
           onClick={() => setBlockConfirm(null)}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 'min(340px,88vw)', borderRadius: 22, border: `1px solid ${blockConfirm.action === 'delete' ? 'rgba(255,107,107,.20)' : 'rgba(255,107,107,.15)'}`, background: 'rgba(8,8,8,.75)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.60), inset 0 0 0 0.5px rgba(255,255,255,.06)', padding: '22px 20px', color: '#e9e9e9', fontFamily: 'Inter,sans-serif' }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 'min(340px,88vw)', borderRadius: 22, border: `1px solid ${blockConfirm.action === 'delete' ? 'rgba(255,107,107,.20)' : 'rgba(255,107,107,.15)'}`, background: 'rgba(8,8,8,.75)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.60), inset 0 0 0 0.5px rgba(255,255,255,.06)', padding: '22px 20px', color: '#e8e8ed', fontFamily: 'Inter,sans-serif' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
               <div style={{ width: 48, height: 48, borderRadius: 14, background: blockConfirm.action === 'delete' ? 'rgba(255,107,107,.10)' : 'rgba(255,107,107,.08)', border: `1px solid ${blockConfirm.action === 'delete' ? 'rgba(255,107,107,.25)' : 'rgba(255,107,107,.15)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={blockConfirm.action === 'delete' ? 'rgba(255,107,107,.80)' : 'rgba(255,107,107,.65)'} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
               </div>
             </div>
-            <div style={{ textAlign: 'center', fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.14em', textTransform: 'uppercase', fontSize: 13, marginBottom: 8 }}>
+            <div style={{ textAlign: 'center', fontFamily: '"Inter",sans-serif', letterSpacing: '.14em', textTransform: 'uppercase', fontSize: 13, marginBottom: 8 }}>
               {blockConfirm.action === 'delete' ? 'Remove Block' : 'Block Time'}
             </div>
             <div style={{ textAlign: 'center', marginBottom: 16 }}>
@@ -2582,7 +2582,7 @@ export default function CalendarPage() {
                 if (blockConfirm.action === 'create') { openCreateBlock(blockConfirm.barberId, blockConfirm.startMin, blockConfirm.endMin - blockConfirm.startMin) }
                 else { if (blockConfirm.evId) setEvents(prev => prev.filter(x => x.id !== blockConfirm.evId)); if (blockConfirm.rawId) apiFetch('/api/bookings/' + encodeURIComponent(blockConfirm.rawId), { method: 'DELETE' }).catch(console.warn); showToast('Block removed') }
                 setBlockConfirm(null)
-              }} style={{ flex: 1, height: 44, borderRadius: 14, border: `1px solid ${blockConfirm.action === 'delete' ? 'rgba(255,107,107,.50)' : 'rgba(255,107,107,.40)'}`, background: blockConfirm.action === 'delete' ? 'rgba(255,107,107,.12)' : 'rgba(255,107,107,.08)', color: blockConfirm.action === 'delete' ? '#ffd0d0' : '#ffb0b0', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>
+              }} style={{ flex: 1, height: 44, borderRadius: 14, border: `1px solid ${blockConfirm.action === 'delete' ? 'rgba(255,107,107,.50)' : 'rgba(255,107,107,.40)'}`, background: blockConfirm.action === 'delete' ? 'rgba(255,107,107,.12)' : 'rgba(255,107,107,.08)', color: blockConfirm.action === 'delete' ? 'rgba(220,130,160,.5)' : '#ffb0b0', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>
                 {blockConfirm.action === 'delete' ? 'Remove' : 'Block'}
               </button>
             </div>
@@ -2649,7 +2649,7 @@ export default function CalendarPage() {
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
                   {TRAINING_TYPES.map(t => (
                     <button key={t.value} onClick={() => setTrainingType(t.value)}
-                      style={{ height: 36, padding: '0 14px', borderRadius: 999, border: `1px solid ${trainingType === t.value ? 'rgba(168,107,255,.65)' : 'rgba(255,255,255,.12)'}`, background: trainingType === t.value ? 'rgba(168,107,255,.16)' : 'rgba(255,255,255,.04)', color: trainingType === t.value ? '#d4b8ff' : 'rgba(255,255,255,.65)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap' as const }}>
+                      style={{ height: 36, padding: '0 14px', borderRadius: 999, border: `1px solid ${trainingType === t.value ? 'rgba(168,107,255,.65)' : 'rgba(255,255,255,.12)'}`, background: trainingType === t.value ? 'rgba(168,107,255,.16)' : 'rgba(255,255,255,.04)', color: trainingType === t.value ? 'rgba(180,140,220,.6)' : 'rgba(255,255,255,.65)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap' as const }}>
                       {t.label}
                     </button>
                   ))}
@@ -2662,7 +2662,7 @@ export default function CalendarPage() {
               </div>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                 <button onClick={() => setTrainingModal(null)} style={{ height: 42, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
-                <button onClick={saveTraining} disabled={tSaving || !studentId} style={{ height: 42, padding: '0 20px', borderRadius: 999, border: '1px solid rgba(168,107,255,.55)', background: 'rgba(168,107,255,.18)', color: '#d4b8ff', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13, opacity: tSaving ? .5 : 1 }}>
+                <button onClick={saveTraining} disabled={tSaving || !studentId} style={{ height: 42, padding: '0 20px', borderRadius: 999, border: '1px solid rgba(168,107,255,.55)', background: 'rgba(168,107,255,.18)', color: 'rgba(180,140,220,.6)', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13, opacity: tSaving ? .5 : 1 }}>
                   {tSaving ? 'Saving…' : 'Schedule training'}
                 </button>
               </div>
@@ -2672,10 +2672,10 @@ export default function CalendarPage() {
         return (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 16 }}
             onClick={e => { if (e.target === e.currentTarget) setTrainingModal(null) }}>
-            <div style={{ width: 'min(480px,100%)', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.60), inset 0 0 0 0.5px rgba(255,255,255,.07)', color: '#e9e9e9', fontFamily: 'Inter,sans-serif' }}>
+            <div style={{ width: 'min(480px,100%)', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.60), inset 0 0 0 0.5px rgba(255,255,255,.07)', color: '#e8e8ed', fontFamily: 'Inter,sans-serif' }}>
               <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', borderRadius: '22px 22px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <div style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13 }}>Schedule training</div>
+                  <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13 }}>Schedule training</div>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginTop: 3, letterSpacing: '.08em' }}>{todayStr} · {trainingModal!.barberName}</div>
                 </div>
                 <button onClick={() => setTrainingModal(null)} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontFamily: 'inherit' }}>✕</button>
@@ -2751,8 +2751,8 @@ export default function CalendarPage() {
         }
         return (
           <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', backdropFilter:'blur(18px)', WebkitBackdropFilter:'blur(18px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }}>
-            <div style={{ width:'min(360px,92vw)', borderRadius:22, border:'1px solid rgba(255,255,255,.10)', background:'rgba(0,0,0,.65)', backdropFilter:'saturate(180%) blur(40px)', WebkitBackdropFilter:'saturate(180%) blur(40px)', boxShadow:'0 32px 80px rgba(0,0,0,.55)', padding:22, color:'#e9e9e9', fontFamily:'Inter,sans-serif' }}>
-              <div style={{ fontFamily:'"Julius Sans One",sans-serif', letterSpacing:'.16em', textTransform:'uppercase', fontSize:13, marginBottom:14 }}>{isBarber && !isOwnerOrAdmin ? 'Request schedule change' : 'Update schedule'}</div>
+            <div style={{ width:'min(360px,92vw)', borderRadius:22, border:'1px solid rgba(255,255,255,.10)', background:'rgba(0,0,0,.65)', backdropFilter:'saturate(180%) blur(40px)', WebkitBackdropFilter:'saturate(180%) blur(40px)', boxShadow:'0 32px 80px rgba(0,0,0,.55)', padding:22, color:'#e8e8ed', fontFamily:'Inter,sans-serif' }}>
+              <div style={{ fontFamily:'"Inter",sans-serif', letterSpacing:'.16em', textTransform:'uppercase', fontSize:13, marginBottom:14 }}>{isBarber && !isOwnerOrAdmin ? 'Request schedule change' : 'Update schedule'}</div>
               <div style={{ fontSize:13, color:'rgba(255,255,255,.70)', lineHeight:1.6, marginBottom:18 }}>
                 {isBarber && !isOwnerOrAdmin ? 'Request to change' : 'Change'} <span style={{ color:'#fff', fontWeight:700 }}>{barberName}</span>'s schedule for <span style={{ color:'#fff', fontWeight:700 }}>{dayName}, {new Date(todayStr + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span> to:
                 <div style={{ marginTop:10, fontSize:22, fontWeight:800, color:'#fff', letterSpacing:'.04em' }}>
@@ -2805,10 +2805,10 @@ export default function CalendarPage() {
       {slotPicker && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 16 }}
           onClick={e => { if (e.target === e.currentTarget) setSlotPicker(null) }}>
-          <div style={{ width: 'min(400px,100%)', maxHeight: 'min(600px,80vh)', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.60), inset 0 0 0 0.5px rgba(255,255,255,.07)', color: '#e9e9e9', fontFamily: 'Inter,sans-serif', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ width: 'min(400px,100%)', maxHeight: 'min(600px,80vh)', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.60), inset 0 0 0 0.5px rgba(255,255,255,.07)', color: '#e8e8ed', fontFamily: 'Inter,sans-serif', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13 }}>Available slots</div>
+                <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13 }}>Available slots</div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginTop: 3 }}>{slotPicker.length} free 90min slots today</div>
               </div>
               <button onClick={() => setSlotPicker(null)} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontSize: 16 }}>✕</button>
@@ -2816,7 +2816,7 @@ export default function CalendarPage() {
             <div style={{ overflowY: 'auto', padding: '8px 12px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
               {slotPicker.map((slot, i) => (
                 <button key={i} onClick={() => { setSlotPicker(null); openCreate(slot.mentorId, slot.min) }}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', cursor: 'pointer', color: '#e9e9e9', fontFamily: 'inherit', textAlign: 'left', width: '100%' }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', cursor: 'pointer', color: '#e8e8ed', fontFamily: 'inherit', textAlign: 'left', width: '100%' }}
                   onMouseEnter={e => (e.currentTarget.style.background='rgba(168,107,255,.12)')} onMouseLeave={e => (e.currentTarget.style.background='rgba(255,255,255,.04)')}>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 800 }}>{minToAMPM(slot.min)} — {minToAMPM(slot.min + 90)}</div>
@@ -2856,7 +2856,7 @@ export default function CalendarPage() {
         return (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 16 }}
             onClick={e => { if (e.target === e.currentTarget) { if (bm.evId && (isResizeConfirm || isOwnerResize)) setEvents(prev => prev.map(x => x.id === bm.evId ? { ...x, durMin: bm.originalDur } : x)); setBlockModal(null) } }}>
-            <div style={{ width: 'min(380px,92vw)', borderRadius: 22, border: `1px solid ${accentColor}.25)`, background: 'rgba(0,0,0,.80)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.60)', padding: '24px 22px', color: '#e9e9e9', fontFamily: 'Inter,sans-serif' }}>
+            <div style={{ width: 'min(380px,92vw)', borderRadius: 22, border: `1px solid ${accentColor}.25)`, background: 'rgba(0,0,0,.80)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.60)', padding: '24px 22px', color: '#e8e8ed', fontFamily: 'Inter,sans-serif' }}>
               {/* Icon */}
               <div style={{ textAlign: 'center', marginBottom: 16 }}>
                 <div style={{ width: 52, height: 52, borderRadius: 16, background: `${accentColor}.10)`, border: `1px solid ${accentColor}.30)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -2864,7 +2864,7 @@ export default function CalendarPage() {
                 </div>
               </div>
               {/* Title */}
-              <div style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.14em', textTransform: 'uppercase', fontSize: 14, textAlign: 'center', marginBottom: 8 }}>
+              <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.14em', textTransform: 'uppercase', fontSize: 14, textAlign: 'center', marginBottom: 8 }}>
                 {isCreate ? 'Block Time' : 'Resize Block'}
               </div>
 
@@ -2875,7 +2875,7 @@ export default function CalendarPage() {
                   <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.50)', marginBottom: 6 }}>Duration (minutes)</div>
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
                     {[15, 30, 45, 60, 90, 120].map(d => (
-                      <button key={d} onClick={() => setBlockDurInput(String(d))} style={{ height: 36, minWidth: 48, borderRadius: 10, border: `1px solid ${String(d) === blockDurInput ? 'rgba(255,107,107,.65)' : 'rgba(255,255,255,.14)'}`, background: String(d) === blockDurInput ? 'rgba(255,107,107,.15)' : 'rgba(255,255,255,.04)', color: String(d) === blockDurInput ? '#ffd0d0' : '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit' }}>{d}</button>
+                      <button key={d} onClick={() => setBlockDurInput(String(d))} style={{ height: 36, minWidth: 48, borderRadius: 10, border: `1px solid ${String(d) === blockDurInput ? 'rgba(255,107,107,.65)' : 'rgba(255,255,255,.14)'}`, background: String(d) === blockDurInput ? 'rgba(255,107,107,.15)' : 'rgba(255,255,255,.04)', color: String(d) === blockDurInput ? 'rgba(220,130,160,.5)' : '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit' }}>{d}</button>
                     ))}
                   </div>
                   <input type="number" value={blockDurInput} onChange={e => setBlockDurInput(e.target.value)} min={5} max={480} step={5} style={{ width: 80, height: 40, borderRadius: 10, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(255,255,255,.06)', color: '#fff', textAlign: 'center', fontSize: 18, fontWeight: 900, outline: 'none', fontFamily: 'inherit' }} />
@@ -2886,7 +2886,7 @@ export default function CalendarPage() {
                 {/* Resize confirm: show old → new */}
                 <div style={{ textAlign: 'center', marginBottom: 20 }}>
                   <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 4 }}>{minToAMPM(bm.startMin)} — {minToAMPM(bm.startMin + bm.currentDur)}</div>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.50)' }}>{bm.originalDur}min → <span style={{ color: '#ffd0d0', fontWeight: 700 }}>{bm.currentDur}min</span></div>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.50)' }}>{bm.originalDur}min → <span style={{ color: 'rgba(220,130,160,.5)', fontWeight: 700 }}>{bm.currentDur}min</span></div>
                 </div>
                 {isResizeConfirm && <div style={{ fontSize: 11, color: 'rgba(255,107,107,.60)', textAlign: 'center', marginBottom: 16 }}>Extended time will be sent for approval</div>}
               </>)}
@@ -2894,7 +2894,7 @@ export default function CalendarPage() {
               {/* Buttons */}
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
                 <button onClick={() => { if (bm.evId && (isResizeConfirm || isOwnerResize)) setEvents(prev => prev.map(x => x.id === bm.evId ? { ...x, durMin: bm.originalDur } : x)); setBlockModal(null) }} style={{ flex: 1, height: 44, borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
-                <button onClick={submitBlock} style={{ flex: 2, height: 44, borderRadius: 999, border: `1px solid ${accentColor}.55)`, background: `${accentColor}.12)`, color: isOwnerResize ? '#fff' : '#ffd0d0', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13 }}>
+                <button onClick={submitBlock} style={{ flex: 2, height: 44, borderRadius: 999, border: `1px solid ${accentColor}.55)`, background: `${accentColor}.12)`, color: isOwnerResize ? '#fff' : 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13 }}>
                   {isCreate ? (isOwnerOrAdmin ? 'Block' : 'Request Block') : isResizeConfirm ? 'Send for Approval' : 'Confirm Resize'}
                 </button>
               </div>
@@ -2931,7 +2931,7 @@ export default function CalendarPage() {
         return (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 16 }}
             onClick={e => { if (e.target === e.currentTarget && !wlConfirming) setWlConfirm(null) }}>
-            <div style={{ width: 'min(420px,92vw)', borderRadius: 22, border: '1px solid rgba(10,132,255,.25)', background: 'rgba(0,0,0,.70)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.60), inset 0 0 0 0.5px rgba(255,255,255,.07)', padding: '24px 22px', color: '#e9e9e9', fontFamily: 'Inter,sans-serif' }}>
+            <div style={{ width: 'min(420px,92vw)', borderRadius: 22, border: '1px solid rgba(10,132,255,.25)', background: 'rgba(0,0,0,.70)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.60), inset 0 0 0 0.5px rgba(255,255,255,.07)', padding: '24px 22px', color: '#e8e8ed', fontFamily: 'Inter,sans-serif' }}>
               {/* Icon */}
               <div style={{ textAlign: 'center', marginBottom: 16 }}>
                 <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(10,132,255,.10)', border: '1px solid rgba(10,132,255,.30)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -2939,7 +2939,7 @@ export default function CalendarPage() {
                 </div>
               </div>
               {/* Title */}
-              <div style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.14em', textTransform: 'uppercase', fontSize: 14, textAlign: 'center', marginBottom: 16 }}>Confirm from waitlist</div>
+              <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.14em', textTransform: 'uppercase', fontSize: 14, textAlign: 'center', marginBottom: 16 }}>Confirm from waitlist</div>
               {/* Details */}
               <div style={{ padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', marginBottom: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -2985,7 +2985,7 @@ export default function CalendarPage() {
 
       {/* Toast notification */}
       {toast && (
-        <div style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)', left: '50%', transform: 'translateX(-50%)', zIndex: 400, padding: '12px 24px', borderRadius: 16, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(0,0,0,.80)', backdropFilter: 'saturate(180%) blur(30px)', WebkitBackdropFilter: 'saturate(180%) blur(30px)', boxShadow: '0 12px 40px rgba(0,0,0,.50)', color: '#e9e9e9', fontSize: 13, fontWeight: 600, fontFamily: 'Inter,sans-serif', maxWidth: '90vw', textAlign: 'center', animation: 'slideUp .2s ease' }}
+        <div style={{ position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)', left: '50%', transform: 'translateX(-50%)', zIndex: 400, padding: '12px 24px', borderRadius: 16, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(0,0,0,.80)', backdropFilter: 'saturate(180%) blur(30px)', WebkitBackdropFilter: 'saturate(180%) blur(30px)', boxShadow: '0 12px 40px rgba(0,0,0,.50)', color: '#e8e8ed', fontSize: 13, fontWeight: 600, fontFamily: 'Inter,sans-serif', maxWidth: '90vw', textAlign: 'center', animation: 'slideUp .2s ease' }}
           onClick={() => setToast('')}>
           {toast}
         </div>

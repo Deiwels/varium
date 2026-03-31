@@ -22,11 +22,11 @@ interface Barber { id: string; name: string }
 const fmtDate = (iso: string) => { try { return new Date(iso.includes('T') ? iso : iso+'T00:00:00').toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' }) } catch { return iso } }
 const initials = (name: string) => { const p=(name||'').split(' '); return ((p[0]?.[0]||'')+(p[1]?.[0]||'')).toUpperCase() || '?' }
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
-  vip:     { borderColor:'rgba(255,207,63,.45)', background:'rgba(255,207,63,.10)', color:'#ffe9a3' },
-  active:  { borderColor:'rgba(143,240,177,.40)', background:'rgba(143,240,177,.10)', color:'#c9ffe1' },
-  new:     { borderColor:'rgba(10,132,255,.45)', background:'rgba(10,132,255,.10)', color:'#d7ecff' },
-  risk:    { borderColor:'rgba(255,107,107,.40)', background:'rgba(255,107,107,.10)', color:'#ffd0d0' },
-  at_risk: { borderColor:'rgba(255,107,107,.40)', background:'rgba(255,107,107,.10)', color:'#ffd0d0' },
+  vip:     { borderColor:'rgba(255,207,63,.45)', background:'rgba(255,207,63,.10)', color:'rgba(220,190,130,.5)' },
+  active:  { borderColor:'rgba(143,240,177,.40)', background:'rgba(143,240,177,.10)', color:'rgba(130,220,170,.5)' },
+  new:     { borderColor:'rgba(10,132,255,.45)', background:'rgba(10,132,255,.10)', color:'rgba(130,150,220,.6)' },
+  risk:    { borderColor:'rgba(255,107,107,.40)', background:'rgba(255,107,107,.10)', color:'rgba(220,130,160,.5)' },
+  at_risk: { borderColor:'rgba(255,107,107,.40)', background:'rgba(255,107,107,.10)', color:'rgba(220,130,160,.5)' },
 }
 const STATUS_LABELS: Record<string,string> = { vip:'VIP', active:'Active', new:'New', risk:'At risk', at_risk:'At risk' }
 
@@ -75,17 +75,17 @@ function AddClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100, backdropFilter:'blur(10px)' }}
       onClick={e => { if (e.target===e.currentTarget) onClose() }}>
-      <div style={{ width:'min(420px,95vw)', borderRadius:20, border:'1px solid rgba(255,255,255,.12)', background:'linear-gradient(180deg,rgba(20,20,30,.92),rgba(10,10,20,.90))', backdropFilter:'blur(24px)', padding:20, color:'#e9e9e9', fontFamily:'Inter,sans-serif', boxShadow:'0 24px 80px rgba(0,0,0,.7)' }}>
+      <div style={{ width:'min(420px,95vw)', borderRadius:20, border:'1px solid rgba(255,255,255,.12)', background:'linear-gradient(180deg,rgba(20,20,30,.92),rgba(10,10,20,.90))', backdropFilter:'blur(24px)', padding:20, color:'#e8e8ed', fontFamily:'Inter,sans-serif', boxShadow:'0 24px 80px rgba(0,0,0,.7)' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16, paddingBottom:12, borderBottom:'1px solid rgba(255,255,255,.08)' }}>
-          <div style={{ fontFamily:'"Julius Sans One",sans-serif', letterSpacing:'.16em', textTransform:'uppercase', fontSize:13 }}>Add client</div>
+          <div style={{ fontFamily:'"Inter",sans-serif', letterSpacing:'.16em', textTransform:'uppercase', fontSize:13 }}>Add client</div>
           <button onClick={onClose} style={{ width:30, height:30, borderRadius:8, border:'1px solid rgba(255,255,255,.12)', background:'rgba(255,255,255,.05)', color:'#fff', cursor:'pointer', fontSize:15 }}>✕</button>
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
           <div><label style={lbl}>Full name *</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="Client name" style={inp} autoFocus /></div>
           <div><label style={lbl}>Phone</label><input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="+1 (___) ___-____" style={inp} type="tel" /></div>
           <div><label style={lbl}>Email</label><input value={email} onChange={e=>setEmail(e.target.value)} placeholder="optional" style={inp} type="email" /></div>
-          {err && <div style={{ fontSize:12, color:'#ffd0d0', padding:'8px 12px', borderRadius:10, border:'1px solid rgba(255,107,107,.30)', background:'rgba(255,107,107,.08)' }}>{err}</div>}
-          <button onClick={save} disabled={saving} style={{ height:44, borderRadius:12, border:'1px solid rgba(10,132,255,.65)', background:'rgba(10,132,255,.14)', color:'#d7ecff', cursor:'pointer', fontWeight:900, fontSize:13, fontFamily:'inherit' }}>
+          {err && <div style={{ fontSize:12, color:'rgba(220,130,160,.5)', padding:'8px 12px', borderRadius:10, border:'1px solid rgba(255,107,107,.30)', background:'rgba(255,107,107,.08)' }}>{err}</div>}
+          <button onClick={save} disabled={saving} style={{ height:44, borderRadius:12, border:'1px solid rgba(10,132,255,.65)', background:'rgba(10,132,255,.14)', color:'rgba(130,150,220,.6)', cursor:'pointer', fontWeight:900, fontSize:13, fontFamily:'inherit' }}>
             {saving ? 'Saving…' : 'Add client'}
           </button>
         </div>
@@ -245,7 +245,7 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
               await apiFetch(`/api/clients/${encodeURIComponent(clientId)}`, { method: 'DELETE' })
               window.location.reload()
             } catch (e: any) { alert(e?.message || 'Delete failed') }
-          }} style={{ width:32, height:32, borderRadius:10, border:'1px solid rgba(255,107,107,.30)', background:'rgba(255,107,107,.06)', color:'#ffd0d0', cursor:'pointer', fontSize:13, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }} title="Delete client">
+          }} style={{ width:32, height:32, borderRadius:10, border:'1px solid rgba(255,107,107,.30)', background:'rgba(255,107,107,.06)', color:'rgba(220,130,160,.5)', cursor:'pointer', fontSize:13, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }} title="Delete client">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
           </button>
         )}
@@ -266,20 +266,20 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
         {c.phone && row('Phone',
           isOwner
             ? (revealedPhones[c.id]
-              ? <a href={`tel:${revealedPhones[c.id]}`} style={{ color:'#d7ecff', textDecoration:'none' }}>{revealedPhones[c.id]}</a>
+              ? <a href={`tel:${revealedPhones[c.id]}`} style={{ color:'rgba(130,150,220,.6)', textDecoration:'none' }}>{revealedPhones[c.id]}</a>
               : <span onClick={() => revealPhone(c.id, c.phone!)} style={{ color:'rgba(10,132,255,.8)', cursor:'pointer', fontSize:12 }}>{maskPhone(c.phone)} · tap to reveal</span>)
             : isAdmin
               ? (revealedPhones[c.id]
-                ? <span style={{ color:'#8ff0b1' }}>{revealedPhones[c.id]} <span style={{ fontSize:9, color:'rgba(255,255,255,.30)' }}>auto-hide 15s</span></span>
+                ? <span style={{ color:'rgba(130,220,170,.8)' }}>{revealedPhones[c.id]} <span style={{ fontSize:9, color:'rgba(255,255,255,.30)' }}>auto-hide 15s</span></span>
                 : phoneLoading === c.id
                   ? <span style={{ color:'rgba(255,255,255,.40)', fontSize:11 }}>Verifying location...</span>
-                  : <button onClick={() => requestPhone(c.id)} style={{ height:28, padding:'0 10px', borderRadius:999, border:'1px solid rgba(10,132,255,.45)', background:'rgba(10,132,255,.12)', color:'#d7ecff', cursor:'pointer', fontWeight:700, fontSize:10, fontFamily:'inherit' }}>
+                  : <button onClick={() => requestPhone(c.id)} style={{ height:28, padding:'0 10px', borderRadius:999, border:'1px solid rgba(10,132,255,.45)', background:'rgba(10,132,255,.12)', color:'rgba(130,150,220,.6)', cursor:'pointer', fontWeight:700, fontSize:10, fontFamily:'inherit' }}>
                       {maskPhone(c.phone)} · Request phone
                     </button>)
               : <span style={{ color:'rgba(255,255,255,.55)' }}>{maskPhone(c.phone)}</span>
         )}
         {phoneError && <div style={{ fontSize:11, color:'#ff6b6b', padding:'4px 0' }}>{phoneError}</div>}
-        {c.email && row('Email', <a href={`mailto:${c.email}`} style={{ color:'#d7ecff', textDecoration:'none', overflow:'hidden', textOverflow:'ellipsis', maxWidth:160, display:'block' }}>{c.email}</a>)}
+        {c.email && row('Email', <a href={`mailto:${c.email}`} style={{ color:'rgba(130,150,220,.6)', textDecoration:'none', overflow:'hidden', textOverflow:'ellipsis', maxWidth:160, display:'block' }}>{c.email}</a>)}
         {lastVisit && row('Last visit', fmtDate(lastVisit))}
       </div>
 
@@ -320,7 +320,7 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
           style={{ width:'100%', borderRadius:12, border:'1px solid rgba(255,255,255,.12)', background:'rgba(0,0,0,.22)', color:'#fff', padding:'10px 12px', outline:'none', fontSize:13, lineHeight:1.5, resize:'vertical' as const, fontFamily:'inherit' }} />
         <div style={{ display:'flex', gap:8, marginTop:8 }}>
           <button onClick={saveNotes} disabled={notesSaving}
-            style={{ height:34, padding:'0 16px', borderRadius:999, border:'1px solid rgba(10,132,255,.55)', background:'rgba(10,132,255,.12)', color:'#d7ecff', cursor:'pointer', fontWeight:900, fontSize:12, fontFamily:'inherit' }}>
+            style={{ height:34, padding:'0 16px', borderRadius:999, border:'1px solid rgba(10,132,255,.55)', background:'rgba(10,132,255,.12)', color:'rgba(130,150,220,.6)', cursor:'pointer', fontWeight:900, fontSize:12, fontFamily:'inherit' }}>
             {notesSaving ? 'Saving…' : 'Save notes'}
           </button>
           {c.phone && <>
@@ -341,7 +341,7 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
           <div>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
               <div style={{ fontSize:10, letterSpacing:'.14em', textTransform:'uppercase', color:'rgba(255,255,255,.40)' }}>Photos ({allPhotos.length})</div>
-              <label style={{ height:28, padding:'0 10px', borderRadius:999, border:'1px solid rgba(10,132,255,.45)', background:'rgba(10,132,255,.10)', color:'#d7ecff', cursor:'pointer', fontWeight:700, fontSize:10, fontFamily:'inherit', display:'flex', alignItems:'center', gap:4 }}>
+              <label style={{ height:28, padding:'0 10px', borderRadius:999, border:'1px solid rgba(10,132,255,.45)', background:'rgba(10,132,255,.10)', color:'rgba(130,150,220,.6)', cursor:'pointer', fontWeight:700, fontSize:10, fontFamily:'inherit', display:'flex', alignItems:'center', gap:4 }}>
                 {photoUploading ? 'Uploading…' : '📷 Add photo'}
                 <input type="file" accept="image/*" capture="environment" onChange={handlePhotoUpload} style={{ display:'none' }} disabled={photoUploading} />
               </label>
@@ -376,8 +376,8 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
               const photo = b.reference_photo_url || b.client_photo_url
               const st = b.status || (b.paid || b.is_paid ? 'completed' : 'pending')
               const statusColors: Record<string, { border: string; bg: string; color: string }> = {
-                completed: { border:'rgba(143,240,177,.40)', bg:'rgba(143,240,177,.10)', color:'#c9ffe1' },
-                cancelled: { border:'rgba(255,107,107,.40)', bg:'rgba(255,107,107,.10)', color:'#ffd0d0' },
+                completed: { border:'rgba(143,240,177,.40)', bg:'rgba(143,240,177,.10)', color:'rgba(130,220,170,.5)' },
+                cancelled: { border:'rgba(255,107,107,.40)', bg:'rgba(255,107,107,.10)', color:'rgba(220,130,160,.5)' },
                 noshow:    { border:'rgba(255,165,0,.40)',   bg:'rgba(255,165,0,.10)',   color:'#ffe0b2' },
                 pending:   { border:'rgba(255,255,255,.12)', bg:'rgba(0,0,0,.12)',       color:'rgba(255,255,255,.55)' },
               }
@@ -525,13 +525,13 @@ export default function ClientsPage() {
           .cl-filters select,.cl-filters input{height:36px!important;font-size:12px!important;}
         }
       `}</style>
-      <div style={{ display:'flex', flexDirection:'column', height:'100vh', background:'#000', color:'#e9e9e9', fontFamily:'Inter,system-ui,sans-serif' }}>
+      <div style={{ display:'flex', flexDirection:'column', height:'100vh', background:'#000', color:'#e8e8ed', fontFamily:'Inter,system-ui,sans-serif' }}>
 
         {/* Topbar */}
         <div style={{ padding:'12px 18px', background:'rgba(0,0,0,.80)', backdropFilter:'blur(14px)', borderBottom:'1px solid rgba(255,255,255,.08)', position:'sticky', top:0, zIndex:20 }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' as const, marginBottom:10, position:'relative' }}>
             <div style={{ position:'absolute', left:0, right:0, textAlign:'center', pointerEvents:'none' }}>
-              <h2 className="page-title" style={{ margin:0, fontFamily:'"Julius Sans One",sans-serif', letterSpacing:'.18em', textTransform:'uppercase', fontSize:15 }}>Clients</h2>
+              <h2 className="page-title" style={{ margin:0, fontFamily:'"Inter",sans-serif', letterSpacing:'.18em', textTransform:'uppercase', fontSize:15 }}>Clients</h2>
               <p style={{ margin:'3px 0 0', color:'rgba(255,255,255,.40)', fontSize:11, letterSpacing:'.08em' }}>
                 {visible.length} of {clients.length} clients
               </p>
@@ -541,7 +541,7 @@ export default function ClientsPage() {
             </div>
             <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const, alignItems:'center', position:'relative', zIndex:1 }}>
               <button onClick={() => setShowAdd(true)}
-                style={{ height:40, padding:'0 16px', borderRadius:999, border:'1px solid rgba(10,132,255,.75)', background:'rgba(0,0,0,.75)', color:'#d7ecff', cursor:'pointer', fontWeight:900, fontSize:13, fontFamily:'inherit', boxShadow:'0 0 18px rgba(10,132,255,.25)' }}>
+                style={{ height:40, padding:'0 16px', borderRadius:999, border:'1px solid rgba(10,132,255,.75)', background:'rgba(0,0,0,.75)', color:'rgba(130,150,220,.6)', cursor:'pointer', fontWeight:900, fontSize:13, fontFamily:'inherit', boxShadow:'0 0 18px rgba(10,132,255,.25)' }}>
                 + Add client
               </button>
             </div>
@@ -561,7 +561,7 @@ export default function ClientsPage() {
           <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', marginTop:8 }}>
             {[{v:'',l:'All'},{v:'vip',l:'VIP'},{v:'active',l:'Active'},{v:'new',l:'New'},{v:'at_risk',l:'At Risk'}].map(f => (
               <button key={f.v} onClick={() => setFilterClientStatus(f.v)}
-                style={{ height:30, padding:'0 12px', borderRadius:999, border:`1px solid ${filterClientStatus===f.v ? 'rgba(10,132,255,.65)' : 'rgba(255,255,255,.12)'}`, background:filterClientStatus===f.v ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.04)', color:filterClientStatus===f.v ? '#d7ecff' : 'rgba(255,255,255,.55)', cursor:'pointer', fontWeight:700, fontSize:11, fontFamily:'inherit', letterSpacing:'.04em' }}>
+                style={{ height:30, padding:'0 12px', borderRadius:999, border:`1px solid ${filterClientStatus===f.v ? 'rgba(10,132,255,.65)' : 'rgba(255,255,255,.12)'}`, background:filterClientStatus===f.v ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.04)', color:filterClientStatus===f.v ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.55)', cursor:'pointer', fontWeight:700, fontSize:11, fontFamily:'inherit', letterSpacing:'.04em' }}>
                 {f.l}
               </button>
             ))}
@@ -605,7 +605,7 @@ export default function ClientsPage() {
                                     : <span onClick={() => revealPhone(c.id, c.phone||'')} style={{ cursor:'pointer', color:'rgba(10,132,255,.8)' }}>{maskPhone(c.phone||'')}</span>)
                                   : isAdmin
                                     ? (revealedPhones[c.id]
-                                      ? <span style={{ color:'#8ff0b1' }}>{revealedPhones[c.id]}</span>
+                                      ? <span style={{ color:'rgba(130,220,170,.8)' }}>{revealedPhones[c.id]}</span>
                                       : phoneLoading === c.id
                                         ? <span style={{ color:'rgba(255,255,255,.40)', fontSize:10 }}>Verifying...</span>
                                         : <span onClick={() => requestPhone(c.id)} style={{ cursor:'pointer', color:'rgba(10,132,255,.8)', fontSize:10 }}>{maskPhone(c.phone||'')} · request</span>)

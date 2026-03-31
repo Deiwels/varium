@@ -64,7 +64,7 @@ function DatePicker({ from, to, onChange, onClose }: {
     { label: 'This month', f: `${new Date().getFullYear()}-${pad2(new Date().getMonth()+1)}-01`, t: today() },
   ]
 
-  const s: React.CSSProperties = { fontFamily: 'Inter,sans-serif', color: '#e9e9e9' }
+  const s: React.CSSProperties = { fontFamily: 'Inter,sans-serif', color: '#e8e8ed' }
   const btnBase: React.CSSProperties = { height: 36, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 12 }
 
   return (
@@ -73,7 +73,7 @@ function DatePicker({ from, to, onChange, onClose }: {
       <div style={{ ...s, width: 'min(560px,96vw)', borderRadius: 20, border: '1px solid rgba(255,255,255,.12)', background: 'linear-gradient(180deg,rgba(20,20,30,.90),rgba(10,10,20,.88))', backdropFilter: 'blur(24px)', padding: 18, boxShadow: '0 20px 60px rgba(0,0,0,.6)' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid rgba(255,255,255,.08)' }}>
-          <div style={{ fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13 }}>Date range</div>
+          <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13 }}>Date range</div>
           <button onClick={onClose} style={{ ...btnBase, padding: '0 14px' }}>Close</button>
         </div>
 
@@ -94,7 +94,7 @@ function DatePicker({ from, to, onChange, onClose }: {
             <button onClick={() => { const m = new Date(month); m.setMonth(m.getMonth()+1); setMonth(m) }} style={{ ...btnBase, width: 36, padding: 0 }}>→</button>
           </div>
           <div style={{ fontWeight: 900 }}>{month.toLocaleDateString([], { month: 'long', year: 'numeric' })}</div>
-          <div style={{ fontSize: 12, color: step === 'from' ? '#0a84ff' : '#8ff0b1', fontWeight: 700, letterSpacing: '.06em' }}>
+          <div style={{ fontSize: 12, color: step === 'from' ? 'rgba(130,150,220,.9)' : 'rgba(130,220,170,.8)', fontWeight: 700, letterSpacing: '.06em' }}>
             {step === 'from' ? 'Pick start →' : '← Pick end'}
           </div>
         </div>
@@ -116,7 +116,7 @@ function DatePicker({ from, to, onChange, onClose }: {
             const inRange = iso > selFrom && iso < selTo
             return (
               <button key={iso} onClick={() => pickDay(iso)}
-                style={{ height: 40, borderRadius: 10, border: `1px solid ${isFrom ? 'rgba(10,132,255,.75)' : isTo ? 'rgba(143,240,177,.65)' : isToday ? 'rgba(255,207,63,.50)' : 'rgba(255,255,255,.08)'}`, background: isFrom ? 'rgba(10,132,255,.20)' : isTo ? 'rgba(143,240,177,.15)' : inRange ? 'rgba(10,132,255,.08)' : 'rgba(0,0,0,.18)', color: isTo ? '#c9ffe1' : '#fff', cursor: 'pointer', opacity: inMonth ? 1 : 0.3, fontWeight: isFrom || isTo ? 900 : 500, fontSize: 13, fontFamily: 'inherit' }}>
+                style={{ height: 40, borderRadius: 10, border: `1px solid ${isFrom ? 'rgba(10,132,255,.75)' : isTo ? 'rgba(143,240,177,.65)' : isToday ? 'rgba(255,207,63,.50)' : 'rgba(255,255,255,.08)'}`, background: isFrom ? 'rgba(10,132,255,.20)' : isTo ? 'rgba(143,240,177,.15)' : inRange ? 'rgba(10,132,255,.08)' : 'rgba(0,0,0,.18)', color: isTo ? 'rgba(130,220,170,.5)' : '#fff', cursor: 'pointer', opacity: inMonth ? 1 : 0.3, fontWeight: isFrom || isTo ? 900 : 500, fontSize: 13, fontFamily: 'inherit' }}>
                 {parseInt(iso.slice(8))}
               </button>
             )
@@ -126,7 +126,7 @@ function DatePicker({ from, to, onChange, onClose }: {
         {/* Footer */}
         <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)' }}>Click start date, then end date</div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#d7ecff' }}>{selFrom && selTo ? fmtDate(selFrom) + ' → ' + fmtDate(selTo) : '—'}</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(130,150,220,.6)' }}>{selFrom && selTo ? fmtDate(selFrom) + ' → ' + fmtDate(selTo) : '—'}</div>
         </div>
       </div>
     </div>
@@ -228,12 +228,12 @@ function CommissionEditor({ barber, rule, onSaved }: { barber: BarberPayroll; ru
             </div>
           ))}
           <button onClick={() => setBonuses([...bonuses, { label: '', type: 'percent_revenue', value: 0 }])}
-            style={{ height: 32, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(168,107,255,.30)', background: 'rgba(168,107,255,.08)', color: '#d4b8ff', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit', marginBottom: 12 }}>
+            style={{ height: 32, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(168,107,255,.30)', background: 'rgba(168,107,255,.08)', color: 'rgba(180,140,220,.6)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit', marginBottom: 12 }}>
             + Add custom bonus
           </button>
 
           <button onClick={save} disabled={saving}
-            style={{ width: '100%', height: 40, borderRadius: 12, border: '1px solid rgba(10,132,255,.55)', background: saved ? 'rgba(143,240,177,.12)' : 'rgba(10,132,255,.14)', color: saved ? '#c9ffe1' : '#d7ecff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', borderColor: saved ? 'rgba(143,240,177,.45)' : 'rgba(10,132,255,.55)' }}>
+            style={{ width: '100%', height: 40, borderRadius: 12, border: '1px solid rgba(10,132,255,.55)', background: saved ? 'rgba(143,240,177,.12)' : 'rgba(10,132,255,.14)', color: saved ? 'rgba(130,220,170,.5)' : 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', borderColor: saved ? 'rgba(143,240,177,.45)' : 'rgba(10,132,255,.55)' }}>
             {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save rules'}
           </button>
         </div>
@@ -276,10 +276,10 @@ function AdminPayrollEditor({ userId, userName, rule, onSaved, extraDays }: { us
     <div style={{ borderRadius: 14, border: `1px solid ${open ? 'rgba(143,240,177,.25)' : 'rgba(255,255,255,.08)'}`, overflow: 'hidden', background: open ? 'rgba(143,240,177,.04)' : 'rgba(0,0,0,.12)' }}>
       <div onClick={() => setOpen(v => !v)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: 'pointer' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(143,240,177,.12)', border: '1px solid rgba(143,240,177,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, color: '#c9ffe1' }}>{initials(userName)}</div>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(143,240,177,.12)', border: '1px solid rgba(143,240,177,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, color: 'rgba(130,220,170,.5)' }}>{initials(userName)}</div>
           <div>
             <div style={{ fontWeight: 900, fontSize: 13 }}>{userName}</div>
-            <div style={{ fontSize: 10, color: '#c9ffe1' }}>ADMIN</div>
+            <div style={{ fontSize: 10, color: 'rgba(130,220,170,.5)' }}>ADMIN</div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -308,7 +308,7 @@ function AdminPayrollEditor({ userId, userName, rule, onSaved, extraDays }: { us
             <label style={{ fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', display: 'block', marginBottom: 6 }}>Days worked (auto from clock-in)</label>
             <div className="day-pills" style={{ display: 'flex', gap: 6 }}>
               {DAY_LABELS.map((d, i) => (
-                <div key={i} style={{ height: 30, width: 40, borderRadius: 8, border: `1px solid ${workedDays.includes(i) ? 'rgba(143,240,177,.45)' : 'rgba(255,255,255,.06)'}`, background: workedDays.includes(i) ? 'rgba(143,240,177,.12)' : 'rgba(255,255,255,.02)', color: workedDays.includes(i) ? '#c9ffe1' : 'rgba(255,255,255,.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700 }}>
+                <div key={i} style={{ height: 30, width: 40, borderRadius: 8, border: `1px solid ${workedDays.includes(i) ? 'rgba(143,240,177,.45)' : 'rgba(255,255,255,.06)'}`, background: workedDays.includes(i) ? 'rgba(143,240,177,.12)' : 'rgba(255,255,255,.02)', color: workedDays.includes(i) ? 'rgba(130,220,170,.5)' : 'rgba(255,255,255,.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700 }}>
                   {d}
                 </div>
               ))}
@@ -321,7 +321,7 @@ function AdminPayrollEditor({ userId, userName, rule, onSaved, extraDays }: { us
             <div className="day-pills" style={{ display: 'flex', gap: 6 }}>
               {DAY_LABELS.map((d, i) => (
                 <button key={i} onClick={() => toggleBonusDay(i)}
-                  style={{ height: 30, width: 40, borderRadius: 8, border: `1px solid ${bonusDays.includes(i) ? 'rgba(10,132,255,.45)' : 'rgba(255,255,255,.10)'}`, background: bonusDays.includes(i) ? 'rgba(10,132,255,.12)' : 'rgba(255,255,255,.03)', color: bonusDays.includes(i) ? '#d7ecff' : 'rgba(255,255,255,.40)', cursor: 'pointer', fontSize: 10, fontWeight: 700, fontFamily: 'inherit' }}>
+                  style={{ height: 30, width: 40, borderRadius: 8, border: `1px solid ${bonusDays.includes(i) ? 'rgba(10,132,255,.45)' : 'rgba(255,255,255,.10)'}`, background: bonusDays.includes(i) ? 'rgba(10,132,255,.12)' : 'rgba(255,255,255,.03)', color: bonusDays.includes(i) ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.40)', cursor: 'pointer', fontSize: 10, fontWeight: 700, fontFamily: 'inherit' }}>
                   {d}
                 </button>
               ))}
@@ -335,7 +335,7 @@ function AdminPayrollEditor({ userId, userName, rule, onSaved, extraDays }: { us
             Service fee = total fees × {feePct}% (days clocked in + extra days)
           </div>
           <button onClick={save} disabled={saving}
-            style={{ width: '100%', height: 40, borderRadius: 12, border: `1px solid ${saved ? 'rgba(143,240,177,.45)' : 'rgba(143,240,177,.40)'}`, background: saved ? 'rgba(143,240,177,.18)' : 'rgba(143,240,177,.10)', color: '#c9ffe1', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>
+            style={{ width: '100%', height: 40, borderRadius: 12, border: `1px solid ${saved ? 'rgba(143,240,177,.45)' : 'rgba(143,240,177,.40)'}`, background: saved ? 'rgba(143,240,177,.18)' : 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>
             {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save admin rules'}
           </button>
         </div>
@@ -607,13 +607,13 @@ export default function PayrollPage() {
           .payroll-body{padding:12px!important;gap:12px!important}
         }
       `}</style>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#000', color: '#e9e9e9', fontFamily: 'Inter,system-ui,sans-serif', overflowY: 'auto' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#000', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif', overflowY: 'auto' }}>
 
         {/* Topbar */}
         <div className="topbar-pad" style={{ padding: '14px 20px 12px', background: 'rgba(0,0,0,.80)', backdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,.08)', position: 'sticky', top: 0, zIndex: 20 }}>
           <div className="payroll-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <div>
-              <h2 className="page-title" style={{ margin: 0, fontFamily: '"Julius Sans One",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 15 }}>Payroll</h2>
+              <h2 className="page-title" style={{ margin: 0, fontFamily: '"Inter",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 15 }}>Payroll</h2>
               <p style={{ margin: '3px 0 0', color: 'rgba(255,255,255,.40)', fontSize: 11, letterSpacing: '.08em' }}>
                 Commission + tips · {barbers.length} barbers · {barbers.reduce((s,b)=>s+b.bookings_count,0)} bookings
               </p>
@@ -633,7 +633,7 @@ export default function PayrollPage() {
               <button onClick={load} disabled={loading}
                 style={{ height: 40, width: 40, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontSize: 16, opacity: loading ? .5 : 1 }}>↻</button>
               <button onClick={exportCSV}
-                style={{ height: 40, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.12)', color: '#d7ecff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>
+                style={{ height: 40, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.12)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>
                 Export CSV
               </button>
             </div>
@@ -695,17 +695,17 @@ export default function PayrollPage() {
                             </div>
                           </td>
                           <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', whiteSpace: 'nowrap' }}>
-                            {(() => { const mins = adminAttendance[b.barber_id] || 0; const h = mins / 60; return h > 0 ? <span style={{ fontSize: 12, color: '#d7ecff', fontWeight: 700 }}>{h.toFixed(1)}h</span> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,.25)' }}>—</span> })()}
+                            {(() => { const mins = adminAttendance[b.barber_id] || 0; const h = mins / 60; return h > 0 ? <span style={{ fontSize: 12, color: 'rgba(130,150,220,.6)', fontWeight: 700 }}>{h.toFixed(1)}h</span> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,.25)' }}>—</span> })()}
                           </td>
                           <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', whiteSpace: 'nowrap' }}>
-                            <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 999, border: isBoosted ? '1px solid rgba(143,240,177,.45)' : '1px solid rgba(10,132,255,.40)', background: isBoosted ? 'rgba(143,240,177,.10)' : 'rgba(10,132,255,.10)', color: isBoosted ? '#c9ffe1' : '#d7ecff' }}>
+                            <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 999, border: isBoosted ? '1px solid rgba(143,240,177,.45)' : '1px solid rgba(10,132,255,.40)', background: isBoosted ? 'rgba(143,240,177,.10)' : 'rgba(10,132,255,.10)', color: isBoosted ? 'rgba(130,220,170,.5)' : 'rgba(130,150,220,.6)' }}>
                               {b.effective_pct}%{isBoosted ? ' ↑' : ''}
                             </span>
                           </td>
                           <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', fontWeight: 700 }}>{fmtMoney(b.service_total)}</td>
-                          <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', color: '#d7ecff' }}>{fmtMoney(b.barber_service_share)}</td>
+                          <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', color: 'rgba(130,150,220,.6)' }}>{fmtMoney(b.barber_service_share)}</td>
                           <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.45)' }}>{fmtMoney(b.owner_service_share)}</td>
-                          <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', color: '#8ff0b1' }}>{fmtMoney(b.tips_total)}</td>
+                          <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', color: 'rgba(130,220,170,.8)' }}>{fmtMoney(b.tips_total)}</td>
                           <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', fontWeight: 900, fontSize: 14 }}>
                             {latePenalty > 0 ? (
                               <div>
@@ -754,7 +754,7 @@ export default function PayrollPage() {
                                         </div>
                                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                           <div style={{ fontWeight: 700 }}>{fmtMoney(bk.service_amount)}</div>
-                                          {bk.tip > 0 && <div style={{ fontSize: 12, color: '#8ff0b1' }}>+{fmtMoney(bk.tip)} tip</div>}
+                                          {bk.tip > 0 && <div style={{ fontSize: 12, color: 'rgba(130,220,170,.8)' }}>+{fmtMoney(bk.tip)} tip</div>}
                                         </div>
                                       </div>
                                     ))}
@@ -779,7 +779,7 @@ export default function PayrollPage() {
               <div style={{ display: 'flex', gap: 6, padding: '12px 14px 0', flexWrap: 'wrap' }}>
                 {(['summary','attendance','rules'] as const).map(tab => (
                   <button key={tab} onClick={() => setActiveTab(tab)}
-                    style={{ height: 34, padding: '0 14px', borderRadius: 999, border: `1px solid ${activeTab===tab ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)'}`, background: activeTab===tab ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.04)', color: activeTab===tab ? '#d7ecff' : 'rgba(255,255,255,.70)', cursor: 'pointer', fontWeight: 900, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    style={{ height: 34, padding: '0 14px', borderRadius: 999, border: `1px solid ${activeTab===tab ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)'}`, background: activeTab===tab ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.04)', color: activeTab===tab ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.70)', cursor: 'pointer', fontWeight: 900, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     {tab === 'attendance' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
                     {tab === 'summary' ? 'Summary' : tab === 'attendance' ? 'Hours & Clock' : 'Commission rules'}
                   </button>
@@ -843,15 +843,15 @@ export default function PayrollPage() {
                       <>
                         {/* Owner net profit */}
                         <div style={{ margin: '0 14px 14px', borderRadius: 14, border: '1px solid rgba(255,207,63,.20)', background: 'rgba(255,207,63,.04)', padding: '14px' }}>
-                          <div style={{ ...lbl, color: '#ffe9a3', marginBottom: 8 }}>Owner net profit</div>
+                          <div style={{ ...lbl, color: 'rgba(220,190,130,.5)', marginBottom: 8 }}>Owner net profit</div>
                           <div className="owner-net-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 12, marginBottom: 8 }}>
                             <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Gross revenue: </span><span>{fmtMoney(totalServices)}</span></div>
                             <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Barbers payout: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(barbersTotalPayout)}</span></div>
-                            <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Owner share: </span><span style={{ color: '#ffe9a3' }}>{fmtMoney(ownerShare)}</span></div>
+                            <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Owner share: </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(ownerShare)}</span></div>
                             {adminUsers.length > 0 && <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Admin pay: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(totalAdminPay)}</span></div>}
                             {expensesTotal > 0 && <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Expenses: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(expensesTotal)}</span></div>}
                           </div>
-                          <div style={{ fontWeight: 900, fontSize: 22, color: '#ffe9a3' }}>
+                          <div style={{ fontWeight: 900, fontSize: 22, color: 'rgba(220,190,130,.5)' }}>
                             Net: {fmtMoney(ownerNet)}
                           </div>
                         </div>
@@ -859,18 +859,18 @@ export default function PayrollPage() {
                         {/* Admin payroll breakdown */}
                         {adminCalcs.length > 0 && (
                           <div style={{ margin: '0 14px 14px', borderRadius: 14, border: '1px solid rgba(143,240,177,.20)', background: 'rgba(143,240,177,.04)', padding: '14px' }}>
-                            <div style={{ ...lbl, color: '#c9ffe1', marginBottom: 10 }}>Admin payroll</div>
+                            <div style={{ ...lbl, color: 'rgba(130,220,170,.5)', marginBottom: 10 }}>Admin payroll</div>
                             {adminCalcs.map(({ u, r, hours, basePay, profitShare, feeShare, total, allFeeDays }) => (
                               <div key={u.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-                                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, color: '#e9e9e9' }}>{u.name || u.username}</div>
+                                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, color: '#e8e8ed' }}>{u.name || u.username}</div>
                                 <div className="admin-payroll-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 12 }}>
-                                  <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Hours: </span><span style={{ color: '#d7ecff' }}>{hours.toFixed(1)}h</span></div>
-                                  <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Base pay (${r.hourly_rate || 0}/hr): </span><span style={{ color: '#8ff0b1' }}>{fmtMoney(basePay)}</span></div>
-                                  <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Profit {r.owner_profit_pct || 0}%: </span><span style={{ color: '#ffe9a3' }}>{fmtMoney(profitShare)}</span></div>
-                                  <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Fee {r.service_fee_pct || 0}% ({allFeeDays.length}d): </span><span style={{ color: '#ffe9a3' }}>{fmtMoney(feeShare)}</span></div>
+                                  <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Hours: </span><span style={{ color: 'rgba(130,150,220,.6)' }}>{hours.toFixed(1)}h</span></div>
+                                  <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Base pay (${r.hourly_rate || 0}/hr): </span><span style={{ color: 'rgba(130,220,170,.8)' }}>{fmtMoney(basePay)}</span></div>
+                                  <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Profit {r.owner_profit_pct || 0}%: </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(profitShare)}</span></div>
+                                  <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Fee {r.service_fee_pct || 0}% ({allFeeDays.length}d): </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(feeShare)}</span></div>
                                 </div>
                                 <div style={{ marginTop: 6, fontWeight: 900, fontSize: 16 }}>
-                                  Total: <span style={{ color: '#8ff0b1' }}>{fmtMoney(total)}</span>
+                                  Total: <span style={{ color: 'rgba(130,220,170,.8)' }}>{fmtMoney(total)}</span>
                                 </div>
                               </div>
                             ))}
@@ -885,7 +885,7 @@ export default function PayrollPage() {
               {activeTab === 'attendance' && (
                 <div style={{ padding: '12px 14px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d7ecff" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(130,150,220,.6)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     <span style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.55)', fontWeight: 900 }}>Attendance history</span>
                   </div>
                   {/* Hours summary per person */}
@@ -902,9 +902,9 @@ export default function PayrollPage() {
                       <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 14, background: 'rgba(0,0,0,.14)', border: '1px solid rgba(255,255,255,.08)' }}>
                         {entries.map(([uid, u]) => (
                           <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-                            <span style={{ fontWeight: 700, fontSize: 13, color: '#e9e9e9', flex: 1 }}>{u.name}</span>
+                            <span style={{ fontWeight: 700, fontSize: 13, color: '#e8e8ed', flex: 1 }}>{u.name}</span>
                             <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.50)' }}>{u.role}</span>
-                            <span style={{ fontSize: 13, color: '#8ff0b1', fontWeight: 900 }}>{(u.mins / 60).toFixed(1)}h</span>
+                            <span style={{ fontSize: 13, color: 'rgba(130,220,170,.8)', fontWeight: 900 }}>{(u.mins / 60).toFixed(1)}h</span>
                             <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>{u.shifts} shift{u.shifts !== 1 ? 's' : ''}</span>
                           </div>
                         ))}
@@ -921,13 +921,13 @@ export default function PayrollPage() {
                       const isIn = !r.clock_out
                       return (
                         <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.06)', fontSize: 12 }}>
-                          {isIn && <span style={{ width: 6, height: 6, borderRadius: 999, background: '#8ff0b1', animation: 'clockDot 2s ease-in-out infinite', flexShrink: 0 }} />}
-                          <span style={{ fontWeight: 700, color: '#e9e9e9', flex: 1, minWidth: 70 }}>{r.user_name}</span>
+                          {isIn && <span style={{ width: 6, height: 6, borderRadius: 999, background: 'rgba(130,220,170,.8)', animation: 'clockDot 2s ease-in-out infinite', flexShrink: 0 }} />}
+                          <span style={{ fontWeight: 700, color: '#e8e8ed', flex: 1, minWidth: 70 }}>{r.user_name}</span>
                           <span style={{ color: 'rgba(255,255,255,.35)', minWidth: 72, fontSize: 11 }}>{r.date}</span>
                           <span style={{ color: 'rgba(255,255,255,.55)' }}>{inTime}</span>
                           <span style={{ color: 'rgba(255,255,255,.20)' }}>→</span>
-                          <span style={{ color: isIn ? '#8ff0b1' : 'rgba(255,255,255,.55)' }}>{outTime}</span>
-                          <span style={{ color: '#8ff0b1', fontWeight: 700, minWidth: 45, textAlign: 'right' as const }}>{r.duration_minutes ? `${(r.duration_minutes/60).toFixed(1)}h` : isIn ? 'now' : '—'}</span>
+                          <span style={{ color: isIn ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.55)' }}>{outTime}</span>
+                          <span style={{ color: 'rgba(130,220,170,.8)', fontWeight: 700, minWidth: 45, textAlign: 'right' as const }}>{r.duration_minutes ? `${(r.duration_minutes/60).toFixed(1)}h` : isIn ? 'now' : '—'}</span>
                         </div>
                       )
                     })}
