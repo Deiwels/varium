@@ -679,16 +679,17 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
 
         .shell{display:flex;flex-direction:column;height:100vh;width:100vw;overflow:hidden;position:relative;}
 
-        /* ── Top Header Bar ── */
+        /* ── Top Header Bar — Vurium Glass ── */
         .top-bar{
           height:52px;flex:0 0 52px;
           display:flex;align-items:center;justify-content:space-between;
           padding:0 20px;
-          border-bottom:1px solid rgba(255,255,255,.06);
-          background:rgba(0,0,0,.55);
+          border-bottom:1px solid rgba(130,150,220,.06);
+          background:rgba(5,5,15,.65);
           backdrop-filter:saturate(180%) blur(40px);
           -webkit-backdrop-filter:saturate(180%) blur(40px);
           z-index:50;
+          box-shadow:0 1px 20px rgba(0,0,0,.3);
         }
         .top-bar-brand{
           display:flex;align-items:center;gap:10px;
@@ -710,57 +711,72 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
           padding-bottom:74px; /* space for bottom bar */
         }
 
-        /* ── Bottom Pill Nav Bar ── */
+        /* ── Bottom Pill Nav Bar — Vurium Cosmic ── */
         .pill-bar{
           position:fixed;bottom:0;left:0;right:0;z-index:60;
           display:flex;align-items:center;justify-content:center;
-          padding:8px 16px max(8px, env(safe-area-inset-bottom, 8px));
-          background:rgba(0,0,0,.75);
-          backdrop-filter:saturate(180%) blur(30px);
-          -webkit-backdrop-filter:saturate(180%) blur(30px);
-          border-top:1px solid rgba(255,255,255,.06);
+          padding:10px 16px max(10px, env(safe-area-inset-bottom, 10px));
+          background:linear-gradient(180deg, rgba(0,0,0,.0) 0%, rgba(0,0,0,.85) 30%, rgba(0,0,0,.95) 100%);
+          pointer-events:none;
         }
         .pill-inner{
-          display:flex;align-items:center;gap:4px;
-          padding:4px;border-radius:18px;
-          background:rgba(255,255,255,.04);
-          border:1px solid rgba(255,255,255,.07);
+          pointer-events:auto;
+          display:flex;align-items:center;gap:2px;
+          padding:6px 8px;border-radius:22px;
+          background:rgba(10,10,20,.7);
+          backdrop-filter:saturate(180%) blur(40px);
+          -webkit-backdrop-filter:saturate(180%) blur(40px);
+          border:1px solid rgba(130,150,220,.12);
+          box-shadow:0 4px 30px rgba(0,0,0,.5), 0 0 60px rgba(130,150,220,.04), inset 0 0.5px 0 rgba(255,255,255,.06);
         }
         .pill-item{
-          display:flex;flex-direction:column;align-items:center;gap:3px;
-          padding:8px 16px;border-radius:14px;
-          cursor:pointer;transition:all .16s;
+          display:flex;flex-direction:column;align-items:center;gap:2px;
+          padding:8px 18px;border-radius:16px;
+          cursor:pointer;transition:all .2s ease;
           border:1px solid transparent;
-          min-width:60px;
+          min-width:56px;
           text-decoration:none!important;
-        }
-        .pill-item:hover{background:rgba(255,255,255,.04);}
-        .pill-item.active{
-          background:rgba(255,255,255,.08);
-          border-color:rgba(255,255,255,.10);
-        }
-        .pill-item .pill-ico{
-          width:24px;height:24px;display:flex;align-items:center;justify-content:center;
           position:relative;
         }
-        .pill-item .pill-label{
-          font-size:10px;font-weight:500;color:rgba(255,255,255,.35);
-          letter-spacing:.02em;
+        .pill-item:hover{
+          background:rgba(130,150,220,.06);
+          border-color:rgba(130,150,220,.08);
         }
-        .pill-item.active .pill-label{color:rgba(255,255,255,.85);}
+        .pill-item.active{
+          background:rgba(130,150,220,.1);
+          border-color:rgba(130,150,220,.18);
+          box-shadow:0 0 20px rgba(130,150,220,.08), inset 0 0 8px rgba(130,150,220,.04);
+        }
+        .pill-item .pill-ico{
+          width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+          position:relative;
+          transition:transform .15s;
+        }
+        .pill-item.active .pill-ico{transform:scale(1.08);}
+        .pill-item .pill-label{
+          font-size:10px;font-weight:400;
+          color:rgba(255,255,255,.3);
+          letter-spacing:.02em;
+          transition:color .2s;
+        }
+        .pill-item.active .pill-label{
+          color:rgba(130,150,220,.9);
+          font-weight:500;
+        }
 
-        @keyframes msgPulse {
-          0%, 100% { box-shadow: 0 0 0 rgba(var(--pulse-rgb), 0); }
-          50% { box-shadow: 0 0 10px rgba(var(--pulse-rgb), .6); }
+        @keyframes cosmicPulse {
+          0%, 100% { box-shadow: 0 0 0 rgba(130,220,170,0); transform:scale(1); }
+          50% { box-shadow: 0 0 12px rgba(130,220,170,.4); transform:scale(1.15); }
         }
         .pill-ico.has-unread {
-          animation: msgPulse 2.4s ease-in-out infinite;
+          animation: cosmicPulse 2.4s ease-in-out infinite;
         }
         .pill-unread-dot{
           position:absolute;top:-2px;right:-4px;
           width:7px;height:7px;border-radius:50%;
-          background:rgba(130,220,170,.8);
-          border:1.5px solid #000;
+          background:rgba(130,220,170,.9);
+          box-shadow:0 0 8px rgba(130,220,170,.5);
+          border:1.5px solid rgba(10,10,20,.8);
         }
 
         @media(max-width:480px){
@@ -814,7 +830,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
               return (
                 <Link key={item.id} href={item.href} className={`pill-item${active ? ' active' : ''}`}>
                   <div className={`pill-ico${hasUnread ? ' has-unread' : ''}`}>
-                    <Icon id={item.id} color={active ? '#fff' : 'rgba(255,255,255,.4)'} />
+                    <Icon id={item.id} color={active ? 'rgba(130,150,220,.95)' : 'rgba(255,255,255,.35)'} />
                     {hasUnread && <div className="pill-unread-dot" />}
                   </div>
                   <span className="pill-label">{item.label}</span>
