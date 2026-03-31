@@ -94,7 +94,7 @@ export default function BillingPage() {
   }
 
   return (
-    <Shell>
+    <Shell page="Billing">
       <div style={{ padding: 'clamp(20px,3vw,32px)', maxWidth: 900, margin: '0 auto' }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#e8e8ed', marginBottom: 8 }}>Billing & Plan</h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', marginBottom: 32 }}>Manage your subscription and payment details</p>
