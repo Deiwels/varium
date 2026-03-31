@@ -944,9 +944,13 @@ app.post('/auth/signup', async (req, res) => {
 
     // Create workspace
     const wsRef = db.collection('workspaces').doc();
+    const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
     const wsData = {
       name: sanitizeHtml(workspace_name),
-      plan: 'free',
+      plan: 'trial',
+      subscription_status: 'trialing',
+      trial_ends_at: toIso(trialEnd),
+      trial_used: false,
       owner_username: usernameLC,
       timezone: timezone || 'America/Chicago',
       created_at: toIso(new Date()),
@@ -3135,6 +3139,180 @@ setInterval(() => {
   runAutoReminders().catch(() => {});
   runAutoMemberships().catch(() => {});
 }, 3 * 60 * 1000);
+
+// ============================================================
+// STRIPE BILLING
+// ============================================================
+const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY || '';
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
+const STRIPE_PRICES = {
+  starter: process.env.STRIPE_PRICE_STARTER || '',
+  pro: process.env.STRIPE_PRICE_PRO || '',
+};
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://vurium.com';
+
+async function stripeFetch(path, options = {}) {
+  const res = await fetch(`https://api.stripe.com${path}`, {
+    ...options,
+    headers: {
+      'Authorization': `Bearer ${STRIPE_SECRET}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      ...options.headers,
+    },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message || 'Stripe error');
+  return data;
+}
+
+// Create Stripe Checkout Session (requires auth)
+app.post('/api/billing/checkout', async (req, res) => {
+  try {
+    if (!STRIPE_SECRET) return res.status(400).json({ error: 'Stripe not configured' });
+    const plan = safeStr(req.body?.plan || 'pro');
+    const priceId = STRIPE_PRICES[plan];
+    if (!priceId) return res.status(400).json({ error: 'Invalid plan' });
+    const wsDoc = await req.wsDoc().get();
+    const wsData = wsDoc.exists ? wsDoc.data() : {};
+    // Create or get Stripe customer
+    let customerId = wsData.stripe_customer_id;
+    if (!customerId) {
+      const customer = await stripeFetch('/v1/customers', {
+        method: 'POST',
+        body: new URLSearchParams({
+          email: req.user.username || '',
+          name: wsData.name || '',
+          'metadata[workspace_id]': req.wsId,
+        }).toString(),
+      });
+      customerId = customer.id;
+      await req.wsDoc().update({ stripe_customer_id: customerId });
+    }
+    // Create checkout session
+    const session = await stripeFetch('/v1/checkout/sessions', {
+      method: 'POST',
+      body: new URLSearchParams({
+        'customer': customerId,
+        'mode': 'subscription',
+        'line_items[0][price]': priceId,
+        'line_items[0][quantity]': '1',
+        'success_url': `${FRONTEND_URL}/dashboard?billing=success`,
+        'cancel_url': `${FRONTEND_URL}/dashboard?billing=cancelled`,
+        'subscription_data[trial_period_days]': wsData.trial_used ? '0' : '14',
+        'metadata[workspace_id]': req.wsId,
+        'allow_promotion_codes': 'true',
+      }).toString(),
+    });
+    res.json({ url: session.url, session_id: session.id });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Get billing status
+app.get('/api/billing/status', async (req, res) => {
+  try {
+    const wsDoc = await req.wsDoc().get();
+    const data = wsDoc.exists ? wsDoc.data() : {};
+    const trialEnd = data.trial_ends_at ? new Date(data.trial_ends_at) : null;
+    const now = new Date();
+    const trialActive = trialEnd && trialEnd > now;
+    const daysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / 86400000)) : 0;
+    res.json({
+      plan: data.plan || 'trial',
+      stripe_subscription_id: data.stripe_subscription_id || null,
+      stripe_customer_id: data.stripe_customer_id || null,
+      trial_active: !!trialActive,
+      trial_ends_at: data.trial_ends_at || null,
+      trial_days_left: daysLeft,
+      subscription_status: data.subscription_status || (trialActive ? 'trialing' : 'inactive'),
+    });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Cancel subscription
+app.post('/api/billing/cancel', requireRole('owner'), async (req, res) => {
+  try {
+    const wsDoc = await req.wsDoc().get();
+    const data = wsDoc.exists ? wsDoc.data() : {};
+    if (!data.stripe_subscription_id) return res.status(400).json({ error: 'No active subscription' });
+    await stripeFetch(`/v1/subscriptions/${data.stripe_subscription_id}`, {
+      method: 'POST',
+      body: new URLSearchParams({ cancel_at_period_end: 'true' }).toString(),
+    });
+    await req.wsDoc().update({ subscription_status: 'cancelling', updated_at: toIso(new Date()) });
+    res.json({ ok: true, status: 'cancelling' });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Stripe Billing Portal (manage subscription)
+app.post('/api/billing/portal', requireRole('owner'), async (req, res) => {
+  try {
+    if (!STRIPE_SECRET) return res.status(400).json({ error: 'Stripe not configured' });
+    const wsDoc = await req.wsDoc().get();
+    const data = wsDoc.exists ? wsDoc.data() : {};
+    if (!data.stripe_customer_id) return res.status(400).json({ error: 'No billing account' });
+    const session = await stripeFetch('/v1/billing_portal/sessions', {
+      method: 'POST',
+      body: new URLSearchParams({
+        customer: data.stripe_customer_id,
+        return_url: `${FRONTEND_URL}/dashboard`,
+      }).toString(),
+    });
+    res.json({ url: session.url });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Stripe Webhook (before auth middleware — already registered before /api middleware)
+// We need a separate raw body endpoint
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const event = JSON.parse(req.body.toString());
+    // In production, verify signature with STRIPE_WEBHOOK_SECRET
+    const type = event.type;
+    const obj = event.data?.object;
+    if (!obj) return res.json({ ok: true });
+    const wsId = obj.metadata?.workspace_id || obj.subscription_details?.metadata?.workspace_id || '';
+    if (!wsId) {
+      // Try to find workspace by customer ID
+      if (obj.customer) {
+        const wsSnap = await db.collection('workspaces').where('stripe_customer_id', '==', obj.customer).limit(1).get();
+        if (!wsSnap.empty) {
+          const foundWsId = wsSnap.docs[0].id;
+          await handleStripeEvent(foundWsId, type, obj);
+        }
+      }
+      return res.json({ ok: true });
+    }
+    await handleStripeEvent(wsId, type, obj);
+    res.json({ ok: true });
+  } catch (e) { console.error('Stripe webhook error:', e); res.json({ ok: true }); }
+});
+
+async function handleStripeEvent(wsId, type, obj) {
+  const wsRef = db.collection('workspaces').doc(wsId);
+  const patch = { updated_at: toIso(new Date()) };
+  if (type === 'checkout.session.completed') {
+    if (obj.subscription) {
+      patch.stripe_subscription_id = obj.subscription;
+      patch.subscription_status = 'active';
+      patch.trial_used = true;
+      patch.plan = 'pro'; // Default, will be updated by subscription event
+    }
+  } else if (type === 'customer.subscription.updated' || type === 'customer.subscription.created') {
+    patch.stripe_subscription_id = obj.id;
+    patch.subscription_status = obj.status; // active, trialing, past_due, canceled
+    if (obj.trial_end) patch.trial_ends_at = toIso(new Date(obj.trial_end * 1000));
+    // Determine plan from price
+    const priceId = obj.items?.data?.[0]?.price?.id || '';
+    if (priceId === STRIPE_PRICES.starter) patch.plan = 'starter';
+    else if (priceId === STRIPE_PRICES.pro) patch.plan = 'pro';
+  } else if (type === 'customer.subscription.deleted') {
+    patch.subscription_status = 'canceled';
+    patch.plan = 'free';
+  } else if (type === 'invoice.payment_failed') {
+    patch.subscription_status = 'past_due';
+  }
+  await wsRef.update(patch).catch(() => {});
+}
 
 // ============================================================
 // 404 fallback

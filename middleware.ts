@@ -11,8 +11,8 @@ const COOKIE_NAME = 'VURIUMBOOK_TOKEN'
 const PUBLIC_PATHS = ['/', '/signin', '/signup', '/vuriumbook', '/booking', '/public']
 
 // Routes restricted by role
-const OWNER_ADMIN_ONLY = ['/settings', '/payroll', '/payments', '/attendance', '/expenses', '/membership']
-const STUDENT_BLOCKED  = ['/settings', '/payroll', '/payments', '/clients', '/dashboard', '/attendance', '/expenses', '/membership']
+const OWNER_ADMIN_ONLY = ['/settings', '/payroll', '/billing', '/payments', '/attendance', '/expenses', '/membership']
+const STUDENT_BLOCKED  = ['/settings', '/payroll', '/billing', '/payments', '/clients', '/dashboard', '/attendance', '/expenses', '/membership']
 const BARBER_REDIRECT  = '/calendar'
 
 // Cookie format: "role:uid" — set from JS after login

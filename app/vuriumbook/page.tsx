@@ -93,7 +93,7 @@ export default function VuriumBook() {
           The all-in-one booking system for barbershops, salons, and service businesses. Manage appointments, team schedules, payments, and clients.
         </p>
         <div className="fade-up fade-up-d3" style={{ marginTop: 40, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <a href="#demo" className="btn-primary">Request Demo</a>
+          <a href="/signup?plan=pro" className="btn-primary">Start Free Trial</a>
           <a href="#features" className="btn-secondary">See Features</a>
         </div>
       </section>

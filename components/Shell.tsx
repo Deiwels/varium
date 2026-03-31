@@ -25,6 +25,7 @@ const NAV = [
   { id: 'membership', href: '/membership', label: 'Membership', sub: 'Recurring clients',   ownerAdmin: true },
   { id: 'expenses',  href: '/expenses',  label: 'Expenses',   sub: 'Track costs',         ownerAdmin: true },
   { id: 'payroll',   href: '/payroll',   label: 'Payroll',    sub: 'Commission + tips',   ownerOnly: true },
+  { id: 'billing',   href: '/billing',   label: 'Billing',    sub: 'Plan & payments',     ownerOnly: true },
   { id: 'settings',  href: '/settings',  label: 'Settings',   sub: 'Config & sync',       ownerAdmin: true },
 ] as const
 
