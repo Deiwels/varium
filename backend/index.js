@@ -925,7 +925,7 @@ function clearAuthCookie(res) {
 // ============================================================
 // HEALTH
 // ============================================================
-app.get('/health', (req, res) => res.json({ ok: true, service: 'vuriumbook-api' }));
+app.get('/health', (req, res) => res.json({ ok: true, service: 'vuriumbook-api', version: '2.0.0' }));
 
 // ============================================================
 // AUTH ROUTES (no workspace middleware — pre /api)
