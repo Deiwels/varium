@@ -635,8 +635,8 @@ export default function DashboardPage() {
 
         <style>{`
           @keyframes widgetBreathe {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); border-color: rgba(255,255,255,.08); }
-            50% { box-shadow: 0 0 12px 2px rgba(255,255,255,.06); border-color: rgba(255,255,255,.15); }
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); border-color: rgba(255,255,255,.06); }
+            50% { box-shadow: 0 0 14px 3px rgba(255,255,255,.05); border-color: rgba(255,255,255,.20); }
           }
           @keyframes clockPulse {
             0%, 100% { box-shadow: 0 0 0 0 rgba(143,240,177,0); }
@@ -912,9 +912,10 @@ export default function DashboardPage() {
         ) : null}
 
         {/* ── WIDGETS GRID ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8, marginBottom: 14 }}>
+        <div onClick={e => { if (editingWidgets && e.target === e.currentTarget) { setEditingWidgets(false); setEditingShortcuts(false) } }}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 10, marginBottom: 14, maxWidth: 600, margin: '0 auto 14px', padding: '0 4px' }}>
           {dashWidgets.map(wId => {
-            const wBox: React.CSSProperties = { borderRadius: 14, border: `1px solid ${editingWidgets ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.06)'}`, background: 'rgba(255,255,255,.025)', padding: '10px 12px', position: 'relative', transition: 'all .2s', overflow: 'hidden', animation: editingWidgets ? 'widgetBreathe 2s ease-in-out infinite' : 'none' }
+            const wBox: React.CSSProperties = { borderRadius: 14, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: '10px 12px', position: 'relative', transition: 'all .2s', animation: editingWidgets ? 'widgetBreathe 2s ease-in-out infinite' : 'none' }
             const wTitle: React.CSSProperties = { fontSize: 8, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }
             const longPress = {
               onTouchStart: () => { longPressRef.current = setTimeout(() => setEditingWidgets(true), 600) },
@@ -1051,66 +1052,48 @@ export default function DashboardPage() {
           {editingWidgets && (() => {
             const ALL_WIDGETS = [
               { id: 'clock', label: 'Clock' },
-              { id: 'todays-earnings', label: "Today's Earnings" },
-              { id: 'weekly-chart', label: 'Weekly Revenue' },
+              { id: 'todays-earnings', label: 'Earnings' },
+              { id: 'weekly-chart', label: 'Revenue' },
               { id: 'new-clients', label: 'New Clients' },
               { id: 'quick-book', label: 'Quick Book' },
-              { id: 'pending-requests', label: 'Pending Requests' },
-              { id: 'cash-register', label: 'Cash Register' },
-              { id: 'team-on-duty', label: 'Team On Duty' },
+              { id: 'pending-requests', label: 'Requests' },
+              { id: 'cash-register', label: 'Cash' },
+              { id: 'team-on-duty', label: 'On Duty' },
               { id: 'expenses-month', label: 'Expenses' },
-              { id: 'mini-calendar', label: 'Mini Calendar' },
+              { id: 'mini-calendar', label: 'Schedule' },
             ]
             const available = ALL_WIDGETS.filter(w => !dashWidgets.includes(w.id))
             return available.map(w => (
               <button key={w.id} onClick={() => toggleWidget(w.id)}
-                style={{ padding: '14px 16px', borderRadius: 14, border: '1px dashed rgba(130,220,170,.25)', background: 'rgba(130,220,170,.03)', cursor: 'pointer', textAlign: 'center', fontFamily: 'inherit', transition: 'all .2s' }}>
-                <div style={{ fontSize: 18, color: 'rgba(130,220,170,.5)', marginBottom: 4 }}>+</div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(130,220,170,.6)' }}>{w.label}</div>
+                style={{ padding: '10px 12px', borderRadius: 14, border: '1px dashed rgba(255,255,255,.12)', background: 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', fontFamily: 'inherit', animation: 'widgetBreathe 2s ease-in-out infinite' }}>
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.25)', marginBottom: 2 }}>+</div>
+                <div style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.35)' }}>{w.label}</div>
               </button>
             ))
           })()}
         </div>
 
-        {/* Done editing button — only in edit mode */}
-        {editingWidgets && (
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
-            <button onClick={() => { setEditingWidgets(false); setEditingShortcuts(false) }}
-              style={{ height: 32, padding: '0 20px', borderRadius: 999, border: '1px solid rgba(130,220,170,.25)', background: 'rgba(130,220,170,.06)', color: 'rgba(130,220,170,.7)', cursor: 'pointer', fontWeight: 600, fontSize: 11, fontFamily: 'inherit', transition: 'all .2s' }}>
-              Done
-            </button>
-          </div>
-        )}
-
         {/* ── Quick Access Shortcuts ── */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-          {actions.filter(item => dashShortcuts.includes(item.href)).map(item => (
-            <a key={item.href} href={editingShortcuts ? undefined : item.href} onClick={editingShortcuts ? (e) => { e.preventDefault(); toggleShortcut(item.href) } : undefined}
-              style={{ flex: '1 1 120px', padding: '12px 14px', borderRadius: 12, border: `1px solid ${editingShortcuts ? 'rgba(255,107,107,.2)' : 'rgba(255,255,255,.05)'}`, background: editingShortcuts ? 'rgba(255,107,107,.04)' : 'rgba(255,255,255,.02)', textDecoration: 'none', transition: 'all .2s', position: 'relative' }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.75)' }}>{item.label}</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', marginTop: 2 }}>{item.desc}</div>
-              {editingShortcuts && (
-                <div style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 999, background: 'rgba(255,107,107,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: '#fff', fontWeight: 700 }}>−</div>
-              )}
-            </a>
-          ))}
-          {editingShortcuts && actions.filter(item => !dashShortcuts.includes(item.href) && item.label !== 'Settings').map(item => (
-            <button key={item.href} onClick={() => toggleShortcut(item.href)}
-              style={{ flex: '1 1 120px', padding: '12px 14px', borderRadius: 12, border: '1px dashed rgba(130,220,170,.2)', background: 'rgba(130,220,170,.03)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(130,220,170,.6)' }}>{item.label}</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{item.desc}</div>
-            </button>
-          ))}
+        <div onClick={e => { if (editingWidgets && e.target === e.currentTarget) { setEditingWidgets(false) } }}
+          style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14, maxWidth: 600, margin: '0 auto 14px', padding: '0 4px' }}>
+          {actions.filter(item => editingWidgets || dashShortcuts.includes(item.href)).filter(item => item.label !== 'Settings').map(item => {
+            const isActive = dashShortcuts.includes(item.href)
+            const isEditing = editingWidgets
+            return (
+              <a key={item.href} href={isEditing ? undefined : item.href} onClick={isEditing ? (e) => { e.preventDefault(); e.stopPropagation(); toggleShortcut(item.href) } : undefined}
+                style={{ flex: '1 1 100px', padding: '10px 12px', borderRadius: 12, border: `1px solid ${!isActive && isEditing ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.05)'}`, background: !isActive && isEditing ? 'rgba(255,255,255,.01)' : 'rgba(255,255,255,.02)', textDecoration: 'none', transition: 'all .2s', position: 'relative', opacity: !isActive && isEditing ? 0.5 : 1, animation: isEditing ? 'widgetBreathe 2s ease-in-out infinite' : 'none', cursor: isEditing ? 'pointer' : undefined }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: isActive ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.35)' }}>{item.label}</div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{item.desc}</div>
+                {isEditing && isActive && (
+                  <div style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: 999, background: 'rgba(255,107,107,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#fff', fontWeight: 700, zIndex: 2 }}>−</div>
+                )}
+                {isEditing && !isActive && (
+                  <div style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: 999, background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#fff', fontWeight: 700, zIndex: 2 }}>+</div>
+                )}
+              </a>
+            )
+          })}
         </div>
-        {/* Edit shortcuts toggle — only visible in widget edit mode */}
-        {editingWidgets && (
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-            <button onClick={() => setEditingShortcuts(!editingShortcuts)}
-              style={{ height: 28, padding: '0 14px', borderRadius: 999, border: `1px solid ${editingShortcuts ? 'rgba(130,220,170,.3)' : 'rgba(255,255,255,.08)'}`, background: editingShortcuts ? 'rgba(130,220,170,.06)' : 'rgba(255,255,255,.03)', color: editingShortcuts ? 'rgba(130,220,170,.6)' : 'rgba(255,255,255,.3)', cursor: 'pointer', fontSize: 10, fontWeight: 700, fontFamily: 'inherit', letterSpacing: '.06em', textTransform: 'uppercase' }}>
-              {editingShortcuts ? 'Done editing shortcuts' : 'Edit shortcuts'}
-            </button>
-          </div>
-        )}
 
         {/* Main content */}
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 14 }}>
