@@ -935,7 +935,7 @@ export default function DashboardPage() {
           return (<>
         {/* ── WIDGETS (centered on screen) ── */}
         <div onClick={e => { if (editingWidgets && e.target === e.currentTarget && !editJustActivated.current) { setEditingWidgets(false); setEditingShortcuts(false) } }}
-          style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', alignContent: 'center', overflow: 'hidden', position: 'relative' }}>
+          style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', alignContent: 'center', overflow: 'hidden', position: 'relative', marginTop: '-5%' }}>
           {dashWidgets.map(wId => {
             const removeBtn = editingWidgets ? (
               <button onClick={() => toggleWidget(wId)} style={{ position: 'absolute', top: -4, right: -4, width: 20, height: 20, borderRadius: 999, background: 'rgba(255,107,107,.8)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>−</button>
