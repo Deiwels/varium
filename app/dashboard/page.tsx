@@ -679,17 +679,27 @@ export default function DashboardPage() {
         type HItem = { id: string; type: 'icon' | 'widget-s' | 'widget-m'; label: string; href?: string; cols: number }
         const ALL_ITEMS: HItem[] = [
           // Widgets — small (2 cols), medium (4 cols)
+          { id: 'w_clock', type: 'widget-s', label: 'Clock', cols: 2 },
+          { id: 'w_earnings', type: 'widget-s', label: 'Earnings', cols: 2 },
+          { id: 'w_schedule', type: 'widget-m', label: 'Schedule', cols: 4 },
+          { id: 'w_revenue', type: 'widget-s', label: 'Revenue', cols: 2 },
+          { id: 'w_newclients', type: 'widget-s', label: 'New Clients', cols: 2 },
+          { id: 'w_expenses', type: 'widget-s', label: 'Expenses', cols: 2 },
+          { id: 'w_quickbook', type: 'widget-s', label: 'Quick Book', cols: 2 },
+          { id: 'w_visits', type: 'widget-m', label: 'Site Visits', cols: 4 },
           { id: 'w_bookings', type: 'widget-s', label: 'Bookings', cols: 2 },
           { id: 'w_paid', type: 'widget-s', label: isBarber ? 'Earnings' : 'Paid', cols: 2 },
           { id: 'w_noshows', type: 'widget-s', label: 'No-shows', cols: 2 },
           { id: 'w_team', type: 'widget-s', label: isBarber ? 'Status' : 'Team', cols: 2 },
           { id: 'w_activity', type: 'widget-m', label: 'Today Activity', cols: 4 },
+          // Team barbers as widgets
+          ...barbers.map((b: any) => ({ id: `w_barber_${b.id}`, type: 'widget-s' as const, label: b.name, cols: 2 })),
           // Icons — each action
           ...actions.map(a => ({ id: `i_${a.label}`, type: 'icon' as const, label: a.label, href: a.href, cols: 1 })),
         ]
 
         // Determine active layout
-        const defaultOrder = ALL_ITEMS.map(i => i.id)
+        const defaultOrder = ['w_clock', 'w_earnings', 'w_schedule', 'w_revenue', 'w_newclients', 'w_expenses', 'w_visits', ...actions.map(a => `i_${a.label}`)]
         const layout = homeLayout.length > 0 ? homeLayout.filter(id => ALL_ITEMS.some(i => i.id === id)) : defaultOrder
         const activeItems = layout.map(id => ALL_ITEMS.find(i => i.id === id)!).filter(Boolean)
         const hiddenItems = ALL_ITEMS.filter(i => !layout.includes(i.id))
@@ -697,13 +707,49 @@ export default function DashboardPage() {
         // Render widget content
         const renderWidget = (item: HItem) => {
           const ws = { borderRadius: 16, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '12px 12px 10px', minHeight: 76 } as React.CSSProperties
+          const wl: React.CSSProperties = { fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }
           switch (item.id) {
-            case 'w_bookings': return <div style={ws}><div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }}>Bookings</div><div style={{ fontSize: 26, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{total}</div><div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 5 }}>{upcoming} upcoming</div></div>
-            case 'w_paid': return <div style={ws}><div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }}>{isBarber ? 'Earnings' : 'Paid'}</div><div style={{ fontSize: 26, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{isBarber ? money(barberEarnings) : `${paid}/${total}`}</div><div style={{ fontSize: 10, color: isBarber ? 'rgba(130,220,170,.5)' : (total - paid > 0 ? 'rgba(255,107,107,.55)' : 'rgba(130,220,170,.5)'), marginTop: 5 }}>{isBarber ? `${money(barberTips)} tips` : (total - paid > 0 ? `${total - paid} unpaid` : 'all paid')}</div></div>
-            case 'w_noshows': return <div style={ws}><div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }}>No-shows</div><div style={{ fontSize: 26, fontWeight: 600, color: noshow > 0 ? 'rgba(255,107,107,.8)' : '#e8e8ed', lineHeight: 1 }}>{noshow}</div><div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 5 }}>{noshow > 0 ? 'needs attention' : 'all good'}</div></div>
-            case 'w_team': return <div style={ws}><div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }}>{isBarber ? 'Status' : 'Team'}</div><div style={{ fontSize: 26, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{isBarber ? (noshow > 0 ? '!' : '✓') : Object.keys(byBarber).length}</div><div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 5 }}>{isBarber ? 'today' : 'working today'}</div></div>
-            case 'w_activity': return <div style={{...ws, minHeight: 90}}><div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>Today Activity</div>{Object.keys(byBarber).length > 0 ? <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>{Object.entries(byBarber).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,c])=><div key={n} style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 50, fontSize: 10, color: 'rgba(255,255,255,.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n}</span><div style={{ flex: 1, height: 3, borderRadius: 999, background: 'rgba(255,255,255,.06)' }}><div style={{ height: 3, borderRadius: 999, background: 'rgba(255,255,255,.18)', width: `${Math.round(c/maxCount*100)}%` }}/></div><span style={{ fontSize: 9, color: 'rgba(255,255,255,.35)' }}>{c}</span></div>)}</div> : <div style={{ fontSize: 11, color: 'rgba(255,255,255,.25)' }}>No activity</div>}</div>
-            default: return <div style={ws}>{item.label}</div>
+            case 'w_clock': return <div style={{...ws, display: 'flex', alignItems: 'center', justifyContent: 'center'}}><ClockWidget /></div>
+            case 'w_earnings': return <div style={ws}><div style={wl}>Earnings</div><div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(130,220,170,.8)' }}>{money(widgetData.todaysEarnings || 0)}</div><div style={{ fontSize: 9, color: 'rgba(255,255,255,.3)', marginTop: 3 }}>{total} bookings</div></div>
+            case 'w_schedule': {
+              const byB: Record<string, Booking[]> = {}
+              bookings.forEach(b => { const n = b.barber_name || b.barber || '?'; if (!byB[n]) byB[n] = []; byB[n].push(b) })
+              const fmt = (iso?: string) => { try { return new Date(iso!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) } catch { return '' } }
+              return <div style={{...ws, minHeight: 90}}><div style={wl}>{new Date().toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</div>{Object.keys(byB).length === 0 ? <div style={{ fontSize: 10, color: 'rgba(255,255,255,.2)' }}>No appointments</div> : <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{Object.entries(byB).slice(0,3).map(([n,bs])=><div key={n}><div style={{ fontSize: 8, fontWeight: 600, color: 'rgba(255,255,255,.3)' }}>{n}</div><div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>{bs.slice(0,4).map((b,i)=><span key={i} style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, border: '1px solid rgba(255,255,255,.05)', color: 'rgba(255,255,255,.35)' }}>{fmt(b.start_at)}</span>)}</div></div>)}</div>}</div>
+            }
+            case 'w_revenue': {
+              const days = widgetData.weeklyRevenue || []
+              const mx = Math.max(...days.map((d: any) => d.amount), 1)
+              return <div style={ws}><div style={wl}>Revenue</div><div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 32 }}>{days.map((d: any, i: number)=><div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}><div style={{ width: '100%', borderRadius: 2, background: i===days.length-1?'rgba(130,220,170,.4)':'rgba(255,255,255,.1)', height: `${Math.max(2,(d.amount/mx)*26)}px` }}/><span style={{ fontSize: 6, color: 'rgba(255,255,255,.2)' }}>{new Date(d.day+'T12:00').toLocaleDateString([],{weekday:'narrow'})}</span></div>)}</div>{days.length>0&&<div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 3 }}>{money(days.reduce((s: number,d: any)=>s+d.amount,0))}</div>}</div>
+            }
+            case 'w_newclients': return <div style={ws}><div style={wl}>New Clients</div><div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.7)' }}>{widgetData.newClients ?? '—'}</div><div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 3 }}>this week</div></div>
+            case 'w_expenses': return <div style={ws}><div style={wl}>Expenses</div><div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,130,130,.6)' }}>{money(widgetData.expensesMonth || 0)}</div><div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 3 }}>this month</div></div>
+            case 'w_quickbook': return <div style={ws}><a href="/calendar?action=new-booking" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: 'rgba(255,255,255,.4)' }}>+</div><span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.5)' }}>Quick Book</span></a></div>
+            case 'w_visits': {
+              const a = widgetData.analytics || { total: 0, by_source: {}, by_day: [] }
+              const sources = Object.entries(a.by_source || {}).sort((x: any, y: any) => y[1] - x[1])
+              const maxS = Math.max(...sources.map((s: any) => s[1]), 1)
+              const icons: Record<string,string> = { instagram: '📸', google: '🔍', facebook: '📘', tiktok: '🎵', direct: '🔗', other: '🌐' }
+              return <div style={{...ws, minHeight: 90}}><div style={wl}>Site Visits</div><div style={{ fontSize: 20, fontWeight: 600, color: '#e8e8ed', marginBottom: 6 }}>{a.total}</div>{sources.slice(0,4).map(([s,c]: any)=><div key={s} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}><span style={{ fontSize: 9 }}>{icons[s]||'🌐'}</span><span style={{ fontSize: 8, color: 'rgba(255,255,255,.4)', width: 45, textTransform: 'capitalize' }}>{s}</span><div style={{ flex: 1, height: 3, borderRadius: 2, background: 'rgba(255,255,255,.06)' }}><div style={{ height: 3, borderRadius: 2, background: 'rgba(255,255,255,.2)', width: `${(c/maxS)*100}%` }}/></div><span style={{ fontSize: 8, color: 'rgba(255,255,255,.3)' }}>{c}</span></div>)}{sources.length===0&&<div style={{ fontSize: 9, color: 'rgba(255,255,255,.2)' }}>No visits</div>}</div>
+            }
+            case 'w_bookings': return <div style={ws}><div style={wl}>Bookings</div><div style={{ fontSize: 22, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{total}</div><div style={{ fontSize: 9, color: 'rgba(255,255,255,.3)', marginTop: 3 }}>{upcoming} upcoming</div></div>
+            case 'w_paid': return <div style={ws}><div style={wl}>{isBarber ? 'Earnings' : 'Paid'}</div><div style={{ fontSize: 22, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{isBarber ? money(barberEarnings) : `${paid}/${total}`}</div><div style={{ fontSize: 9, color: 'rgba(255,255,255,.3)', marginTop: 3 }}>{isBarber ? `${money(barberTips)} tips` : (total - paid > 0 ? `${total - paid} unpaid` : 'all paid')}</div></div>
+            case 'w_noshows': return <div style={ws}><div style={wl}>No-shows</div><div style={{ fontSize: 22, fontWeight: 600, color: noshow > 0 ? 'rgba(255,107,107,.8)' : '#e8e8ed', lineHeight: 1 }}>{noshow}</div><div style={{ fontSize: 9, color: 'rgba(255,255,255,.3)', marginTop: 3 }}>{noshow > 0 ? 'attention' : 'all good'}</div></div>
+            case 'w_team': return <div style={ws}><div style={wl}>{isBarber ? 'Status' : 'Team'}</div><div style={{ fontSize: 22, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{isBarber ? (noshow > 0 ? '!' : '✓') : Object.keys(byBarber).length}</div><div style={{ fontSize: 9, color: 'rgba(255,255,255,.3)', marginTop: 3 }}>{isBarber ? 'today' : 'working'}</div></div>
+            case 'w_activity': return <div style={{...ws, minHeight: 90}}><div style={wl}>Today Activity</div>{Object.keys(byBarber).length > 0 ? <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{Object.entries(byBarber).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,c])=><div key={n} style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 45, fontSize: 9, color: 'rgba(255,255,255,.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n}</span><div style={{ flex: 1, height: 3, borderRadius: 999, background: 'rgba(255,255,255,.06)' }}><div style={{ height: 3, borderRadius: 999, background: 'rgba(255,255,255,.18)', width: `${Math.round(c/maxCount*100)}%` }}/></div><span style={{ fontSize: 8, color: 'rgba(255,255,255,.3)' }}>{c}</span></div>)}</div> : <div style={{ fontSize: 10, color: 'rgba(255,255,255,.2)' }}>No activity</div>}</div>
+            default: {
+              // Barber widgets
+              if (item.id.startsWith('w_barber_')) {
+                const bid = item.id.replace('w_barber_', '')
+                const b = barbers.find((x: any) => x.id === bid)
+                if (!b) return <div style={ws}>{item.label}</div>
+                const sched = b.schedule
+                const wd: number[] = Array.isArray(sched?.days) ? sched.days : [1,2,3,4,5,6]
+                const fm = (m: number) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
+                return <div style={{...ws, textAlign: 'center'}}><div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 4 }}>{b.photo_url ? <img src={b.photo_url} alt="" style={{ width: 20, height: 20, borderRadius: 6, objectFit: 'cover' }} /> : <div style={{ width: 20, height: 20, borderRadius: 6, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: 'rgba(255,255,255,.4)' }}>{(b.name||'?')[0]}</div>}<span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.8)' }}>{b.name}</span></div><div style={{ display: 'flex', justifyContent: 'center', gap: 1, marginBottom: 3 }}>{DAY_NAMES_SHORT.map((d: string,i: number)=><span key={d} style={{ fontSize: 6, padding: '1px 3px', borderRadius: 2, border: `1px solid ${wd.includes(i)?'rgba(255,255,255,.08)':'rgba(255,255,255,.02)'}`, color: wd.includes(i)?'rgba(255,255,255,.5)':'rgba(255,255,255,.12)' }}>{d}</span>)}</div><div style={{ fontSize: 8, color: 'rgba(255,255,255,.3)' }}>{fm(sched?.startMin??600)} — {fm(sched?.endMin??1200)}</div></div>
+              }
+              return <div style={ws}>{item.label}</div>
+            }
           }
         }
 
@@ -788,6 +834,7 @@ export default function DashboardPage() {
               .edit-glow-icon:nth-child(even) { animation-delay: .4s; }
               .edit-glow:nth-child(even) { animation-delay: .6s; }
               html, body { overflow: hidden !important; }
+              * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
             `}</style>
 
             {/* Pages */}
