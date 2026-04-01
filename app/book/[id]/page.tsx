@@ -179,18 +179,32 @@ export default function PublicBookingPage() {
     </div>
   )
 
-  return (
-    <div style={{ minHeight: '100vh', background: '#010101', fontFamily: 'Inter, -apple-system, sans-serif', color: '#f0f0f5', position: 'relative' }}>
+  // Template styles
+  const template = siteConfig?.template || 'modern'
+  const TEMPLATES: Record<string, { bg: string; text: string; card: string; cardBorder: string; accent: string; headerBg: string }> = {
+    classic:      { bg: '#f8f8f8', text: '#1a1a1a', card: 'rgba(255,255,255,.9)', cardBorder: 'rgba(0,0,0,.08)', accent: '#333', headerBg: 'rgba(255,255,255,.95)' },
+    modern:       { bg: '#010101', text: '#f0f0f5', card: 'rgba(255,255,255,.025)', cardBorder: 'rgba(255,255,255,.06)', accent: '#fff', headerBg: 'rgba(0,0,0,.5)' },
+    bold:         { bg: '#0a0a0a', text: '#ffffff', card: 'rgba(255,255,255,.04)', cardBorder: 'rgba(255,255,255,.08)', accent: '#fff', headerBg: 'rgba(0,0,0,.6)' },
+    'dark-luxury': { bg: '#0c0a08', text: '#e8dcc8', card: 'rgba(200,170,120,.04)', cardBorder: 'rgba(200,170,120,.1)', accent: '#c8a87a', headerBg: 'rgba(12,10,8,.7)' },
+    colorful:     { bg: '#fafafa', text: '#2a2a2a', card: 'rgba(0,0,0,.03)', cardBorder: 'rgba(0,0,0,.06)', accent: '#6366f1', headerBg: 'rgba(255,255,255,.9)' },
+  }
+  const t = effectivePlan === 'custom' ? (TEMPLATES[template] || TEMPLATES.modern) : TEMPLATES.modern
+  const isLightTheme = ['classic', 'colorful'].includes(template) && effectivePlan === 'custom'
 
-      {/* Vurium space background */}
-      <div className="space-bg" style={{ position: 'fixed' }}>
-        <div className="stars-wrap stars-wrap-far"><div className="stars stars-far" /></div>
-        <div className="stars-wrap stars-wrap-mid"><div className="stars stars-mid" /></div>
-        <div className="stars-wrap stars-wrap-near"><div className="stars stars-near" /></div>
-        <div className="nebula-layer" style={{ width: 600, height: 350, top: '8%', left: '-10%', background: 'rgba(30,45,110,.05)' }} />
-        <div className="nebula-layer" style={{ width: 400, height: 250, top: '40%', right: '-8%', background: 'rgba(55,35,100,.03)', animationDelay: '.5s' }} />
-      </div>
-      <div className="noise-overlay" />
+  return (
+    <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter, -apple-system, sans-serif', color: t.text, position: 'relative' }}>
+
+      {/* Space background — only for dark themes */}
+      {!isLightTheme && (
+        <div className="space-bg" style={{ position: 'fixed' }}>
+          <div className="stars-wrap stars-wrap-far"><div className="stars stars-far" /></div>
+          <div className="stars-wrap stars-wrap-mid"><div className="stars stars-mid" /></div>
+          <div className="stars-wrap stars-wrap-near"><div className="stars stars-near" /></div>
+          <div className="nebula-layer" style={{ width: 600, height: 350, top: '8%', left: '-10%', background: 'rgba(30,45,110,.05)' }} />
+          <div className="nebula-layer" style={{ width: 400, height: 250, top: '40%', right: '-8%', background: 'rgba(55,35,100,.03)', animationDelay: '.5s' }} />
+        </div>
+      )}
+      {!isLightTheme && <div className="noise-overlay" />}
 
       {/* Header */}
       <header style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>

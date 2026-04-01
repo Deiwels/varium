@@ -137,7 +137,7 @@ export default function VuriumBook() {
           {[
             { name: 'Individual', price: '$29', period: '/mo', desc: 'For solo specialists and freelancers', features: ['1 user — your own calendar', 'Online booking page', 'Client management', 'Payments', 'Basic analytics'], featured: false, plan: 'individual' },
             { name: 'Salon', price: '$79', period: '/mo', desc: 'For teams, salons, and studios', features: ['Up to 10 team members', 'Team management & roles', 'Waitlist & Messages', 'Portfolio & Membership', 'Advanced analytics'], featured: true, plan: 'salon' },
-            { name: 'Custom', price: 'Custom', period: '', desc: 'For networks and enterprises', features: ['Everything in Salon', 'Unlimited team members', 'Multi-location', 'API access', 'Expenses & Payroll'], featured: false, plan: 'custom' },
+            { name: 'Custom', price: '$99', period: '/mo', desc: 'Full customizable site', features: ['Custom booking site', '5 design templates', 'Unlimited team members', 'Expenses & Payroll', 'Dedicated support'], featured: false, plan: 'custom' },
           ].map((p, i) => (
             <div key={i} className="glass-card" style={{ borderColor: p.featured ? 'rgba(130,150,220,.2)' : undefined, background: p.featured ? 'rgba(130,150,220,.03)' : undefined }}>
               {p.featured && <div style={{ position: 'absolute', top: 14, right: 18, fontSize: 9, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(130,150,220,.7)', background: 'rgba(130,150,220,.1)', padding: '3px 10px', borderRadius: 999 }}>Popular</div>}

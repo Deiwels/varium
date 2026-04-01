@@ -3359,6 +3359,7 @@ const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 const STRIPE_PRICES = {
   individual: process.env.STRIPE_PRICE_INDIVIDUAL || process.env.STRIPE_PRICE_STARTER || '',
   salon: process.env.STRIPE_PRICE_SALON || process.env.STRIPE_PRICE_PRO || '',
+  custom: process.env.STRIPE_PRICE_CUSTOM || '',
 };
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://vurium.com';
 
@@ -3547,6 +3548,7 @@ async function handleStripeEvent(wsId, type, obj) {
     const priceId = obj.items?.data?.[0]?.price?.id || '';
     if (priceId === STRIPE_PRICES.individual) patch.plan_type = 'individual';
     else if (priceId === STRIPE_PRICES.salon) patch.plan_type = 'salon';
+    else if (priceId === STRIPE_PRICES.custom) patch.plan_type = 'custom';
   } else if (type === 'customer.subscription.deleted') {
     patch.billing_status = 'canceled';
     patch.subscription_status = 'canceled';

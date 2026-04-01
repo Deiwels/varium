@@ -24,8 +24,8 @@ const PLANS = [
     color: 'rgba(255,255,255,.5)',
   },
   {
-    id: 'custom', name: 'Custom', price: null, period: '',
-    features: ['Everything in Salon', 'Unlimited team members', 'Multi-location', 'API access', 'Expenses & Payroll', 'Dedicated support'],
+    id: 'custom', name: 'Custom', price: 99, period: '/mo',
+    features: ['Everything in Salon', 'Custom booking site', '5 design templates', 'Unlimited team members', 'Expenses & Payroll', 'Dedicated support'],
     color: 'rgba(255,255,255,.35)',
   },
 ]
