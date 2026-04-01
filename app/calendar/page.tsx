@@ -1622,14 +1622,34 @@ export default function CalendarPage() {
           50% { box-shadow: 0 0 18px rgba(255,107,107,.40); border-color: rgba(255,107,107,.55); background: rgba(255,107,107,.10); }
         }
         .block-pending-pulse { animation: blockPendingPulse 2.4s ease-in-out infinite; }
-        @keyframes blockStripeMove {
-          0% { background-position: 0 0; }
-          100% { background-position: 17px 17px; }
+        @keyframes blackHoleBreathe {
+          0%, 100% { box-shadow: 0 0 8px 2px rgba(255,60,60,.25), 0 0 20px 4px rgba(255,40,40,.10), inset 0 0 15px 3px rgba(0,0,0,.9); }
+          50% { box-shadow: 0 0 14px 4px rgba(255,60,60,.45), 0 0 35px 8px rgba(255,40,40,.18), inset 0 0 20px 5px rgba(0,0,0,.95); }
+        }
+        @keyframes blackHoleVortex {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
         .block-approved-stripes {
-          background: repeating-linear-gradient(45deg, rgba(255,107,107,.08) 0px, rgba(255,107,107,.08) 6px, rgba(255,107,107,.02) 6px, rgba(255,107,107,.02) 12px) !important;
-          background-size: 17px 17px !important;
-          animation: blockStripeMove 1.2s linear infinite;
+          background: radial-gradient(ellipse at center, rgba(0,0,0,.98) 0%, rgba(0,0,0,.90) 40%, rgba(15,0,0,.75) 70%, rgba(40,0,0,.4) 100%) !important;
+          animation: blackHoleBreathe 3s ease-in-out infinite;
+          overflow: hidden;
+        }
+        .block-approved-stripes::before {
+          content: '';
+          position: absolute;
+          inset: -20%;
+          background: conic-gradient(from 0deg, transparent 0%, rgba(255,60,60,.08) 25%, transparent 50%, rgba(255,80,60,.06) 75%, transparent 100%);
+          animation: blackHoleVortex 8s linear infinite;
+          pointer-events: none;
+        }
+        .block-approved-stripes::after {
+          content: '';
+          position: absolute;
+          inset: 3px;
+          border-radius: inherit;
+          background: radial-gradient(ellipse at center, rgba(0,0,0,1) 0%, rgba(0,0,0,.95) 50%, transparent 100%);
+          pointer-events: none;
         }
         @keyframes paidShimmer {
           0%, 80% { background-position: -200% 0; }
@@ -2135,7 +2155,7 @@ export default function CalendarPage() {
                     {/* Block drag ghost */}
                     {blockDrag?.barberIdx === bi && (() => {
                       const h = minToY(blockDrag.endMin) - minToY(blockDrag.startMin)
-                      return <div style={{ position: 'absolute', left: 4, right: 4, top: minToY(blockDrag.startMin), height: Math.max(slotH * 2, h), borderRadius: 10, border: '2px dashed rgba(255,107,107,.65)', background: 'repeating-linear-gradient(45deg,rgba(255,107,107,.08) 0px,rgba(255,107,107,.08) 6px,rgba(255,107,107,.03) 6px,rgba(255,107,107,.03) 12px)', pointerEvents: 'none', zIndex: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                      return <div className="block-approved-stripes" style={{ position: 'absolute', left: 4, right: 4, top: minToY(blockDrag.startMin), height: Math.max(slotH * 2, h), borderRadius: 10, border: '1px solid rgba(255,60,60,.35)', pointerEvents: 'none', zIndex: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,107,107,.80)" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
                         <span style={{ fontSize: 10, fontWeight: 900, color: 'rgba(255,107,107,.80)', textTransform: 'uppercase' }}>{minToAMPM(blockDrag.startMin)}–{minToAMPM(blockDrag.endMin)}</span>
                         <span style={{ fontSize: 9, color: 'rgba(255,107,107,.55)' }}>{blockDrag.endMin - blockDrag.startMin}min</span>
