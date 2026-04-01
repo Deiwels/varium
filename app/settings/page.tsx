@@ -317,7 +317,7 @@ export default function SettingsPage() {
       setSaving(true)
       try {
         await apiFetch('/api/settings', { method: 'POST', body: JSON.stringify({ ...settings, fees, charges }) })
-        setDirty(false); setLastSaved(new Date().toLocaleString())
+        setDirty(false)
       } catch {}
       setSaving(false)
     }, 1500)
