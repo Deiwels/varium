@@ -71,8 +71,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <style dangerouslySetInnerHTML={{ __html: `
           @keyframes starBreathe {
-            0%, 100% { opacity: 0.15; transform: scale(0.8); box-shadow: 0 0 2px 0px rgba(200,220,255,.1); }
-            50% { opacity: 0.7; transform: scale(1.3); box-shadow: 0 0 8px 3px rgba(200,220,255,.2); }
+            0%, 100% { opacity: 0.25; transform: scale(0.8); box-shadow: 0 0 3px 1px rgba(200,220,255,.12); }
+            50% { opacity: 0.85; transform: scale(1.4); box-shadow: 0 0 10px 4px rgba(200,220,255,.25); }
           }
           @keyframes slowDrift {
             0% { transform: translate(0,0); }
@@ -81,15 +81,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             75% { transform: translate(-2px,-1px); }
             100% { transform: translate(0,0); }
           }
-          /* Mobile: hide heavy elements, keep a few breathing stars */
+          /* Mobile: lighter breathing stars */
           @media (max-width: 768px) {
             #vurium-cosmos .nebula-glow { display: none !important; }
-            /* Hide most glow stars, show only first 5 with slower breathing */
             #vurium-cosmos .glow-star { display: none !important; }
-            #vurium-cosmos .glow-star:nth-child(-n+5) {
+            #vurium-cosmos .glow-star:nth-child(-n+6) {
               display: block !important;
-              animation-duration: 8s !important;
-              box-shadow: none !important;
+              width: 4px !important; height: 4px !important;
+              animation-duration: 6s !important;
+              box-shadow: 0 0 6px 2px rgba(200,220,255,.15) !important;
             }
             #v-stars-mid { opacity: .6 !important; }
             #v-stars-near { opacity: .5 !important; }
