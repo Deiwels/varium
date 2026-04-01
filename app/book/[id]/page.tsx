@@ -17,11 +17,17 @@ export default function PublicBookingPage() {
   const params = useParams()
   const wsId = params.id as string
 
+  const [resolvedWsId, setResolvedWsId] = useState('')
+  const [effectivePlan, setEffectivePlan] = useState('individual')
+  const [siteConfig, setSiteConfig] = useState<any>(null)
+  const [shopName, setShopName] = useState('')
   const [config, setConfig] = useState<Config>({})
   const [barbers, setBarbers] = useState<Barber[]>([])
   const [services, setServices] = useState<Service[]>([])
+  const [reviews, setReviews] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [showBooking, setShowBooking] = useState(false) // for salon/custom: landing first
 
   // Booking state
   const [step, setStep] = useState(0) // 0=service, 1=barber(if multi), 2=date/time, 3=info, 4=done
@@ -42,29 +48,39 @@ export default function PublicBookingPage() {
 
   useEffect(() => {
     if (!wsId) return
-    Promise.all([
-      api(`/public/config/${wsId}`).catch(() => null),
-      api(`/public/barbers/${wsId}`).catch(() => null),
-      api(`/public/services/${wsId}`).catch(() => null),
-    ]).then(([cfg, bData, sData]) => {
+    // Step 1: Resolve slug → workspace_id + plan
+    api(`/public/resolve/${wsId}`).then(async (resolved) => {
+      if (!resolved || resolved.error) { setNotFound(true); setLoading(false); return }
+      const realWsId = resolved.workspace_id
+      setResolvedWsId(realWsId)
+      setEffectivePlan(resolved.effective_plan || 'individual')
+      setSiteConfig(resolved.site_config || null)
+      setShopName(resolved.name || '')
+      // Individual plan → go straight to booking
+      if (resolved.effective_plan === 'individual') setShowBooking(true)
+      // Step 2: Load data
+      const [cfg, bData, sData, revData] = await Promise.all([
+        api(`/public/config/${realWsId}`).catch(() => null),
+        api(`/public/barbers/${realWsId}`).catch(() => null),
+        api(`/public/services/${realWsId}`).catch(() => null),
+        api(`/public/reviews/${realWsId}`).catch(() => ({ items: [] })),
+      ])
       if (!bData || bData.error === 'Workspace not found') { setNotFound(true); return }
       setConfig(cfg || {})
       setBarbers(bData?.barbers || [])
       setServices(sData?.services || [])
-      // Solo mode: auto-select barber
-      if ((bData?.barbers || []).length === 1) {
-        setSelectedBarber((bData.barbers)[0])
-      }
-    }).finally(() => setLoading(false))
+      setReviews(revData?.items || [])
+      if ((bData?.barbers || []).length === 1) setSelectedBarber((bData.barbers)[0])
+    }).catch(() => { setNotFound(true) }).finally(() => setLoading(false))
   }, [wsId])
 
   // Load slots when barber + date selected
   useEffect(() => {
-    if (!selectedBarber || !selectedDate || !wsId) return
+    if (!selectedBarber || !selectedDate || !resolvedWsId) return
     setSlotsLoading(true); setSlots([]); setSelectedSlot('')
     const start = new Date(selectedDate + 'T00:00:00')
     const end = new Date(start.getTime() + 86400000)
-    api(`/public/availability/${wsId}`, {
+    api(`/public/availability/${resolvedWsId}`, {
       method: 'POST',
       body: JSON.stringify({
         barber_id: selectedBarber.id,
@@ -75,7 +91,7 @@ export default function PublicBookingPage() {
     }).then(d => setSlots(d.slots || []))
       .catch(() => {})
       .finally(() => setSlotsLoading(false))
-  }, [selectedBarber, selectedDate, selectedService, wsId])
+  }, [selectedBarber, selectedDate, selectedService, resolvedWsId])
 
   function selectService(s: Service) {
     setSelectedService(s)
@@ -92,7 +108,7 @@ export default function PublicBookingPage() {
     if (!clientName || !selectedBarber || !selectedSlot) return
     setBookLoading(true); setError('')
     try {
-      const res = await api(`/public/bookings/${wsId}`, {
+      const res = await api(`/public/bookings/${resolvedWsId}`, {
         method: 'POST',
         body: JSON.stringify({
           barber_id: selectedBarber.id,
@@ -192,7 +208,99 @@ export default function PublicBookingPage() {
         </div>
       )}
 
+      {/* ── SALON/CUSTOM LANDING PAGE ── */}
+      {(effectivePlan === 'salon' || effectivePlan === 'custom') && !showBooking && (
+        <main style={{ maxWidth: 700, margin: '0 auto', padding: '40px 20px 80px', position: 'relative', zIndex: 2 }}>
+          {/* Hero */}
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            {config.hero_media_url && (
+              <div style={{ width: '100%', height: 200, borderRadius: 16, overflow: 'hidden', marginBottom: 24, border: '1px solid rgba(255,255,255,.06)' }}>
+                <img src={config.hero_media_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+            )}
+            <h1 style={{ fontSize: 28, fontWeight: 600, color: '#f0f0f5', marginBottom: 8 }}>{shopName || config.shop_name || 'Welcome'}</h1>
+            {siteConfig?.hero_subtitle && <p style={{ fontSize: 15, color: 'rgba(255,255,255,.4)', lineHeight: 1.6 }}>{siteConfig.hero_subtitle}</p>}
+          </div>
+
+          {/* About */}
+          {siteConfig?.about_text && (
+            <div style={{ marginBottom: 40, padding: '20px 24px', borderRadius: 16, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)', backdropFilter: 'blur(12px)' }}>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,.5)', lineHeight: 1.7 }}>{siteConfig.about_text}</p>
+            </div>
+          )}
+
+          {/* Services preview */}
+          {services.length > 0 && (
+            <div style={{ marginBottom: 40 }}>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Services</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {services.map(s => (
+                  <div key={s.id} style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)', fontSize: 13, color: 'rgba(255,255,255,.5)' }}>
+                    {s.name}{s.price_cents > 0 ? ` · ${fmtPrice(s.price_cents)}` : ''}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Team */}
+          {barbers.length > 1 && (
+            <div style={{ marginBottom: 40 }}>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Our Team</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 12 }}>
+                {barbers.map(b => (
+                  <div key={b.id} style={{ textAlign: 'center', padding: '16px 8px', borderRadius: 14, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.015)' }}>
+                    <div style={{
+                      width: 48, height: 48, borderRadius: 999, margin: '0 auto 10px',
+                      background: b.photo_url ? `url(${b.photo_url}) center/cover` : 'rgba(255,255,255,.06)',
+                      border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,.35)',
+                    }}>{!b.photo_url && b.name?.[0]}</div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.7)' }}>{b.name}</div>
+                    {b.level && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{b.level}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Reviews */}
+          {reviews.length > 0 && (
+            <div style={{ marginBottom: 40 }}>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Reviews</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {reviews.slice(0, 5).map((r: any, i: number) => (
+                  <div key={i} style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid rgba(255,255,255,.04)', background: 'rgba(255,255,255,.015)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,.6)', fontWeight: 500 }}>{r.name}</span>
+                      <span style={{ fontSize: 11, color: 'rgba(255,255,255,.25)' }}>{'★'.repeat(r.rating || 5)}</span>
+                    </div>
+                    {r.text && <p style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', lineHeight: 1.5 }}>{r.text}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Book Now CTA */}
+          <div style={{ textAlign: 'center', padding: '32px 0' }}>
+            <button onClick={() => setShowBooking(true)} style={{
+              padding: '14px 40px', borderRadius: 14, fontSize: 16, fontWeight: 600, fontFamily: 'inherit',
+              background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)',
+              color: '#fff', cursor: 'pointer', transition: 'all .2s',
+            }}>Book Now</button>
+          </div>
+        </main>
+      )}
+
+      {/* ── BOOKING FLOW (all plans, or after Book Now for salon/custom) ── */}
+      {(showBooking || effectivePlan === 'individual') && (
       <main style={{ maxWidth: 560, margin: '0 auto', padding: '40px 20px 80px', position: 'relative', zIndex: 2 }}>
+
+        {/* Back to landing (salon/custom only) */}
+        {effectivePlan !== 'individual' && !booked && (
+          <button onClick={() => { setShowBooking(false); setStep(0); setSelectedService(null); setSelectedSlot('') }} style={{ marginBottom: 16, padding: '6px 14px', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', background: 'none', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.35)' }}>← Back</button>
+        )}
 
         {/* Progress */}
         {!booked && (
@@ -388,6 +496,7 @@ export default function PublicBookingPage() {
           </div>
         )}
       </main>
+      )}
 
       <footer style={{ padding: '20px 24px', borderTop: '1px solid rgba(255,255,255,.04)', textAlign: 'center', position: 'relative', zIndex: 2 }}>
         <a href="https://vurium.com/vuriumbook" target="_blank" rel="noopener" style={{ fontSize: 11, color: 'rgba(255,255,255,.12)', textDecoration: 'none' }}>
