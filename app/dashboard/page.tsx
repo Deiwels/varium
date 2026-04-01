@@ -636,7 +636,7 @@ export default function DashboardPage() {
 
   return (
     <Shell page="dashboard">
-      <div className="dash-container" style={{ padding: '18px 18px 0', maxWidth: 1400, margin: '0 auto', height: '100vh', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="dash-container" style={{ padding: '10px 18px 0', maxWidth: 1400, margin: '0 auto', height: '100%', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Topbar removed — page name shown in Shell top-bar */}
 
@@ -723,7 +723,9 @@ export default function DashboardPage() {
           .radar-overlay { animation: radarFadeIn .2s ease-out, radarFadeOut 3.2s ease-in-out forwards }
           .radar-x { animation: radarXIn .4s cubic-bezier(.16,1.2,.3,1) 1.6s both }
           .radar-text { animation: radarFadeIn .3s ease-out 2s both }
-          .content { overflow: hidden !important; }
+          @media (min-width: 769px) {
+            .content { overflow: hidden !important; }
+          }
           @media (max-width: 768px) {
             .dash-topbar-row { flex-direction: column !important; align-items: stretch !important; gap: 8px !important; }
             .dash-search { width: 100% !important; }
@@ -1153,7 +1155,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── APP ICONS (above bottom nav) ── */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', paddingBottom: 64, paddingTop: 12, flexShrink: 0 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', paddingBottom: 8, flexShrink: 0 }}>
           {/* ── App Shortcuts (icon + label, like iOS app icons) ── */}
           {(() => {
             const shortcutIcons: Record<string, React.ReactNode> = {
