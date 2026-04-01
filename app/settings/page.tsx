@@ -654,7 +654,7 @@ export default function SettingsPage() {
 
                 {/* Preview */}
                 <div style={{ textAlign: 'center' }}>
-                  <a href={`/book/${typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}').workspace_id || '' : ''}`} target="_blank" rel="noopener" style={{
+                  <a href={`/book/${s.slug || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}').workspace_id || '' : '')}`} target="_blank" rel="noopener" style={{
                     display: 'inline-block', padding: '10px 24px', borderRadius: 10, fontSize: 13, textDecoration: 'none',
                     background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)',
                   }}>Preview Booking Page →</a>
