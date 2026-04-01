@@ -636,7 +636,7 @@ export default function DashboardPage() {
 
   return (
     <Shell page="dashboard">
-      <div className="dash-container" style={{ padding: '18px 18px 40px', maxWidth: 1400, margin: '0 auto', overflowY: 'auto', height: '100vh', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div className="dash-container" style={{ padding: '18px 18px 0', maxWidth: 1400, margin: '0 auto', height: '100vh', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', display: 'flex', flexDirection: 'column' }}>
 
         {/* Topbar removed — page name shown in Shell top-bar */}
 
@@ -930,9 +930,9 @@ export default function DashboardPage() {
             onMouseLeave: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
           }
           return (<>
-        {/* ── WIDGETS (centered vertically) ── */}
+        {/* ── WIDGETS (centered on screen) ── */}
         <div onClick={e => { if (editingWidgets && e.target === e.currentTarget && !editJustActivated.current) { setEditingWidgets(false); setEditingShortcuts(false) } }}
-          style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', alignContent: 'center', flex: 1 }}>
+          style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', alignContent: 'center', overflow: 'auto' }}>
           {dashWidgets.map(wId => {
             const removeBtn = editingWidgets ? (
               <button onClick={() => toggleWidget(wId)} style={{ position: 'absolute', top: -4, right: -4, width: 20, height: 20, borderRadius: 999, background: 'rgba(255,107,107,.8)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>−</button>
@@ -1151,8 +1151,8 @@ export default function DashboardPage() {
 
         </div>
 
-        {/* ── APP ICONS (pinned above bottom nav) ── */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', paddingBottom: 70, flexShrink: 0 }}>
+        {/* ── APP ICONS (above bottom nav) ── */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', paddingBottom: 64, paddingTop: 12, flexShrink: 0 }}>
           {/* ── App Shortcuts (icon + label, like iOS app icons) ── */}
           {(() => {
             const shortcutIcons: Record<string, React.ReactNode> = {
