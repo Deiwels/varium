@@ -1603,7 +1603,19 @@ export default function CalendarPage() {
       )}
       <style>{`
         .cal-container { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-        .cal-event:hover { filter: brightness(1.12); }
+        .cal-event { position: relative; overflow: hidden; }
+        .cal-event::before {
+          content: '';
+          position: absolute;
+          inset: -40%;
+          background: radial-gradient(ellipse at 20% 50%, rgba(100,60,180,.08) 0%, transparent 50%),
+                      radial-gradient(ellipse at 80% 30%, rgba(60,100,200,.06) 0%, transparent 45%);
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity .4s ease;
+        }
+        .cal-event:hover::before { opacity: 1; }
+        .cal-event:hover { filter: brightness(1.08); }
         .barber-edit-card:hover { border-color: rgba(255,255,255,.22) !important; box-shadow: 0 2px 16px rgba(255,255,255,.04); }
         @keyframes slideUp { from { opacity:0; transform:translateX(-50%) translateY(12px) } to { opacity:1; transform:translateX(-50%) translateY(0) } }
         @keyframes wlGhostPulse {
@@ -2237,7 +2249,7 @@ export default function CalendarPage() {
                       }
                       return (
                         <div key={ev.id} className={`cal-event${isArrived ? ' arrived-pulse' : ''}${isPaid ? ' cal-event-paid' : ''}${isAtRisk ? ' at-risk-pulse' : ''}${isVip ? ' vip-pulse' : ''}${drag?.eventId===ev.id ? ' cal-event-dragging' : ''}`}
-                          style={{ position: 'absolute', left: tinyCol ? 2 : 6, right: tinyCol ? 2 : 6, top, height: height-2, borderRadius: tinyCol ? 8 : 12, ...(isArrived || isAtRisk || isVip ? {} : drag?.eventId===ev.id ? {} : { border: `1px solid ${isPaid ? 'rgba(130,220,170,.15)' : isNoshow ? 'rgba(255,107,107,.12)' : 'rgba(255,255,255,.08)'}`, background: isNoshow ? 'rgba(255,107,107,.04)' : isPaid ? 'rgba(130,220,170,.04)' : 'rgba(255,255,255,.03)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', boxShadow: isPaid ? '0 0 12px rgba(130,220,170,.06)' : isNoshow ? 'none' : '0 0 8px rgba(255,255,255,.02)' }), ...(isNoshow ? { opacity: 0.3 } : {}), padding: tinyCol ? '3px 4px' : '7px 10px', cursor: canDrag ? (drag ? 'grabbing' : 'grab') : 'pointer', userSelect: 'none', overflow: 'hidden', zIndex: drag?.eventId===ev.id ? 50 : isNoshow ? 2 : 5, transition: 'all .2s ease' }}
+                          style={{ position: 'absolute', left: tinyCol ? 2 : 6, right: tinyCol ? 2 : 6, top, height: height-2, borderRadius: tinyCol ? 8 : 12, ...(isArrived || isAtRisk || isVip ? {} : drag?.eventId===ev.id ? {} : { border: `1px solid ${isPaid ? 'rgba(130,220,170,.12)' : isNoshow ? 'rgba(255,107,107,.10)' : 'rgba(255,255,255,.06)'}`, background: isNoshow ? 'rgba(255,107,107,.03)' : isPaid ? 'rgba(10,20,15,.85)' : 'rgba(6,6,14,.85)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', boxShadow: isPaid ? '0 0 10px rgba(130,220,170,.05), inset 0 0 20px rgba(130,220,170,.03)' : isNoshow ? 'none' : '0 0 10px rgba(80,60,160,.06), inset 0 0 20px rgba(60,40,120,.04)' }), ...(isNoshow ? { opacity: 0.3 } : {}), padding: tinyCol ? '3px 4px' : '7px 10px', cursor: canDrag ? (drag ? 'grabbing' : 'grab') : 'pointer', userSelect: 'none', overflow: 'hidden', zIndex: drag?.eventId===ev.id ? 50 : isNoshow ? 2 : 5, transition: 'all .2s ease' }}
                           onMouseDown={e => { if (!canDrag || e.button!==0) return; startDrag(e, ev, bi) }}
                           onTouchStart={e => { if (!canDrag) return; e.stopPropagation(); clearTimeout(eventLongPressTimer.current); const touch = e.touches[0]; const evCopy = ev; const biCopy = bi; eventLongPressTimer.current = setTimeout(() => { const fakeEvt = { preventDefault(){}, stopPropagation(){}, touches: [touch] } as any; startDrag(fakeEvt, evCopy, biCopy) }, 400) }}
                           onTouchEnd={() => clearTimeout(eventLongPressTimer.current)}
