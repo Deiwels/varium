@@ -916,8 +916,8 @@ export default function DashboardPage() {
         <div onClick={e => { if (editingWidgets && e.target === e.currentTarget && !editJustActivated.current) { setEditingWidgets(false); setEditingShortcuts(false) } }}
           style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14, justifyContent: 'center' }}>
           {dashWidgets.map(wId => {
-            const wBox: React.CSSProperties = { width: 120, borderRadius: 14, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', padding: '10px 12px', position: 'relative', transition: 'all .2s', animation: editingWidgets ? 'widgetBreathe 2s ease-in-out infinite' : 'none' }
-            const wTitle: React.CSSProperties = { fontSize: 8, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }
+            const wBox: React.CSSProperties = { width: 155, minHeight: 100, borderRadius: 18, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', padding: '14px', position: 'relative', transition: 'all .2s', animation: editingWidgets ? 'widgetBreathe 2s ease-in-out infinite' : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }
+            const wTitle: React.CSSProperties = { fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', marginBottom: 6 }
             const longPress = {
               onTouchStart: () => { longPressRef.current = setTimeout(() => { setEditingWidgets(true); editJustActivated.current = true; setTimeout(() => { editJustActivated.current = false }, 300) }, 600) },
               onTouchEnd: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
@@ -1040,7 +1040,7 @@ export default function DashboardPage() {
             }
             if (wId === 'mini-calendar') {
               return (
-                <div key={wId} {...longPress} style={{ ...wBox, width: 250 }}>
+                <div key={wId} {...longPress} style={{ ...wBox, width: 320 }}>
                   {removeBtn}
                   <MiniCalendarWidget bookings={bookings} />
                 </div>
@@ -1066,7 +1066,7 @@ export default function DashboardPage() {
             const available = ALL_WIDGETS.filter(w => !dashWidgets.includes(w.id))
             return available.map(w => (
               <button key={w.id} onClick={() => toggleWidget(w.id)}
-                style={{ width: 120, padding: '10px 12px', borderRadius: 14, border: '1px dashed rgba(255,255,255,.12)', background: 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', fontFamily: 'inherit', animation: 'widgetBreathe 2s ease-in-out infinite' }}>
+                style={{ width: 155, minHeight: 100, padding: '14px', borderRadius: 18, border: '1px dashed rgba(255,255,255,.10)', background: 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', fontFamily: 'inherit', animation: 'widgetBreathe 2s ease-in-out infinite', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 <div style={{ fontSize: 14, color: 'rgba(255,255,255,.25)', marginBottom: 2 }}>+</div>
                 <div style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.35)' }}>{w.label}</div>
               </button>
