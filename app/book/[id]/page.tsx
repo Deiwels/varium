@@ -159,7 +159,7 @@ export default function PublicBookingPage() {
     return new Date(key + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
   }
 
-  const shopName = config.shop_name || 'Book an Appointment'
+  const displayName = shopName || config.shop_name || 'Book an Appointment'
 
   // Styles
   const card: React.CSSProperties = { borderRadius: 16, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', backdropFilter: 'blur(12px)', padding: '20px 22px', cursor: 'pointer', transition: 'all .2s' }
