@@ -89,17 +89,17 @@ function ClockWidget() {
   useEffect(() => { const t = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(t) }, [])
   const h = time.getHours() % 12, m = time.getMinutes(), s = time.getSeconds()
   const hDeg = h * 30 + m * 0.5, mDeg = m * 6, sDeg = s * 6
-  const size = 48, cx = size / 2, cy = size / 2
+  const size = 70, cx = size / 2, cy = size / 2
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       {Array.from({ length: 12 }, (_, i) => {
         const a = (i * 30 - 90) * Math.PI / 180
-        return <line key={i} x1={cx + Math.cos(a) * 18} y1={cy + Math.sin(a) * 18} x2={cx + Math.cos(a) * 21} y2={cy + Math.sin(a) * 21} stroke="rgba(255,255,255,.15)" strokeWidth={i % 3 === 0 ? 1.2 : .4} strokeLinecap="round" />
+        return <line key={i} x1={cx + Math.cos(a) * 27} y1={cy + Math.sin(a) * 27} x2={cx + Math.cos(a) * 31} y2={cy + Math.sin(a) * 31} stroke="rgba(255,255,255,.18)" strokeWidth={i % 3 === 0 ? 1.5 : .5} strokeLinecap="round" />
       })}
-      <line x1={cx} y1={cy} x2={cx + Math.cos((hDeg - 90) * Math.PI / 180) * 11} y2={cy + Math.sin((hDeg - 90) * Math.PI / 180) * 11} stroke="rgba(255,255,255,.7)" strokeWidth={1.5} strokeLinecap="round" />
-      <line x1={cx} y1={cy} x2={cx + Math.cos((mDeg - 90) * Math.PI / 180) * 16} y2={cy + Math.sin((mDeg - 90) * Math.PI / 180) * 16} stroke="rgba(255,255,255,.5)" strokeWidth={1} strokeLinecap="round" />
-      <line x1={cx} y1={cy} x2={cx + Math.cos((sDeg - 90) * Math.PI / 180) * 18} y2={cy + Math.sin((sDeg - 90) * Math.PI / 180) * 18} stroke="rgba(255,255,255,.2)" strokeWidth={.4} strokeLinecap="round" />
-      <circle cx={cx} cy={cy} r={1} fill="rgba(255,255,255,.35)" />
+      <line x1={cx} y1={cy} x2={cx + Math.cos((hDeg - 90) * Math.PI / 180) * 16} y2={cy + Math.sin((hDeg - 90) * Math.PI / 180) * 16} stroke="rgba(255,255,255,.7)" strokeWidth={2} strokeLinecap="round" />
+      <line x1={cx} y1={cy} x2={cx + Math.cos((mDeg - 90) * Math.PI / 180) * 24} y2={cy + Math.sin((mDeg - 90) * Math.PI / 180) * 24} stroke="rgba(255,255,255,.5)" strokeWidth={1.2} strokeLinecap="round" />
+      <line x1={cx} y1={cy} x2={cx + Math.cos((sDeg - 90) * Math.PI / 180) * 27} y2={cy + Math.sin((sDeg - 90) * Math.PI / 180) * 27} stroke="rgba(255,255,255,.2)" strokeWidth={.5} strokeLinecap="round" />
+      <circle cx={cx} cy={cy} r={1.5} fill="rgba(255,255,255,.35)" />
     </svg>
   )
 }
@@ -916,7 +916,7 @@ export default function DashboardPage() {
         <div onClick={e => { if (editingWidgets && e.target === e.currentTarget && !editJustActivated.current) { setEditingWidgets(false); setEditingShortcuts(false) } }}
           style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14, justifyContent: 'center' }}>
           {dashWidgets.map(wId => {
-            const wBox: React.CSSProperties = { width: 155, minHeight: 100, borderRadius: 18, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', padding: '14px', position: 'relative', transition: 'all .2s', animation: editingWidgets ? 'widgetBreathe 2s ease-in-out infinite' : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }
+            const wBox: React.CSSProperties = { width: 170, minHeight: 110, borderRadius: 20, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', padding: '14px 16px', position: 'relative', transition: 'all .2s', animation: editingWidgets ? 'widgetBreathe 2s ease-in-out infinite' : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }
             const wTitle: React.CSSProperties = { fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', marginBottom: 6 }
             const longPress = {
               onTouchStart: () => { longPressRef.current = setTimeout(() => { setEditingWidgets(true); editJustActivated.current = true; setTimeout(() => { editJustActivated.current = false }, 300) }, 600) },
@@ -1040,7 +1040,7 @@ export default function DashboardPage() {
             }
             if (wId === 'mini-calendar') {
               return (
-                <div key={wId} {...longPress} style={{ ...wBox, width: 320 }}>
+                <div key={wId} {...longPress} style={{ ...wBox, width: 350 }}>
                   {removeBtn}
                   <MiniCalendarWidget bookings={bookings} />
                 </div>
@@ -1066,7 +1066,7 @@ export default function DashboardPage() {
             const available = ALL_WIDGETS.filter(w => !dashWidgets.includes(w.id))
             return available.map(w => (
               <button key={w.id} onClick={() => toggleWidget(w.id)}
-                style={{ width: 155, minHeight: 100, padding: '14px', borderRadius: 18, border: '1px dashed rgba(255,255,255,.10)', background: 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', fontFamily: 'inherit', animation: 'widgetBreathe 2s ease-in-out infinite', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                style={{ width: 170, minHeight: 110, padding: '14px 16px', borderRadius: 20, border: '1px dashed rgba(255,255,255,.10)', background: 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', fontFamily: 'inherit', animation: 'widgetBreathe 2s ease-in-out infinite', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 <div style={{ fontSize: 14, color: 'rgba(255,255,255,.25)', marginBottom: 2 }}>+</div>
                 <div style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.35)' }}>{w.label}</div>
               </button>
@@ -1082,7 +1082,7 @@ export default function DashboardPage() {
             const isEditing = editingWidgets
             return (
               <a key={item.href} href={isEditing ? undefined : item.href} onClick={isEditing ? (e) => { e.preventDefault(); e.stopPropagation(); toggleShortcut(item.href) } : undefined}
-                style={{ flex: '1 1 100px', padding: '10px 12px', borderRadius: 12, border: `1px solid ${!isActive && isEditing ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.05)'}`, background: !isActive && isEditing ? 'rgba(255,255,255,.01)' : 'rgba(255,255,255,.02)', textDecoration: 'none', transition: 'all .2s', position: 'relative', opacity: !isActive && isEditing ? 0.5 : 1, animation: isEditing ? 'widgetBreathe 2s ease-in-out infinite' : 'none', cursor: isEditing ? 'pointer' : undefined }}>
+                style={{ flex: '1 1 100px', padding: '10px 12px', borderRadius: 16, border: `1px solid ${!isActive && isEditing ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.08)'}`, background: !isActive && isEditing ? 'rgba(255,255,255,.02)' : 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', textDecoration: 'none', transition: 'all .2s', position: 'relative', opacity: !isActive && isEditing ? 0.5 : 1, animation: isEditing ? 'widgetBreathe 2s ease-in-out infinite' : 'none', cursor: isEditing ? 'pointer' : undefined }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: isActive ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.35)' }}>{item.label}</div>
                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{item.desc}</div>
                 {isEditing && isActive && (
@@ -1102,7 +1102,7 @@ export default function DashboardPage() {
 
             {/* ── Booking Link (compact) ── */}
             {!isBarber && user?.workspace_id && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
                 <div style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,.5)' }}>Booking Page</div>
                 <button onClick={() => navigator.clipboard.writeText(`https://vurium.com/book/${slug || user.workspace_id}`)} style={{ padding: '6px 14px', borderRadius: 8, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.55)', flexShrink: 0 }}>Copy Link</button>
                 <a href={`/book/${slug || user.workspace_id}`} target="_blank" rel="noopener" style={{ padding: '6px 14px', borderRadius: 8, fontSize: 11, textDecoration: 'none', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.45)', flexShrink: 0 }}>Preview</a>
@@ -1126,7 +1126,7 @@ export default function DashboardPage() {
                     const sm = sched?.startMin ?? 600
                     const em = sched?.endMin ?? 1200
                     return (
-                      <div key={b.id} style={{ width: 220, padding: '10px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', textAlign: 'center' }}>
+                      <div key={b.id} style={{ width: 240, padding: '12px 14px', borderRadius: 18, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', textAlign: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 6 }}>
                           {b.photo_url
                             ? <img src={b.photo_url} alt={b.name} style={{ width: 26, height: 26, borderRadius: 7, objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)' }} onError={e => (e.currentTarget.style.display='none')} />
