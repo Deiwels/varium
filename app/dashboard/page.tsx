@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Shell from '@/components/Shell'
 import { apiFetch } from '@/lib/api'
 
@@ -90,6 +90,16 @@ export default function DashboardPage() {
   const [search, setSearch] = useState('')
   const [filterBarber, setFilterBarber] = useState('')
   const [barbers, setBarbers] = useState<any[]>([])
+
+  // Mobile iPhone home screen
+  const [isMobile, setIsMobile] = useState(false)
+  const [homePage, setHomePage] = useState(0)
+  const homeSwipeRef = useRef<{ startX: number; startY: number } | null>(null)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768)
+    check(); window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   // Reviews
   const [reviews, setReviews] = useState<any[]>([])
@@ -466,7 +476,140 @@ export default function DashboardPage() {
 
   return (
     <Shell page="dashboard">
-      <div className="dash-container" style={{ padding: '18px 18px 40px', maxWidth: 1400, margin: '0 auto', overflowY: 'auto', height: '100vh', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      {/* ── Mobile: iPhone Home Screen ── */}
+      {isMobile && (() => {
+        const ICON_ACTIONS = actions.map(a => {
+          const icons: Record<string,React.ReactNode> = {
+            Calendar: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
+            Clients: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+            Payments: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
+            Waitlist: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+            Portfolio: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>,
+            Cash: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+            Membership: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+            Attendance: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+            Expenses: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></svg>,
+            Payroll: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
+            Settings: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+            Booking: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
+          }
+          return { ...a, icon: icons[a.label] || icons.Calendar }
+        })
+        const totalPages = 2
+        const pageWidgets = (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 16px' }}>
+            {/* Small widgets row — 2x2 like iPhone */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {isBarber ? <>
+                <div style={{ borderRadius: 18, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '14px 14px 12px', minHeight: 100 }}>
+                  <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>Bookings</div>
+                  <div style={{ fontSize: 28, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{total}</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 6 }}>{upcoming} upcoming</div>
+                </div>
+                <div style={{ borderRadius: 18, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '14px 14px 12px', minHeight: 100 }}>
+                  <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>Earnings</div>
+                  <div style={{ fontSize: 28, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{money(barberEarnings)}</div>
+                  <div style={{ fontSize: 10, color: 'rgba(130,220,170,.5)', marginTop: 6 }}>{money(barberTips)} tips</div>
+                </div>
+              </> : <>
+                <div style={{ borderRadius: 18, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '14px 14px 12px', minHeight: 100 }}>
+                  <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>Bookings</div>
+                  <div style={{ fontSize: 28, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{total}</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 6 }}>{upcoming} upcoming</div>
+                </div>
+                <div style={{ borderRadius: 18, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '14px 14px 12px', minHeight: 100 }}>
+                  <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>Paid</div>
+                  <div style={{ fontSize: 28, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{paid}/{total}</div>
+                  <div style={{ fontSize: 10, color: total - paid > 0 ? 'rgba(255,107,107,.55)' : 'rgba(130,220,170,.5)', marginTop: 6 }}>{total - paid > 0 ? `${total - paid} unpaid` : 'all paid'}</div>
+                </div>
+              </>}
+            </div>
+            {/* Medium widget — full width */}
+            <div style={{ borderRadius: 18, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '14px 14px 12px', minHeight: 100 }}>
+              <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>
+                {isBarber ? 'My Clients' : 'Today Activity'}
+              </div>
+              {isBarber ? (
+                <div>
+                  <div style={{ fontSize: 28, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{barberClients}</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 6 }}>{paid > 0 ? `${paid} paid` : 'no clients yet'}</div>
+                </div>
+              ) : Object.keys(byBarber).length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {Object.entries(byBarber).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([name, count]) => (
+                    <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ width: 60, fontSize: 11, color: 'rgba(255,255,255,.65)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                      <div style={{ flex: 1, height: 3, borderRadius: 999, background: 'rgba(255,255,255,.06)' }}>
+                        <div style={{ height: 3, borderRadius: 999, background: 'rgba(255,255,255,.18)', width: `${Math.round(count / maxCount * 100)}%` }} />
+                      </div>
+                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,.40)', width: 20, textAlign: 'right' as const }}>{count}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)' }}>No activity yet</div>
+              )}
+            </div>
+            {/* Bottom row — 2 small */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ borderRadius: 18, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '14px 14px 12px', minHeight: 100 }}>
+                <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>No-shows</div>
+                <div style={{ fontSize: 28, fontWeight: 600, color: noshow > 0 ? 'rgba(255,107,107,.8)' : '#e8e8ed', lineHeight: 1 }}>{noshow}</div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 6 }}>{noshow > 0 ? 'needs attention' : 'all good'}</div>
+              </div>
+              <div style={{ borderRadius: 18, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '14px 14px 12px', minHeight: 100 }}>
+                <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>{isBarber ? 'Status' : 'Team'}</div>
+                <div style={{ fontSize: 28, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{isBarber ? (noshow > 0 ? '!' : '✓') : Object.keys(byBarber).length}</div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 6 }}>{isBarber ? 'today' : 'working today'}</div>
+              </div>
+            </div>
+          </div>
+        )
+        const pageIcons = (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, padding: '0 24px', justifyItems: 'center' }}>
+            {ICON_ACTIONS.map(item => (
+              <a key={item.href} href={item.href} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textDecoration: 'none', width: 64 }}>
+                <div style={{ width: 56, height: 56, borderRadius: 14, background: 'rgba(255,255,255,.06)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.55)', transition: 'transform .15s' }}>
+                  {item.icon}
+                </div>
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.2, fontWeight: 500 }}>{item.label}</span>
+              </a>
+            ))}
+          </div>
+        )
+        const pages = [pageWidgets, pageIcons]
+        return (
+          <div style={{ height: 'calc(100vh - 46px)', display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', position: 'relative' }}
+            onTouchStart={e => { homeSwipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY } }}
+            onTouchEnd={e => {
+              if (!homeSwipeRef.current) return
+              const dx = e.changedTouches[0].clientX - homeSwipeRef.current.startX
+              const dy = e.changedTouches[0].clientY - homeSwipeRef.current.startY
+              homeSwipeRef.current = null
+              if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return
+              if (dx < 0 && homePage < totalPages - 1) setHomePage(homePage + 1)
+              if (dx > 0 && homePage > 0) setHomePage(homePage - 1)
+            }}>
+            {/* Pages container */}
+            <div style={{ flex: 1, display: 'flex', transition: 'transform .35s cubic-bezier(.25,.1,.25,1)', transform: `translateX(-${homePage * 100}%)`, minHeight: 0 }}>
+              {pages.map((page, i) => (
+                <div key={i} style={{ minWidth: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingBottom: 40 }}>
+                  {page}
+                </div>
+              ))}
+            </div>
+            {/* Page dots */}
+            <div style={{ position: 'absolute', bottom: 52, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6, pointerEvents: 'none' }}>
+              {Array.from({ length: totalPages }, (_, i) => (
+                <div key={i} style={{ width: homePage === i ? 7 : 5, height: homePage === i ? 7 : 5, borderRadius: 999, background: homePage === i ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.15)', transition: 'all .25s ease' }} />
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── Desktop layout ── */}
+      {!isMobile && <div className="dash-container" style={{ padding: '18px 18px 40px', maxWidth: 1400, margin: '0 auto', overflowY: 'auto', height: '100vh', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif' }}>
 
         {/* Topbar removed — page name shown in Shell top-bar */}
 
@@ -1028,7 +1171,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      </div>
+      </div>}
     </Shell>
   )
 }
