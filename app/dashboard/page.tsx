@@ -930,9 +930,9 @@ export default function DashboardPage() {
             onMouseLeave: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
           }
           return (<>
-        {/* ── WIDGETS SECTION ── */}
+        {/* ── WIDGETS (centered vertically) ── */}
         <div onClick={e => { if (editingWidgets && e.target === e.currentTarget && !editJustActivated.current) { setEditingWidgets(false); setEditingShortcuts(false) } }}
-          style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', paddingBottom: 24 }}>
+          style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', alignContent: 'center', flex: 1 }}>
           {dashWidgets.map(wId => {
             const removeBtn = editingWidgets ? (
               <button onClick={() => toggleWidget(wId)} style={{ position: 'absolute', top: -4, right: -4, width: 20, height: 20, borderRadius: 999, background: 'rgba(255,107,107,.8)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>−</button>
@@ -1151,8 +1151,8 @@ export default function DashboardPage() {
 
         </div>
 
-        {/* ── APP ICONS SECTION (below widgets, with spacing) ── */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', paddingBottom: 80, marginTop: 32 }}>
+        {/* ── APP ICONS (pinned above bottom nav) ── */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', paddingBottom: 70, flexShrink: 0 }}>
           {/* ── App Shortcuts (icon + label, like iOS app icons) ── */}
           {(() => {
             const shortcutIcons: Record<string, React.ReactNode> = {
