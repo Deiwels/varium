@@ -97,6 +97,42 @@ function checkPassword(plain, stored) {
 }
 
 // ============================================================
+// SLUG SYSTEM — human-readable booking URLs
+// ============================================================
+function slugify(name) {
+  return String(name || '').toLowerCase().trim()
+    .replace(/[^a-z0-9\s-]/g, '').replace(/[\s]+/g, '-').replace(/-+/g, '-')
+    .replace(/^-|-$/g, '').slice(0, 60) || 'business';
+}
+
+async function generateUniqueSlug(baseName) {
+  const base = slugify(baseName);
+  let slug = base;
+  let attempt = 0;
+  while (true) {
+    const existing = await db.collection('slugs').doc(slug).get();
+    if (!existing.exists) return slug;
+    attempt++;
+    slug = `${base}-${attempt + 1}`;
+    if (attempt > 100) return `${base}-${crypto.randomBytes(3).toString('hex')}`;
+  }
+}
+
+async function registerSlug(slug, workspaceId) {
+  await db.collection('slugs').doc(slug).set({ workspace_id: workspaceId, created_at: toIso(new Date()) });
+}
+
+async function resolveSlug(slugOrId) {
+  // Try slug first
+  const slugDoc = await db.collection('slugs').doc(slugOrId).get();
+  if (slugDoc.exists) return slugDoc.data().workspace_id;
+  // Fallback: try as workspace ID directly
+  const wsDoc = await db.collection('workspaces').doc(slugOrId).get();
+  if (wsDoc.exists) return slugOrId;
+  return null;
+}
+
+// ============================================================
 // PLAN FEATURES — single source of truth
 // plan_type: individual | salon | custom
 // billing_status: trialing | active | past_due | canceled | inactive
@@ -1008,12 +1044,14 @@ app.post('/auth/signup', async (req, res) => {
     // Check if username already used in any workspace
     const usernameLC = username.toLowerCase();
 
-    // Create workspace
+    // Create workspace with slug
     const wsRef = db.collection('workspaces').doc();
+    const slug = await generateUniqueSlug(workspace_name);
     const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30-day trial
     const wsData = {
       name: sanitizeHtml(workspace_name),
-      plan_type: 'individual', // default plan, NOT 'trial'
+      slug,
+      plan_type: 'individual',
       billing_status: 'trialing',
       trial_ends_at: toIso(trialEnd),
       trial_used: false,
@@ -1023,6 +1061,7 @@ app.post('/auth/signup', async (req, res) => {
       updated_at: toIso(new Date()),
     };
     await wsRef.set(wsData);
+    await registerSlug(slug, wsRef.id);
 
     // Create owner user in workspace
     const userRef = wsRef.collection('users').doc();
@@ -1060,6 +1099,7 @@ app.post('/auth/signup', async (req, res) => {
       ok: true,
       workspace_id: wsRef.id,
       workspace_name: wsData.name,
+      slug,
       user_id: userRef.id,
       token,
     });
@@ -2325,10 +2365,34 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
     const ALLOWED_SETTINGS = ['timezone', 'shop_name', 'shop_address', 'shop_phone', 'shop_email',
       'booking_buffer_minutes', 'default_duration_minutes', 'currency', 'locale',
       'sms_enabled', 'push_enabled', 'booking_confirmation', 'hero_url', 'logo_url',
-      'geofence_lat', 'geofence_lng', 'geofence_radius_m', 'theme', 'custom_css'];
+      'geofence_lat', 'geofence_lng', 'geofence_radius_m', 'theme', 'custom_css',
+      'dash_calendar', 'dash_clients', 'dash_payments', 'dash_waitlist', 'dash_portfolio',
+      'dash_cash', 'dash_membership', 'dash_attendance', 'dash_expenses', 'dash_payroll',
+      'clock_in_enabled', 'waitlist_enabled', 'portfolio_enabled', 'membership_enabled', 'cash_register_enabled'];
     const patch = { updated_at: toIso(new Date()) };
     for (const key of ALLOWED_SETTINGS) {
       if (b[key] !== undefined) patch[key] = typeof b[key] === 'string' ? sanitizeHtml(b[key]) : b[key];
+    }
+    // Slug update — on workspace doc, not settings
+    if (b.slug !== undefined) {
+      const newSlug = slugify(b.slug);
+      if (newSlug && newSlug.length >= 2) {
+        const wsDoc = await req.wsDoc().get();
+        const oldSlug = wsDoc.exists ? wsDoc.data()?.slug : null;
+        if (newSlug !== oldSlug) {
+          const existing = await db.collection('slugs').doc(newSlug).get();
+          if (existing.exists && existing.data()?.workspace_id !== req.wsId) {
+            return res.status(409).json({ error: 'This URL is already taken. Try a different one.' });
+          }
+          if (oldSlug) await db.collection('slugs').doc(oldSlug).delete().catch(() => {});
+          await registerSlug(newSlug, req.wsId);
+          await req.wsDoc().update({ slug: newSlug, updated_at: toIso(new Date()) });
+        }
+      }
+    }
+    // Site config — stored on workspace doc for custom plan
+    if (b.site_config !== undefined && typeof b.site_config === 'object') {
+      await req.wsDoc().update({ site_config: b.site_config, updated_at: toIso(new Date()) });
     }
     const ref = req.ws('settings').doc('config');
     await ref.set(patch, { merge: true });
@@ -2877,6 +2941,26 @@ app.delete('/api/admin/cleanup-rate-limits', requireRole('owner'), async (req, r
 // ============================================================
 // PUBLIC ROUTES (no auth required, workspace_id in URL)
 // ============================================================
+// Resolve slug or workspace ID → workspace data
+app.get('/public/resolve/:slugOrId', async (req, res) => {
+  try {
+    const wsId = await resolveSlug(req.params.slugOrId);
+    if (!wsId) return res.status(404).json({ error: 'Not found' });
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Not found' });
+    const data = wsDoc.data();
+    const effectivePlan = getEffectivePlan(data);
+    res.json({
+      workspace_id: wsId,
+      slug: data.slug || null,
+      name: data.name || '',
+      plan_type: data.plan_type || 'individual',
+      effective_plan: effectivePlan,
+      site_config: data.site_config || null,
+    });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
 app.get('/public/services/:workspace_id', async (req, res) => {
   try {
     const wsId = req.params.workspace_id;
@@ -3396,6 +3480,7 @@ app.get('/api/account/limits', async (req, res) => {
       trial_active: !!trialActive,
       trial_ends_at: wsData.trial_ends_at || null,
       trial_days_left: trialActive ? Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / 86400000)) : 0,
+      slug: wsData.slug || null,
     });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
