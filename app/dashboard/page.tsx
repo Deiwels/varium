@@ -1125,7 +1125,7 @@ export default function DashboardPage() {
                     const sm = sched?.startMin ?? 600
                     const em = sched?.endMin ?? 1200
                     return (
-                      <div key={b.id} style={{ width: 'min(280px, 100%)', padding: '12px 14px', borderRadius: 14, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', textAlign: 'center' }}>
+                      <div key={b.id} style={{ width: 'min(180px, 100%)', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', textAlign: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
                           {b.photo_url
                             ? <img src={b.photo_url} alt={b.name} style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)' }} onError={e => (e.currentTarget.style.display='none')} />
