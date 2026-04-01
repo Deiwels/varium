@@ -233,7 +233,7 @@ export default function DashboardPage() {
       const saved = d?.dash_shortcuts
       setDashShortcuts(saved && saved.length ? saved : ['/payments', '/waitlist', '/portfolio', '/cash', '/membership'])
       const savedW = d?.dash_widgets
-      setDashWidgets(savedW && savedW.length ? savedW : ['clock', 'todays-earnings', 'mini-calendar', 'weekly-chart', 'new-clients', 'expenses-month'])
+      setDashWidgets(savedW && savedW.length ? savedW : ['clock', 'todays-earnings', 'mini-calendar', 'weekly-chart', 'new-clients', 'expenses-month', 'site-analytics'])
     }).catch(() => {})
     apiFetch('/api/account/limits').then(d => { if (d?.slug) setSlug(d.slug) }).catch(() => {})
   }, [])
@@ -300,6 +300,12 @@ export default function DashboardPage() {
         const expenses = d?.expenses || d || []
         const total = Array.isArray(expenses) ? expenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0) : 0
         setWidgetData(prev => ({ ...prev, expensesMonth: total }))
+      }).catch(() => {})
+    }
+    // Site analytics
+    if (dashWidgets.includes('site-analytics')) {
+      apiFetch('/api/analytics/summary').then(d => {
+        if (d && !d.error) setWidgetData(prev => ({ ...prev, analytics: d }))
       }).catch(() => {})
     }
   }, [dashWidgets])
@@ -1048,6 +1054,45 @@ export default function DashboardPage() {
                 </div>
               )
             }
+            if (wId === 'site-analytics') {
+              const a = widgetData.analytics || { total: 0, by_source: {}, by_day: [] }
+              const sources = Object.entries(a.by_source || {}).sort((x: any, y: any) => y[1] - x[1])
+              const sourceIcons: Record<string, string> = { instagram: '📸', google: '🔍', facebook: '📘', tiktok: '🎵', twitter: '𝕏', direct: '🔗', other: '🌐' }
+              const maxS = Math.max(...sources.map((s: any) => s[1]), 1)
+              const days = a.by_day || []
+              const maxD = Math.max(...days.map((d: any) => d.count), 1)
+              return (
+                <div key={wId} {...longPress} style={{ ...wBox, width: 280 }}>
+                  {removeBtn}
+                  <div style={wTitle}>Site Visits</div>
+                  <div style={{ fontSize: 22, fontWeight: 600, color: '#e8e8ed', marginBottom: 8 }}>{a.total}</div>
+                  {/* Sources */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 8 }}>
+                    {sources.slice(0, 5).map(([src, cnt]: any) => (
+                      <div key={src} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 10, width: 14, textAlign: 'center' }}>{sourceIcons[src] || '🌐'}</span>
+                        <span style={{ fontSize: 9, color: 'rgba(255,255,255,.5)', width: 55, textTransform: 'capitalize' }}>{src}</span>
+                        <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(255,255,255,.06)' }}>
+                          <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,.2)', width: `${(cnt / maxS) * 100}%` }} />
+                        </div>
+                        <span style={{ fontSize: 9, color: 'rgba(255,255,255,.4)', width: 20, textAlign: 'right' }}>{cnt}</span>
+                      </div>
+                    ))}
+                    {sources.length === 0 && <div style={{ fontSize: 9, color: 'rgba(255,255,255,.2)' }}>No visits yet</div>}
+                  </div>
+                  {/* Daily chart */}
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 28 }}>
+                    {days.map((d: any, i: number) => (
+                      <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <div style={{ width: '100%', borderRadius: 2, background: i === days.length - 1 ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.1)', height: `${Math.max(2, (d.count / maxD) * 22)}px` }} />
+                        <span style={{ fontSize: 6, color: 'rgba(255,255,255,.2)' }}>{new Date(d.day + 'T12:00').toLocaleDateString([], { weekday: 'narrow' })}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 8, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Last 7 days</div>
+                </div>
+              )
+            }
             return null
           })}
 
@@ -1065,6 +1110,7 @@ export default function DashboardPage() {
               { id: 'team-on-duty', label: 'On Duty' },
               { id: 'expenses-month', label: 'Expenses' },
               { id: 'mini-calendar', label: 'Schedule' },
+              { id: 'site-analytics', label: 'Site Visits' },
             ]
             const available = ALL_WIDGETS.filter(w => !dashWidgets.includes(w.id))
             return available.map(w => (

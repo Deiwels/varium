@@ -134,6 +134,20 @@ export default function PublicBookingPage() {
       setServices(sData?.services || [])
       setReviews(revData?.items || [])
       if ((bData?.barbers || []).length === 1) setSelectedBarber((bData.barbers)[0])
+      // Track page visit
+      try {
+        const ref = document.referrer?.toLowerCase() || ''
+        const params = new URLSearchParams(window.location.search)
+        const utm = params.get('utm_source')?.toLowerCase() || ''
+        const source = utm ? utm
+          : ref.includes('instagram') ? 'instagram'
+          : ref.includes('google') ? 'google'
+          : ref.includes('facebook') || ref.includes('fb.com') ? 'facebook'
+          : ref.includes('tiktok') ? 'tiktok'
+          : ref.includes('twitter') || ref.includes('x.com') ? 'twitter'
+          : !ref ? 'direct' : 'other'
+        api(`/public/analytics/${realWsId}`, { method: 'POST', body: JSON.stringify({ source, referrer: ref.slice(0, 200) }) }).catch(() => {})
+      } catch {}
     }).catch(() => { setNotFound(true) }).finally(() => setLoading(false))
   }, [wsId])
 

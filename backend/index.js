@@ -3289,6 +3289,64 @@ app.post('/public/applications/:workspace_id', async (req, res) => {
 });
 
 // ============================================================
+// PUBLIC ANALYTICS — track booking page visits
+// ============================================================
+app.post('/public/analytics/:workspace_id', async (req, res) => {
+  try {
+    const wsId = req.params.workspace_id;
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.json({ ok: true }); // silent fail
+    const b = req.body || {};
+    const now = new Date();
+    const date = now.toISOString().slice(0, 10);
+    await db.collection('workspaces').doc(wsId).collection('analytics').add({
+      source: safeStr(b.source || 'direct').slice(0, 50),
+      referrer: safeStr(b.referrer || '').slice(0, 200),
+      date,
+      created_at: toIso(now),
+    });
+    res.json({ ok: true });
+  } catch { res.json({ ok: true }); }
+});
+
+// ANALYTICS SUMMARY — auth required (owner/admin)
+app.get('/api/analytics/summary', async (req, res) => {
+  try {
+    const now = new Date();
+    const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 6);
+    const weekAgoStr = weekAgo.toISOString().slice(0, 10);
+    const snap = await req.ws('analytics').where('date', '>=', weekAgoStr).orderBy('date').get();
+    const docs = snap.docs.map(d => d.data());
+
+    // Total visits
+    const total = docs.length;
+
+    // By source
+    const bySource = {};
+    docs.forEach(d => {
+      const s = d.source || 'direct';
+      bySource[s] = (bySource[s] || 0) + 1;
+    });
+
+    // By day
+    const byDay = {};
+    for (let i = 0; i < 7; i++) {
+      const dd = new Date(now); dd.setDate(dd.getDate() - 6 + i);
+      byDay[dd.toISOString().slice(0, 10)] = 0;
+    }
+    docs.forEach(d => {
+      if (byDay[d.date] !== undefined) byDay[d.date]++;
+    });
+
+    res.json({
+      total,
+      by_source: bySource,
+      by_day: Object.entries(byDay).map(([day, count]) => ({ day, count })),
+    });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
 // BACKGROUND JOBS (multi-tenant)
 // ============================================================
 let _lastReminderRun = 0;
