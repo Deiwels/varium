@@ -718,8 +718,13 @@ section { position: relative; z-index: 2; }
     animation: none !important;
   }
 
-  /* Glow stars — hidden on mobile (done in layout.tsx too) */
-  .star-glow  { display: none !important; }
+  /* Glow stars — show only a few on mobile, slower breathing, no box-shadow */
+  .star-glow { display: none !important; }
+  .star-glow:nth-child(-n+4) {
+    display: block !important;
+    animation-duration: 8s !important;
+    box-shadow: none !important;
+  }
 
   /* Orb — keep rotation but much slower */
   .orb-container { animation-duration: 360s !important; }

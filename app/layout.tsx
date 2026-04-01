@@ -81,10 +81,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             75% { transform: translate(-2px,-1px); }
             100% { transform: translate(0,0); }
           }
-          /* Mobile: hide heavy elements entirely to save GPU */
+          /* Mobile: hide heavy elements, keep a few breathing stars */
           @media (max-width: 768px) {
             #vurium-cosmos .nebula-glow { display: none !important; }
+            /* Hide most glow stars, show only first 5 with slower breathing */
             #vurium-cosmos .glow-star { display: none !important; }
+            #vurium-cosmos .glow-star:nth-child(-n+5) {
+              display: block !important;
+              animation-duration: 8s !important;
+              box-shadow: none !important;
+            }
             #v-stars-mid { opacity: .6 !important; }
             #v-stars-near { opacity: .5 !important; }
           }
