@@ -678,6 +678,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
       )}
       <style>{`
         *{box-sizing:border-box;margin:0;padding:0;}
+        :root{--shell-top:52px;--sab:0px;--sat:0px;}
         html,body{height:100%;background:#000;color:#e8e8ed;font-family:Inter,system-ui,sans-serif;}
         a{color:#fff!important;text-decoration:none!important;}
 

@@ -756,7 +756,8 @@ export default function DashboardPage() {
         // Build grid items in a 4-col grid
         // Each item knows how many cols it spans
         const COLS = 4
-        const availH = typeof window !== 'undefined' ? window.innerHeight - 140 : 600
+        const nativeSafeExtra = typeof window !== 'undefined' && (window as any).__VURIUM_IS_NATIVE ? ((window as any).__VURIUM_SAFE_TOP || 0) + ((window as any).__VURIUM_SAFE_BOTTOM || 0) : 0
+        const availH = typeof window !== 'undefined' ? window.innerHeight - 140 - nativeSafeExtra : 600
 
         // Simple flow: place items sequentially, track col position
         // Widgets take 2 or 4 cols, icons take 1 col
@@ -805,7 +806,7 @@ export default function DashboardPage() {
         }
 
         return (
-          <div style={{ height: 'calc(100dvh - 46px)', display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', position: 'fixed', top: 0, left: 0, right: 0, bottom: 46, touchAction: 'pan-x' }}
+          <div style={{ display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', position: 'fixed', top: 'var(--shell-top, 52px)', left: 0, right: 0, bottom: 'calc(46px + var(--sab, 0px))', touchAction: 'pan-x' }}
             onClick={() => { if (jiggleMode) setJiggleMode(false) }}
             onTouchStart={e => {
               homeSwipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY }
