@@ -1622,33 +1622,45 @@ export default function CalendarPage() {
           50% { box-shadow: 0 0 18px rgba(255,107,107,.40); border-color: rgba(255,107,107,.55); background: rgba(255,107,107,.10); }
         }
         .block-pending-pulse { animation: blockPendingPulse 2.4s ease-in-out infinite; }
-        @keyframes blackHoleBreathe {
-          0%, 100% { box-shadow: 0 0 8px 2px rgba(255,60,60,.25), 0 0 20px 4px rgba(255,40,40,.10), inset 0 0 15px 3px rgba(0,0,0,.9); }
-          50% { box-shadow: 0 0 14px 4px rgba(255,60,60,.45), 0 0 35px 8px rgba(255,40,40,.18), inset 0 0 20px 5px rgba(0,0,0,.95); }
+        @keyframes cosmicVoidBreathe {
+          0%, 100% { box-shadow: 0 0 10px 2px rgba(140,40,80,.30), 0 0 25px 5px rgba(80,20,120,.15), inset 0 0 20px 4px rgba(0,0,0,.85); }
+          50% { box-shadow: 0 0 18px 5px rgba(160,50,90,.45), 0 0 40px 10px rgba(100,30,140,.25), inset 0 0 30px 8px rgba(0,0,0,.90); }
         }
-        @keyframes blackHoleVortex {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
+        @keyframes nebulaDrift {
+          0% { transform: translate(0%, 0%) scale(1.2); }
+          33% { transform: translate(5%, -3%) scale(1.3); }
+          66% { transform: translate(-4%, 4%) scale(1.15); }
+          100% { transform: translate(0%, 0%) scale(1.2); }
+        }
+        @keyframes nebulaDrift2 {
+          0% { transform: translate(0%, 0%) scale(1.1); }
+          33% { transform: translate(-6%, 3%) scale(1.25); }
+          66% { transform: translate(3%, -5%) scale(1.15); }
+          100% { transform: translate(0%, 0%) scale(1.1); }
         }
         .block-approved-stripes {
-          background: radial-gradient(ellipse at center, rgba(0,0,0,.98) 0%, rgba(0,0,0,.90) 40%, rgba(15,0,0,.75) 70%, rgba(40,0,0,.4) 100%) !important;
-          animation: blackHoleBreathe 3s ease-in-out infinite;
+          background: rgba(0,0,0,.92) !important;
+          animation: cosmicVoidBreathe 4s ease-in-out infinite;
           overflow: hidden;
         }
         .block-approved-stripes::before {
           content: '';
           position: absolute;
-          inset: -20%;
-          background: conic-gradient(from 0deg, transparent 0%, rgba(255,60,60,.08) 25%, transparent 50%, rgba(255,80,60,.06) 75%, transparent 100%);
-          animation: blackHoleVortex 8s linear infinite;
+          inset: -30%;
+          background: radial-gradient(ellipse at 30% 50%, rgba(180,40,80,.20) 0%, transparent 50%),
+                      radial-gradient(ellipse at 70% 30%, rgba(100,30,160,.18) 0%, transparent 45%),
+                      radial-gradient(ellipse at 50% 80%, rgba(200,50,60,.12) 0%, transparent 40%);
+          animation: nebulaDrift 12s ease-in-out infinite;
           pointer-events: none;
         }
         .block-approved-stripes::after {
           content: '';
           position: absolute;
-          inset: 3px;
-          border-radius: inherit;
-          background: radial-gradient(ellipse at center, rgba(0,0,0,1) 0%, rgba(0,0,0,.95) 50%, transparent 100%);
+          inset: -25%;
+          background: radial-gradient(ellipse at 60% 60%, rgba(120,20,140,.15) 0%, transparent 45%),
+                      radial-gradient(ellipse at 25% 40%, rgba(160,40,70,.12) 0%, transparent 40%),
+                      radial-gradient(ellipse at 80% 70%, rgba(80,10,100,.10) 0%, transparent 50%);
+          animation: nebulaDrift2 15s ease-in-out infinite;
           pointer-events: none;
         }
         @keyframes paidShimmer {
@@ -2236,7 +2248,7 @@ export default function CalendarPage() {
                                   fn => window.removeEventListener('touchmove', fn),
                                   fn => window.removeEventListener('touchend', fn))
                               }}
-                              style={{ position: 'absolute', left: 10, right: 10, bottom: 4, height: 14, borderRadius: 999, background: 'rgba(255,107,107,.40)', cursor: 'ns-resize', touchAction: 'none' }} />
+                              style={{ position: 'absolute', left: 10, right: 10, bottom: 4, height: 6, borderRadius: 999, background: 'linear-gradient(90deg, rgba(140,40,80,.50), rgba(100,30,160,.50))', boxShadow: '0 0 8px rgba(140,40,80,.30)', cursor: 'ns-resize', touchAction: 'none' }} />
                           })()}
                         </div>
                       )
