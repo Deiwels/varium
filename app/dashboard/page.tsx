@@ -1062,7 +1062,7 @@ export default function DashboardPage() {
               const days = a.by_day || []
               const maxD = Math.max(...days.map((d: any) => d.count), 1)
               return (
-                <div key={wId} {...longPress} style={{ ...wBox, width: 280 }}>
+                <div key={wId} {...longPress} style={{ ...wBox, width: 350 }}>
                   {removeBtn}
                   <div style={wTitle}>Site Visits</div>
                   <div style={{ fontSize: 22, fontWeight: 600, color: '#e8e8ed', marginBottom: 8 }}>{a.total}</div>
