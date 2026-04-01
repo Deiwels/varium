@@ -1122,34 +1122,50 @@ export default function DashboardPage() {
             ))
           })()}
 
-          {/* ── Quick Access Shortcuts (as widgets) ── */}
-          {actions.filter(item => editingWidgets || dashShortcuts.includes(item.href)).filter(item => item.label !== 'Settings').map(item => {
-            const isActive = dashShortcuts.includes(item.href)
-            const isEditing = editingWidgets
-            return (
-              <a key={'sc-'+item.href} {...longPress} href={isEditing ? undefined : item.href} onClick={isEditing ? (e: any) => { e.preventDefault(); e.stopPropagation(); toggleShortcut(item.href) } : undefined}
-                style={{ ...wBox, width: 170, textDecoration: 'none', opacity: !isActive && isEditing ? 0.5 : 1, cursor: isEditing ? 'pointer' : undefined }}>
-                {isEditing && isActive && (
-                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleShortcut(item.href) }} style={{ position: 'absolute', top: -4, right: -4, width: 20, height: 20, borderRadius: 999, background: 'rgba(255,107,107,.8)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>−</button>
-                )}
-                {isEditing && !isActive && (
-                  <div style={{ position: 'absolute', top: -4, right: -4, width: 20, height: 20, borderRadius: 999, background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#fff', fontWeight: 700, zIndex: 2 }}>+</div>
-                )}
-                <div style={{ fontSize: 12, fontWeight: 500, color: isActive ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.35)' }}>{item.label}</div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{item.desc}</div>
-              </a>
-            )
-          })}
+          {/* ── App Shortcuts (icon + label, like iOS app icons) ── */}
+          {(() => {
+            const shortcutIcons: Record<string, JSX.Element> = {
+              '/calendar': <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+              '/clients': <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+              '/payments': <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
+              '/waitlist': <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M12 2v4"/><path d="M12 18v4"/><circle cx="12" cy="12" r="6"/></svg>,
+              '/portfolio': <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>,
+              '/cash': <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+              '/membership': <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+              '/attendance': <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+              '/expenses': <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M21 4H3v16h18V4z"/><path d="M3 10h18"/><path d="M9 4v16"/></svg>,
+              '/payroll': <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 0 0-8 0v2"/></svg>,
+            }
+            return actions.filter(item => editingWidgets || dashShortcuts.includes(item.href)).filter(item => item.label !== 'Settings').map(item => {
+              const isActive = dashShortcuts.includes(item.href)
+              const isEditing = editingWidgets
+              return (
+                <a key={'sc-'+item.href} {...longPress} href={isEditing ? undefined : item.href} onClick={isEditing ? (e: any) => { e.preventDefault(); e.stopPropagation(); toggleShortcut(item.href) } : undefined}
+                  style={{ width: 72, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 4px', textDecoration: 'none', position: 'relative', opacity: !isActive && isEditing ? 0.4 : 1, animation: isEditing ? 'widgetBreathe 2s ease-in-out infinite' : 'none', cursor: isEditing ? 'pointer' : undefined }}>
+                  {isEditing && isActive && (
+                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleShortcut(item.href) }} style={{ position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: 999, background: 'rgba(255,107,107,.8)', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>−</button>
+                  )}
+                  {isEditing && !isActive && (
+                    <div style={{ position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: 999, background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff', fontWeight: 700, zIndex: 2 }}>+</div>
+                  )}
+                  <div style={{ width: 48, height: 48, borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.5)' }}>
+                    {shortcutIcons[item.href] || <span style={{ fontSize: 16 }}>•</span>}
+                  </div>
+                  <span style={{ fontSize: 9, color: 'rgba(255,255,255,.45)', textAlign: 'center', lineHeight: 1.2 }}>{item.label}</span>
+                </a>
+              )
+            })
+          })()}
 
-          {/* ── Booking Link widget ── */}
+          {/* ── Booking shortcut ── */}
           {!isBarber && user?.workspace_id && (
-            <div style={{ ...wBox, width: 170, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={wTitle}>Booking</div>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button onClick={() => navigator.clipboard.writeText(`https://vurium.com/book/${slug || user.workspace_id}`)} style={{ flex: 1, padding: '5px 0', borderRadius: 8, fontSize: 9, fontFamily: 'inherit', cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.45)' }}>Copy</button>
-                <a href={`/book/${slug || user.workspace_id}`} target="_blank" rel="noopener" style={{ flex: 1, padding: '5px 0', borderRadius: 8, fontSize: 9, textDecoration: 'none', textAlign: 'center', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.35)' }}>Preview</a>
+            <a href={`/book/${slug || user.workspace_id}`} target="_blank" rel="noopener"
+              style={{ width: 72, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 4px', textDecoration: 'none' }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.5)' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
               </div>
-            </div>
+              <span style={{ fontSize: 9, color: 'rgba(255,255,255,.45)', textAlign: 'center', lineHeight: 1.2 }}>Booking</span>
+            </a>
           )}
 
           {/* ── Team member widgets ── */}
