@@ -1603,18 +1603,6 @@ export default function CalendarPage() {
       )}
       <style>{`
         .cal-container { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-        .cal-event { position: relative; overflow: hidden; }
-        .cal-event::before {
-          content: '';
-          position: absolute;
-          inset: -40%;
-          background: radial-gradient(ellipse at 20% 50%, rgba(100,60,180,.08) 0%, transparent 50%),
-                      radial-gradient(ellipse at 80% 30%, rgba(60,100,200,.06) 0%, transparent 45%);
-          pointer-events: none;
-          opacity: 0;
-          transition: opacity .4s ease;
-        }
-        .cal-event:hover::before { opacity: 1; }
         .cal-event:hover { filter: brightness(1.08); }
         .barber-edit-card:hover { border-color: rgba(255,255,255,.22) !important; box-shadow: 0 2px 16px rgba(255,255,255,.04); }
         @keyframes slideUp { from { opacity:0; transform:translateX(-50%) translateY(12px) } to { opacity:1; transform:translateX(-50%) translateY(0) } }
@@ -1635,11 +1623,11 @@ export default function CalendarPage() {
         }
         .block-pending-pulse { animation: blockPendingPulse 2.4s ease-in-out infinite; }
         @keyframes cosmicVoidBreathe {
-          0%, 100% { box-shadow: 0 0 6px 1px rgba(140,40,80,.12), 0 0 15px 3px rgba(80,20,120,.06); }
-          50% { box-shadow: 0 0 10px 2px rgba(140,40,80,.20), 0 0 22px 5px rgba(80,20,120,.10); }
+          0%, 100% { box-shadow: 0 0 6px 1px rgba(255,255,255,.08), 0 0 15px 3px rgba(255,255,255,.03); }
+          50% { box-shadow: 0 0 10px 2px rgba(255,255,255,.14), 0 0 22px 5px rgba(255,255,255,.05); }
         }
         .block-approved-stripes {
-          background: rgba(0,0,0,.98) !important;
+          background: rgba(0,0,0,.95) !important;
           animation: cosmicVoidBreathe 4s ease-in-out infinite;
           overflow: hidden;
         }
@@ -2149,10 +2137,10 @@ export default function CalendarPage() {
                     {/* Block drag ghost */}
                     {blockDrag?.barberIdx === bi && (() => {
                       const h = minToY(blockDrag.endMin) - minToY(blockDrag.startMin)
-                      return <div className="block-approved-stripes" style={{ position: 'absolute', left: 4, right: 4, top: minToY(blockDrag.startMin), height: Math.max(slotH * 2, h), borderRadius: 10, border: '1px solid rgba(255,60,60,.35)', pointerEvents: 'none', zIndex: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,107,107,.80)" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                        <span style={{ fontSize: 10, fontWeight: 900, color: 'rgba(255,107,107,.80)', textTransform: 'uppercase' }}>{minToAMPM(blockDrag.startMin)}–{minToAMPM(blockDrag.endMin)}</span>
-                        <span style={{ fontSize: 9, color: 'rgba(255,107,107,.55)' }}>{blockDrag.endMin - blockDrag.startMin}min</span>
+                      return <div className="block-approved-stripes" style={{ position: 'absolute', left: 4, right: 4, top: minToY(blockDrag.startMin), height: Math.max(slotH * 2, h), borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', pointerEvents: 'none', zIndex: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.40)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                        <span style={{ fontSize: 10, fontWeight: 300, color: 'rgba(255,255,255,.40)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{minToAMPM(blockDrag.startMin)}–{minToAMPM(blockDrag.endMin)}</span>
+                        <span style={{ fontSize: 9, color: 'rgba(255,255,255,.25)' }}>{blockDrag.endMin - blockDrag.startMin}min</span>
                       </div>
                     })()}
                     {/* Events */}
@@ -2179,14 +2167,14 @@ export default function CalendarPage() {
                             setBlockConfirm({ action: 'delete', barberId: ev.barberId, startMin: ev.startMin, endMin: ev.startMin + ev.durMin, evId: ev.id, rawId: ev._raw?.id ? String(ev._raw.id) : undefined })
                           }}>
                           {/* Approved part (moving stripes) */}
-                          {!isPending && <div className="block-approved-stripes" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: hasPendingExtension ? (approvedDur / ev.durMin * 100) + '%' : '100%', borderRadius: hasPendingExtension ? '10px 10px 0 0' : 10, border: `1px solid ${drag?.eventId===ev.id ? 'rgba(140,40,80,.50)' : 'rgba(140,40,80,.15)'}` }} />}
+                          {!isPending && <div className="block-approved-stripes" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: hasPendingExtension ? (approvedDur / ev.durMin * 100) + '%' : '100%', borderRadius: hasPendingExtension ? '10px 10px 0 0' : 10, border: `1px solid ${drag?.eventId===ev.id ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.08)'}` }} />}
                           {/* Pending part (breathing red) */}
                           {(isPending || hasPendingExtension) && <div className="block-pending-pulse" style={{ position: 'absolute', left: 0, right: 0, top: hasPendingExtension ? (approvedDur / ev.durMin * 100) + '%' : 0, bottom: 0, borderRadius: hasPendingExtension ? '0 0 10px 10px' : 10, border: '1px solid rgba(255,107,107,.45)' }} />}
                           {/* Content */}
                           <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(140,40,80,.55)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                              <span style={{ fontSize: 10, textTransform: 'uppercase', color: isPending ? 'rgba(140,40,80,.65)' : 'rgba(140,40,80,.50)', fontWeight: 300, letterSpacing: '.06em' }}>{isPending ? 'Pending approval' : hasPendingExtension ? 'Blocked + Pending' : 'Blocked'} {minToAMPM(ev.startMin)}–{minToAMPM(ev.startMin+ev.durMin)}</span>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                              <span style={{ fontSize: 10, textTransform: 'uppercase', color: isPending ? 'rgba(255,255,255,.45)' : 'rgba(255,255,255,.30)', fontWeight: 300, letterSpacing: '.06em' }}>{isPending ? 'Pending approval' : hasPendingExtension ? 'Blocked + Pending' : 'Blocked'} {minToAMPM(ev.startMin)}–{minToAMPM(ev.startMin+ev.durMin)}</span>
                             </div>
                             {/* ✕ button removed — tap block to delete */}
                           </div>
@@ -2230,7 +2218,7 @@ export default function CalendarPage() {
                                   fn => window.removeEventListener('touchmove', fn),
                                   fn => window.removeEventListener('touchend', fn))
                               }}
-                              style={{ position: 'absolute', left: 10, right: 10, bottom: 4, height: 3, borderRadius: 999, background: 'linear-gradient(90deg, rgba(140,40,80,.35), rgba(100,30,160,.35))', boxShadow: '0 0 4px rgba(140,40,80,.15)', cursor: 'ns-resize', touchAction: 'none' }} />
+                              style={{ position: 'absolute', left: 10, right: 10, bottom: 4, height: 3, borderRadius: 999, background: 'rgba(255,255,255,.15)', boxShadow: '0 0 4px rgba(255,255,255,.08)', cursor: 'ns-resize', touchAction: 'none' }} />
                           })()}
                         </div>
                       )
@@ -2249,7 +2237,7 @@ export default function CalendarPage() {
                       }
                       return (
                         <div key={ev.id} className={`cal-event${isArrived ? ' arrived-pulse' : ''}${isPaid ? ' cal-event-paid' : ''}${isAtRisk ? ' at-risk-pulse' : ''}${isVip ? ' vip-pulse' : ''}${drag?.eventId===ev.id ? ' cal-event-dragging' : ''}`}
-                          style={{ position: 'absolute', left: tinyCol ? 2 : 6, right: tinyCol ? 2 : 6, top, height: height-2, borderRadius: tinyCol ? 8 : 12, ...(isArrived || isAtRisk || isVip ? {} : drag?.eventId===ev.id ? {} : { border: `1px solid ${isPaid ? 'rgba(130,220,170,.12)' : isNoshow ? 'rgba(255,107,107,.10)' : 'rgba(255,255,255,.06)'}`, background: isNoshow ? 'rgba(255,107,107,.03)' : isPaid ? 'rgba(10,20,15,.85)' : 'rgba(6,6,14,.85)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', boxShadow: isPaid ? '0 0 10px rgba(130,220,170,.05), inset 0 0 20px rgba(130,220,170,.03)' : isNoshow ? 'none' : '0 0 10px rgba(80,60,160,.06), inset 0 0 20px rgba(60,40,120,.04)' }), ...(isNoshow ? { opacity: 0.3 } : {}), padding: tinyCol ? '3px 4px' : '7px 10px', cursor: canDrag ? (drag ? 'grabbing' : 'grab') : 'pointer', userSelect: 'none', overflow: 'hidden', zIndex: drag?.eventId===ev.id ? 50 : isNoshow ? 2 : 5, transition: 'all .2s ease' }}
+                          style={{ position: 'absolute', left: tinyCol ? 2 : 6, right: tinyCol ? 2 : 6, top, height: height-2, borderRadius: tinyCol ? 14 : 20, ...(isArrived || isAtRisk || isVip ? {} : drag?.eventId===ev.id ? {} : { border: `1px solid ${isPaid ? 'rgba(130,220,170,.10)' : isNoshow ? 'rgba(255,107,107,.08)' : 'rgba(255,255,255,.08)'}`, background: isNoshow ? 'rgba(255,107,107,.03)' : isPaid ? 'rgba(130,220,170,.04)' : 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px) saturate(140%)', WebkitBackdropFilter: 'blur(20px) saturate(140%)', boxShadow: '0 2px 12px rgba(0,0,0,.25)' }), ...(isNoshow ? { opacity: 0.3 } : {}), padding: tinyCol ? '3px 4px' : '7px 12px', cursor: canDrag ? (drag ? 'grabbing' : 'grab') : 'pointer', userSelect: 'none', overflow: 'hidden', zIndex: drag?.eventId===ev.id ? 50 : isNoshow ? 2 : 5, transition: 'all .2s ease' }}
                           onMouseDown={e => { if (!canDrag || e.button!==0) return; startDrag(e, ev, bi) }}
                           onTouchStart={e => { if (!canDrag) return; e.stopPropagation(); clearTimeout(eventLongPressTimer.current); const touch = e.touches[0]; const evCopy = ev; const biCopy = bi; eventLongPressTimer.current = setTimeout(() => { const fakeEvt = { preventDefault(){}, stopPropagation(){}, touches: [touch] } as any; startDrag(fakeEvt, evCopy, biCopy) }, 400) }}
                           onTouchEnd={() => clearTimeout(eventLongPressTimer.current)}
@@ -2361,8 +2349,8 @@ export default function CalendarPage() {
           )
         })()}
 
-        {/* Mobile bottom date dots — Apple-style pill for current day */}
-        {isMobile && (() => {
+        {/* Bottom date dots — Apple-style pill for current day */}
+        {(() => {
           const dots: { date: Date; day: number; label: string; dayName: string; isCurrent: boolean; isToday: boolean }[] = []
           for (let i = -3; i <= 3; i++) {
             const d = new Date(anchor); d.setDate(d.getDate() + i)
