@@ -592,7 +592,7 @@ export default function SettingsPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 10 }}>
                     {[
                       { id: 'classic', label: 'Classic', color: 'rgba(255,255,255,.15)' },
-                      { id: 'modern', label: 'Modern', color: 'rgba(255,255,255,.12)' },
+                      { id: 'modern', label: 'Vurium', color: 'rgba(255,255,255,.12)' },
                       { id: 'bold', label: 'Bold', color: 'rgba(255,255,255,.12)' },
                       { id: 'dark-luxury', label: 'Dark Luxury', color: 'rgba(255,255,255,.12)' },
                       { id: 'colorful', label: 'Colorful', color: 'rgba(255,255,255,.12)' },
