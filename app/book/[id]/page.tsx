@@ -52,8 +52,8 @@ export default function PublicBookingPage() {
     let raf: number
 
     function tick() {
-      cx += (tx - cx) * 0.04
-      cy += (ty - cy) * 0.04
+      cx += (tx - cx) * 0.02
+      cy += (ty - cy) * 0.02
 
       // Global stars from layout (Vurium template uses these)
       const gf = document.getElementById('v-stars-far')
