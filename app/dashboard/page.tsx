@@ -636,7 +636,7 @@ export default function DashboardPage() {
 
   return (
     <Shell page="dashboard">
-      <div className="dash-container" style={{ padding: '18px 18px 0', maxWidth: 1400, margin: '0 auto', height: '100vh', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', display: 'flex', flexDirection: 'column' }}>
+      <div className="dash-container" style={{ padding: '18px 18px 0', maxWidth: 1400, margin: '0 auto', height: '100vh', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Topbar removed — page name shown in Shell top-bar */}
 
@@ -932,7 +932,7 @@ export default function DashboardPage() {
           return (<>
         {/* ── WIDGETS (centered on screen) ── */}
         <div onClick={e => { if (editingWidgets && e.target === e.currentTarget && !editJustActivated.current) { setEditingWidgets(false); setEditingShortcuts(false) } }}
-          style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', alignContent: 'center', overflow: 'auto' }}>
+          style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', alignContent: 'center', overflow: 'hidden' }}>
           {dashWidgets.map(wId => {
             const removeBtn = editingWidgets ? (
               <button onClick={() => toggleWidget(wId)} style={{ position: 'absolute', top: -4, right: -4, width: 20, height: 20, borderRadius: 999, background: 'rgba(255,107,107,.8)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>−</button>
@@ -1167,7 +1167,7 @@ export default function DashboardPage() {
               '/expenses': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M21 4H3v16h18V4z"/><path d="M3 10h18"/><path d="M9 4v16"/></svg>,
               '/payroll': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 0 0-8 0v2"/></svg>,
             }
-            return actions.filter(item => editingWidgets || dashShortcuts.includes(item.href)).filter(item => item.label !== 'Settings').map(item => {
+            return actions.filter(item => item.label !== 'Settings').map(item => {
               const isActive = dashShortcuts.includes(item.href)
               const isEditing = editingWidgets
               return (
