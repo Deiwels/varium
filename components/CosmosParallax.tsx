@@ -31,10 +31,10 @@ export default function CosmosParallax() {
 
       function onOrientation(e: DeviceOrientationEvent) {
         if (!hasGyro) hasGyro = true
-        const gamma = Math.max(-30, Math.min(30, e.gamma || 0)) // left-right tilt
-        const beta  = Math.max(-30, Math.min(30, (e.beta || 0) - 45)) // front-back tilt (offset for natural hold angle)
-        tx = gamma / 30 * 2
-        ty = beta  / 30 * 2
+        const gamma = Math.max(-15, Math.min(15, e.gamma || 0))
+        const beta  = Math.max(-15, Math.min(15, (e.beta || 0) - 45))
+        tx = gamma / 15 * 4
+        ty = beta  / 15 * 4
       }
 
       // iOS 13+ requires permission

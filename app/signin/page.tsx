@@ -31,7 +31,7 @@ export default function SignInPage() {
       raf = requestAnimationFrame(tick)
     }
     if (isMobile) {
-      function onO(e: DeviceOrientationEvent) { const g = Math.max(-30, Math.min(30, e.gamma || 0)); const b = Math.max(-30, Math.min(30, (e.beta || 0) - 45)); tx = g / 30 * 2; ty = b / 30 * 2 }
+      function onO(e: DeviceOrientationEvent) { const g = Math.max(-15, Math.min(15, e.gamma || 0)); const b = Math.max(-15, Math.min(15, (e.beta || 0) - 45)); tx = g / 15 * 4; ty = b / 15 * 4 }
       const doe = DeviceOrientationEvent as any
       if (typeof doe.requestPermission === 'function') { const r = () => { doe.requestPermission().then((s: string) => { if (s === 'granted') window.addEventListener('deviceorientation', onO, { passive: true }) }).catch(() => {}); document.removeEventListener('click', r) }; document.addEventListener('click', r, { once: true }) }
       else { window.addEventListener('deviceorientation', onO, { passive: true }) }

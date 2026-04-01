@@ -76,10 +76,10 @@ export default function PublicBookingPage() {
 
     if (isMobile) {
       function onOrientation(e: DeviceOrientationEvent) {
-        const gamma = Math.max(-30, Math.min(30, e.gamma || 0))
-        const beta  = Math.max(-30, Math.min(30, (e.beta || 0) - 45))
-        tx = gamma / 30 * 2
-        ty = beta  / 30 * 2
+        const gamma = Math.max(-15, Math.min(15, e.gamma || 0))
+        const beta  = Math.max(-15, Math.min(15, (e.beta || 0) - 45))
+        tx = gamma / 15 * 4
+        ty = beta  / 15 * 4
       }
       const doe = DeviceOrientationEvent as any
       if (typeof doe.requestPermission === 'function') {
