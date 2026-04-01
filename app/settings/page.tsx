@@ -184,6 +184,33 @@ function UsersTab() {
           ))}
         </div>
       }
+
+      {/* ── DELETE ACCOUNT ── */}
+      <div style={{ marginTop: 12, padding: '14px 16px', borderRadius: 16, border: '1px solid rgba(255,107,107,.12)', background: 'rgba(255,107,107,.03)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,107,107,.8)' }}>Delete Account</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 2 }}>Permanently delete your account and all data</div>
+          </div>
+          <button onClick={async () => {
+            const pw = prompt('Enter your password to confirm account deletion:')
+            if (!pw) return
+            if (!confirm('Are you sure? This action is irreversible and all your data will be permanently deleted.')) return
+            try {
+              const r = await apiFetch('/api/auth/delete-account', { method: 'DELETE', body: JSON.stringify({ password: pw }) })
+              if (r?.ok) {
+                localStorage.removeItem('VURIUMBOOK_TOKEN')
+                window.location.href = '/login'
+              } else {
+                alert(r?.error || 'Error deleting account')
+              }
+            } catch { alert('Error deleting account') }
+          }}
+            style={{ height: 32, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.08)', color: 'rgba(255,107,107,.7)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            Delete Account
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

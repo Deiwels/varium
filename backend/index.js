@@ -1299,7 +1299,6 @@ app.post('/api/auth/change-password', async (req, res) => {
 
 app.delete('/api/auth/delete-account', async (req, res) => {
   try {
-    if (req.user.role === 'owner') return res.status(400).json({ error: 'Owner accounts cannot be self-deleted' });
     const password = safeStr(req.body?.password || '');
     if (!password) return res.status(400).json({ error: 'Password required to confirm deletion' });
     const userRef = req.ws('users').doc(req.user.uid);
@@ -1308,11 +1307,32 @@ app.delete('/api/auth/delete-account', async (req, res) => {
     if (!checkPassword(password, userDoc.data().password_hash)) {
       return res.status(401).json({ error: 'Incorrect password' });
     }
-    await userRef.update({ active: false, deleted: true, deleted_at: toIso(new Date()), updated_at: toIso(new Date()) });
-    // Remove CRM push tokens
-    const tokenSnap = await req.ws('crm_push_tokens').where('user_id', '==', req.user.uid).get();
-    for (const d of tokenSnap.docs) await d.ref.delete();
-    writeAuditLog(req.wsId, { action: 'user.delete_self', resource_id: req.user.uid, req }).catch(() => {});
+
+    if (req.user.role === 'owner') {
+      // Owner: delete entire workspace and all subcollections
+      const wsRef = db.collection('workspaces').doc(req.wsId);
+      const subcollections = [
+        'users', 'barbers', 'services', 'clients', 'bookings', 'memberships',
+        'expenses', 'reviews', 'applications', 'attendance', 'audit_logs',
+        'cash_reports', 'crm_push_tokens', 'expense_categories', 'messages',
+        'payment_requests', 'payroll_rules', 'phone_access_log', 'requests',
+        'settings', 'waitlist'
+      ];
+      for (const colName of subcollections) {
+        const snap = await wsRef.collection(colName).get();
+        const batch = db.batch();
+        snap.docs.forEach(d => batch.delete(d.ref));
+        if (!snap.empty) await batch.commit();
+      }
+      await wsRef.delete();
+    } else {
+      // Non-owner: soft-delete user only
+      await userRef.update({ active: false, deleted: true, deleted_at: toIso(new Date()), updated_at: toIso(new Date()) });
+      const tokenSnap = await req.ws('crm_push_tokens').where('user_id', '==', req.user.uid).get();
+      for (const d of tokenSnap.docs) await d.ref.delete();
+      writeAuditLog(req.wsId, { action: 'user.delete_self', resource_id: req.user.uid, req }).catch(() => {});
+    }
+
     clearAuthCookie(res);
     res.json({ ok: true, deleted: true });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -3460,17 +3480,9 @@ app.post('/api/billing/cancel', requireRole('owner'), async (req, res) => {
 });
 
 // Account limits — returns plan info, features, limits
-// Migrate workspace to activate trial
-// Change plan type (owner only)
-app.post('/api/account/set-plan', requireRole('owner'), async (req, res) => {
-  try {
-    const planType = safeStr(req.body?.plan_type || '');
-    if (!['individual', 'salon', 'custom'].includes(planType)) return res.status(400).json({ error: 'Invalid plan_type' });
-    await req.wsDoc().update({ plan_type: planType, updated_at: toIso(new Date()) });
-    res.json({ ok: true, plan_type: planType });
-  } catch (e) { res.status(500).json({ error: e?.message }); }
-});
 
+
+// Migrate workspace to activate trial
 app.post('/api/account/activate-trial', requireRole('owner'), async (req, res) => {
   try {
     const wsDoc = await req.wsDoc().get();
