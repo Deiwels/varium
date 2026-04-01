@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Shell from '@/components/Shell'
 import { apiFetch } from '@/lib/api'
 
@@ -89,85 +89,61 @@ function ClockWidget() {
   useEffect(() => { const t = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(t) }, [])
   const h = time.getHours() % 12, m = time.getMinutes(), s = time.getSeconds()
   const hDeg = h * 30 + m * 0.5, mDeg = m * 6, sDeg = s * 6
-  const size = 100
-  const cx = size / 2, cy = size / 2
+  const size = 64, cx = size / 2, cy = size / 2
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: 'visible' }}>
-      {/* Hour markers */}
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       {Array.from({ length: 12 }, (_, i) => {
-        const angle = (i * 30 - 90) * Math.PI / 180
-        const x1 = cx + Math.cos(angle) * 40, y1 = cy + Math.sin(angle) * 40
-        const x2 = cx + Math.cos(angle) * 44, y2 = cy + Math.sin(angle) * 44
-        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(255,255,255,.2)" strokeWidth={i % 3 === 0 ? 2 : 1} strokeLinecap="round" />
+        const a = (i * 30 - 90) * Math.PI / 180
+        return <line key={i} x1={cx + Math.cos(a) * 25} y1={cy + Math.sin(a) * 25} x2={cx + Math.cos(a) * 28} y2={cy + Math.sin(a) * 28} stroke="rgba(255,255,255,.15)" strokeWidth={i % 3 === 0 ? 1.5 : .5} strokeLinecap="round" />
       })}
-      {/* Minute ticks */}
-      {Array.from({ length: 60 }, (_, i) => {
-        if (i % 5 === 0) return null
-        const angle = (i * 6 - 90) * Math.PI / 180
-        const x1 = cx + Math.cos(angle) * 42, y1 = cy + Math.sin(angle) * 42
-        const x2 = cx + Math.cos(angle) * 44, y2 = cy + Math.sin(angle) * 44
-        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(255,255,255,.08)" strokeWidth={0.5} />
-      })}
-      {/* Hour hand */}
-      <line x1={cx} y1={cy} x2={cx + Math.cos((hDeg - 90) * Math.PI / 180) * 24} y2={cy + Math.sin((hDeg - 90) * Math.PI / 180) * 24}
-        stroke="rgba(255,255,255,.7)" strokeWidth={2.5} strokeLinecap="round" />
-      {/* Minute hand */}
-      <line x1={cx} y1={cy} x2={cx + Math.cos((mDeg - 90) * Math.PI / 180) * 34} y2={cy + Math.sin((mDeg - 90) * Math.PI / 180) * 34}
-        stroke="rgba(255,255,255,.5)" strokeWidth={1.5} strokeLinecap="round" />
-      {/* Second hand */}
-      <line x1={cx} y1={cy} x2={cx + Math.cos((sDeg - 90) * Math.PI / 180) * 38} y2={cy + Math.sin((sDeg - 90) * Math.PI / 180) * 38}
-        stroke="rgba(130,150,220,.5)" strokeWidth={0.8} strokeLinecap="round" />
-      {/* Center dot */}
-      <circle cx={cx} cy={cy} r={2.5} fill="rgba(130,150,220,.6)" />
+      <line x1={cx} y1={cy} x2={cx + Math.cos((hDeg - 90) * Math.PI / 180) * 15} y2={cy + Math.sin((hDeg - 90) * Math.PI / 180) * 15} stroke="rgba(255,255,255,.7)" strokeWidth={2} strokeLinecap="round" />
+      <line x1={cx} y1={cy} x2={cx + Math.cos((mDeg - 90) * Math.PI / 180) * 22} y2={cy + Math.sin((mDeg - 90) * Math.PI / 180) * 22} stroke="rgba(255,255,255,.5)" strokeWidth={1.2} strokeLinecap="round" />
+      <line x1={cx} y1={cy} x2={cx + Math.cos((sDeg - 90) * Math.PI / 180) * 24} y2={cy + Math.sin((sDeg - 90) * Math.PI / 180) * 24} stroke="rgba(255,255,255,.25)" strokeWidth={.5} strokeLinecap="round" />
+      <circle cx={cx} cy={cy} r={1.5} fill="rgba(255,255,255,.4)" />
     </svg>
   )
 }
 
-// ─── Mini Calendar Widget ─────────────────────────────────────────────────────
+// ─── Mini Calendar Widget — today's schedule by barber ────────────────────────
 function MiniCalendarWidget({ bookings }: { bookings: Booking[] }) {
   const now = new Date()
-  const year = now.getFullYear(), month = now.getMonth()
-  const firstDay = new Date(year, month, 1).getDay()
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const today = now.getDate()
-
-  // Count bookings per day
-  const bookingsByDay: Record<number, number> = {}
+  // Group today's bookings by barber
+  const byBarber: Record<string, Booking[]> = {}
   bookings.forEach(b => {
-    if (!b.start_at) return
-    const d = new Date(b.start_at)
-    if (d.getMonth() === month && d.getFullYear() === year) {
-      bookingsByDay[d.getDate()] = (bookingsByDay[d.getDate()] || 0) + 1
-    }
+    const name = b.barber_name || b.barber || 'Unassigned'
+    if (!byBarber[name]) byBarber[name] = []
+    byBarber[name].push(b)
   })
-
-  const days = []
-  for (let i = 0; i < firstDay; i++) days.push(null)
-  for (let d = 1; d <= daysInMonth; d++) days.push(d)
+  const barberNames = Object.keys(byBarber).sort()
+  const fmt = (iso?: string) => { try { return new Date(iso!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) } catch { return '' } }
 
   return (
     <div>
-      <div style={{ fontSize: 9, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', marginBottom: 8 }}>
-        {now.toLocaleDateString([], { month: 'long', year: 'numeric' })}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <div style={{ fontSize: 9, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>
+          {now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+        </div>
+        <div style={{ fontSize: 10, color: 'rgba(255,255,255,.3)' }}>{bookings.length} bookings</div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, textAlign: 'center' }}>
-        {['S','M','T','W','T','F','S'].map((d, i) => (
-          <div key={i} style={{ fontSize: 8, color: 'rgba(255,255,255,.25)', padding: '2px 0', fontWeight: 700 }}>{d}</div>
-        ))}
-        {days.map((d, i) => (
-          <div key={i} style={{
-            fontSize: 10, padding: '4px 0', borderRadius: 6, fontWeight: d === today ? 700 : 400,
-            color: d === today ? 'rgba(130,150,220,.9)' : d ? 'rgba(255,255,255,.45)' : 'transparent',
-            background: d === today ? 'rgba(130,150,220,.12)' : 'transparent',
-            position: 'relative',
-          }}>
-            {d || ''}
-            {d && bookingsByDay[d] && (
-              <div style={{ position: 'absolute', bottom: 1, left: '50%', transform: 'translateX(-50%)', width: 3, height: 3, borderRadius: 999, background: bookingsByDay[d] > 3 ? 'rgba(255,180,100,.6)' : 'rgba(130,220,170,.5)' }} />
-            )}
-          </div>
-        ))}
-      </div>
+      {barberNames.length === 0 ? (
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', padding: '6px 0' }}>No appointments today</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 120, overflowY: 'auto' }}>
+          {barberNames.map(name => (
+            <div key={name}>
+              <div style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.35)', marginBottom: 3 }}>{name}</div>
+              <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                {byBarber[name].sort((a, b) => (a.start_at || '').localeCompare(b.start_at || '')).slice(0, 6).map((b, i) => (
+                  <div key={i} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 6, border: '1px solid rgba(255,255,255,.06)', background: b.paid || b.is_paid ? 'rgba(130,220,170,.06)' : 'rgba(255,255,255,.03)', color: b.paid || b.is_paid ? 'rgba(130,220,170,.5)' : 'rgba(255,255,255,.4)' }}>
+                    {fmt(b.start_at)}
+                  </div>
+                ))}
+                {byBarber[name].length > 6 && <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', padding: '2px 4px' }}>+{byBarber[name].length - 6}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -247,6 +223,7 @@ export default function DashboardPage() {
   const [dashWidgets, setDashWidgets] = useState<string[]>([])
   const [editingWidgets, setEditingWidgets] = useState(false)
   const [widgetData, setWidgetData] = useState<Record<string, any>>({})
+  const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     apiFetch('/api/settings').then(d => {
@@ -656,6 +633,10 @@ export default function DashboardPage() {
         {/* Topbar removed — page name shown in Shell top-bar */}
 
         <style>{`
+          @keyframes widgetBreathe {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); border-color: rgba(255,255,255,.08); }
+            50% { box-shadow: 0 0 12px 2px rgba(255,255,255,.06); border-color: rgba(255,255,255,.15); }
+          }
           @keyframes clockPulse {
             0%, 100% { box-shadow: 0 0 0 0 rgba(143,240,177,0); }
             50% { box-shadow: 0 0 16px 4px rgba(143,240,177,.35); }
@@ -930,17 +911,24 @@ export default function DashboardPage() {
         ) : null}
 
         {/* ── WIDGETS GRID ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 14 }}>
           {dashWidgets.map(wId => {
-            const wBox: React.CSSProperties = { borderRadius: 14, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: '14px 16px', position: 'relative', transition: 'all .2s' }
-            const wTitle: React.CSSProperties = { fontSize: 9, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', marginBottom: 8 }
+            const wBox: React.CSSProperties = { borderRadius: 14, border: `1px solid ${editingWidgets ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.06)'}`, background: 'rgba(255,255,255,.025)', padding: '10px 12px', position: 'relative', transition: 'all .2s', overflow: 'hidden', animation: editingWidgets ? 'widgetBreathe 2s ease-in-out infinite' : 'none' }
+            const wTitle: React.CSSProperties = { fontSize: 8, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }
+            const longPress = {
+              onTouchStart: () => { longPressRef.current = setTimeout(() => setEditingWidgets(true), 600) },
+              onTouchEnd: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
+              onMouseDown: () => { longPressRef.current = setTimeout(() => setEditingWidgets(true), 600) },
+              onMouseUp: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
+              onMouseLeave: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
+            }
             const removeBtn = editingWidgets ? (
-              <button onClick={() => toggleWidget(wId)} style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 999, background: 'rgba(255,107,107,.85)', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>−</button>
+              <button onClick={() => toggleWidget(wId)} style={{ position: 'absolute', top: -4, right: -4, width: 20, height: 20, borderRadius: 999, background: 'rgba(255,107,107,.8)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>−</button>
             ) : null
 
             if (wId === 'clock') {
               return (
-                <div key={wId} style={{ ...wBox, display: 'flex', alignItems: 'center', justifyContent: 'center', aspectRatio: '1', gridColumn: 'span 1' }}>
+                <div key={wId} {...longPress} style={{ ...wBox, display: 'flex', alignItems: 'center', justifyContent: 'center', aspectRatio: '1' }}>
                   {removeBtn}
                   <ClockWidget />
                 </div>
@@ -948,11 +936,11 @@ export default function DashboardPage() {
             }
             if (wId === 'todays-earnings') {
               return (
-                <div key={wId} style={wBox}>
+                <div key={wId} {...longPress} style={wBox}>
                   {removeBtn}
-                  <div style={wTitle}>Today&apos;s Earnings</div>
-                  <div style={{ fontSize: 28, fontWeight: 600, color: 'rgba(130,220,170,.8)', letterSpacing: '-.02em' }}>{money(widgetData.todaysEarnings || 0)}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 4 }}>{total} bookings · {paid} paid</div>
+                  <div style={wTitle}>Earnings</div>
+                  <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(130,220,170,.8)', letterSpacing: '-.02em' }}>{money(widgetData.todaysEarnings || 0)}</div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>{total} bookings · {paid} paid</div>
                 </div>
               )
             }
@@ -960,38 +948,38 @@ export default function DashboardPage() {
               const days = widgetData.weeklyRevenue || []
               const max = Math.max(...days.map((d: any) => d.amount), 1)
               return (
-                <div key={wId} style={{ ...wBox, gridColumn: 'span 2' }}>
+                <div key={wId} {...longPress} style={wBox}>
                   {removeBtn}
-                  <div style={wTitle}>Weekly Revenue</div>
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 60 }}>
+                  <div style={wTitle}>Revenue</div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 40 }}>
                     {days.map((d: any, i: number) => (
-                      <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                        <div style={{ width: '100%', borderRadius: 4, background: i === days.length - 1 ? 'rgba(130,220,170,.4)' : 'rgba(255,255,255,.1)', height: `${Math.max(4, (d.amount / max) * 50)}px`, transition: 'height .4s ease' }} />
-                        <span style={{ fontSize: 8, color: 'rgba(255,255,255,.3)' }}>{new Date(d.day + 'T12:00').toLocaleDateString([], { weekday: 'short' }).slice(0, 2)}</span>
+                      <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <div style={{ width: '100%', borderRadius: 2, background: i === days.length - 1 ? 'rgba(130,220,170,.4)' : 'rgba(255,255,255,.1)', height: `${Math.max(2, (d.amount / max) * 32)}px`, transition: 'height .4s' }} />
+                        <span style={{ fontSize: 7, color: 'rgba(255,255,255,.2)' }}>{new Date(d.day + 'T12:00').toLocaleDateString([], { weekday: 'narrow' })}</span>
                       </div>
                     ))}
                   </div>
-                  {days.length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 6 }}>Total: {money(days.reduce((s: number, d: any) => s + d.amount, 0))}</div>}
+                  {days.length > 0 && <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 3 }}>{money(days.reduce((s: number, d: any) => s + d.amount, 0))}</div>}
                 </div>
               )
             }
             if (wId === 'new-clients') {
               return (
-                <div key={wId} style={wBox}>
+                <div key={wId} {...longPress} style={wBox}>
                   {removeBtn}
                   <div style={wTitle}>New Clients</div>
-                  <div style={{ fontSize: 28, fontWeight: 600, color: 'rgba(130,150,220,.8)' }}>{widgetData.newClients ?? '—'}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 4 }}>this week · {widgetData.totalClients ?? 0} total</div>
+                  <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.7)' }}>{widgetData.newClients ?? '—'}</div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>this week</div>
                 </div>
               )
             }
             if (wId === 'quick-book') {
               return (
-                <div key={wId} style={wBox}>
+                <div key={wId} {...longPress} style={wBox}>
                   {removeBtn}
-                  <a href="/calendar?action=new-booking" style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 0' }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 12, border: '1px solid rgba(130,150,220,.25)', background: 'rgba(130,150,220,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: 'rgba(130,150,220,.7)' }}>+</div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(130,150,220,.7)' }}>Quick Book</div>
+                  <a href="/calendar?action=new-booking" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'rgba(255,255,255,.5)', flexShrink: 0 }}>+</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.5)' }}>Quick Book</div>
                   </a>
                 </div>
               )
@@ -999,38 +987,39 @@ export default function DashboardPage() {
             if (wId === 'pending-requests') {
               const cnt = widgetData.pendingRequests ?? 0
               return (
-                <div key={wId} style={wBox}>
+                <div key={wId} {...longPress} style={wBox}>
                   {removeBtn}
-                  <div style={wTitle}>Pending Requests</div>
-                  <div style={{ fontSize: 28, fontWeight: 600, color: cnt > 0 ? 'rgba(255,180,100,.8)' : 'rgba(255,255,255,.3)' }}>{cnt}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 4 }}>{cnt > 0 ? 'needs review' : 'all clear'}</div>
+                  <div style={wTitle}>Requests</div>
+                  <div style={{ fontSize: 22, fontWeight: 600, color: cnt > 0 ? 'rgba(255,180,100,.7)' : 'rgba(255,255,255,.2)' }}>{cnt}</div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>{cnt > 0 ? 'pending' : 'clear'}</div>
                 </div>
               )
             }
             if (wId === 'cash-register') {
               return (
-                <div key={wId} style={wBox}>
+                <div key={wId} {...longPress} style={wBox}>
                   {removeBtn}
-                  <div style={wTitle}>Cash Register</div>
-                  <div style={{ fontSize: 28, fontWeight: 600, color: '#e8e8ed' }}>{money(widgetData.cashBalance || 0)}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 4 }}>today&apos;s balance</div>
+                  <div style={wTitle}>Cash</div>
+                  <div style={{ fontSize: 22, fontWeight: 600, color: '#e8e8ed' }}>{money(widgetData.cashBalance || 0)}</div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>today</div>
                 </div>
               )
             }
             if (wId === 'team-on-duty') {
               return (
-                <div key={wId} style={wBox}>
+                <div key={wId} {...longPress} style={wBox}>
                   {removeBtn}
-                  <div style={wTitle}>Team On Duty</div>
+                  <div style={wTitle}>On Duty</div>
                   {staffOnClock.length === 0 ? (
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', padding: '8px 0' }}>No one clocked in</div>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.2)' }}>No one</div>
                   ) : (
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {staffOnClock.map((s: any, i: number) => (
-                        <div key={i} style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(130,220,170,.08)', border: '1px solid rgba(130,220,170,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: 'rgba(130,220,170,.7)' }}>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {staffOnClock.slice(0, 4).map((s: any, i: number) => (
+                        <div key={i} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(130,220,170,.06)', border: '1px solid rgba(130,220,170,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'rgba(130,220,170,.6)' }}>
                           {(s.user_name || '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
                         </div>
                       ))}
+                      {staffOnClock.length > 4 && <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', display: 'flex', alignItems: 'center' }}>+{staffOnClock.length - 4}</div>}
                     </div>
                   )}
                 </div>
@@ -1038,16 +1027,17 @@ export default function DashboardPage() {
             }
             if (wId === 'expenses-month') {
               return (
-                <div key={wId} style={wBox}>
+                <div key={wId} {...longPress} style={wBox}>
                   {removeBtn}
-                  <div style={wTitle}>Expenses This Month</div>
-                  <div style={{ fontSize: 28, fontWeight: 600, color: 'rgba(255,130,130,.7)' }}>{money(widgetData.expensesMonth || 0)}</div>
+                  <div style={wTitle}>Expenses</div>
+                  <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,130,130,.6)' }}>{money(widgetData.expensesMonth || 0)}</div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>this month</div>
                 </div>
               )
             }
             if (wId === 'mini-calendar') {
               return (
-                <div key={wId} style={{ ...wBox, gridColumn: 'span 2' }}>
+                <div key={wId} {...longPress} style={{ ...wBox, gridColumn: 'span 2' }}>
                   {removeBtn}
                   <MiniCalendarWidget bookings={bookings} />
                 </div>
@@ -1081,11 +1071,15 @@ export default function DashboardPage() {
           })()}
         </div>
 
-        {/* FAB — edit widgets */}
-        <button onClick={() => { setEditingWidgets(!editingWidgets); if (editingWidgets) setEditingShortcuts(false) }}
-          style={{ position: 'fixed', bottom: 70, right: 16, width: 44, height: 44, borderRadius: 14, border: `1px solid ${editingWidgets ? 'rgba(130,220,170,.35)' : 'rgba(255,255,255,.10)'}`, background: editingWidgets ? 'rgba(130,220,170,.12)' : 'rgba(0,0,0,.6)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', color: editingWidgets ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.35)', cursor: 'pointer', fontSize: 20, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', zIndex: 100, boxShadow: '0 4px 20px rgba(0,0,0,.4)', transition: 'all .2s' }}>
-          {editingWidgets ? '✓' : '+'}
-        </button>
+        {/* Done editing button — only in edit mode */}
+        {editingWidgets && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+            <button onClick={() => { setEditingWidgets(false); setEditingShortcuts(false) }}
+              style={{ height: 32, padding: '0 20px', borderRadius: 999, border: '1px solid rgba(130,220,170,.25)', background: 'rgba(130,220,170,.06)', color: 'rgba(130,220,170,.7)', cursor: 'pointer', fontWeight: 600, fontSize: 11, fontFamily: 'inherit', transition: 'all .2s' }}>
+              Done
+            </button>
+          </div>
+        )}
 
         {/* ── Quick Access Shortcuts ── */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
