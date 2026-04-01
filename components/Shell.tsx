@@ -725,6 +725,10 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
           background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(1,1,1,.9) 60%);
           pointer-events:none;
         }
+        @keyframes navBreathe {
+          0%, 100% { box-shadow: 0 0 12px 2px rgba(255,255,255,0), 0 2px 16px rgba(0,0,0,.35); border-color: rgba(255,255,255,.04); }
+          50% { box-shadow: 0 0 18px 4px rgba(255,255,255,.03), 0 2px 16px rgba(0,0,0,.35); border-color: rgba(255,255,255,.08); }
+        }
         .pill-inner{
           pointer-events:auto;
           display:flex;align-items:center;gap:2px;
@@ -734,6 +738,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
           -webkit-backdrop-filter:saturate(180%) blur(30px);
           border:1px solid rgba(255,255,255,.05);
           box-shadow:0 2px 16px rgba(0,0,0,.35);
+          animation: navBreathe 4s ease-in-out infinite;
         }
         .pill-item{
           display:flex;align-items:center;justify-content:center;
