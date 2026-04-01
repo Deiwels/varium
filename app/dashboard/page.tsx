@@ -912,19 +912,21 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
-        {/* ── WIDGETS GRID ── */}
+        {/* ── ALL WIDGETS + SHORTCUTS + TEAM — single centered flex grid ── */}
+        {(() => {
+          const wBox: React.CSSProperties = { width: 170, minHeight: 110, borderRadius: 20, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', padding: '14px 16px', position: 'relative', transition: 'all .2s', animation: editingWidgets ? 'widgetBreathe 2s ease-in-out infinite' : 'none', display: 'flex', flexDirection: 'column' as const, justifyContent: 'space-between' as const }
+          const wTitle: React.CSSProperties = { fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,.4)', marginBottom: 6 }
+          const longPress = {
+            onTouchStart: () => { longPressRef.current = setTimeout(() => { setEditingWidgets(true); editJustActivated.current = true; setTimeout(() => { editJustActivated.current = false }, 300) }, 600) },
+            onTouchEnd: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
+            onMouseDown: () => { longPressRef.current = setTimeout(() => { setEditingWidgets(true); editJustActivated.current = true; setTimeout(() => { editJustActivated.current = false }, 300) }, 600) },
+            onMouseUp: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
+            onMouseLeave: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
+          }
+          return (
         <div onClick={e => { if (editingWidgets && e.target === e.currentTarget && !editJustActivated.current) { setEditingWidgets(false); setEditingShortcuts(false) } }}
-          style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14, justifyContent: 'center' }}>
+          style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', alignContent: 'center', minHeight: 'calc(100vh - 200px)', paddingBottom: 80 }}>
           {dashWidgets.map(wId => {
-            const wBox: React.CSSProperties = { width: 170, minHeight: 110, borderRadius: 20, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', padding: '14px 16px', position: 'relative', transition: 'all .2s', animation: editingWidgets ? 'widgetBreathe 2s ease-in-out infinite' : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }
-            const wTitle: React.CSSProperties = { fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', marginBottom: 6 }
-            const longPress = {
-              onTouchStart: () => { longPressRef.current = setTimeout(() => { setEditingWidgets(true); editJustActivated.current = true; setTimeout(() => { editJustActivated.current = false }, 300) }, 600) },
-              onTouchEnd: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
-              onMouseDown: () => { longPressRef.current = setTimeout(() => { setEditingWidgets(true); editJustActivated.current = true; setTimeout(() => { editJustActivated.current = false }, 300) }, 600) },
-              onMouseUp: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
-              onMouseLeave: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
-            }
             const removeBtn = editingWidgets ? (
               <button onClick={() => toggleWidget(wId)} style={{ position: 'absolute', top: -4, right: -4, width: 20, height: 20, borderRadius: 999, background: 'rgba(255,107,107,.8)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>−</button>
             ) : null
@@ -1049,6 +1051,7 @@ export default function DashboardPage() {
             return null
           })}
 
+
           {/* Available widgets in edit mode */}
           {editingWidgets && (() => {
             const ALL_WIDGETS = [
@@ -1072,78 +1075,65 @@ export default function DashboardPage() {
               </button>
             ))
           })()}
-        </div>
 
-        {/* ── Quick Access Shortcuts ── */}
-        <div onClick={e => { if (editingWidgets && e.target === e.currentTarget && !editJustActivated.current) { setEditingWidgets(false) } }}
-          style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14, justifyContent: 'center' }}>
+          {/* ── Quick Access Shortcuts (as widgets) ── */}
           {actions.filter(item => editingWidgets || dashShortcuts.includes(item.href)).filter(item => item.label !== 'Settings').map(item => {
             const isActive = dashShortcuts.includes(item.href)
             const isEditing = editingWidgets
             return (
-              <a key={item.href} href={isEditing ? undefined : item.href} onClick={isEditing ? (e) => { e.preventDefault(); e.stopPropagation(); toggleShortcut(item.href) } : undefined}
-                style={{ width: 170, padding: '10px 14px', borderRadius: 18, border: `1px solid rgba(255,255,255,.08)`, background: !isActive && isEditing ? 'rgba(255,255,255,.02)' : 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', textDecoration: 'none', transition: 'all .2s', position: 'relative', opacity: !isActive && isEditing ? 0.5 : 1, animation: isEditing ? 'widgetBreathe 2s ease-in-out infinite' : 'none', cursor: isEditing ? 'pointer' : undefined }}>
-                <div style={{ fontSize: 12, fontWeight: 500, color: isActive ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.35)' }}>{item.label}</div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{item.desc}</div>
+              <a key={'sc-'+item.href} {...longPress} href={isEditing ? undefined : item.href} onClick={isEditing ? (e: any) => { e.preventDefault(); e.stopPropagation(); toggleShortcut(item.href) } : undefined}
+                style={{ ...wBox, width: 170, textDecoration: 'none', opacity: !isActive && isEditing ? 0.5 : 1, cursor: isEditing ? 'pointer' : undefined }}>
                 {isEditing && isActive && (
-                  <div style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: 999, background: 'rgba(255,107,107,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#fff', fontWeight: 700, zIndex: 2 }}>−</div>
+                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleShortcut(item.href) }} style={{ position: 'absolute', top: -4, right: -4, width: 20, height: 20, borderRadius: 999, background: 'rgba(255,107,107,.8)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>−</button>
                 )}
                 {isEditing && !isActive && (
-                  <div style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: 999, background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#fff', fontWeight: 700, zIndex: 2 }}>+</div>
+                  <div style={{ position: 'absolute', top: -4, right: -4, width: 20, height: 20, borderRadius: 999, background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#fff', fontWeight: 700, zIndex: 2 }}>+</div>
                 )}
+                <div style={{ fontSize: 12, fontWeight: 500, color: isActive ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.35)' }}>{item.label}</div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{item.desc}</div>
               </a>
             )
           })}
-        </div>
 
-        {/* ── Booking Link ── */}
-        {!isBarber && user?.workspace_id && (
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 18, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)' }}>Booking</div>
-              <button onClick={() => navigator.clipboard.writeText(`https://vurium.com/book/${slug || user.workspace_id}`)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontFamily: 'inherit', cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)', flexShrink: 0 }}>Copy</button>
-              <a href={`/book/${slug || user.workspace_id}`} target="_blank" rel="noopener" style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, textDecoration: 'none', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.4)', flexShrink: 0 }}>Preview</a>
-            </div>
-          </div>
-        )}
-          {/* ── OWNER/ADMIN ONLY: Shop Status + Banner + Barbers ── */}
-          {isOwnerOrAdmin && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
-
-              {/* Team — centered, wrapping cards */}
-              <div style={{ marginTop: 20 }}>
-                <div style={{ fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 10, textAlign: 'center' }}>Team</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
-                  {barbers.map((b: any) => {
-                    const sched = b.schedule
-                    const workDays: number[] = Array.isArray(sched?.days) ? sched.days : [1,2,3,4,5,6]
-                    const fmt = (m: number) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
-                    const sm = sched?.startMin ?? 600
-                    const em = sched?.endMin ?? 1200
-                    return (
-                      <div key={b.id} style={{ width: 240, padding: '12px 14px', borderRadius: 18, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 6 }}>
-                          {b.photo_url
-                            ? <img src={b.photo_url} alt={b.name} style={{ width: 26, height: 26, borderRadius: 7, objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)' }} onError={e => (e.currentTarget.style.display='none')} />
-                            : <div style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.4)' }}>{(b.name||'?')[0]}</div>
-                          }
-                          <span style={{ fontWeight: 600, fontSize: 12, color: 'rgba(255,255,255,.8)' }}>{b.name}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginBottom: 4 }}>
-                          {DAY_NAMES_SHORT.map((day, i) => (
-                            <span key={day} style={{ fontSize: 7, padding: '1px 4px', borderRadius: 3, border: `1px solid ${workDays.includes(i) ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.03)'}`, color: workDays.includes(i) ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.15)', fontWeight: 500 }}>{day}</span>
-                          ))}
-                        </div>
-                        <div style={{ fontSize: 9, color: 'rgba(255,255,255,.35)' }}>{fmt(sm)} — {fmt(em)}</div>
-                      </div>
-                    )
-                  })}
-                  {barbers.length === 0 && <div style={{ color: 'rgba(255,255,255,.30)', fontSize: 12 }}>Loading…</div>}
-                </div>
+          {/* ── Booking Link widget ── */}
+          {!isBarber && user?.workspace_id && (
+            <div style={{ ...wBox, width: 170, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={wTitle}>Booking</div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button onClick={() => navigator.clipboard.writeText(`https://vurium.com/book/${slug || user.workspace_id}`)} style={{ flex: 1, padding: '5px 0', borderRadius: 8, fontSize: 9, fontFamily: 'inherit', cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.45)' }}>Copy</button>
+                <a href={`/book/${slug || user.workspace_id}`} target="_blank" rel="noopener" style={{ flex: 1, padding: '5px 0', borderRadius: 8, fontSize: 9, textDecoration: 'none', textAlign: 'center', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.35)' }}>Preview</a>
               </div>
-
             </div>
           )}
+
+          {/* ── Team member widgets ── */}
+          {isOwnerOrAdmin && barbers.map((b: any) => {
+            const sched = b.schedule
+            const workDays: number[] = Array.isArray(sched?.days) ? sched.days : [1,2,3,4,5,6]
+            const fmtM = (m: number) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
+            const sm = sched?.startMin ?? 600
+            const em = sched?.endMin ?? 1200
+            return (
+              <div key={'team-'+b.id} style={{ ...wBox, width: 190, textAlign: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 6 }}>
+                  {b.photo_url
+                    ? <img src={b.photo_url} alt={b.name} style={{ width: 24, height: 24, borderRadius: 7, objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)' }} onError={e => (e.currentTarget.style.display='none')} />
+                    : <div style={{ width: 24, height: 24, borderRadius: 7, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.4)' }}>{(b.name||'?')[0]}</div>
+                  }
+                  <span style={{ fontWeight: 600, fontSize: 11, color: 'rgba(255,255,255,.8)' }}>{b.name}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginBottom: 4 }}>
+                  {DAY_NAMES_SHORT.map((day, i) => (
+                    <span key={day} style={{ fontSize: 7, padding: '1px 4px', borderRadius: 3, border: `1px solid ${workDays.includes(i) ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.03)'}`, color: workDays.includes(i) ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.15)', fontWeight: 500 }}>{day}</span>
+                  ))}
+                </div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,.35)' }}>{fmtM(sm)} — {fmtM(em)}</div>
+              </div>
+            )
+          })}
+        </div>
+        )
+        })()}
 
           {/* ─── Reviews — hidden, moved to separate page ─── */}
           {false && isOwnerOrAdmin && (
