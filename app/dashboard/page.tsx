@@ -1152,7 +1152,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── APP ICONS SECTION (below widgets, with spacing) ── */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', paddingBottom: 80, marginTop: 8 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', paddingBottom: 80, marginTop: 32 }}>
           {/* ── App Shortcuts (icon + label, like iOS app icons) ── */}
           {(() => {
             const shortcutIcons: Record<string, React.ReactNode> = {
