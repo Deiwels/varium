@@ -3461,6 +3461,16 @@ app.post('/api/billing/cancel', requireRole('owner'), async (req, res) => {
 
 // Account limits — returns plan info, features, limits
 // Migrate workspace to activate trial
+// Change plan type (owner only)
+app.post('/api/account/set-plan', requireRole('owner'), async (req, res) => {
+  try {
+    const planType = safeStr(req.body?.plan_type || '');
+    if (!['individual', 'salon', 'custom'].includes(planType)) return res.status(400).json({ error: 'Invalid plan_type' });
+    await req.wsDoc().update({ plan_type: planType, updated_at: toIso(new Date()) });
+    res.json({ ok: true, plan_type: planType });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
 app.post('/api/account/activate-trial', requireRole('owner'), async (req, res) => {
   try {
     const wsDoc = await req.wsDoc().get();

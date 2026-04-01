@@ -3,6 +3,7 @@ import Shell from '@/components/Shell'
 import { useEffect, useState, useCallback } from 'react'
 
 import { apiFetch } from '@/lib/api'
+import { usePlan } from '@/components/PlanProvider'
 import { hasPinSetup, clearPin } from '@/lib/pin'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -189,6 +190,8 @@ function UsersTab() {
 
 // ─── Main Settings Page ───────────────────────────────────────────────────────
 export default function SettingsPage() {
+  const { effective_plan: currentPlan } = usePlan()
+  const canChangeDesign = currentPlan === 'salon' || currentPlan === 'custom'
   const [tab, setTab] = useState<'shop'|'site'|'fees'|'booking'|'payroll'|'square'|'users'|'features'|'billing'>('shop')
   const [settings, setSettings] = useState<any>({})
   const [fees, setFees] = useState<Fee[]>([])
@@ -586,9 +589,10 @@ export default function SettingsPage() {
                   </Field>
                 </SectionCard>
 
-                {/* Template selector */}
+                {/* Template selector — salon + custom only */}
+                {canChangeDesign ? (
                 <SectionCard title="Design Template">
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginBottom: 14 }}>Choose how your booking page looks. Available on Custom plan.</p>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginBottom: 14 }}>Choose how your booking page looks.</p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 10 }}>
                     {[
                       { id: 'classic', label: 'Classic', color: 'rgba(255,255,255,.15)' },
@@ -608,6 +612,12 @@ export default function SettingsPage() {
                     })}
                   </div>
                 </SectionCard>
+                ) : (
+                <div style={{ padding: '16px 20px', borderRadius: 14, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)' }}>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', marginBottom: 4 }}>Design templates available on Salon and Custom plans</div>
+                  <a href="/billing" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Upgrade →</a>
+                </div>
+                )}
 
                 {/* Page content */}
                 <SectionCard title="Page Content">
