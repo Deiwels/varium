@@ -665,91 +665,69 @@ export default function DashboardPage() {
           }
           return { ...a, icon: icons[a.label] || icons.Calendar }
         })
-        const totalPages = 2
-        const pageWidgets = (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 16px' }}>
-            {/* Small widgets row — 2x2 like iPhone */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {isBarber ? <>
-                <div style={{ borderRadius: 18, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '14px 14px 12px', minHeight: 100 }}>
-                  <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>Bookings</div>
-                  <div style={{ fontSize: 28, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{total}</div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 6 }}>{upcoming} upcoming</div>
-                </div>
-                <div style={{ borderRadius: 18, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '14px 14px 12px', minHeight: 100 }}>
-                  <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>Earnings</div>
-                  <div style={{ fontSize: 28, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{money(barberEarnings)}</div>
-                  <div style={{ fontSize: 10, color: 'rgba(130,220,170,.5)', marginTop: 6 }}>{money(barberTips)} tips</div>
-                </div>
-              </> : <>
-                <div style={{ borderRadius: 18, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '14px 14px 12px', minHeight: 100 }}>
-                  <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>Bookings</div>
-                  <div style={{ fontSize: 28, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{total}</div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 6 }}>{upcoming} upcoming</div>
-                </div>
-                <div style={{ borderRadius: 18, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '14px 14px 12px', minHeight: 100 }}>
-                  <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>Paid</div>
-                  <div style={{ fontSize: 28, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{paid}/{total}</div>
-                  <div style={{ fontSize: 10, color: total - paid > 0 ? 'rgba(255,107,107,.55)' : 'rgba(130,220,170,.5)', marginTop: 6 }}>{total - paid > 0 ? `${total - paid} unpaid` : 'all paid'}</div>
-                </div>
-              </>}
-            </div>
-            {/* Medium widget — full width */}
-            <div style={{ borderRadius: 18, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '14px 14px 12px', minHeight: 100 }}>
-              <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>
-                {isBarber ? 'My Clients' : 'Today Activity'}
-              </div>
-              {isBarber ? (
-                <div>
-                  <div style={{ fontSize: 28, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{barberClients}</div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 6 }}>{paid > 0 ? `${paid} paid` : 'no clients yet'}</div>
-                </div>
-              ) : Object.keys(byBarber).length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {Object.entries(byBarber).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([name, count]) => (
-                    <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ width: 60, fontSize: 11, color: 'rgba(255,255,255,.65)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                      <div style={{ flex: 1, height: 3, borderRadius: 999, background: 'rgba(255,255,255,.06)' }}>
-                        <div style={{ height: 3, borderRadius: 999, background: 'rgba(255,255,255,.18)', width: `${Math.round(count / maxCount * 100)}%` }} />
-                      </div>
-                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,.40)', width: 20, textAlign: 'right' as const }}>{count}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)' }}>No activity yet</div>
-              )}
-            </div>
-            {/* Bottom row — 2 small */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div style={{ borderRadius: 18, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '14px 14px 12px', minHeight: 100 }}>
-                <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>No-shows</div>
-                <div style={{ fontSize: 28, fontWeight: 600, color: noshow > 0 ? 'rgba(255,107,107,.8)' : '#e8e8ed', lineHeight: 1 }}>{noshow}</div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 6 }}>{noshow > 0 ? 'needs attention' : 'all good'}</div>
-              </div>
-              <div style={{ borderRadius: 18, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '14px 14px 12px', minHeight: 100 }}>
-                <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>{isBarber ? 'Status' : 'Team'}</div>
-                <div style={{ fontSize: 28, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{isBarber ? (noshow > 0 ? '!' : '✓') : Object.keys(byBarber).length}</div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 6 }}>{isBarber ? 'today' : 'working today'}</div>
-              </div>
-            </div>
+
+        // Build all items: widgets (type:'widget') + icons (type:'icon')
+        type HomeItem = { type: 'widget-row'; content: React.ReactNode; h: number } | { type: 'icon-row'; icons: typeof ICON_ACTIONS; h: number }
+        const allItems: HomeItem[] = []
+
+        // Widget: 2 small KPIs
+        const wSmall = (title: string, value: string, sub: string, subColor?: string) => (
+          <div style={{ flex: 1, borderRadius: 16, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '12px 12px 10px' }}>
+            <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }}>{title}</div>
+            <div style={{ fontSize: 26, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{value}</div>
+            <div style={{ fontSize: 10, color: subColor || 'rgba(255,255,255,.35)', marginTop: 5 }}>{sub}</div>
           </div>
         )
-        const pageIcons = (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, padding: '0 24px', justifyItems: 'center' }}>
-            {ICON_ACTIONS.map(item => (
-              <a key={item.href} href={item.href} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textDecoration: 'none', width: 64 }}>
-                <div style={{ width: 56, height: 56, borderRadius: 14, background: 'rgba(255,255,255,.06)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.55)', transition: 'transform .15s' }}>
-                  {item.icon}
-                </div>
-                <span style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.2, fontWeight: 500 }}>{item.label}</span>
-              </a>
-            ))}
+
+        // Row 1: 2 small widgets
+        allItems.push({ type: 'widget-row', h: 90, content: (
+          <div style={{ display: 'flex', gap: 10, padding: '0 16px' }}>
+            {isBarber
+              ? <>{wSmall('Bookings', String(total), `${upcoming} upcoming`)}{wSmall('Earnings', money(barberEarnings), `${money(barberTips)} tips`, 'rgba(130,220,170,.5)')}</>
+              : <>{wSmall('Bookings', String(total), `${upcoming} upcoming`)}{wSmall('Paid', `${paid}/${total}`, total - paid > 0 ? `${total - paid} unpaid` : 'all paid', total - paid > 0 ? 'rgba(255,107,107,.55)' : 'rgba(130,220,170,.5)')}</>
+            }
           </div>
-        )
-        const pages = [pageWidgets, pageIcons]
+        )})
+
+        // Row 2: 2 small widgets
+        allItems.push({ type: 'widget-row', h: 90, content: (
+          <div style={{ display: 'flex', gap: 10, padding: '0 16px' }}>
+            {wSmall('No-shows', String(noshow), noshow > 0 ? 'needs attention' : 'all good', noshow > 0 ? 'rgba(255,107,107,.55)' : undefined)}
+            {wSmall(isBarber ? 'Status' : 'Team', isBarber ? (noshow > 0 ? '!' : '✓') : String(Object.keys(byBarber).length), isBarber ? 'today' : 'working today')}
+          </div>
+        )})
+
+        // Icons — 4 per row, each row ~76px (56 icon + 14 label + gap)
+        const ICONS_PER_ROW = 4
+        const iconRows: (typeof ICON_ACTIONS)[] = []
+        for (let i = 0; i < ICON_ACTIONS.length; i += ICONS_PER_ROW) {
+          iconRows.push(ICON_ACTIONS.slice(i, i + ICONS_PER_ROW))
+        }
+        iconRows.forEach(row => {
+          allItems.push({ type: 'icon-row', icons: row, h: 82 })
+        })
+
+        // Paginate: fit items into pages based on available height
+        // Available height = viewport - top bar (46px) - bottom pill (50px) - page dots (20px) - padding (24px)
+        const availH = typeof window !== 'undefined' ? window.innerHeight - 140 : 600
+        const GAP = 10
+        const pages: HomeItem[][] = []
+        let currentPage: HomeItem[] = []
+        let currentH = 0
+        allItems.forEach(item => {
+          if (currentH + item.h + GAP > availH && currentPage.length > 0) {
+            pages.push(currentPage)
+            currentPage = []
+            currentH = 0
+          }
+          currentPage.push(item)
+          currentH += item.h + GAP
+        })
+        if (currentPage.length > 0) pages.push(currentPage)
+        const totalPages = pages.length
+
         return (
-          <div style={{ height: 'calc(100vh - 46px)', display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', position: 'relative' }}
+          <div style={{ height: 'calc(100vh - 46px)', display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', position: 'relative', touchAction: 'pan-y' }}
             onTouchStart={e => { homeSwipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY } }}
             onTouchEnd={e => {
               if (!homeSwipeRef.current) return
@@ -760,20 +738,34 @@ export default function DashboardPage() {
               if (dx < 0 && homePage < totalPages - 1) setHomePage(homePage + 1)
               if (dx > 0 && homePage > 0) setHomePage(homePage - 1)
             }}>
-            {/* Pages container */}
+            {/* Pages */}
             <div style={{ flex: 1, display: 'flex', transition: 'transform .35s cubic-bezier(.25,.1,.25,1)', transform: `translateX(-${homePage * 100}%)`, minHeight: 0 }}>
-              {pages.map((page, i) => (
-                <div key={i} style={{ minWidth: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingBottom: 40 }}>
-                  {page}
+              {pages.map((pageItems, pi) => (
+                <div key={pi} style={{ minWidth: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: GAP, paddingBottom: 30 }}>
+                  {pageItems.map((item, ii) => (
+                    item.type === 'widget-row' ? <div key={ii}>{item.content}</div> :
+                    <div key={ii} style={{ display: 'grid', gridTemplateColumns: `repeat(${ICONS_PER_ROW}, 1fr)`, gap: 8, padding: '0 20px', justifyItems: 'center' }}>
+                      {item.icons.map(ic => (
+                        <a key={ic.href} href={ic.href} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, textDecoration: 'none', width: 64 }}>
+                          <div style={{ width: 56, height: 56, borderRadius: 14, background: 'rgba(255,255,255,.06)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.55)' }}>
+                            {ic.icon}
+                          </div>
+                          <span style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.1, fontWeight: 500 }}>{ic.label}</span>
+                        </a>
+                      ))}
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
             {/* Page dots */}
-            <div style={{ position: 'absolute', bottom: 52, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6, pointerEvents: 'none' }}>
-              {Array.from({ length: totalPages }, (_, i) => (
-                <div key={i} style={{ width: homePage === i ? 7 : 5, height: homePage === i ? 7 : 5, borderRadius: 999, background: homePage === i ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.15)', transition: 'all .25s ease' }} />
-              ))}
-            </div>
+            {totalPages > 1 && (
+              <div style={{ position: 'absolute', bottom: 52, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6, pointerEvents: 'none' }}>
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <div key={i} style={{ width: homePage === i ? 7 : 5, height: homePage === i ? 7 : 5, borderRadius: 999, background: homePage === i ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.15)', transition: 'all .25s ease' }} />
+                ))}
+              </div>
+            )}
           </div>
         )
       })()}
