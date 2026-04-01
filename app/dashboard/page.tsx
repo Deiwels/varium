@@ -759,7 +759,7 @@ export default function DashboardPage() {
         }
 
         return (
-          <div style={{ height: 'calc(100vh - 46px)', display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', position: 'relative' }}
+          <div style={{ height: 'calc(100dvh - 46px)', display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', position: 'fixed', top: 0, left: 0, right: 0, bottom: 46, touchAction: 'pan-x' }}
             onClick={() => { if (jiggleMode) setJiggleMode(false) }}
             onTouchStart={e => {
               homeSwipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY }
@@ -779,12 +779,15 @@ export default function DashboardPage() {
               if (dx > 0 && homePage > 0) setHomePage(homePage - 1)
             }}>
             <style>{`
-              @keyframes iosJiggle {
-                0%,100% { transform: rotate(-1.2deg) scale(0.98); }
-                50% { transform: rotate(1.2deg) scale(0.98); }
+              @keyframes editBreathe {
+                0%, 100% { box-shadow: 0 0 8px 2px rgba(255,255,255,.06), 0 0 18px 4px rgba(255,255,255,.02); }
+                50% { box-shadow: 0 0 14px 4px rgba(255,255,255,.14), 0 0 28px 8px rgba(255,255,255,.05); }
               }
-              .jiggle-item { animation: iosJiggle .25s ease-in-out infinite alternate; }
-              .jiggle-item:nth-child(even) { animation-delay: .12s; }
+              .edit-glow { animation: editBreathe 2.5s ease-in-out infinite; border-radius: 16px; }
+              .edit-glow-icon { animation: editBreathe 2.5s ease-in-out infinite; border-radius: 16px; }
+              .edit-glow-icon:nth-child(even) { animation-delay: .4s; }
+              .edit-glow:nth-child(even) { animation-delay: .6s; }
+              html, body { overflow: hidden !important; }
             `}</style>
 
             {/* Pages */}
@@ -801,7 +804,7 @@ export default function DashboardPage() {
                         {rowCells.map(c => {
                           const isWidget = c.item.type !== 'icon'
                           return (
-                            <div key={c.item.id} className={jiggleMode ? 'jiggle-item' : ''} style={{ gridColumn: `span ${c.item.cols}`, width: '100%', position: 'relative' }}>
+                            <div key={c.item.id} className={jiggleMode ? (c.item.type === 'icon' ? 'edit-glow-icon' : 'edit-glow') : ''} style={{ gridColumn: `span ${c.item.cols}`, width: '100%', position: 'relative' }}>
                               {/* Remove button in jiggle mode */}
                               {jiggleMode && (
                                 <button onClick={e => { e.stopPropagation(); e.preventDefault(); removeItem(c.item.id) }} style={{ position: 'absolute', top: -6, left: isWidget ? -4 : 6, zIndex: 10, width: 20, height: 20, borderRadius: 999, background: 'rgba(60,60,60,.95)', border: '1px solid rgba(255,255,255,.15)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>−</button>
@@ -820,11 +823,13 @@ export default function DashboardPage() {
                       </div>
                     )
                   })}
-                  {/* Add button in jiggle mode — on last page */}
-                  {jiggleMode && pi === pages.length - 1 && hiddenItems.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 8 }}>
+                  {/* Add back hidden items — shown on every page in edit mode */}
+                  {jiggleMode && hiddenItems.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 12 }}>
                       {hiddenItems.map(hi => (
-                        <button key={hi.id} onClick={e => { e.stopPropagation(); addItem(hi.id) }} style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.50)', fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ {hi.label}</button>
+                        <button key={hi.id} onClick={e => { e.stopPropagation(); addItem(hi.id) }} style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', color: 'rgba(255,255,255,.60)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 14, fontWeight: 300, lineHeight: 1 }}>+</span> {hi.label}
+                        </button>
                       ))}
                     </div>
                   )}
