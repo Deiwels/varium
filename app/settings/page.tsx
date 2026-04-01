@@ -189,7 +189,7 @@ function UsersTab() {
 
 // ─── Main Settings Page ───────────────────────────────────────────────────────
 export default function SettingsPage() {
-  const [tab, setTab] = useState<'shop'|'fees'|'booking'|'payroll'|'square'|'users'|'features'|'billing'>('shop')
+  const [tab, setTab] = useState<'shop'|'site'|'fees'|'booking'|'payroll'|'square'|'users'|'features'|'billing'>('shop')
   const [settings, setSettings] = useState<any>({})
   const [fees, setFees] = useState<Fee[]>([])
   const [charges, setCharges] = useState<Charge[]>([])
@@ -284,6 +284,7 @@ export default function SettingsPage() {
 
   const TABS = [
     { id: 'shop', label: 'General' },
+    { id: 'site', label: 'Site Builder' },
     { id: 'features', label: 'Features' },
     { id: 'fees', label: 'Fees & Charges' },
     { id: 'booking', label: 'Booking & SMS' },
@@ -565,6 +566,96 @@ export default function SettingsPage() {
 
             {/* ── USERS ── */}
             {tab === 'users' && <UsersTab />}
+
+            {/* ── SITE BUILDER ── */}
+            {tab === 'site' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {/* Slug / URL */}
+                <SectionCard title="Booking URL">
+                  <Field label="Your custom URL">
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <span style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', flexShrink: 0 }}>vurium.com/book/</span>
+                      <input value={s.slug || ''} onChange={e => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 60))} placeholder="your-business" style={inp} />
+                    </div>
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Letters, numbers, and dashes only. This is your public booking link.</p>
+                  </Field>
+                </SectionCard>
+
+                {/* Template selector */}
+                <SectionCard title="Design Template">
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginBottom: 14 }}>Choose how your booking page looks. Available on Custom plan.</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 10 }}>
+                    {[
+                      { id: 'classic', label: 'Classic', color: 'rgba(255,255,255,.15)' },
+                      { id: 'modern', label: 'Modern', color: 'rgba(255,255,255,.12)' },
+                      { id: 'bold', label: 'Bold', color: 'rgba(255,255,255,.12)' },
+                      { id: 'dark-luxury', label: 'Dark Luxury', color: 'rgba(255,255,255,.12)' },
+                      { id: 'colorful', label: 'Colorful', color: 'rgba(255,255,255,.12)' },
+                    ].map(t => {
+                      const sc = s.site_config || {}
+                      const selected = (sc.template || 'modern') === t.id
+                      return (
+                        <button key={t.id} onClick={() => set('site_config', { ...sc, template: t.id })}
+                          style={{ padding: '16px 8px', borderRadius: 12, border: `1px solid ${selected ? 'rgba(255,255,255,.2)' : 'rgba(255,255,255,.06)'}`, background: selected ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', transition: 'all .2s', fontFamily: 'inherit' }}>
+                          <div style={{ fontSize: 12, fontWeight: selected ? 600 : 400, color: selected ? '#fff' : 'rgba(255,255,255,.45)' }}>{t.label}</div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </SectionCard>
+
+                {/* Page content */}
+                <SectionCard title="Page Content">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <Field label="Hero title">
+                      <input value={(s.site_config || {}).hero_title || ''} onChange={e => set('site_config', { ...(s.site_config || {}), hero_title: e.target.value })} placeholder="Welcome to our studio" style={inp} />
+                    </Field>
+                    <Field label="Hero subtitle">
+                      <input value={(s.site_config || {}).hero_subtitle || ''} onChange={e => set('site_config', { ...(s.site_config || {}), hero_subtitle: e.target.value })} placeholder="Premium beauty & wellness" style={inp} />
+                    </Field>
+                    <Field label="About text">
+                      <textarea value={(s.site_config || {}).about_text || ''} onChange={e => set('site_config', { ...(s.site_config || {}), about_text: e.target.value })} placeholder="Tell your clients about your business..." rows={3} style={{ ...inp, height: 'auto', padding: '10px 12px', resize: 'vertical' as const }} />
+                    </Field>
+                    <Field label="Hero image URL">
+                      <input value={(s.site_config || {}).hero_image || s.hero_media_url || ''} onChange={e => { set('site_config', { ...(s.site_config || {}), hero_image: e.target.value }); set('hero_media_url', e.target.value) }} placeholder="https://..." style={inp} />
+                    </Field>
+                  </div>
+                </SectionCard>
+
+                {/* Sections toggle */}
+                <SectionCard title="Visible Sections">
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginBottom: 12 }}>Show or hide sections on your booking page.</p>
+                  {[
+                    { key: 'hero', label: 'Hero Banner' },
+                    { key: 'about', label: 'About' },
+                    { key: 'services', label: 'Services' },
+                    { key: 'team', label: 'Team Members' },
+                    { key: 'reviews', label: 'Reviews' },
+                  ].map(sec => {
+                    const sc = s.site_config || {}
+                    const sections = sc.sections_enabled || { hero: true, about: true, services: true, team: true, reviews: true }
+                    const enabled = sections[sec.key] !== false
+                    return (
+                      <div key={sec.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                        <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>{sec.label}</span>
+                        <button onClick={() => set('site_config', { ...sc, sections_enabled: { ...sections, [sec.key]: !enabled } })}
+                          style={{ width: 40, height: 24, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 2, background: enabled ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.04)', position: 'relative', flexShrink: 0 }}>
+                          <div style={{ width: 20, height: 20, borderRadius: 999, background: enabled ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.15)', transition: 'transform .2s', transform: enabled ? 'translateX(16px)' : 'translateX(0)' }} />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </SectionCard>
+
+                {/* Preview */}
+                <div style={{ textAlign: 'center' }}>
+                  <a href={`/book/${typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}').workspace_id || '' : ''}`} target="_blank" rel="noopener" style={{
+                    display: 'inline-block', padding: '10px 24px', borderRadius: 10, fontSize: 13, textDecoration: 'none',
+                    background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)',
+                  }}>Preview Booking Page →</a>
+                </div>
+              </div>
+            )}
 
             {/* ── FEATURES ── */}
             {tab === 'features' && (
