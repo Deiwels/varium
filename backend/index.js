@@ -3460,12 +3460,55 @@ app.post('/api/billing/cancel', requireRole('owner'), async (req, res) => {
 });
 
 // Account limits — returns plan info, features, limits
-app.get('/api/account/limits', async (req, res) => {
+// Migrate workspace to activate trial
+app.post('/api/account/activate-trial', requireRole('owner'), async (req, res) => {
   try {
     const wsDoc = await req.wsDoc().get();
     const wsData = wsDoc.exists ? wsDoc.data() : {};
-    const planType = wsData.plan_type || wsData.plan || 'individual';
-    const billingStatus = wsData.billing_status || wsData.subscription_status || 'inactive';
+    if (wsData.billing_status === 'trialing' && wsData.trial_ends_at) {
+      return res.json({ ok: true, already: true, message: 'Trial already active' });
+    }
+    const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const slug = wsData.slug || await generateUniqueSlug(wsData.name || 'business');
+    const patch = {
+      plan_type: wsData.plan_type || 'individual',
+      billing_status: 'trialing',
+      trial_ends_at: toIso(trialEnd),
+      trial_used: false,
+      slug,
+      updated_at: toIso(new Date()),
+    };
+    await req.wsDoc().update(patch);
+    if (!wsData.slug) await registerSlug(slug, req.wsId);
+    res.json({ ok: true, plan_type: patch.plan_type, billing_status: 'trialing', trial_ends_at: patch.trial_ends_at, slug });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.get('/api/account/limits', async (req, res) => {
+  try {
+    const wsDoc = await req.wsDoc().get();
+    let wsData = wsDoc.exists ? wsDoc.data() : {};
+
+    // Auto-migrate old accounts: if no plan_type, set defaults + activate trial
+    if (!wsData.plan_type && wsDoc.exists) {
+      const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const slug = wsData.slug || await generateUniqueSlug(wsData.name || 'business');
+      const migratePatch = {
+        plan_type: 'individual',
+        billing_status: 'trialing',
+        trial_ends_at: toIso(trialEnd),
+        trial_used: false,
+        slug,
+        updated_at: toIso(new Date()),
+      };
+      await req.wsDoc().update(migratePatch);
+      if (!wsData.slug) await registerSlug(slug, req.wsId).catch(() => {});
+      wsData = { ...wsData, ...migratePatch };
+      console.log('Auto-migrated workspace:', req.wsId, 'slug:', slug);
+    }
+
+    const planType = wsData.plan_type || 'individual';
+    const billingStatus = wsData.billing_status || 'inactive';
     const effectivePlan = getEffectivePlan(wsData);
     const planDef = getPlanDef(effectivePlan);
     const trialEnd = wsData.trial_ends_at ? new Date(wsData.trial_ends_at) : null;
