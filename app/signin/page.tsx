@@ -18,21 +18,27 @@ export default function SignInPage() {
   const [pinError, setPinError] = useState('')
 
   useEffect(() => {
+    const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window
     let tx = 0, ty = 0, cx = 0, cy = 0, raf: number
-    function onMouse(e: MouseEvent) {
-      tx = (e.clientX / window.innerWidth - 0.5) * 2
-      ty = (e.clientY / window.innerHeight - 0.5) * 2
-    }
     function tick() {
-      cx += (tx - cx) * 0.04; cy += (ty - cy) * 0.04
+      cx += (tx - cx) * 0.02; cy += (ty - cy) * 0.02
       const far = document.querySelector('.stars-far') as HTMLElement
       const mid = document.querySelector('.stars-mid') as HTMLElement
       const near = document.querySelector('.stars-near') as HTMLElement
-      if (far) far.style.transform = `translate(${cx * 3}px, ${cy * 3}px)`
-      if (mid) mid.style.transform = `translate(${cx * 7}px, ${cy * 7}px)`
-      if (near) near.style.transform = `translate(${cx * 12}px, ${cy * 12}px)`
+      if (far) far.style.transform = `translate(${cx * 8}px, ${cy * 8}px)`
+      if (mid) mid.style.transform = `translate(${cx * 20}px, ${cy * 20}px)`
+      if (near) near.style.transform = `translate(${cx * 35}px, ${cy * 35}px)`
       raf = requestAnimationFrame(tick)
     }
+    if (isMobile) {
+      function onO(e: DeviceOrientationEvent) { const g = Math.max(-30, Math.min(30, e.gamma || 0)); const b = Math.max(-30, Math.min(30, (e.beta || 0) - 45)); tx = g / 30 * 2; ty = b / 30 * 2 }
+      const doe = DeviceOrientationEvent as any
+      if (typeof doe.requestPermission === 'function') { const r = () => { doe.requestPermission().then((s: string) => { if (s === 'granted') window.addEventListener('deviceorientation', onO, { passive: true }) }).catch(() => {}); document.removeEventListener('click', r) }; document.addEventListener('click', r, { once: true }) }
+      else { window.addEventListener('deviceorientation', onO, { passive: true }) }
+      raf = requestAnimationFrame(tick)
+      return () => { window.removeEventListener('deviceorientation', onO); cancelAnimationFrame(raf) }
+    }
+    function onMouse(e: MouseEvent) { tx = (e.clientX / window.innerWidth - 0.5) * 2; ty = (e.clientY / window.innerHeight - 0.5) * 2 }
     window.addEventListener('mousemove', onMouse, { passive: true })
     raf = requestAnimationFrame(tick)
     return () => { window.removeEventListener('mousemove', onMouse); cancelAnimationFrame(raf) }
