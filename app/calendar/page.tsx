@@ -2017,9 +2017,8 @@ export default function CalendarPage() {
                     }}>
                     {/* Student: blocked slots overlay (where no mentor is free) */}
                     {isStudent && barber.id === '__student__' && studentBlockedRanges.map((range, ri) => {
-                      const STRIPE = 'repeating-linear-gradient(45deg,rgba(255,255,255,.07) 0px,rgba(255,255,255,.07) 3px,transparent 3px,transparent 9px)'
                       return (
-                        <div key={ri} style={{ position: 'absolute', left: 0, right: 0, top: minToY(range.startMin), height: minToY(range.endMin) - minToY(range.startMin), zIndex: 2, background: 'rgba(0,0,0,.55)', backgroundImage: STRIPE, cursor: 'not-allowed', pointerEvents: 'none' }} />
+                        <div key={ri} style={{ position: 'absolute', left: 0, right: 0, top: minToY(range.startMin), height: minToY(range.endMin) - minToY(range.startMin), zIndex: 2, background: 'rgba(8,8,14,.55)', backdropFilter: 'blur(8px) saturate(120%)', WebkitBackdropFilter: 'blur(8px) saturate(120%)', cursor: 'not-allowed', pointerEvents: 'none' } as React.CSSProperties} />
                       )
                     })}
                     {/* Off-hours blocks — gray, like red block but for non-working time */}
@@ -2031,14 +2030,14 @@ export default function CalendarPage() {
                       const sy = minToY(startMin)
                       const ey = minToY(endMin)
 
-                      // Same stripe pattern as red block but gray
-                      const STRIPE = 'repeating-linear-gradient(45deg,rgba(255,255,255,.07) 0px,rgba(255,255,255,.07) 3px,transparent 3px,transparent 9px)'
-                      const BG = 'rgba(0,0,0,.72)'
+                      // Frosted glass effect for off-hours
+                      const GLASS = { backdropFilter: 'blur(8px) saturate(120%)', WebkitBackdropFilter: 'blur(8px) saturate(120%)' } as React.CSSProperties
+                      const BG = 'rgba(8,8,14,.55)'
                       const BORDER_COLOR = 'rgba(255,255,255,.12)'
                       const TIME_PILL = { fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 999, background: 'rgba(0,0,0,.50)', border: '1px solid rgba(255,255,255,.18)', color: 'rgba(255,255,255,.55)', letterSpacing: '.04em', fontFamily: 'Inter,sans-serif' } as React.CSSProperties
 
                       if (dayOff) return (
-                        <div style={{ position: 'absolute', inset: 0, zIndex: 2, background: BG, backgroundImage: STRIPE, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'not-allowed', pointerEvents: 'none' }}>
+                        <div style={{ position: 'absolute', inset: 0, zIndex: 2, background: BG, ...GLASS, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'not-allowed', pointerEvents: 'none' }}>
                           <span style={{ ...TIME_PILL, fontSize: 11 }}>Day off</span>
                         </div>
                       )
@@ -2047,7 +2046,7 @@ export default function CalendarPage() {
                         <>
                           {/* TOP — before work */}
                           {sy > 0 && (
-                            <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: sy, zIndex: 2, background: BG, backgroundImage: STRIPE, cursor: 'default', pointerEvents: 'none' }}>
+                            <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: sy, zIndex: 2, background: BG, ...GLASS, cursor: 'default', pointerEvents: 'none' }}>
                               {/* Border bottom = work start */}
                               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, background: BORDER_COLOR, pointerEvents: 'none' }} />
                               {/* Label */}
@@ -2072,7 +2071,7 @@ export default function CalendarPage() {
 
                           {/* BOTTOM — after work */}
                           {ey < totalPx && (
-                            <div style={{ position: 'absolute', left: 0, right: 0, top: ey, height: totalPx - ey, zIndex: 2, background: BG, backgroundImage: STRIPE, cursor: 'default', pointerEvents: 'none' }}>
+                            <div style={{ position: 'absolute', left: 0, right: 0, top: ey, height: totalPx - ey, zIndex: 2, background: BG, ...GLASS, cursor: 'default', pointerEvents: 'none' }}>
                               {/* Border top = work end */}
                               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: BORDER_COLOR, pointerEvents: 'none' }} />
                               {/* Handle zone — owner/admin/barber(own column) can drag */}
