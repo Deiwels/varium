@@ -709,7 +709,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
           display:flex;align-items:center;justify-content:space-between;
           padding:0 20px;
           border-bottom:1px solid rgba(255,255,255,.05);
-          background:rgba(5,5,12,.7);
+          background:rgba(0,0,0,.5);
           position:relative;
           backdrop-filter:saturate(180%) blur(40px);
           -webkit-backdrop-filter:saturate(180%) blur(40px);
@@ -749,7 +749,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
           pointer-events:auto;
           display:flex;align-items:center;gap:2px;
           padding:3px 8px;border-radius:22px;
-          background:rgba(8,8,14,.55);
+          background:rgba(0,0,0,.45);
           backdrop-filter:saturate(180%) blur(30px);
           -webkit-backdrop-filter:saturate(180%) blur(30px);
           border:1px solid rgba(255,255,255,.05);

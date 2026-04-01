@@ -1848,7 +1848,7 @@ export default function CalendarPage() {
         <div className={`cal-container${dayTransition === 'out' ? ' day-transition-out' : dayTransition === 'in' ? ' day-transition-in' : ''}`} style={{ flex: 1, position: 'relative', overflowY: (drag || blockDrag) ? 'hidden' : 'auto', overflowX: 'hidden', touchAction: (drag || blockDrag) ? 'none' : 'pan-x pan-y', transformOrigin: 'center 40%' }} ref={scrollContainerRef} onTouchStart={onPinchStart} onTouchMove={onPinchMove} onTouchEnd={onPinchEnd}>
           <div style={{ minWidth: timeColW + pageBarbers.length * colMin }}>
             {/* Header */}
-            <div style={{ display: 'grid', gridTemplateColumns: `${timeColW}px repeat(${pageBarbers.length}, minmax(${colMin}px,1fr))`, borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(8,8,18,.6)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', position: 'sticky', top: 0, zIndex: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `${timeColW}px repeat(${pageBarbers.length}, minmax(${colMin}px,1fr))`, borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', position: 'sticky', top: 0, zIndex: 10 }}>
               <div style={{ padding: isMobile ? '10px 2px' : '10px 12px', borderRight: '1px solid rgba(255,255,255,.10)', color: 'rgba(255,255,255,.40)', fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', textAlign: 'center' }}>{isMobile ? '' : 'Time'}</div>
               {pageBarbers.map((b, i) => {
                 const attachedStudents = studentUsers.filter(s => s.mentorIds.includes(b.id))
@@ -1880,7 +1880,7 @@ export default function CalendarPage() {
             {/* Body */}
             <div style={{ display: 'grid', gridTemplateColumns: `${timeColW}px repeat(${pageBarbers.length}, minmax(${colMin}px,1fr))`, height: totalH, position: 'relative' }}>
               {/* Time labels */}
-              <div style={{ borderRight: '1px solid rgba(255,255,255,.04)', background: 'rgba(8,8,18,.4)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', position: 'relative' }}>
+              <div style={{ borderRight: '1px solid rgba(255,255,255,.04)', background: 'rgba(0,0,0,.3)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', position: 'relative' }}>
                 {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => {
                   const h = START_HOUR + i
                   const label = _is24h ? `${pad2(h)}` : (() => { const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h; return String(h12) })()
@@ -2020,7 +2020,7 @@ export default function CalendarPage() {
                     {/* Student: blocked slots overlay (where no mentor is free) */}
                     {isStudent && barber.id === '__student__' && studentBlockedRanges.map((range, ri) => {
                       return (
-                        <div key={ri} style={{ position: 'absolute', left: 0, right: 0, top: minToY(range.startMin), height: minToY(range.endMin) - minToY(range.startMin), zIndex: 2, background: 'rgba(8,8,14,.55)', backdropFilter: 'blur(8px) saturate(120%)', WebkitBackdropFilter: 'blur(8px) saturate(120%)', cursor: 'not-allowed', pointerEvents: 'none' } as React.CSSProperties} />
+                        <div key={ri} style={{ position: 'absolute', left: 0, right: 0, top: minToY(range.startMin), height: minToY(range.endMin) - minToY(range.startMin), zIndex: 2, background: 'rgba(0,0,0,.4)', backdropFilter: 'blur(8px) saturate(120%)', WebkitBackdropFilter: 'blur(8px) saturate(120%)', cursor: 'not-allowed', pointerEvents: 'none' } as React.CSSProperties} />
                       )
                     })}
                     {/* Off-hours blocks — gray, like red block but for non-working time */}
