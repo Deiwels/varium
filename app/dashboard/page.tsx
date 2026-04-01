@@ -1114,43 +1114,31 @@ export default function DashboardPage() {
           {isOwnerOrAdmin && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
 
-              {/* Team — days + ratings */}
+              {/* Team — centered, wrapping cards */}
               <div style={{ marginTop: 20 }}>
-                <div style={{ fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 10 }}>Team</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+                <div style={{ fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 10, textAlign: 'center' }}>Team</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
                   {barbers.map((b: any) => {
                     const sched = b.schedule
                     const workDays: number[] = Array.isArray(sched?.days) ? sched.days : [1,2,3,4,5,6]
+                    const fmt = (m: number) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
+                    const sm = sched?.startMin ?? 600
+                    const em = sched?.endMin ?? 1200
                     return (
-                      <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
-                        {b.photo_url
-                          ? <img src={b.photo_url} alt={b.name} style={{ width: 34, height: 34, borderRadius: 9, objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)', flexShrink: 0 }} onError={e => (e.currentTarget.style.display='none')} />
-                          : <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.4)', flexShrink: 0 }}>{(b.name||'?')[0]}</div>
-                        }
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 500, fontSize: 13, color: 'rgba(255,255,255,.8)', marginBottom: 3 }}>{b.name}</div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                            {DAY_NAMES_SHORT.map((day, i) => {
-                              const works = workDays.includes(i)
-                              return (
-                                <span key={day} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: `1px solid ${works ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.04)'}`, background: 'transparent', color: works ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.2)', letterSpacing: '.04em', textTransform: 'uppercase', fontWeight: 500 }}>
-                                  {day}
-                                </span>
-                              )
-                            })}
-                          </div>
-                          {(() => {
-                            const fmt = (m: number) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
-                            const sm = sched?.startMin ?? 600
-                            const em = sched?.endMin ?? 1200
-                            return (
-                              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', marginTop: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                <span>{fmt(sm)} — {fmt(em)}</span>
-                              </div>
-                            )
-                          })()}
+                      <div key={b.id} style={{ width: 'min(280px, 100%)', padding: '12px 14px', borderRadius: 14, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+                          {b.photo_url
+                            ? <img src={b.photo_url} alt={b.name} style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)' }} onError={e => (e.currentTarget.style.display='none')} />
+                            : <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.4)' }}>{(b.name||'?')[0]}</div>
+                          }
+                          <span style={{ fontWeight: 600, fontSize: 13, color: 'rgba(255,255,255,.8)' }}>{b.name}</span>
                         </div>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: 3, marginBottom: 6 }}>
+                          {DAY_NAMES_SHORT.map((day, i) => (
+                            <span key={day} style={{ fontSize: 8, padding: '2px 5px', borderRadius: 4, border: `1px solid ${workDays.includes(i) ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.03)'}`, color: workDays.includes(i) ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.15)', fontWeight: 500 }}>{day}</span>
+                          ))}
+                        </div>
+                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,.4)' }}>{fmt(sm)} — {fmt(em)}</div>
                       </div>
                     )
                   })}
