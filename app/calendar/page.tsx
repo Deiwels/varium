@@ -1623,46 +1623,16 @@ export default function CalendarPage() {
         }
         .block-pending-pulse { animation: blockPendingPulse 2.4s ease-in-out infinite; }
         @keyframes cosmicVoidBreathe {
-          0%, 100% { box-shadow: 0 0 10px 2px rgba(140,40,80,.30), 0 0 25px 5px rgba(80,20,120,.15), inset 0 0 20px 4px rgba(0,0,0,.85); }
-          50% { box-shadow: 0 0 18px 5px rgba(160,50,90,.45), 0 0 40px 10px rgba(100,30,140,.25), inset 0 0 30px 8px rgba(0,0,0,.90); }
-        }
-        @keyframes nebulaDrift {
-          0% { transform: translate(0%, 0%) scale(1.2); }
-          33% { transform: translate(5%, -3%) scale(1.3); }
-          66% { transform: translate(-4%, 4%) scale(1.15); }
-          100% { transform: translate(0%, 0%) scale(1.2); }
-        }
-        @keyframes nebulaDrift2 {
-          0% { transform: translate(0%, 0%) scale(1.1); }
-          33% { transform: translate(-6%, 3%) scale(1.25); }
-          66% { transform: translate(3%, -5%) scale(1.15); }
-          100% { transform: translate(0%, 0%) scale(1.1); }
+          0%, 100% { box-shadow: 0 0 6px 1px rgba(140,40,80,.12), 0 0 15px 3px rgba(80,20,120,.06); }
+          50% { box-shadow: 0 0 10px 2px rgba(140,40,80,.20), 0 0 22px 5px rgba(80,20,120,.10); }
         }
         .block-approved-stripes {
-          background: rgba(0,0,0,.92) !important;
+          background: rgba(0,0,0,.98) !important;
           animation: cosmicVoidBreathe 4s ease-in-out infinite;
           overflow: hidden;
         }
-        .block-approved-stripes::before {
-          content: '';
-          position: absolute;
-          inset: -30%;
-          background: radial-gradient(ellipse at 30% 50%, rgba(180,40,80,.20) 0%, transparent 50%),
-                      radial-gradient(ellipse at 70% 30%, rgba(100,30,160,.18) 0%, transparent 45%),
-                      radial-gradient(ellipse at 50% 80%, rgba(200,50,60,.12) 0%, transparent 40%);
-          animation: nebulaDrift 12s ease-in-out infinite;
-          pointer-events: none;
-        }
-        .block-approved-stripes::after {
-          content: '';
-          position: absolute;
-          inset: -25%;
-          background: radial-gradient(ellipse at 60% 60%, rgba(120,20,140,.15) 0%, transparent 45%),
-                      radial-gradient(ellipse at 25% 40%, rgba(160,40,70,.12) 0%, transparent 40%),
-                      radial-gradient(ellipse at 80% 70%, rgba(80,10,100,.10) 0%, transparent 50%);
-          animation: nebulaDrift2 15s ease-in-out infinite;
-          pointer-events: none;
-        }
+        .block-approved-stripes::before { display: none; }
+        .block-approved-stripes::after { display: none; }
         @keyframes paidShimmer {
           0%, 80% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
@@ -2197,14 +2167,14 @@ export default function CalendarPage() {
                             setBlockConfirm({ action: 'delete', barberId: ev.barberId, startMin: ev.startMin, endMin: ev.startMin + ev.durMin, evId: ev.id, rawId: ev._raw?.id ? String(ev._raw.id) : undefined })
                           }}>
                           {/* Approved part (moving stripes) */}
-                          {!isPending && <div className="block-approved-stripes" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: hasPendingExtension ? (approvedDur / ev.durMin * 100) + '%' : '100%', borderRadius: hasPendingExtension ? '10px 10px 0 0' : 10, border: `1px solid ${drag?.eventId===ev.id ? 'rgba(255,107,107,.70)' : 'rgba(255,107,107,.22)'}` }} />}
+                          {!isPending && <div className="block-approved-stripes" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: hasPendingExtension ? (approvedDur / ev.durMin * 100) + '%' : '100%', borderRadius: hasPendingExtension ? '10px 10px 0 0' : 10, border: `1px solid ${drag?.eventId===ev.id ? 'rgba(140,40,80,.50)' : 'rgba(140,40,80,.15)'}` }} />}
                           {/* Pending part (breathing red) */}
                           {(isPending || hasPendingExtension) && <div className="block-pending-pulse" style={{ position: 'absolute', left: 0, right: 0, top: hasPendingExtension ? (approvedDur / ev.durMin * 100) + '%' : 0, bottom: 0, borderRadius: hasPendingExtension ? '0 0 10px 10px' : 10, border: '1px solid rgba(255,107,107,.45)' }} />}
                           {/* Content */}
                           <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,107,107,.80)" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                              <span style={{ fontSize: 10, textTransform: 'uppercase', color: isPending ? 'rgba(255,107,107,.90)' : 'rgba(255,107,107,.80)', fontWeight: 900 }}>{isPending ? 'Pending approval' : hasPendingExtension ? 'Blocked + Pending' : 'Blocked'} {minToAMPM(ev.startMin)}–{minToAMPM(ev.startMin+ev.durMin)}</span>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(140,40,80,.55)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                              <span style={{ fontSize: 10, textTransform: 'uppercase', color: isPending ? 'rgba(140,40,80,.65)' : 'rgba(140,40,80,.50)', fontWeight: 300, letterSpacing: '.06em' }}>{isPending ? 'Pending approval' : hasPendingExtension ? 'Blocked + Pending' : 'Blocked'} {minToAMPM(ev.startMin)}–{minToAMPM(ev.startMin+ev.durMin)}</span>
                             </div>
                             {/* ✕ button removed — tap block to delete */}
                           </div>
@@ -2248,7 +2218,7 @@ export default function CalendarPage() {
                                   fn => window.removeEventListener('touchmove', fn),
                                   fn => window.removeEventListener('touchend', fn))
                               }}
-                              style={{ position: 'absolute', left: 10, right: 10, bottom: 4, height: 6, borderRadius: 999, background: 'linear-gradient(90deg, rgba(140,40,80,.50), rgba(100,30,160,.50))', boxShadow: '0 0 8px rgba(140,40,80,.30)', cursor: 'ns-resize', touchAction: 'none' }} />
+                              style={{ position: 'absolute', left: 10, right: 10, bottom: 4, height: 3, borderRadius: 999, background: 'linear-gradient(90deg, rgba(140,40,80,.35), rgba(100,30,160,.35))', boxShadow: '0 0 4px rgba(140,40,80,.15)', cursor: 'ns-resize', touchAction: 'none' }} />
                           })()}
                         </div>
                       )
