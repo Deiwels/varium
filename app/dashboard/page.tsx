@@ -149,10 +149,12 @@ export default function DashboardPage() {
   const myBarberId: string = user?.barber_id || ''
   const myBarberName: string = user?.name || ''
 
-  // Dashboard shortcut settings
+  // Dashboard shortcut settings + slug
   const [dashSettings, setDashSettings] = useState<Record<string, any>>({})
+  const [slug, setSlug] = useState('')
   useEffect(() => {
     apiFetch('/api/settings').then(d => setDashSettings(d || {})).catch(() => {})
+    apiFetch('/api/account/limits').then(d => { if (d?.slug) setSlug(d.slug) }).catch(() => {})
   }, [])
   const isOwnerOrAdmin = role === 'owner' || role === 'admin'
 
@@ -767,8 +769,8 @@ export default function DashboardPage() {
             {!isBarber && user?.workspace_id && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
                 <div style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,.5)' }}>Booking Page</div>
-                <button onClick={() => navigator.clipboard.writeText(`https://vurium.com/book/${user.workspace_id}`)} style={{ padding: '6px 14px', borderRadius: 8, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.55)', flexShrink: 0 }}>Copy Link</button>
-                <a href={`/book/${user.workspace_id}`} target="_blank" rel="noopener" style={{ padding: '6px 14px', borderRadius: 8, fontSize: 11, textDecoration: 'none', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.45)', flexShrink: 0 }}>Preview</a>
+                <button onClick={() => navigator.clipboard.writeText(`https://vurium.com/book/${slug || user.workspace_id}`)} style={{ padding: '6px 14px', borderRadius: 8, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.55)', flexShrink: 0 }}>Copy Link</button>
+                <a href={`/book/${slug || user.workspace_id}`} target="_blank" rel="noopener" style={{ padding: '6px 14px', borderRadius: 8, fontSize: 11, textDecoration: 'none', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.45)', flexShrink: 0 }}>Preview</a>
               </div>
             )}
 

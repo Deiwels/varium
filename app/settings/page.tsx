@@ -355,15 +355,15 @@ export default function SettingsPage() {
                 <SectionCard title="Booking Page">
                   <Field label="Your public booking URL">
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <code style={{ flex: 1, fontSize: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(0,0,0,.3)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(130,150,220,.8)', wordBreak: 'break-all' }}>
-                        vurium.com/book/{typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}').workspace_id || '' : ''}
+                      <code style={{ flex: 1, fontSize: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(0,0,0,.3)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)', wordBreak: 'break-all' }}>
+                        vurium.com/book/{s.slug || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}').workspace_id || '' : '')}
                       </code>
-                      <button onClick={() => { const u = JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}'); navigator.clipboard.writeText(`https://vurium.com/book/${u.workspace_id || ''}`); }} style={{
+                      <button onClick={() => { const slug = s.slug || JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}').workspace_id || ''; navigator.clipboard.writeText(`https://vurium.com/book/${slug}`); }} style={{
                         padding: '10px 14px', borderRadius: 10, fontSize: 11, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit',
-                        background: 'rgba(130,150,220,.1)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.8)',
+                        background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)',
                       }}>Copy</button>
                     </div>
-                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 6 }}>Share this link on your website, social media, or Google Business profile.</p>
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', marginTop: 6 }}>Edit your URL in Site Builder tab. Share on social media or Google Business.</p>
                   </Field>
                 </SectionCard>
                 <SectionCard title="Shop info">
