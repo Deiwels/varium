@@ -160,11 +160,22 @@ export default function DashboardPage() {
   // Mobile iPhone home screen
   const [isMobile, setIsMobile] = useState(false)
   const [homePage, setHomePage] = useState(0)
+  const [jiggleMode, setJiggleMode] = useState(false)
+  const [homeLayout, setHomeLayout] = useState<string[]>([]) // item IDs in order
   const homeSwipeRef = useRef<{ startX: number; startY: number } | null>(null)
+  const jiggleTimerRef = useRef<any>(null)
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
     check(); window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
+  }, [])
+  // Load/save home layout from localStorage
+  const HOME_LAYOUT_KEY = 'VB_HOME_LAYOUT'
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(HOME_LAYOUT_KEY) || 'null')
+      if (Array.isArray(saved) && saved.length > 0) setHomeLayout(saved)
+    } catch {}
   }, [])
 
   // Reviews
@@ -648,88 +659,117 @@ export default function DashboardPage() {
     <Shell page="dashboard">
       {/* ── Mobile: iPhone Home Screen ── */}
       {isMobile && (() => {
-        const ICON_ACTIONS = actions.map(a => {
-          const icons: Record<string,React.ReactNode> = {
-            Calendar: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
-            Clients: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-            Payments: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
-            Waitlist: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-            Portfolio: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>,
-            Cash: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
-            Membership: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-            Attendance: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-            Expenses: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></svg>,
-            Payroll: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
-            Settings: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
-            Booking: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
-          }
-          return { ...a, icon: icons[a.label] || icons.Calendar }
-        })
-
-        // Build all items: widgets (type:'widget') + icons (type:'icon')
-        type HomeItem = { type: 'widget-row'; content: React.ReactNode; h: number } | { type: 'icon-row'; icons: typeof ICON_ACTIONS; h: number }
-        const allItems: HomeItem[] = []
-
-        // Widget: 2 small KPIs
-        const wSmall = (title: string, value: string, sub: string, subColor?: string) => (
-          <div style={{ flex: 1, borderRadius: 16, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '12px 12px 10px' }}>
-            <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }}>{title}</div>
-            <div style={{ fontSize: 26, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{value}</div>
-            <div style={{ fontSize: 10, color: subColor || 'rgba(255,255,255,.35)', marginTop: 5 }}>{sub}</div>
-          </div>
-        )
-
-        // Row 1: 2 small widgets
-        allItems.push({ type: 'widget-row', h: 90, content: (
-          <div style={{ display: 'flex', gap: 10, padding: '0 16px' }}>
-            {isBarber
-              ? <>{wSmall('Bookings', String(total), `${upcoming} upcoming`)}{wSmall('Earnings', money(barberEarnings), `${money(barberTips)} tips`, 'rgba(130,220,170,.5)')}</>
-              : <>{wSmall('Bookings', String(total), `${upcoming} upcoming`)}{wSmall('Paid', `${paid}/${total}`, total - paid > 0 ? `${total - paid} unpaid` : 'all paid', total - paid > 0 ? 'rgba(255,107,107,.55)' : 'rgba(130,220,170,.5)')}</>
-            }
-          </div>
-        )})
-
-        // Row 2: 2 small widgets
-        allItems.push({ type: 'widget-row', h: 90, content: (
-          <div style={{ display: 'flex', gap: 10, padding: '0 16px' }}>
-            {wSmall('No-shows', String(noshow), noshow > 0 ? 'needs attention' : 'all good', noshow > 0 ? 'rgba(255,107,107,.55)' : undefined)}
-            {wSmall(isBarber ? 'Status' : 'Team', isBarber ? (noshow > 0 ? '!' : '✓') : String(Object.keys(byBarber).length), isBarber ? 'today' : 'working today')}
-          </div>
-        )})
-
-        // Icons — 4 per row, each row ~76px (56 icon + 14 label + gap)
-        const ICONS_PER_ROW = 4
-        const iconRows: (typeof ICON_ACTIONS)[] = []
-        for (let i = 0; i < ICON_ACTIONS.length; i += ICONS_PER_ROW) {
-          iconRows.push(ICON_ACTIONS.slice(i, i + ICONS_PER_ROW))
+        // All possible items with icons, widgets, sizes
+        const iconSvgs: Record<string,React.ReactNode> = {
+          Calendar: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
+          Clients: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+          Payments: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
+          Waitlist: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+          Portfolio: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>,
+          Cash: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+          Membership: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+          Attendance: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+          Expenses: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></svg>,
+          Payroll: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
+          Settings: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+          Booking: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
         }
-        iconRows.forEach(row => {
-          allItems.push({ type: 'icon-row', icons: row, h: 82 })
+
+        // All available home screen items: widgets (span 2 or 4 cols) + icons (span 1)
+        type HItem = { id: string; type: 'icon' | 'widget-s' | 'widget-m'; label: string; href?: string; cols: number }
+        const ALL_ITEMS: HItem[] = [
+          // Widgets — small (2 cols), medium (4 cols)
+          { id: 'w_bookings', type: 'widget-s', label: 'Bookings', cols: 2 },
+          { id: 'w_paid', type: 'widget-s', label: isBarber ? 'Earnings' : 'Paid', cols: 2 },
+          { id: 'w_noshows', type: 'widget-s', label: 'No-shows', cols: 2 },
+          { id: 'w_team', type: 'widget-s', label: isBarber ? 'Status' : 'Team', cols: 2 },
+          { id: 'w_activity', type: 'widget-m', label: 'Today Activity', cols: 4 },
+          // Icons — each action
+          ...actions.map(a => ({ id: `i_${a.label}`, type: 'icon' as const, label: a.label, href: a.href, cols: 1 })),
+        ]
+
+        // Determine active layout
+        const defaultOrder = ALL_ITEMS.map(i => i.id)
+        const layout = homeLayout.length > 0 ? homeLayout.filter(id => ALL_ITEMS.some(i => i.id === id)) : defaultOrder
+        const activeItems = layout.map(id => ALL_ITEMS.find(i => i.id === id)!).filter(Boolean)
+        const hiddenItems = ALL_ITEMS.filter(i => !layout.includes(i.id))
+
+        // Render widget content
+        const renderWidget = (item: HItem) => {
+          const ws = { borderRadius: 16, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '12px 12px 10px', minHeight: 76 } as React.CSSProperties
+          switch (item.id) {
+            case 'w_bookings': return <div style={ws}><div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }}>Bookings</div><div style={{ fontSize: 26, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{total}</div><div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 5 }}>{upcoming} upcoming</div></div>
+            case 'w_paid': return <div style={ws}><div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }}>{isBarber ? 'Earnings' : 'Paid'}</div><div style={{ fontSize: 26, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{isBarber ? money(barberEarnings) : `${paid}/${total}`}</div><div style={{ fontSize: 10, color: isBarber ? 'rgba(130,220,170,.5)' : (total - paid > 0 ? 'rgba(255,107,107,.55)' : 'rgba(130,220,170,.5)'), marginTop: 5 }}>{isBarber ? `${money(barberTips)} tips` : (total - paid > 0 ? `${total - paid} unpaid` : 'all paid')}</div></div>
+            case 'w_noshows': return <div style={ws}><div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }}>No-shows</div><div style={{ fontSize: 26, fontWeight: 600, color: noshow > 0 ? 'rgba(255,107,107,.8)' : '#e8e8ed', lineHeight: 1 }}>{noshow}</div><div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 5 }}>{noshow > 0 ? 'needs attention' : 'all good'}</div></div>
+            case 'w_team': return <div style={ws}><div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }}>{isBarber ? 'Status' : 'Team'}</div><div style={{ fontSize: 26, fontWeight: 600, color: '#e8e8ed', lineHeight: 1 }}>{isBarber ? (noshow > 0 ? '!' : '✓') : Object.keys(byBarber).length}</div><div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 5 }}>{isBarber ? 'today' : 'working today'}</div></div>
+            case 'w_activity': return <div style={{...ws, minHeight: 90}}><div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>Today Activity</div>{Object.keys(byBarber).length > 0 ? <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>{Object.entries(byBarber).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,c])=><div key={n} style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 50, fontSize: 10, color: 'rgba(255,255,255,.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n}</span><div style={{ flex: 1, height: 3, borderRadius: 999, background: 'rgba(255,255,255,.06)' }}><div style={{ height: 3, borderRadius: 999, background: 'rgba(255,255,255,.18)', width: `${Math.round(c/maxCount*100)}%` }}/></div><span style={{ fontSize: 9, color: 'rgba(255,255,255,.35)' }}>{c}</span></div>)}</div> : <div style={{ fontSize: 11, color: 'rgba(255,255,255,.25)' }}>No activity</div>}</div>
+            default: return <div style={ws}>{item.label}</div>
+          }
+        }
+
+        // Build grid items in a 4-col grid
+        // Each item knows how many cols it spans
+        const COLS = 4
+        const availH = typeof window !== 'undefined' ? window.innerHeight - 140 : 600
+
+        // Simple flow: place items sequentially, track col position
+        // Widgets take 2 or 4 cols, icons take 1 col
+        // Pack into pages based on height
+        type GridCell = { item: HItem; row: number; col: number }
+        const cells: GridCell[] = []
+        let row = 0, col = 0
+        activeItems.forEach(item => {
+          if (col + item.cols > COLS) { row++; col = 0 }
+          cells.push({ item, row, col })
+          col += item.cols
+          if (col >= COLS) { row++; col = 0 }
         })
 
-        // Paginate: fit items into pages based on available height
-        // Available height = viewport - top bar (46px) - bottom pill (50px) - page dots (20px) - padding (24px)
-        const availH = typeof window !== 'undefined' ? window.innerHeight - 140 : 600
-        const GAP = 10
-        const pages: HomeItem[][] = []
-        let currentPage: HomeItem[] = []
-        let currentH = 0
-        allItems.forEach(item => {
-          if (currentH + item.h + GAP > availH && currentPage.length > 0) {
-            pages.push(currentPage)
-            currentPage = []
-            currentH = 0
-          }
-          currentPage.push(item)
-          currentH += item.h + GAP
+        // Row heights: icon rows ~82px, widget rows ~90px (small) or ~110px (medium/activity)
+        const rowHeights: Record<number, number> = {}
+        cells.forEach(c => {
+          const h = c.item.type === 'icon' ? 82 : c.item.id === 'w_activity' ? 110 : 90
+          rowHeights[c.row] = Math.max(rowHeights[c.row] || 0, h)
         })
-        if (currentPage.length > 0) pages.push(currentPage)
+        const totalRows = Math.max(...Object.keys(rowHeights).map(Number), 0) + 1
+
+        // Paginate rows
+        const GAP = 8
+        const pages: { startRow: number; endRow: number }[] = []
+        let pageStart = 0, pageH = 0
+        for (let r = 0; r < totalRows; r++) {
+          const rh = (rowHeights[r] || 82) + GAP
+          if (pageH + rh > availH && r > pageStart) {
+            pages.push({ startRow: pageStart, endRow: r - 1 })
+            pageStart = r; pageH = rh
+          } else { pageH += rh }
+        }
+        pages.push({ startRow: pageStart, endRow: totalRows - 1 })
         const totalPages = pages.length
 
+        const removeItem = (id: string) => {
+          const newLayout = layout.filter(x => x !== id)
+          setHomeLayout(newLayout)
+          localStorage.setItem(HOME_LAYOUT_KEY, JSON.stringify(newLayout))
+        }
+        const addItem = (id: string) => {
+          const newLayout = [...layout, id]
+          setHomeLayout(newLayout)
+          localStorage.setItem(HOME_LAYOUT_KEY, JSON.stringify(newLayout))
+        }
+
         return (
-          <div style={{ height: 'calc(100vh - 46px)', display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', position: 'relative', touchAction: 'pan-y' }}
-            onTouchStart={e => { homeSwipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY } }}
+          <div style={{ height: 'calc(100vh - 46px)', display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', position: 'relative' }}
+            onClick={() => { if (jiggleMode) setJiggleMode(false) }}
+            onTouchStart={e => {
+              homeSwipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY }
+              if (!jiggleMode) {
+                jiggleTimerRef.current = setTimeout(() => { setJiggleMode(true) }, 600)
+              }
+            }}
+            onTouchMove={() => { clearTimeout(jiggleTimerRef.current) }}
             onTouchEnd={e => {
+              clearTimeout(jiggleTimerRef.current)
               if (!homeSwipeRef.current) return
               const dx = e.changedTouches[0].clientX - homeSwipeRef.current.startX
               const dy = e.changedTouches[0].clientY - homeSwipeRef.current.startY
@@ -738,26 +778,65 @@ export default function DashboardPage() {
               if (dx < 0 && homePage < totalPages - 1) setHomePage(homePage + 1)
               if (dx > 0 && homePage > 0) setHomePage(homePage - 1)
             }}>
+            <style>{`
+              @keyframes iosJiggle {
+                0%,100% { transform: rotate(-1.2deg) scale(0.98); }
+                50% { transform: rotate(1.2deg) scale(0.98); }
+              }
+              .jiggle-item { animation: iosJiggle .25s ease-in-out infinite alternate; }
+              .jiggle-item:nth-child(even) { animation-delay: .12s; }
+            `}</style>
+
             {/* Pages */}
             <div style={{ flex: 1, display: 'flex', transition: 'transform .35s cubic-bezier(.25,.1,.25,1)', transform: `translateX(-${homePage * 100}%)`, minHeight: 0 }}>
-              {pages.map((pageItems, pi) => (
-                <div key={pi} style={{ minWidth: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: GAP, paddingBottom: 30 }}>
-                  {pageItems.map((item, ii) => (
-                    item.type === 'widget-row' ? <div key={ii}>{item.content}</div> :
-                    <div key={ii} style={{ display: 'grid', gridTemplateColumns: `repeat(${ICONS_PER_ROW}, 1fr)`, gap: 8, padding: '0 20px', justifyItems: 'center' }}>
-                      {item.icons.map(ic => (
-                        <a key={ic.href} href={ic.href} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, textDecoration: 'none', width: 64 }}>
-                          <div style={{ width: 56, height: 56, borderRadius: 14, background: 'rgba(255,255,255,.06)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.55)' }}>
-                            {ic.icon}
-                          </div>
-                          <span style={{ fontSize: 10, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.1, fontWeight: 500 }}>{ic.label}</span>
-                        </a>
+              {pages.map((pg, pi) => (
+                <div key={pi} style={{ minWidth: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 16px', gap: GAP }}>
+                  {/* Render rows for this page */}
+                  {Array.from({ length: pg.endRow - pg.startRow + 1 }, (_, ri) => {
+                    const r = pg.startRow + ri
+                    const rowCells = cells.filter(c => c.row === r)
+                    if (rowCells.length === 0) return null
+                    return (
+                      <div key={r} style={{ display: 'grid', gridTemplateColumns: `repeat(${COLS}, 1fr)`, gap: GAP, justifyItems: 'center' }}>
+                        {rowCells.map(c => {
+                          const isWidget = c.item.type !== 'icon'
+                          return (
+                            <div key={c.item.id} className={jiggleMode ? 'jiggle-item' : ''} style={{ gridColumn: `span ${c.item.cols}`, width: '100%', position: 'relative' }}>
+                              {/* Remove button in jiggle mode */}
+                              {jiggleMode && (
+                                <button onClick={e => { e.stopPropagation(); e.preventDefault(); removeItem(c.item.id) }} style={{ position: 'absolute', top: -6, left: isWidget ? -4 : 6, zIndex: 10, width: 20, height: 20, borderRadius: 999, background: 'rgba(60,60,60,.95)', border: '1px solid rgba(255,255,255,.15)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>−</button>
+                              )}
+                              {isWidget ? renderWidget(c.item) : (
+                                <a href={c.item.href} onClick={e => { if (jiggleMode) e.preventDefault() }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, textDecoration: 'none', padding: '4px 0' }}>
+                                  <div style={{ width: 60, height: 60, borderRadius: 15, background: 'rgba(255,255,255,.06)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.55)' }}>
+                                    {iconSvgs[c.item.label] || iconSvgs.Calendar}
+                                  </div>
+                                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.1, fontWeight: 500 }}>{c.item.label}</span>
+                                </a>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })}
+                  {/* Add button in jiggle mode — on last page */}
+                  {jiggleMode && pi === pages.length - 1 && hiddenItems.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 8 }}>
+                      {hiddenItems.map(hi => (
+                        <button key={hi.id} onClick={e => { e.stopPropagation(); addItem(hi.id) }} style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.50)', fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ {hi.label}</button>
                       ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               ))}
             </div>
+
+            {/* Done button in jiggle mode */}
+            {jiggleMode && (
+              <button onClick={e => { e.stopPropagation(); setJiggleMode(false) }} style={{ position: 'absolute', top: 8, right: 16, zIndex: 20, padding: '6px 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.10)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Done</button>
+            )}
+
             {/* Page dots */}
             {totalPages > 1 && (
               <div style={{ position: 'absolute', bottom: 52, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6, pointerEvents: 'none' }}>
