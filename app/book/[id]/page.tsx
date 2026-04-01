@@ -188,8 +188,8 @@ export default function PublicBookingPage() {
     'dark-luxury': { bg: '#0c0a08', text: '#e8dcc8', card: 'rgba(200,170,120,.04)', cardBorder: 'rgba(200,170,120,.1)', accent: '#c8a87a', headerBg: 'rgba(12,10,8,.7)' },
     colorful:     { bg: '#fafafa', text: '#2a2a2a', card: 'rgba(0,0,0,.03)', cardBorder: 'rgba(0,0,0,.06)', accent: '#6366f1', headerBg: 'rgba(255,255,255,.9)' },
   }
-  // Custom plan: use selected template. Salon: always modern. Individual: modern.
-  const activeTemplate = effectivePlan === 'custom' ? template : 'modern'
+  // All plans use selected template from site_config
+  const activeTemplate = template
   const t = TEMPLATES[activeTemplate] || TEMPLATES.modern
   const isLightTheme = ['classic', 'colorful'].includes(activeTemplate)
 
