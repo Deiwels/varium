@@ -930,9 +930,9 @@ export default function DashboardPage() {
             onMouseLeave: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
           }
           return (<>
-        {/* ── WIDGETS SECTION (top) ── */}
+        {/* ── WIDGETS SECTION ── */}
         <div onClick={e => { if (editingWidgets && e.target === e.currentTarget && !editJustActivated.current) { setEditingWidgets(false); setEditingShortcuts(false) } }}
-          style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', paddingBottom: 16 }}>
+          style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', paddingBottom: 24 }}>
           {dashWidgets.map(wId => {
             const removeBtn = editingWidgets ? (
               <button onClick={() => toggleWidget(wId)} style={{ position: 'absolute', top: -4, right: -4, width: 20, height: 20, borderRadius: 999, background: 'rgba(255,107,107,.8)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>−</button>
@@ -1098,6 +1098,32 @@ export default function DashboardPage() {
           })}
 
 
+          {/* ── Team member widgets (in widget section) ── */}
+          {isOwnerOrAdmin && barbers.map((b: any) => {
+            const sched = b.schedule
+            const workDays: number[] = Array.isArray(sched?.days) ? sched.days : [1,2,3,4,5,6]
+            const fmtM = (m: number) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
+            const sm = sched?.startMin ?? 600
+            const em = sched?.endMin ?? 1200
+            return (
+              <div key={'team-'+b.id} {...longPress} style={{ ...wBox, width: 190, textAlign: 'center' as const }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 6 }}>
+                  {b.photo_url
+                    ? <img src={b.photo_url} alt={b.name} style={{ width: 24, height: 24, borderRadius: 7, objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)' }} onError={(e: any) => (e.currentTarget.style.display='none')} />
+                    : <div style={{ width: 24, height: 24, borderRadius: 7, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.4)' }}>{(b.name||'?')[0]}</div>
+                  }
+                  <span style={{ fontWeight: 600, fontSize: 11, color: 'rgba(255,255,255,.8)' }}>{b.name}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginBottom: 4 }}>
+                  {DAY_NAMES_SHORT.map((day: string, i: number) => (
+                    <span key={day} style={{ fontSize: 7, padding: '1px 4px', borderRadius: 3, border: `1px solid ${workDays.includes(i) ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.03)'}`, color: workDays.includes(i) ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.15)', fontWeight: 500 }}>{day}</span>
+                  ))}
+                </div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,.35)' }}>{fmtM(sm)} — {fmtM(em)}</div>
+              </div>
+            )
+          })}
+
           {/* Available widgets in edit mode */}
           {editingWidgets && (() => {
             const ALL_WIDGETS = [
@@ -1125,8 +1151,8 @@ export default function DashboardPage() {
 
         </div>
 
-        {/* ── APP ICONS SECTION (bottom) ── */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', paddingBottom: 80 }}>
+        {/* ── APP ICONS SECTION (below widgets, with spacing) ── */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', paddingBottom: 80, marginTop: 8 }}>
           {/* ── App Shortcuts (icon + label, like iOS app icons) ── */}
           {(() => {
             const shortcutIcons: Record<string, React.ReactNode> = {
@@ -1175,35 +1201,6 @@ export default function DashboardPage() {
 
         </div>
 
-        {/* ── TEAM WIDGETS (below icons, only if owner) ── */}
-        {isOwnerOrAdmin && barbers.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', paddingBottom: 80 }}>
-          {barbers.map((b: any) => {
-            const sched = b.schedule
-            const workDays: number[] = Array.isArray(sched?.days) ? sched.days : [1,2,3,4,5,6]
-            const fmtM = (m: number) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
-            const sm = sched?.startMin ?? 600
-            const em = sched?.endMin ?? 1200
-            return (
-              <div key={'team-'+b.id} style={{ ...wBox, width: 190, textAlign: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 6 }}>
-                  {b.photo_url
-                    ? <img src={b.photo_url} alt={b.name} style={{ width: 24, height: 24, borderRadius: 7, objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)' }} onError={e => (e.currentTarget.style.display='none')} />
-                    : <div style={{ width: 24, height: 24, borderRadius: 7, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.4)' }}>{(b.name||'?')[0]}</div>
-                  }
-                  <span style={{ fontWeight: 600, fontSize: 11, color: 'rgba(255,255,255,.8)' }}>{b.name}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginBottom: 4 }}>
-                  {DAY_NAMES_SHORT.map((day, i) => (
-                    <span key={day} style={{ fontSize: 7, padding: '1px 4px', borderRadius: 3, border: `1px solid ${workDays.includes(i) ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.03)'}`, color: workDays.includes(i) ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.15)', fontWeight: 500 }}>{day}</span>
-                  ))}
-                </div>
-                <div style={{ fontSize: 9, color: 'rgba(255,255,255,.35)' }}>{fmtM(sm)} — {fmtM(em)}</div>
-              </div>
-            )
-          })}
-        </div>
-        )}
         </>)
         })()}
 
