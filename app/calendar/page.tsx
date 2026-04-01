@@ -90,7 +90,7 @@ function DatePickerModal({ current, onSelect, onClose }: {
   for (let i = 0; i < 42; i++) { const d = new Date(start); d.setDate(start.getDate() + i); days.push(d) }
   const btn: React.CSSProperties = { height: 40, borderRadius: 999, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.40)', color: 'rgba(255,255,255,.70)', cursor: 'pointer', fontWeight: 600, fontSize: 13, fontFamily: 'inherit' }
   return (
-    <div className="cal-picker-bg" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.70)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 100, padding: '16px 12px max(16px, env(safe-area-inset-bottom, 16px))' }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+    <div className="cal-picker-bg" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.70)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '16px' }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="cal-picker-card" style={{ width: 'min(400px,100%)', borderRadius: 22, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(2,2,6,.95)', padding: 16, color: '#e8e8ed', fontFamily: 'Inter,sans-serif', boxShadow: '0 -8px 60px rgba(0,0,0,.70)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ display: 'flex', gap: 6 }}>
@@ -1742,15 +1742,15 @@ export default function CalendarPage() {
           animation: dotPillGlow 3s ease-in-out infinite;
         }
         @keyframes calPickerIn {
-          0% { opacity:0; transform:translateY(40px) scale(.85) }
-          100% { opacity:1; transform:translateY(0) scale(1) }
+          0% { opacity:0; transform: scale(.3); }
+          100% { opacity:1; transform: scale(1); }
         }
         @keyframes calPickerBgIn {
           0% { opacity:0 }
           100% { opacity:1 }
         }
         .cal-picker-bg { animation: calPickerBgIn .2s ease-out }
-        .cal-picker-card { animation: calPickerIn .35s cubic-bezier(.16,1.1,.3,1) }
+        .cal-picker-card { animation: calPickerIn .3s cubic-bezier(.2,1,.3,1); transform-origin: center bottom; }
         /* Desktop: hide mobile-only elements */
         .cal-search-icon{ display:none !important; }
         .cal-settings-icon{ display:none !important; }
@@ -2426,8 +2426,8 @@ export default function CalendarPage() {
                 </button>
               )})}
             </div>
-            {/* Gear left + Plus right — on pill nav level */}
-            <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 62, padding: '0 12px max(8px, env(safe-area-inset-bottom, 8px))', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none', height: 46 }}>
+            {/* Gear left + Plus right — above pill nav shadow */}
+            <div style={{ position: 'fixed', bottom: 48, left: 0, right: 0, zIndex: 62, padding: '0 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none' }}>
               <button onClick={() => setSettingsOpen(true)} style={{ width: 30, height: 30, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.85)', color: 'rgba(255,255,255,.40)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               </button>
