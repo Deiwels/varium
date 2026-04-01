@@ -225,6 +225,7 @@ export default function DashboardPage() {
   const [editingWidgets, setEditingWidgets] = useState(false)
   const [widgetData, setWidgetData] = useState<Record<string, any>>({})
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const editJustActivated = useRef(false)
 
   useEffect(() => {
     apiFetch('/api/settings').then(d => {
@@ -912,15 +913,15 @@ export default function DashboardPage() {
         ) : null}
 
         {/* ── WIDGETS GRID ── */}
-        <div onClick={e => { if (editingWidgets && e.target === e.currentTarget) { setEditingWidgets(false); setEditingShortcuts(false) } }}
+        <div onClick={e => { if (editingWidgets && e.target === e.currentTarget && !editJustActivated.current) { setEditingWidgets(false); setEditingShortcuts(false) } }}
           style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14, justifyContent: 'center' }}>
           {dashWidgets.map(wId => {
             const wBox: React.CSSProperties = { width: 120, borderRadius: 14, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', padding: '10px 12px', position: 'relative', transition: 'all .2s', animation: editingWidgets ? 'widgetBreathe 2s ease-in-out infinite' : 'none' }
             const wTitle: React.CSSProperties = { fontSize: 8, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }
             const longPress = {
-              onTouchStart: () => { longPressRef.current = setTimeout(() => setEditingWidgets(true), 600) },
+              onTouchStart: () => { longPressRef.current = setTimeout(() => { setEditingWidgets(true); editJustActivated.current = true; setTimeout(() => { editJustActivated.current = false }, 300) }, 600) },
               onTouchEnd: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
-              onMouseDown: () => { longPressRef.current = setTimeout(() => setEditingWidgets(true), 600) },
+              onMouseDown: () => { longPressRef.current = setTimeout(() => { setEditingWidgets(true); editJustActivated.current = true; setTimeout(() => { editJustActivated.current = false }, 300) }, 600) },
               onMouseUp: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
               onMouseLeave: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
             }
@@ -1074,8 +1075,8 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Quick Access Shortcuts ── */}
-        <div onClick={e => { if (editingWidgets && e.target === e.currentTarget) { setEditingWidgets(false) } }}
-          style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+        <div onClick={e => { if (editingWidgets && e.target === e.currentTarget && !editJustActivated.current) { setEditingWidgets(false) } }}
+          style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14, justifyContent: 'center' }}>
           {actions.filter(item => editingWidgets || dashShortcuts.includes(item.href)).filter(item => item.label !== 'Settings').map(item => {
             const isActive = dashShortcuts.includes(item.href)
             const isEditing = editingWidgets
