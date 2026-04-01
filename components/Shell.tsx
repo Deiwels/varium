@@ -639,7 +639,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
     return <div style={{ background: 'transparent', minHeight: '100vh' }} />
   }
 
-  const { hasFeature: planHasFeature } = usePlan()
+  const { hasFeature: planHasFeature, expired: planExpired, trial_days_left } = usePlan()
   const role = user?.role || 'barber'
   const isBarber = role === 'barber'
   const isStudent = role === 'student'
@@ -829,7 +829,23 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         </div>
 
         {/* ── Content ── */}
-        <div className="content">{children}</div>
+        <div className="content">
+          {/* Block entire app if subscription expired */}
+          {planExpired && page !== 'billing' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', padding: '40px 24px', textAlign: 'center' }}>
+              <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <h2 style={{ fontSize: 20, fontWeight: 600, color: '#e8e8ed', marginBottom: 8 }}>Your trial has ended</h2>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,.4)', maxWidth: 400, lineHeight: 1.6, marginBottom: 28 }}>
+                Subscribe to a plan to continue using VuriumBook. Your data is safe and will be available after subscribing.
+              </p>
+              <a href="/billing" style={{ padding: '12px 32px', borderRadius: 12, fontSize: 15, fontWeight: 600, textDecoration: 'none', background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)', color: '#fff' }}>
+                Choose a Plan
+              </a>
+            </div>
+          ) : children}
+        </div>
 
         {/* ── Bottom Pill Navigation ── */}
         <div className="pill-bar">
