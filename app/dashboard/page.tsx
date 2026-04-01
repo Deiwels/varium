@@ -1082,7 +1082,7 @@ export default function DashboardPage() {
             const isEditing = editingWidgets
             return (
               <a key={item.href} href={isEditing ? undefined : item.href} onClick={isEditing ? (e) => { e.preventDefault(); e.stopPropagation(); toggleShortcut(item.href) } : undefined}
-                style={{ flex: '1 1 100px', padding: '10px 12px', borderRadius: 16, border: `1px solid ${!isActive && isEditing ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.08)'}`, background: !isActive && isEditing ? 'rgba(255,255,255,.02)' : 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', textDecoration: 'none', transition: 'all .2s', position: 'relative', opacity: !isActive && isEditing ? 0.5 : 1, animation: isEditing ? 'widgetBreathe 2s ease-in-out infinite' : 'none', cursor: isEditing ? 'pointer' : undefined }}>
+                style={{ width: 170, padding: '10px 14px', borderRadius: 18, border: `1px solid rgba(255,255,255,.08)`, background: !isActive && isEditing ? 'rgba(255,255,255,.02)' : 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', textDecoration: 'none', transition: 'all .2s', position: 'relative', opacity: !isActive && isEditing ? 0.5 : 1, animation: isEditing ? 'widgetBreathe 2s ease-in-out infinite' : 'none', cursor: isEditing ? 'pointer' : undefined }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: isActive ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.35)' }}>{item.label}</div>
                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{item.desc}</div>
                 {isEditing && isActive && (
@@ -1096,21 +1096,16 @@ export default function DashboardPage() {
           })}
         </div>
 
-        {/* Main content */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 14 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-            {/* ── Booking Link (compact) ── */}
-            {!isBarber && user?.workspace_id && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
-                <div style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,.5)' }}>Booking Page</div>
-                <button onClick={() => navigator.clipboard.writeText(`https://vurium.com/book/${slug || user.workspace_id}`)} style={{ padding: '6px 14px', borderRadius: 8, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.55)', flexShrink: 0 }}>Copy Link</button>
-                <a href={`/book/${slug || user.workspace_id}`} target="_blank" rel="noopener" style={{ padding: '6px 14px', borderRadius: 8, fontSize: 11, textDecoration: 'none', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.45)', flexShrink: 0 }}>Preview</a>
-              </div>
-            )}
-
+        {/* ── Booking Link ── */}
+        {!isBarber && user?.workspace_id && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 18, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)' }}>Booking</div>
+              <button onClick={() => navigator.clipboard.writeText(`https://vurium.com/book/${slug || user.workspace_id}`)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontFamily: 'inherit', cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)', flexShrink: 0 }}>Copy</button>
+              <a href={`/book/${slug || user.workspace_id}`} target="_blank" rel="noopener" style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, textDecoration: 'none', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.4)', flexShrink: 0 }}>Preview</a>
+            </div>
           </div>
-        </div>
+        )}
           {/* ── OWNER/ADMIN ONLY: Shop Status + Banner + Barbers ── */}
           {isOwnerOrAdmin && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
