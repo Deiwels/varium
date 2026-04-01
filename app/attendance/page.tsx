@@ -195,12 +195,9 @@ export default function AttendancePage() {
         `}</style>
 
         {/* Topbar */}
-        <div style={{ position: 'sticky', top: 0, zIndex: 20, padding: '10px 0 12px', background: 'linear-gradient(to bottom,rgba(0,0,0,.88),rgba(0,0,0,.68),transparent)', backdropFilter: 'blur(14px)', marginBottom: 16 } as React.CSSProperties}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <div>
-              <h2 style={{ margin: 0, fontFamily: '"Inter", sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 16 }}>Attendance</h2>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginTop: 2 }}>Hours & clock history</div>
-            </div>
+        <div style={{ position: 'sticky', top: 0, zIndex: 20, padding: '10px 0 12px', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>Hours & clock history</span>
             <div className="att-topbar-controls">
               <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={inp} />
               <span style={{ color: 'rgba(255,255,255,.30)', fontSize: 12 }}>→</span>
@@ -304,7 +301,7 @@ export default function AttendancePage() {
                       </div>
                       <div>
                         <span style={{ color: 'rgba(255,255,255,.40)' }}>Shifts: </span>
-                        <span style={{ color: 'rgba(130,150,220,.6)', fontWeight: 700 }}>{u.shifts}</span>
+                        <span style={{ color: 'rgba(255,255,255,.6)', fontWeight: 700 }}>{u.shifts}</span>
                       </div>
                       {u.late_count > 0 && (
                         <div>
@@ -315,7 +312,7 @@ export default function AttendancePage() {
                     </div>
                     {/* Hours bar */}
                     <div style={{ marginTop: 6, height: 4, borderRadius: 999, background: 'rgba(255,255,255,.06)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 999, background: 'linear-gradient(90deg,rgba(10,132,255,.60),rgba(143,240,177,.60))', width: `${Math.min(100, (u.total_minutes / Math.max(1, summaryList[0]?.[1]?.total_minutes || 1)) * 100)}%`, transition: 'width .3s ease' }} />
+                      <div style={{ height: '100%', borderRadius: 999, background: 'linear-gradient(90deg,rgba(255,255,255,.15),rgba(143,240,177,.60))', width: `${Math.min(100, (u.total_minutes / Math.max(1, summaryList[0]?.[1]?.total_minutes || 1)) * 100)}%`, transition: 'width .3s ease' }} />
                     </div>
                   </div>
                 ))}

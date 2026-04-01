@@ -85,7 +85,7 @@ function DatePicker({ from, to, onChange, onClose }: { from: string; to: string;
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
           {presets.map(p => (
             <button key={p.label} onClick={() => { onChange(p.f, p.t); onClose() }}
-              style={{ height: 32, padding: '0 12px', borderRadius: 999, border: `1px solid ${selFrom===p.f && selTo===p.t ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)'}`, background: selFrom===p.f && selTo===p.t ? 'rgba(10,132,255,.18)' : 'rgba(255,255,255,.04)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
+              style={{ height: 32, padding: '0 12px', borderRadius: 999, border: `1px solid ${selFrom===p.f && selTo===p.t ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.10)'}`, background: selFrom===p.f && selTo===p.t ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.04)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
               {p.label}
             </button>
           ))}
@@ -107,7 +107,7 @@ function DatePicker({ from, to, onChange, onClose }: { from: string; to: string;
             const isFrom = iso === selFrom, isTo = iso === selTo, inRange = iso > selFrom && iso < selTo
             return (
               <button key={iso} onClick={() => pick(iso)}
-                style={{ height: 38, borderRadius: 10, border: `1px solid ${isFrom ? 'rgba(10,132,255,.75)' : isTo ? 'rgba(143,240,177,.65)' : iso===todayStr ? 'rgba(255,207,63,.50)' : 'rgba(255,255,255,.08)'}`, background: isFrom ? 'rgba(10,132,255,.20)' : isTo ? 'rgba(143,240,177,.15)' : inRange ? 'rgba(10,132,255,.08)' : 'rgba(0,0,0,.18)', color: isTo ? 'rgba(130,220,170,.5)' : '#fff', cursor: 'pointer', opacity: inMonth ? 1 : 0.3, fontWeight: isFrom||isTo ? 900 : 500, fontSize: 12, fontFamily: 'inherit' }}>
+                style={{ height: 38, borderRadius: 10, border: `1px solid ${isFrom ? 'rgba(255,255,255,.15)' : isTo ? 'rgba(143,240,177,.65)' : iso===todayStr ? 'rgba(255,207,63,.50)' : 'rgba(255,255,255,.08)'}`, background: isFrom ? 'rgba(255,255,255,.06)' : isTo ? 'rgba(143,240,177,.15)' : inRange ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.18)', color: isTo ? 'rgba(130,220,170,.5)' : '#fff', cursor: 'pointer', opacity: inMonth ? 1 : 0.3, fontWeight: isFrom||isTo ? 900 : 500, fontSize: 12, fontFamily: 'inherit' }}>
                 {parseInt(iso.slice(8))}
               </button>
             )
@@ -316,7 +316,7 @@ export default function PaymentsPage() {
         ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
         select option{background:#111}
         .pay-row:hover td{background:rgba(255,255,255,.025)!important}
-        .pay-row.sel td{background:rgba(10,132,255,.07)!important}
+        .pay-row.sel td{background:rgba(255,255,255,.04)!important}
         @media(max-width:768px){
           .page-topbar{padding-left:60px!important;}
           .page-topbar h2{font-size:13px!important;}
@@ -347,21 +347,16 @@ export default function PaymentsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
 
         {/* Topbar */}
-        <div style={{ padding: '10px 14px', background: 'rgba(0,0,0,.80)', backdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,.08)', position: 'sticky', top: 0, zIndex: 20 }}>
+        <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', position: 'sticky', top: 0, zIndex: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-            <div style={{ minWidth: 0 }}>
-              <h2 className="page-title" style={{ margin: 0, fontFamily: '"Inter",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 14 }}>Payments</h2>
-              <p style={{ margin: '2px 0 0', color: 'rgba(255,255,255,.35)', fontSize: 10, letterSpacing: '.06em' }}>
-                {visible.length} · {fmtDateShort(from)} → {fmtDateShort(to)}
-              </p>
-            </div>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>{visible.length} payments</span>
             <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexShrink: 0 }}>
               <button onClick={() => setShowDatePicker(true)}
                 style={{ height: 34, padding: '0 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
                 {from === to && from === todayIso() ? 'Today' : `${fmtDateShort(from)} → ${fmtDateShort(to)}`}
               </button>
               <button onClick={exportCSV}
-                style={{ height: 34, padding: '0 10px', borderRadius: 999, border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.08)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 800, fontSize: 10, fontFamily: 'inherit' }}>
+                style={{ height: 34, padding: '0 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 800, fontSize: 10, fontFamily: 'inherit' }}>
                 CSV
               </button>
               {isOwner && (
@@ -440,7 +435,7 @@ export default function PaymentsPage() {
                             <div style={{ minWidth: 0 }}>
                               <div style={{ fontWeight: 900, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
                                 {clientName || <span style={{ color: 'rgba(255,255,255,.30)' }}>—</span>}
-                                {isTerminal && <span style={{ fontSize: 9, letterSpacing: '.06em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 999, border: '1px solid rgba(10,132,255,.40)', background: 'rgba(10,132,255,.10)', color: 'rgba(130,150,220,.6)' }}>Terminal</span>}
+                                {isTerminal && <span style={{ fontSize: 9, letterSpacing: '.06em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.6)' }}>Terminal</span>}
                               </div>
                               <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
                                 {[p.barber_name, service].filter(Boolean).join(' · ')}

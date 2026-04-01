@@ -210,23 +210,16 @@ export default function WaitlistPage() {
       `}</style>
       <div style={{ maxWidth: 700, margin: '0 auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 16, height: '100vh', overflowY: 'auto' }}>
 
-        {/* Header */}
-        <div className="wl-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', position: 'relative' }}>
-          <div style={{ position: 'absolute', left: 0, right: 0, textAlign: 'center', pointerEvents: 'none' }}>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#e8e8ed', fontFamily: '"Inter",sans-serif', letterSpacing: '.12em', textTransform: 'uppercase' }}>Waitlist</h2>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginTop: 2 }}>{filtered.length} waiting</div>
-          </div>
-          <div style={{ visibility: 'hidden', pointerEvents: 'none' }}>
-            <div style={{ height: 36 }}>placeholder</div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, position: 'relative', zIndex: 1 }}>
-            <button onClick={checkWaitlist} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(143,240,177,.35)', background: 'rgba(143,240,177,.08)', color: 'rgba(130,220,170,.5)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit' }}>
-              Check & notify
-            </button>
-            <button onClick={() => setAdding(!adding)} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.12)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit' }}>
-              {adding ? 'Cancel' : '+ Add'}
-            </button>
-          </div>
+        {/* Header — compact */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>{filtered.length} waiting</span>
+          <div style={{ flex: 1 }} />
+          <button onClick={checkWaitlist} style={{ height: 32, padding: '0 12px', borderRadius: 10, border: '1px solid rgba(143,240,177,.25)', background: 'rgba(143,240,177,.04)', color: 'rgba(130,220,170,.5)', cursor: 'pointer', fontWeight: 600, fontSize: 11, fontFamily: 'inherit' }}>
+            Check & notify
+          </button>
+          <button onClick={() => setAdding(!adding)} style={{ height: 32, padding: '0 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontWeight: 600, fontSize: 11, fontFamily: 'inherit' }}>
+            {adding ? 'Cancel' : '+ Add'}
+          </button>
         </div>
 
         {/* Filter by barber — owner/admin only */}
@@ -238,7 +231,7 @@ export default function WaitlistPage() {
           </button>
           {barbers.map(b => (
             <button key={b.id} onClick={() => setFilter(b.id)}
-              style={{ height: 32, padding: '0 12px', borderRadius: 999, border: `1px solid ${filter === b.id ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)'}`, background: filter === b.id ? 'rgba(10,132,255,.12)' : 'transparent', color: filter === b.id ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.65)', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
+              style={{ height: 32, padding: '0 12px', borderRadius: 999, border: `1px solid ${filter === b.id ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.10)'}`, background: filter === b.id ? 'rgba(255,255,255,.06)' : 'transparent', color: filter === b.id ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.65)', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
               {b.name}
             </button>
           ))}
@@ -247,8 +240,8 @@ export default function WaitlistPage() {
 
         {/* Add form */}
         {adding && (
-          <div style={{ padding: 16, borderRadius: 18, border: '1px solid rgba(10,132,255,.25)', background: 'rgba(10,132,255,.06)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(130,150,220,.6)', letterSpacing: '.08em', textTransform: 'uppercase' }}>Add to waitlist</div>
+          <div style={{ padding: 16, borderRadius: 18, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.6)', letterSpacing: '.08em', textTransform: 'uppercase' }}>Add to waitlist</div>
 
             {/* Selected client card */}
             {selectedClient ? (
@@ -287,7 +280,7 @@ export default function WaitlistPage() {
                     {foundClients.map(c => (
                       <div key={c.id} onClick={() => selectClient(c)}
                         style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', gap: 10 }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(10,132,255,.10)')}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,.04)')}
                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                         <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -368,9 +361,9 @@ export default function WaitlistPage() {
                             <button key={i} type="button" disabled={disabled}
                               onClick={() => { if (disabled) return; const y = c.date.getFullYear(), m = c.date.getMonth(), d = c.date.getDate(); setNewDate(`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`); setCalOpen(false) }}
                               style={{ height: 36, borderRadius: 999, border: 'none', cursor: disabled ? 'default' : 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
-                                background: isSel ? 'rgba(10,132,255,.22)' : 'transparent',
+                                background: isSel ? 'rgba(255,255,255,.06)' : 'transparent',
                                 color: disabled ? 'rgba(255,255,255,.18)' : isSel ? '#fff' : c.inMonth ? '#e8e8ed' : 'rgba(255,255,255,.18)',
-                                boxShadow: isSel ? '0 0 0 2px rgba(10,132,255,.75) inset, 0 0 14px rgba(10,132,255,.30)' : isToday && c.inMonth ? '0 0 0 1px rgba(255,255,255,.20) inset' : 'none',
+                                boxShadow: isSel ? '0 0 0 2px rgba(255,255,255,.15) inset, 0 0 14px rgba(255,255,255,.08)' : isToday && c.inMonth ? '0 0 0 1px rgba(255,255,255,.20) inset' : 'none',
                               }}>
                               {c.day}
                             </button>
@@ -390,7 +383,7 @@ export default function WaitlistPage() {
                 <div className="wl-services-wrap" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {services.filter((s: any) => !s.barber_ids?.length || s.barber_ids.includes(newBarberId)).map((s: any) => (
                     <button key={s.id} onClick={() => setNewServiceIds(prev => prev.includes(s.id) ? prev.filter(x => x !== s.id) : [...prev, s.id])}
-                      style={{ height: 32, padding: '0 12px', borderRadius: 999, border: `1px solid ${newServiceIds.includes(s.id) ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.12)'}`, background: newServiceIds.includes(s.id) ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.04)', color: newServiceIds.includes(s.id) ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}>
+                      style={{ height: 32, padding: '0 12px', borderRadius: 999, border: `1px solid ${newServiceIds.includes(s.id) ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.12)'}`, background: newServiceIds.includes(s.id) ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.04)', color: newServiceIds.includes(s.id) ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}>
                       {s.name} ({s.duration_minutes}min)
                     </button>
                   ))}
@@ -436,7 +429,7 @@ export default function WaitlistPage() {
             )}
 
             <button onClick={addEntry} disabled={saving || (!(selectedClient?.name || newName.trim())) || !newBarberId}
-              style={{ height: 44, borderRadius: 12, border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.14)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
+              style={{ height: 44, borderRadius: 12, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
               {saving ? 'Adding…' : 'Add to waitlist'}
             </button>
           </div>
@@ -470,7 +463,7 @@ export default function WaitlistPage() {
                       <span>{entry.date}</span>
                       <span>{entry.duration_minutes}min</span>
                       {(entry as any).preferred_start_min != null && (entry as any).preferred_end_min != null && (entry as any).preferred_end_min < 1440 && (
-                        <span style={{ color: 'rgba(10,132,255,.70)' }}>
+                        <span style={{ color: 'rgba(255,255,255,.5)' }}>
                           {(() => { const s = (entry as any).preferred_start_min, e = (entry as any).preferred_end_min; const fmt = (m: number) => { const h = Math.floor(m/60), mm = m%60; return `${h===0?12:h>12?h-12:h}:${String(mm).padStart(2,'0')}${h>=12?'PM':'AM'}` }; return `${fmt(s)}–${fmt(e)}` })()}
                         </span>
                       )}

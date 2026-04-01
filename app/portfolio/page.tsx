@@ -256,7 +256,7 @@ function PhotoEditor({ src, onSave, onClose }: { src: string; onSave: (dataUrl: 
     { id: 'burn', label: 'Darken', icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8' },
   ]
 
-  const pill = (active: boolean): React.CSSProperties => ({ height: 32, padding: '0 12px', borderRadius: 999, border: `1px solid ${active ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.12)'}`, background: active ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.04)', color: active ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.65)', cursor: 'pointer', fontWeight: 700, fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase' as const, fontFamily: 'inherit', transition: 'all .2s', display: 'inline-flex', alignItems: 'center', gap: 6 })
+  const pill = (active: boolean): React.CSSProperties => ({ height: 32, padding: '0 12px', borderRadius: 999, border: `1px solid ${active ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.12)'}`, background: active ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.04)', color: active ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.65)', cursor: 'pointer', fontWeight: 700, fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase' as const, fontFamily: 'inherit', transition: 'all .2s', display: 'inline-flex', alignItems: 'center', gap: 6 })
 
   const sliderStyle: React.CSSProperties = { width: '100%', accentColor: 'rgba(130,150,220,.9)', height: 4, background: 'rgba(255,255,255,.08)', borderRadius: 999, cursor: 'pointer' }
 
@@ -290,7 +290,7 @@ function PhotoEditor({ src, onSave, onClose }: { src: string; onSave: (dataUrl: 
         {tool === 'filter' && (
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
             {FILTERS.map(f => (
-              <button key={f.id} onClick={() => setFilter(f.id)} style={{ flexShrink: 0, width: 58, height: 58, borderRadius: 12, overflow: 'hidden', border: `2px solid ${filter === f.id ? 'rgba(10,132,255,.65)' : 'rgba(255,255,255,.08)'}`, background: '#000', cursor: 'pointer', position: 'relative', padding: 0, boxShadow: filter === f.id ? '0 0 10px rgba(10,132,255,.25)' : 'none', transition: 'all .2s' }}>
+              <button key={f.id} onClick={() => setFilter(f.id)} style={{ flexShrink: 0, width: 58, height: 58, borderRadius: 12, overflow: 'hidden', border: `2px solid ${filter === f.id ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.08)'}`, background: '#000', cursor: 'pointer', position: 'relative', padding: 0, boxShadow: filter === f.id ? '0 0 10px rgba(255,255,255,.08)' : 'none', transition: 'all .2s' }}>
                 <img src={src} alt={f.label} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: f.css || 'none' }} />
                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,.75)', padding: '2px 0', fontSize: 7, fontWeight: 700, letterSpacing: '.04em', textAlign: 'center', color: filter === f.id ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.55)' }}>{f.label}</div>
               </button>
@@ -469,22 +469,18 @@ export default function PortfolioPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
 
-        {/* Header */}
-        <div style={{ padding: '14px 20px', background: 'rgba(0,0,0,.80)', backdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,.08)', position: 'sticky', top: 0, zIndex: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Header — compact */}
+        <div style={{ padding: '10px 18px', borderBottom: '1px solid rgba(255,255,255,.06)', position: 'sticky', top: 0, zIndex: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h2 style={{ margin: 0, fontFamily: '"Inter",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 15 }}>Portfolio</h2>
-            <p style={{ margin: '3px 0 0', color: 'rgba(255,255,255,.40)', fontSize: 11, letterSpacing: '.08em' }}>
-              {barberName ? `${barberName} — ${photos.length} photo${photos.length !== 1 ? 's' : ''}` : 'Your work gallery'}
-            </p>
-          </div>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>
+            {barberName ? `${barberName} — ${photos.length} photos` : `${photos.length} photos`}
+          </span>
           <label style={{
-            height: 40, padding: '0 18px', borderRadius: 999,
-            border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.10)',
-            color: 'rgba(130,150,220,.6)', cursor: uploading ? 'wait' : 'pointer',
-            fontWeight: 900, fontSize: 12, fontFamily: 'inherit',
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            boxShadow: '0 0 14px rgba(10,132,255,.20)',
+            height: 32, padding: '0 12px', borderRadius: 10,
+            border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)',
+            color: 'rgba(255,255,255,.5)', cursor: uploading ? 'wait' : 'pointer',
+            fontWeight: 600, fontSize: 11, fontFamily: 'inherit',
+            display: 'inline-flex', alignItems: 'center', gap: 6,
           }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             {uploading ? 'Uploading…' : 'Add photos'}
@@ -497,7 +493,7 @@ export default function PortfolioPage() {
             <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
               {barbers.map(b => (
                 <button key={b.id} onClick={() => switchBarber(b.id)}
-                  style={{ height: 32, padding: '0 12px', borderRadius: 999, border: `1px solid ${barberId === b.id ? 'rgba(10,132,255,.50)' : 'rgba(255,255,255,.08)'}`, background: barberId === b.id ? 'rgba(10,132,255,.12)' : 'rgba(255,255,255,.03)', color: barberId === b.id ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.50)', cursor: 'pointer', fontWeight: 800, fontSize: 11, fontFamily: 'inherit', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6, transition: 'all .2s ease', flexShrink: 0 }}>
+                  style={{ height: 32, padding: '0 12px', borderRadius: 999, border: `1px solid ${barberId === b.id ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.08)'}`, background: barberId === b.id ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.03)', color: barberId === b.id ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.50)', cursor: 'pointer', fontWeight: 800, fontSize: 11, fontFamily: 'inherit', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6, transition: 'all .2s ease', flexShrink: 0 }}>
                   {b.photo && <img src={b.photo} alt="" style={{ width: 18, height: 18, borderRadius: 999, objectFit: 'cover' }} />}
                   {b.name}
                 </button>
@@ -547,7 +543,7 @@ export default function PortfolioPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 4 }}>
                       <button onClick={e => { e.stopPropagation(); setEditingPhoto({ index: i, src: url }) }}
-                        style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(10,132,255,.35)', background: 'rgba(10,132,255,.15)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
                       <button onClick={e => { e.stopPropagation(); removePhoto(i) }}
