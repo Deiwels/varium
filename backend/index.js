@@ -3482,6 +3482,7 @@ app.get('/api/account/limits', async (req, res) => {
       trial_ends_at: wsData.trial_ends_at || null,
       trial_days_left: trialActive ? Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / 86400000)) : 0,
       slug: wsData.slug || null,
+      site_config: wsData.site_config || null,
     });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });

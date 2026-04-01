@@ -205,8 +205,13 @@ export default function SettingsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const s = await apiFetch('/api/settings')
-      setSettings(s || {})
+      const [s, limits] = await Promise.all([
+        apiFetch('/api/settings'),
+        apiFetch('/api/account/limits').catch(() => ({})),
+      ])
+      // Merge slug and site_config from workspace into settings
+      const merged = { ...(s || {}), slug: limits?.slug || '', site_config: limits?.site_config || (s || {}).site_config || {} }
+      setSettings(merged)
       setFees(Array.isArray(s?.fees) ? s.fees : [])
       setCharges(Array.isArray(s?.charges) ? s.charges : [])
       setDirty(false)
