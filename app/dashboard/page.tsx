@@ -89,17 +89,17 @@ function ClockWidget() {
   useEffect(() => { const t = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(t) }, [])
   const h = time.getHours() % 12, m = time.getMinutes(), s = time.getSeconds()
   const hDeg = h * 30 + m * 0.5, mDeg = m * 6, sDeg = s * 6
-  const size = 64, cx = size / 2, cy = size / 2
+  const size = 48, cx = size / 2, cy = size / 2
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       {Array.from({ length: 12 }, (_, i) => {
         const a = (i * 30 - 90) * Math.PI / 180
-        return <line key={i} x1={cx + Math.cos(a) * 25} y1={cy + Math.sin(a) * 25} x2={cx + Math.cos(a) * 28} y2={cy + Math.sin(a) * 28} stroke="rgba(255,255,255,.15)" strokeWidth={i % 3 === 0 ? 1.5 : .5} strokeLinecap="round" />
+        return <line key={i} x1={cx + Math.cos(a) * 18} y1={cy + Math.sin(a) * 18} x2={cx + Math.cos(a) * 21} y2={cy + Math.sin(a) * 21} stroke="rgba(255,255,255,.15)" strokeWidth={i % 3 === 0 ? 1.2 : .4} strokeLinecap="round" />
       })}
-      <line x1={cx} y1={cy} x2={cx + Math.cos((hDeg - 90) * Math.PI / 180) * 15} y2={cy + Math.sin((hDeg - 90) * Math.PI / 180) * 15} stroke="rgba(255,255,255,.7)" strokeWidth={2} strokeLinecap="round" />
-      <line x1={cx} y1={cy} x2={cx + Math.cos((mDeg - 90) * Math.PI / 180) * 22} y2={cy + Math.sin((mDeg - 90) * Math.PI / 180) * 22} stroke="rgba(255,255,255,.5)" strokeWidth={1.2} strokeLinecap="round" />
-      <line x1={cx} y1={cy} x2={cx + Math.cos((sDeg - 90) * Math.PI / 180) * 24} y2={cy + Math.sin((sDeg - 90) * Math.PI / 180) * 24} stroke="rgba(255,255,255,.25)" strokeWidth={.5} strokeLinecap="round" />
-      <circle cx={cx} cy={cy} r={1.5} fill="rgba(255,255,255,.4)" />
+      <line x1={cx} y1={cy} x2={cx + Math.cos((hDeg - 90) * Math.PI / 180) * 11} y2={cy + Math.sin((hDeg - 90) * Math.PI / 180) * 11} stroke="rgba(255,255,255,.7)" strokeWidth={1.5} strokeLinecap="round" />
+      <line x1={cx} y1={cy} x2={cx + Math.cos((mDeg - 90) * Math.PI / 180) * 16} y2={cy + Math.sin((mDeg - 90) * Math.PI / 180) * 16} stroke="rgba(255,255,255,.5)" strokeWidth={1} strokeLinecap="round" />
+      <line x1={cx} y1={cy} x2={cx + Math.cos((sDeg - 90) * Math.PI / 180) * 18} y2={cy + Math.sin((sDeg - 90) * Math.PI / 180) * 18} stroke="rgba(255,255,255,.2)" strokeWidth={.4} strokeLinecap="round" />
+      <circle cx={cx} cy={cy} r={1} fill="rgba(255,255,255,.35)" />
     </svg>
   )
 }
@@ -128,20 +128,21 @@ function MiniCalendarWidget({ bookings }: { bookings: Booking[] }) {
       {barberNames.length === 0 ? (
         <div style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', padding: '6px 0' }}>No appointments today</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 120, overflowY: 'auto' }}>
-          {barberNames.map(name => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 80, overflowY: 'auto' }}>
+          {barberNames.slice(0, 3).map(name => (
             <div key={name}>
-              <div style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.35)', marginBottom: 3 }}>{name}</div>
-              <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                {byBarber[name].sort((a, b) => (a.start_at || '').localeCompare(b.start_at || '')).slice(0, 6).map((b, i) => (
-                  <div key={i} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 6, border: '1px solid rgba(255,255,255,.06)', background: b.paid || b.is_paid ? 'rgba(130,220,170,.06)' : 'rgba(255,255,255,.03)', color: b.paid || b.is_paid ? 'rgba(130,220,170,.5)' : 'rgba(255,255,255,.4)' }}>
+              <div style={{ fontSize: 8, fontWeight: 600, color: 'rgba(255,255,255,.3)', marginBottom: 2 }}>{name}</div>
+              <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                {byBarber[name].sort((a, b) => (a.start_at || '').localeCompare(b.start_at || '')).slice(0, 4).map((b, i) => (
+                  <div key={i} style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, border: '1px solid rgba(255,255,255,.05)', background: b.paid || b.is_paid ? 'rgba(130,220,170,.05)' : 'rgba(255,255,255,.02)', color: b.paid || b.is_paid ? 'rgba(130,220,170,.5)' : 'rgba(255,255,255,.35)' }}>
                     {fmt(b.start_at)}
                   </div>
                 ))}
-                {byBarber[name].length > 6 && <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', padding: '2px 4px' }}>+{byBarber[name].length - 6}</div>}
+                {byBarber[name].length > 4 && <span style={{ fontSize: 7, color: 'rgba(255,255,255,.2)' }}>+{byBarber[name].length - 4}</span>}
               </div>
             </div>
           ))}
+          {barberNames.length > 3 && <div style={{ fontSize: 7, color: 'rgba(255,255,255,.2)' }}>+{barberNames.length - 3} more</div>}
         </div>
       )}
     </div>
@@ -911,7 +912,7 @@ export default function DashboardPage() {
         ) : null}
 
         {/* ── WIDGETS GRID ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8, marginBottom: 14 }}>
           {dashWidgets.map(wId => {
             const wBox: React.CSSProperties = { borderRadius: 14, border: `1px solid ${editingWidgets ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.06)'}`, background: 'rgba(255,255,255,.025)', padding: '10px 12px', position: 'relative', transition: 'all .2s', overflow: 'hidden', animation: editingWidgets ? 'widgetBreathe 2s ease-in-out infinite' : 'none' }
             const wTitle: React.CSSProperties = { fontSize: 8, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }
@@ -928,7 +929,7 @@ export default function DashboardPage() {
 
             if (wId === 'clock') {
               return (
-                <div key={wId} {...longPress} style={{ ...wBox, display: 'flex', alignItems: 'center', justifyContent: 'center', aspectRatio: '1' }}>
+                <div key={wId} {...longPress} style={{ ...wBox, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {removeBtn}
                   <ClockWidget />
                 </div>
@@ -1037,7 +1038,7 @@ export default function DashboardPage() {
             }
             if (wId === 'mini-calendar') {
               return (
-                <div key={wId} {...longPress} style={{ ...wBox, gridColumn: 'span 2' }}>
+                <div key={wId} {...longPress} style={wBox}>
                   {removeBtn}
                   <MiniCalendarWidget bookings={bookings} />
                 </div>
