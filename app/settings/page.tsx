@@ -417,6 +417,12 @@ export default function SettingsPage() {
                   </Field>
                 </SectionCard>
 
+              </div>
+            )}
+
+            {/* ── FEES ── */}
+            {tab === 'fees' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <SectionCard title="Tax">
                   <Toggle checked={!!tax.enabled} onChange={v => setNested('tax','enabled',v)} label="Enable tax on services" sub="Added to invoice total" />
                   {tax.enabled && <>
@@ -428,12 +434,6 @@ export default function SettingsPage() {
                     <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', lineHeight: 1.5 }}>Example: $59.99 + 8.75% tax → client pays $65.24</div>
                   </>}
                 </SectionCard>
-              </div>
-            )}
-
-            {/* ── FEES ── */}
-            {tab === 'fees' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <SectionCard title="Processing fees & surcharges"
                   action={<SmBtn onClick={() => { setFees(f => [...f, { id: 'fee_'+Date.now(), label: '', type: 'percent', value: 0, applies_to: 'all', enabled: true }]); setDirty(true) }}>+ Add fee</SmBtn>}>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)' }}>Card surcharges, booking fees, processing fees</div>

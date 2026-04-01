@@ -2410,6 +2410,9 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
         }
       }
     }
+    // Nested objects — stored on settings doc
+    if (b.tax !== undefined && typeof b.tax === 'object') patch.tax = b.tax;
+    if (b.payroll !== undefined && typeof b.payroll === 'object') patch.payroll = b.payroll;
     // Site config — stored on workspace doc for custom plan
     if (b.site_config !== undefined && typeof b.site_config === 'object') {
       await req.wsDoc().update({ site_config: b.site_config, updated_at: toIso(new Date()) });
