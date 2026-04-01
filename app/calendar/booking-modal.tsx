@@ -404,7 +404,7 @@ function ClientSearch({ onSelect, isOwnerOrAdmin, initialClient, initialName }: 
             <button
               onClick={saveNew}
               disabled={!name.trim() || saving}
-              style={{ height: 42, borderRadius: 12, border: '1px solid rgba(255,255,255,.15)', background: name.trim() ? 'rgba(10,132,255,.18)' : 'rgba(255,255,255,.04)', color: name.trim() ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.30)', cursor: name.trim() ? 'pointer' : 'default', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', marginTop: 2, transition: 'all .15s' }}>
+              style={{ height: 42, borderRadius: 12, border: '1px solid rgba(255,255,255,.15)', background: name.trim() ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.04)', color: name.trim() ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.30)', cursor: name.trim() ? 'pointer' : 'default', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', marginTop: 2, transition: 'all .15s' }}>
               {saving ? 'Saving…' : 'Save & use this client'}
             </button>
           </div>
@@ -470,7 +470,7 @@ function NewClientForm({ initialName, onCreated, onCancel }: {
       {err && <div style={{ fontSize: 12, color: 'rgba(220,130,160,.5)', marginBottom: 8 }}>{err}</div>}
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={onCancel} style={{ flex: 1, height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit' }}>Cancel</button>
-        <button onClick={save} disabled={saving} style={{ flex: 2, height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(10,132,255,.16)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>
+        <button onClick={save} disabled={saving} style={{ flex: 2, height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.08)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>
           {saving ? 'Saving…' : 'Save client'}
         </button>
       </div>
@@ -631,19 +631,22 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
     </div>
   ) : null
 
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
+
   const methodStyle = (m: string): React.CSSProperties => ({
-    flex: 1, height: 38, borderRadius: 999, cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit',
+    flex: 1, height: 34, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 11, fontFamily: 'inherit',
     border: method === m ? {
-      terminal: '1px solid rgba(10,132,255,.75)', cash: '1px solid rgba(143,240,177,.65)',
-      zelle: '1px solid rgba(106,0,255,.75)', other: '1px solid rgba(255,207,63,.65)'
-    }[m]! : '1px solid rgba(255,255,255,.12)',
+      terminal: '1px solid rgba(255,255,255,.20)', cash: '1px solid rgba(143,240,177,.30)',
+      zelle: '1px solid rgba(168,107,255,.30)', other: '1px solid rgba(255,207,63,.30)'
+    }[m]! : '1px solid rgba(255,255,255,.08)',
     background: method === m ? {
-      terminal: 'rgba(255,255,255,.04)', cash: 'rgba(143,240,177,.10)',
-      zelle: 'rgba(106,0,255,.14)', other: 'rgba(255,207,63,.10)'
-    }[m]! : 'rgba(255,255,255,.04)',
+      terminal: 'rgba(255,255,255,.08)', cash: 'rgba(143,240,177,.06)',
+      zelle: 'rgba(168,107,255,.06)', other: 'rgba(255,207,63,.06)'
+    }[m]! : 'rgba(255,255,255,.03)',
     color: method === m ? {
-      terminal: 'rgba(130,150,220,.6)', cash: 'rgba(130,220,170,.5)', zelle: '#d8b4fe', other: '#fff3b0'
-    }[m]! : 'rgba(255,255,255,.70)',
+      terminal: '#e8e8ed', cash: 'rgba(130,220,170,.7)', zelle: '#d8b4fe', other: '#fff3b0'
+    }[m]! : 'rgba(255,255,255,.45)',
+    transition: 'all .2s',
   })
 
   async function handleTerminal() {
@@ -742,69 +745,74 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
   }
 
   return (
-    <div style={{ padding: '14px', borderRadius: 18, border: '1px solid rgba(255,255,255,.09)', background: 'rgba(255,255,255,.04)', marginTop: 4 }}>
-      <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.50)', marginBottom: 8 }}>
-        Accept payment {price > 0 && <span style={{ color: '#e8e8ed', fontWeight: 900 }}> — ${price.toFixed(2)}</span>}
-      </div>
-      <PriceBreakdown />
-      {/* Tip options preview for terminal */}
-      {method === 'terminal' && (() => {
-        const opts: number[] = shopSettings?.payroll?.tip_options || [15, 20, 25]
-        return (
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' as const, marginBottom: 8 }}>
-            <span style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)' }}>Tip on screen:</span>
-            {opts.map((p: number) => (
-              <span key={p} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 999, border: '1px solid rgba(143,240,177,.35)', background: 'rgba(143,240,177,.08)', color: 'rgba(130,220,170,.5)' }}>{p}%</span>
+    <div>
+      {/* Checkout button — expands to payment options */}
+      <button onClick={() => setCheckoutOpen(!checkoutOpen)}
+        style={{ width: '100%', height: 40, borderRadius: 12, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: '#e8e8ed', cursor: 'pointer', fontWeight: 600, fontSize: 13, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all .2s' }}>
+        Checkout {price > 0 && <span style={{ color: 'rgba(130,220,170,.7)' }}>${price.toFixed(2)}</span>}
+        <span style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', transform: checkoutOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>▼</span>
+      </button>
+
+      {checkoutOpen && (
+        <div style={{ marginTop: 8, padding: '12px', borderRadius: 14, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)' }}>
+          <PriceBreakdown />
+
+          {/* Tip options preview for terminal */}
+          {method === 'terminal' && (() => {
+            const opts: number[] = shopSettings?.payroll?.tip_options || [15, 20, 25]
+            return (
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' as const, marginBottom: 8 }}>
+                <span style={{ fontSize: 9, color: 'rgba(255,255,255,.3)' }}>Tip:</span>
+                {opts.map((p: number) => (
+                  <span key={p} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.4)' }}>{p}%</span>
+                ))}
+                <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.3)' }}>No tip</span>
+              </div>
+            )
+          })()}
+
+          {/* Payment methods */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+            {(['terminal','cash','zelle','other'] as const).map(m => (
+              <button key={m} onClick={() => { setMethod(m); setHint(''); if (m === 'terminal') handleTerminal() }} disabled={polling} style={methodStyle(m)}>
+                {m === 'terminal' && polling ? 'Waiting…' : m.charAt(0).toUpperCase() + m.slice(1)}
+              </button>
             ))}
-            <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.45)' }}>No tip</span>
           </div>
-        )
-      })()}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-        {(['terminal','cash','zelle','other'] as const).map(m => (
-          <button key={m} onClick={() => { setMethod(m); setHint(''); if (m === 'terminal') handleTerminal() }} disabled={polling} style={methodStyle(m)}>
-            {m === 'terminal' && polling ? 'Waiting…' : m.charAt(0).toUpperCase() + m.slice(1)}
-          </button>
-        ))}
-      </div>
-      {method !== 'terminal' && method !== 'cash' && (
-        <div style={{ padding: '10px 12px', borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', marginBottom: 8 }}>
-          <div style={{ fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 8 }}>Tip?</div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button onClick={() => setTipYes(false)} style={{ flex: 1, height: 32, borderRadius: 8, border: `1px solid ${!tipYes ? 'rgba(255,255,255,.30)' : 'rgba(255,255,255,.10)'}`, background: !tipYes ? 'rgba(255,255,255,.06)' : 'transparent', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>No tip</button>
-            <button onClick={() => setTipYes(true)} style={{ flex: 1, height: 32, borderRadius: 8, border: `1px solid ${tipYes ? 'rgba(143,240,177,.55)' : 'rgba(255,255,255,.10)'}`, background: tipYes ? 'rgba(143,240,177,.08)' : 'transparent', color: tipYes ? 'rgba(130,220,170,.5)' : '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>Yes, tip</button>
-            {tipYes && <input type="number" min="0" step="0.01" placeholder="$ amount" value={tipAmt || ''} onChange={e => setTipAmt(parseFloat(e.target.value) || 0)} style={{ flex: 1, height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.06)', color: '#fff', padding: '0 10px', outline: 'none', fontSize: 12 }} />}
-          </div>
+
+          {/* Tip for non-terminal */}
+          {method !== 'terminal' && method !== 'cash' && (
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 8 }}>
+              <button onClick={() => setTipYes(false)} style={{ flex: 1, height: 30, borderRadius: 8, border: `1px solid ${!tipYes ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.06)'}`, background: !tipYes ? 'rgba(255,255,255,.06)' : 'transparent', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 10, fontFamily: 'inherit' }}>No tip</button>
+              <button onClick={() => setTipYes(true)} style={{ flex: 1, height: 30, borderRadius: 8, border: `1px solid ${tipYes ? 'rgba(143,240,177,.25)' : 'rgba(255,255,255,.06)'}`, background: tipYes ? 'rgba(143,240,177,.04)' : 'transparent', color: tipYes ? 'rgba(130,220,170,.6)' : 'rgba(255,255,255,.5)', cursor: 'pointer', fontWeight: 600, fontSize: 10, fontFamily: 'inherit' }}>Tip</button>
+              {tipYes && <input type="number" min="0" step="0.01" placeholder="$" value={tipAmt || ''} onChange={e => setTipAmt(parseFloat(e.target.value) || 0)} style={{ width: 70, height: 30, borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: '#fff', padding: '0 8px', outline: 'none', fontSize: 11 }} />}
+            </div>
+          )}
+
+          {method === 'cash' && (
+            <div style={{ padding: '6px 10px', borderRadius: 8, background: 'rgba(143,240,177,.04)', border: '1px solid rgba(143,240,177,.12)', fontSize: 11, color: 'rgba(130,220,170,.6)', marginBottom: 8 }}>Cash collected</div>
+          )}
+
+          {method !== 'terminal' && (
+            <button onClick={handleManual} style={{ width: '100%', height: 36, borderRadius: 10, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: '#e8e8ed', cursor: 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'inherit' }}>
+              Confirm {method}
+            </button>
+          )}
+
+          {polling && activeCheckoutId && (
+            <button onClick={handleCancelTerminal} style={{ width: '100%', height: 32, borderRadius: 8, border: '1px solid rgba(255,107,107,.20)', background: 'rgba(255,107,107,.04)', color: 'rgba(255,107,107,.6)', cursor: 'pointer', fontWeight: 600, fontSize: 11, fontFamily: 'inherit', marginTop: 6 }}>
+              Cancel Terminal
+            </button>
+          )}
+
+          {hint && (
+            <div style={{ fontSize: 11, marginTop: 6, padding: '6px 10px', borderRadius: 8,
+              color: hintType==='success' ? 'rgba(130,220,170,.6)' : hintType==='error' ? 'rgba(255,107,107,.6)' : hintType==='warning' ? 'rgba(220,190,130,.6)' : 'rgba(255,255,255,.5)',
+              background: hintType==='success' ? 'rgba(143,240,177,.04)' : hintType==='error' ? 'rgba(255,107,107,.04)' : hintType==='warning' ? 'rgba(255,207,63,.04)' : 'rgba(255,255,255,.03)',
+              border: `1px solid ${hintType==='success' ? 'rgba(143,240,177,.12)' : hintType==='error' ? 'rgba(255,107,107,.12)' : hintType==='warning' ? 'rgba(255,207,63,.12)' : 'rgba(255,255,255,.06)'}`,
+            }}>{hint}</div>
+          )}
         </div>
-      )}
-      {method === 'cash' && (
-        <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(143,240,177,.06)', border: '1px solid rgba(143,240,177,.18)', fontSize: 12, color: 'rgba(143,240,177,.85)', marginBottom: 8 }}>Cash collected directly</div>
-      )}
-      {method !== 'terminal' && (
-        <button onClick={handleManual} style={{ width: '100%', height: 40, borderRadius: 12, border: '1px solid rgba(255,255,255,.22)', background: 'rgba(255,255,255,.10)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>
-          Confirm {method} payment
-        </button>
-      )}
-      {/* Cancel terminal button while polling */}
-      {polling && activeCheckoutId && (
-        <button onClick={handleCancelTerminal} style={{ width: '100%', height: 36, borderRadius: 10, border: '1px solid rgba(255,107,107,.40)', background: 'rgba(255,107,107,.08)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', marginTop: 8 }}>
-          Cancel payment on Terminal
-        </button>
-      )}
-
-      {/* Refund button for owner/admin on paid bookings */}
-      {ev?.paid && isOwnerOrAdmin && ev._raw?.id && (
-        <button onClick={handleRefund} style={{ width: '100%', height: 36, borderRadius: 10, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.06)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', marginTop: 8 }}>
-          Issue Refund
-        </button>
-      )}
-
-      {hint && (
-        <div style={{ fontSize: 12, marginTop: 8, padding: '8px 12px', borderRadius: 10, 
-          color: hintType==='success' ? 'rgba(130,220,170,.5)' : hintType==='error' ? 'rgba(220,130,160,.5)' : hintType==='warning' ? 'rgba(220,190,130,.5)' : 'rgba(255,255,255,.60)',
-          background: hintType==='success' ? 'rgba(143,240,177,.08)' : hintType==='error' ? 'rgba(255,107,107,.08)' : hintType==='warning' ? 'rgba(255,207,63,.08)' : 'rgba(255,255,255,.04)',
-          border: `1px solid ${hintType==='success' ? 'rgba(143,240,177,.20)' : hintType==='error' ? 'rgba(255,107,107,.20)' : hintType==='warning' ? 'rgba(255,207,63,.20)' : 'rgba(255,255,255,.08)'}`,
-        }}>{hint}</div>
       )}
     </div>
   )
@@ -898,24 +906,25 @@ export function BookingModal({
         .bm-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,.15); border-radius:3px }
         select option { background:#111 }
       `}</style>
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 'clamp(8px,3vw,16px)' }}
+      <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 'clamp(8px,3vw,16px)' }}
         onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-        <div className="bm-scroll" style={{ width: 'min(580px,100%)', height: 'min(720px,calc(100dvh - 16px))', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.60), inset 0 0 0 0.5px rgba(255,255,255,.07)', overflowY: 'auto', display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter,sans-serif' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }} />
+        <div className="bm-scroll" style={{ position: 'relative', width: 'min(480px,100%)', maxHeight: 'calc(100dvh - 32px)', borderRadius: 20, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(12,12,12,.95)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', boxShadow: '0 24px 80px rgba(0,0,0,.6)', overflowY: 'auto', display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter,sans-serif' }}>
 
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 14px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px 12px', borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0 }}>
             <div>
-              <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13, color: '#e8e8ed' }}>
-                {isNew ? 'New appointment' : `Edit — ${existingEvent?.clientName}`}
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#e8e8ed' }}>
+                {isNew ? 'New appointment' : existingEvent?.clientName || 'Edit'}
               </div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginTop: 3, letterSpacing: '.08em' }}>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 2 }}>
                 {date} · {barberName} · {minToHHMM(selStartMin)}
               </div>
             </div>
-            <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontFamily: 'inherit' }}>✕</button>
+            <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontFamily: 'inherit' }}>✕</button>
           </div>
 
-          <div style={{ padding: '16px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ padding: '14px 18px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
             {/* Client search */}
             <div>
@@ -1014,12 +1023,13 @@ export function BookingModal({
             )}
 
             {/* Footer */}
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 4, borderTop: '1px solid rgba(255,255,255,.08)', flexWrap: 'wrap' as const }}>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
               {!isNew && (
-                <button onClick={onDelete} style={{ height: 42, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13 }}>Delete</button>
+                <button onClick={onDelete} style={{ height: 36, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,107,107,.20)', background: 'rgba(255,107,107,.04)', color: 'rgba(255,107,107,.6)', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', fontSize: 12 }}>Delete</button>
               )}
-              <button onClick={onClose} style={{ height: 42, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 13 }}>Close</button>
-              <button onClick={handleSave} disabled={saving} style={{ height: 42, padding: '0 20px', borderRadius: 999, border: '1px solid rgba(255,255,255,.25)', background: 'rgba(255,255,255,.12)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13, opacity: saving ? .5 : 1 }}>
+              <div style={{ flex: 1 }} />
+              <button onClick={onClose} style={{ height: 36, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', fontSize: 12 }}>Close</button>
+              <button onClick={handleSave} disabled={saving} style={{ height: 36, padding: '0 18px', borderRadius: 10, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(255,255,255,.08)', color: '#e8e8ed', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', fontSize: 12, opacity: saving ? .5 : 1 }}>
                 {saving ? 'Saving…' : 'Save'}
               </button>
             </div>

@@ -2388,7 +2388,8 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
       'geofence_lat', 'geofence_lng', 'geofence_radius_m', 'theme', 'custom_css',
       'dash_calendar', 'dash_clients', 'dash_payments', 'dash_waitlist', 'dash_portfolio',
       'dash_cash', 'dash_membership', 'dash_attendance', 'dash_expenses', 'dash_payroll',
-      'clock_in_enabled', 'waitlist_enabled', 'portfolio_enabled', 'membership_enabled', 'cash_register_enabled'];
+      'clock_in_enabled', 'waitlist_enabled', 'portfolio_enabled', 'membership_enabled', 'cash_register_enabled',
+      'dash_shortcuts', 'dash_widgets'];
     const patch = { updated_at: toIso(new Date()) };
     for (const key of ALLOWED_SETTINGS) {
       if (b[key] !== undefined) patch[key] = typeof b[key] === 'string' ? sanitizeHtml(b[key]) : b[key];

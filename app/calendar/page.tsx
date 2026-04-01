@@ -1806,10 +1806,9 @@ export default function CalendarPage() {
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               </button>}
 
-              {/* New booking */}
-              {isStudent ? (
+              {/* New booking — students see "+ Model" */}
+              {isStudent && (
                 <button onClick={() => {
-                  // Collect ALL free 90min slots
                   const freeSlots: { min: number; mentorId: string; mentorName: string }[] = []
                   for (let m = START_HOUR * 60; m <= END_HOUR * 60 - 90; m += 5) {
                     const mid = studentSlotMentorMap.get(m)
@@ -1818,7 +1817,6 @@ export default function CalendarPage() {
                     for (let c = m; c < m + 90; c += 5) { if (!studentSlotMentorMap.has(c)) { ok = false; break } }
                     if (ok) {
                       const mentor = barbers.find(b => b.id === mid)
-                      // Only add if previous slot wasn't same time (skip 5-min overlaps)
                       if (!freeSlots.length || freeSlots[freeSlots.length-1].min + 5 < m || freeSlots[freeSlots.length-1].mentorId !== mid) {
                         freeSlots.push({ min: m, mentorId: mid, mentorName: mentor?.name || '' })
                       }
@@ -1826,9 +1824,7 @@ export default function CalendarPage() {
                   }
                   if (!freeSlots.length) { showToast('No free 90min slot available today'); return }
                   setSlotPicker(freeSlots)
-                }} className="cal-student-btn" style={{ height: 36, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(168,107,255,.80)', background: 'rgba(0,0,0,.75)', color: 'rgba(180,140,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', boxShadow: '0 0 14px rgba(168,107,255,.20)', whiteSpace: 'nowrap', flexShrink: 0 }}>+ Model</button>
-              ) : (
-                <button className="cal-new-btn" onClick={() => openCreate(isBarber ? myBarberId : (barbers[0]?.id || ''), clamp(new Date().getHours()*60))} style={{ height: 26, padding: '0 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 500, fontSize: 11, fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>+ New</button>
+                }} className="cal-student-btn" style={{ height: 26, padding: '0 10px', borderRadius: 7, border: '1px solid rgba(168,107,255,.40)', background: 'rgba(168,107,255,.06)', color: 'rgba(180,140,220,.6)', cursor: 'pointer', fontWeight: 600, fontSize: 11, fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>+ Model</button>
               )}
           </div>,
           portalTarget

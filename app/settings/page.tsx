@@ -1,6 +1,6 @@
 'use client'
 import Shell from '@/components/Shell'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 
 import { apiFetch } from '@/lib/api'
 import { usePlan } from '@/components/PlanProvider'
@@ -27,7 +27,7 @@ function Toggle({ checked, onChange, label, sub }: { checked: boolean; onChange:
         <div style={{ fontSize: 13, fontWeight: 600 }}>{label}</div>
         {sub && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', marginTop: 2 }}>{sub}</div>}
       </div>
-      <button onClick={() => onChange(!checked)} style={{ width: 44, height: 26, borderRadius: 999, border: 'none', background: checked ? 'rgba(10,132,255,.65)' : 'rgba(255,255,255,.14)', cursor: 'pointer', position: 'relative', flexShrink: 0, transition: 'background .2s' }}>
+      <button onClick={() => onChange(!checked)} style={{ width: 44, height: 26, borderRadius: 999, border: 'none', background: checked ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.14)', cursor: 'pointer', position: 'relative', flexShrink: 0, transition: 'background .2s' }}>
         <span style={{ position: 'absolute', top: 4, left: checked ? 22 : 4, width: 18, height: 18, borderRadius: 999, background: '#fff', transition: 'left .2s', boxShadow: '0 1px 4px rgba(0,0,0,.4)' }} />
       </button>
     </div>
@@ -185,6 +185,45 @@ function UsersTab() {
         </div>
       }
 
+      {/* ── CHANGE PASSWORD ── */}
+      <div style={{ marginTop: 12, padding: '14px 16px', borderRadius: 16, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#e8e8ed', marginBottom: 10 }}>Change Password</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <input type="password" placeholder="Current password" id="pw-current" style={{ height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.22)', color: '#fff', padding: '0 12px', outline: 'none', fontSize: 12, fontFamily: 'inherit' }} />
+          <input type="password" placeholder="New password (min 4 characters)" id="pw-new" style={{ height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.22)', color: '#fff', padding: '0 12px', outline: 'none', fontSize: 12, fontFamily: 'inherit' }} />
+          <button onClick={async () => {
+            const curr = (document.getElementById('pw-current') as HTMLInputElement)?.value
+            const newp = (document.getElementById('pw-new') as HTMLInputElement)?.value
+            if (!curr || !newp) return
+            if (newp.length < 4) { alert('Password must be at least 4 characters'); return }
+            try {
+              const r = await apiFetch('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ current_password: curr, new_password: newp }) })
+              if (r?.ok) { alert('Password updated'); (document.getElementById('pw-current') as HTMLInputElement).value = '';  (document.getElementById('pw-new') as HTMLInputElement).value = '' }
+              else alert(r?.error || 'Error')
+            } catch { alert('Error changing password') }
+          }}
+            style={{ height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.6)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Update password
+          </button>
+        </div>
+      </div>
+
+      {/* ── QUICK PIN ── */}
+      <div style={{ marginTop: 12, padding: '14px 16px', borderRadius: 16, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#e8e8ed' }}>Quick PIN</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 2 }}>{hasPinSetup() ? 'PIN is set up for fast login' : 'No PIN set — login with password each time'}</div>
+          </div>
+          {hasPinSetup() && (
+            <button onClick={() => { clearPin() }}
+              style={{ height: 32, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+              Reset PIN
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* ── DELETE ACCOUNT ── */}
       <div style={{ marginTop: 12, padding: '14px 16px', borderRadius: 16, border: '1px solid rgba(255,107,107,.12)', background: 'rgba(255,107,107,.03)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -219,7 +258,7 @@ function UsersTab() {
 export default function SettingsPage() {
   const { effective_plan: currentPlan } = usePlan()
   const canChangeDesign = currentPlan === 'salon' || currentPlan === 'custom'
-  const [tab, setTab] = useState<'shop'|'site'|'fees'|'booking'|'payroll'|'square'|'users'|'features'|'billing'>('shop')
+  const [tab, setTab] = useState<'shop'|'site'|'fees'|'booking'|'payroll'|'square'|'users'|'billing'>('shop')
   const [settings, setSettings] = useState<any>({})
   const [fees, setFees] = useState<Fee[]>([])
   const [charges, setCharges] = useState<Charge[]>([])
@@ -266,8 +305,24 @@ export default function SettingsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   function set(key: string, val: any) { setSettings((s: any) => ({ ...s, [key]: val })); setDirty(true) }
   function setNested(parent: string, key: string, val: any) { setSettings((s: any) => ({ ...s, [parent]: { ...(s[parent] || {}), [key]: val } })); setDirty(true) }
+
+  // Auto-save with 1.5s debounce
+  useEffect(() => {
+    if (!dirty) return
+    if (autoSaveRef.current) clearTimeout(autoSaveRef.current)
+    autoSaveRef.current = setTimeout(async () => {
+      setSaving(true)
+      try {
+        await apiFetch('/api/settings', { method: 'POST', body: JSON.stringify({ ...settings, fees, charges }) })
+        setDirty(false); setLastSaved(new Date().toLocaleString())
+      } catch {}
+      setSaving(false)
+    }, 1500)
+    return () => { if (autoSaveRef.current) clearTimeout(autoSaveRef.current) }
+  }, [dirty, settings, fees, charges])
 
   async function save() {
     setSaving(true)
@@ -319,10 +374,9 @@ export default function SettingsPage() {
 
   const TABS = [
     { id: 'shop', label: 'General' },
+    { id: 'booking', label: 'Booking' },
     { id: 'site', label: 'Site Builder' },
-    { id: 'features', label: 'Features' },
-    { id: 'fees', label: 'Fees & Charges' },
-    { id: 'booking', label: 'Booking & SMS' },
+    { id: 'fees', label: 'Fees & Tax' },
     { id: 'payroll', label: 'Payroll' },
     { id: 'square', label: 'Integrations' },
     { id: 'users', label: 'Accounts' },
@@ -352,56 +406,32 @@ export default function SettingsPage() {
       `}</style>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
 
-        {/* Topbar */}
-        <div style={{ padding: '12px 20px', background: 'rgba(0,0,0,.80)', backdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,.08)', position: 'sticky', top: 0, zIndex: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div>
-            <h2 className="page-title" style={{ margin: 0, fontFamily: '"Inter",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 15 }}>Settings</h2>
-            <p style={{ margin: '3px 0 0', color: 'rgba(255,255,255,.40)', fontSize: 11, letterSpacing: '.08em' }}>
-              {loading ? 'Loading…' : s.updated_at ? `Last saved ${new Date(s.updated_at).toLocaleString()}` : 'Not saved yet'}
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {dirty && <span style={{ fontSize: 11, padding: '4px 12px', borderRadius: 999, border: '1px solid rgba(255,255,255,.30)', background: 'rgba(255,255,255,.08)', color: '#fff', fontWeight: 900 }}>Unsaved</span>}
-            <SmBtn onClick={load}>↻</SmBtn>
-            <button onClick={save} disabled={saving || loading}
-              style={{ height: 40, padding: '0 20px', borderRadius: 999, border: '1px solid rgba(10,132,255,.75)', background: 'rgba(0,0,0,.75)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', boxShadow: '0 0 18px rgba(10,132,255,.25)', opacity: saving ? .5 : 1 }}>
-              {saving ? 'Saving…' : 'Save all'}
-            </button>
-          </div>
-        </div>
+        {/* Tab bar + auto-save indicator */}
 
         {/* Tab bar */}
-        <div style={{ display: 'flex', gap: 6, padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.30)', overflowX: 'auto', flexShrink: 0 }}>
+        <div className="set-tabs" style={{ display: 'flex', gap: 6, padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', overflowX: 'auto', flexShrink: 0 }}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              style={{ height: 36, padding: '0 16px', borderRadius: 999, border: `1px solid ${tab===t.id ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)'}`, background: tab===t.id ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.04)', color: tab===t.id ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.65)', cursor: 'pointer', fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+              style={{ height: 36, padding: '0 16px', borderRadius: 999, border: `1px solid ${tab===t.id ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.06)'}`, background: tab===t.id ? 'rgba(255,255,255,.08)' : 'transparent', color: tab===t.id ? '#e8e8ed' : 'rgba(255,255,255,.40)', cursor: 'pointer', fontWeight: tab===t.id ? 700 : 500, fontSize: 11, letterSpacing: '.04em', fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all .2s' }}>
               {t.label}
             </button>
           ))}
+          {/* Auto-save indicator */}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            {saving && <span style={{ fontSize: 10, color: 'rgba(255,255,255,.3)' }}>Saving...</span>}
+            {!saving && dirty && <span style={{ width: 6, height: 6, borderRadius: 999, background: 'rgba(255,180,100,.5)' }} />}
+            {!saving && !dirty && !loading && <span style={{ width: 6, height: 6, borderRadius: 999, background: 'rgba(130,220,170,.4)' }} />}
+          </div>
         </div>
 
         {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px' }}>
           {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.40)' }}>Loading settings…</div> : (<>
 
-            {/* ── SHOP ── */}
+            {/* ── GENERAL ── */}
             {tab === 'shop' && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 14 }}>
-                <SectionCard title="Booking Page">
-                  <Field label="Your public booking URL">
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <code style={{ flex: 1, fontSize: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(0,0,0,.3)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)', wordBreak: 'break-all' }}>
-                        vurium.com/book/{s.slug || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}').workspace_id || '' : '')}
-                      </code>
-                      <button onClick={() => { const slug = s.slug || JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}').workspace_id || ''; navigator.clipboard.writeText(`https://vurium.com/book/${slug}`); }} style={{
-                        padding: '10px 14px', borderRadius: 10, fontSize: 11, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit',
-                        background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.5)',
-                      }}>Copy</button>
-                    </div>
-                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', marginTop: 6 }}>Edit your URL in Site Builder tab. Share on social media or Google Business.</p>
-                  </Field>
-                </SectionCard>
-                <SectionCard title="Shop info">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 600 }}>
+                <SectionCard title="Business">
                   <Field label="Shop name"><input value={s.shop_name || ''} onChange={e => set('shop_name', e.target.value)} placeholder="Your Business Name" style={inp} /></Field>
                   <Field label="Timezone">
                     <select value={s.timezone || 'America/Chicago'} onChange={e => set('timezone', e.target.value)} style={inp}>
@@ -416,7 +446,6 @@ export default function SettingsPage() {
                     </select>
                   </Field>
                 </SectionCard>
-
               </div>
             )}
 
@@ -549,7 +578,7 @@ export default function SettingsPage() {
                       <div style={{ marginTop: 10, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)', fontSize: 12, color: 'rgba(255,255,255,.55)' }}>
                         Preview on Terminal: {' '}
                         {(payroll.tip_options || [15,20,25]).map((p: number, i: number) => (
-                          <span key={i} style={{ marginRight: 8, padding: '2px 10px', borderRadius: 999, border: '1px solid rgba(10,132,255,.40)', background: 'rgba(10,132,255,.10)', color: 'rgba(130,150,220,.6)', fontSize: 11 }}>{p}%</span>
+                          <span key={i} style={{ marginRight: 8, padding: '2px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.5)', fontSize: 11 }}>{p}%</span>
                         ))}
                         <span style={{ padding: '2px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.55)', fontSize: 11 }}>No tip</span>
                       </div>
@@ -590,7 +619,7 @@ export default function SettingsPage() {
                         <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', marginTop: 2 }}>Required for terminal payments, refunds and payment tracking</div>
                       </div>
                       <button onClick={connectSquare} disabled={squareConnecting}
-                        style={{ height: 38, padding: '0 20px', borderRadius: 999, border: 'none', background: 'rgba(10,132,255,.75)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: squareConnecting ? .5 : 1, transition: 'opacity .2s' }}>
+                        style={{ height: 38, padding: '0 20px', borderRadius: 999, border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: squareConnecting ? .5 : 1, transition: 'opacity .2s' }}>
                         {squareConnecting ? 'Connecting…' : 'Connect Square'}
                       </button>
                     </div>
@@ -743,74 +772,6 @@ export default function SettingsPage() {
             )}
 
             {/* ── FEATURES ── */}
-            {tab === 'features' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                {/* Dashboard shortcuts */}
-                <SectionCard title="Dashboard Shortcuts">
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginBottom: 14, lineHeight: 1.5 }}>Choose which tools appear on your dashboard. Locked features require a plan upgrade.</p>
-                  {[
-                    { key: 'dash_calendar', label: 'Calendar', desc: 'Bookings & schedule', plan: null },
-                    { key: 'dash_clients', label: 'Clients', desc: 'Your client base', plan: null },
-                    { key: 'dash_payments', label: 'Payments', desc: 'Transactions', plan: null },
-                    { key: 'dash_waitlist', label: 'Waitlist', desc: 'Queue & notifications', plan: 'salon' },
-                    { key: 'dash_portfolio', label: 'Portfolio', desc: 'Work gallery', plan: 'salon' },
-                    { key: 'dash_cash', label: 'Cash Register', desc: 'Daily reconciliation', plan: 'salon' },
-                    { key: 'dash_membership', label: 'Membership', desc: 'Recurring clients', plan: 'salon' },
-                    { key: 'dash_attendance', label: 'Attendance', desc: 'Clock in / out', plan: 'salon' },
-                    { key: 'dash_expenses', label: 'Expenses', desc: 'Track costs', plan: 'custom' },
-                    { key: 'dash_payroll', label: 'Payroll', desc: 'Commission + tips', plan: 'custom' },
-                  ].map(f => {
-                    const planLabels: Record<string, string> = { salon: 'SALON', custom: 'CUSTOM' }
-                    const locked = f.plan !== null // For now show plan badge; real gating via usePlan on dashboard
-                    const enabled = s[f.key] !== false // default on
-                    return (
-                      <div key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: 500, color: locked ? 'rgba(255,255,255,.7)' : '#e8e8ed', display: 'flex', alignItems: 'center', gap: 8 }}>
-                            {f.label}
-                            {f.plan && <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 999, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.3)', letterSpacing: '.04em' }}>{planLabels[f.plan]}</span>}
-                          </div>
-                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{f.desc}</div>
-                        </div>
-                        <button onClick={() => set(f.key, !enabled)}
-                          style={{ width: 40, height: 24, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 2, transition: 'background .2s', background: enabled ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.04)', position: 'relative', flexShrink: 0 }}>
-                          <div style={{ width: 20, height: 20, borderRadius: 999, background: enabled ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.15)', transition: 'transform .2s, background .2s', transform: enabled ? 'translateX(16px)' : 'translateX(0)' }} />
-                        </button>
-                      </div>
-                    )
-                  })}
-                </SectionCard>
-
-                {/* Feature toggles */}
-                <SectionCard title="Workspace Features">
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginBottom: 14, lineHeight: 1.5 }}>Enable additional capabilities for your workspace.</p>
-                  {[
-                    { key: 'clock_in_enabled', label: 'Clock In / Attendance', desc: 'Team members can clock in and out.', plan: 'salon' },
-                    { key: 'waitlist_enabled', label: 'Waitlist', desc: 'Clients join waitlist when no slots.', plan: 'salon' },
-                    { key: 'portfolio_enabled', label: 'Portfolio', desc: 'Work gallery for team members.', plan: null },
-                    { key: 'membership_enabled', label: 'Membership', desc: 'Recurring appointment subscriptions.', plan: 'salon' },
-                    { key: 'cash_register_enabled', label: 'Cash Register', desc: 'Daily cash reconciliation.', plan: 'salon' },
-                  ].map(f => {
-                    const planLabels: Record<string, string> = { salon: 'SALON', custom: 'CUSTOM' }
-                    return (
-                      <div key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: 500, color: '#e8e8ed', display: 'flex', alignItems: 'center', gap: 8 }}>
-                            {f.label}
-                            {f.plan && <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 999, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.3)', letterSpacing: '.04em' }}>{planLabels[f.plan]}</span>}
-                          </div>
-                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{f.desc}</div>
-                        </div>
-                        <button onClick={() => set(f.key, !s[f.key])}
-                          style={{ width: 40, height: 24, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 2, transition: 'background .2s', background: s[f.key] ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.04)', position: 'relative', flexShrink: 0 }}>
-                          <div style={{ width: 20, height: 20, borderRadius: 999, background: s[f.key] ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.15)', transition: 'transform .2s, background .2s', transform: s[f.key] ? 'translateX(16px)' : 'translateX(0)' }} />
-                        </button>
-                      </div>
-                    )
-                  })}
-                </SectionCard>
-              </div>
-            )}
 
             {/* ── BILLING ── */}
             {tab === 'billing' && (
@@ -821,22 +782,6 @@ export default function SettingsPage() {
                 </a>
               </div>
             )}
-
-            {/* ── PIN RESET (visible on all tabs) ── */}
-            <div style={{ marginTop: 24, padding: '14px 16px', borderRadius: 16, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#e8e8ed' }}>Quick PIN</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 2 }}>{hasPinSetup() ? 'PIN is set up for fast login' : 'No PIN set — login with password each time'}</div>
-                </div>
-                {hasPinSetup() && (
-                  <button onClick={() => { clearPin(); showToast('PIN reset — you will set a new one on next login') }}
-                    style={{ height: 32, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.06)', color: 'rgba(220,130,160,.5)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                    Reset PIN
-                  </button>
-                )}
-              </div>
-            </div>
 
           </>)}
         </div>

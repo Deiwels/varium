@@ -287,10 +287,10 @@ function ProfileModal({ user, onClose, onUpdated }: {
         </div>
 
         <div style={{ display: 'flex', gap: 6, padding: '12px 18px 0' }}>
-          {(['profile', 'password', 'notifications'] as const).map(t => (
-            <button key={t} onClick={() => { setTab(t); setMsg(''); setErr('') }}
-              style={{ height: 32, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontWeight: 900, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: 'inherit', border: `1px solid ${tab === t ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.08)'}`, background: tab === t ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.03)', color: tab === t ? '#fff' : 'rgba(255,255,255,.45)' }}>
-              {t === 'profile' ? 'Profile' : t === 'password' ? 'Password' : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>}
+          {(['profile', 'notifications'] as const).map(t => (
+            <button key={t} onClick={() => { setTab(t as any); setMsg(''); setErr('') }}
+              style={{ height: 30, padding: '0 12px', borderRadius: 999, cursor: 'pointer', fontWeight: tab === t ? 600 : 400, fontSize: 11, fontFamily: 'inherit', border: `1px solid ${tab === t ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.06)'}`, background: tab === t ? 'rgba(255,255,255,.08)' : 'transparent', color: tab === t ? '#e8e8ed' : 'rgba(255,255,255,.35)', transition: 'all .2s' }}>
+              {t === 'profile' ? 'Profile' : 'Notifications'}
             </button>
           ))}
         </div>
@@ -313,42 +313,22 @@ function ProfileModal({ user, onClose, onUpdated }: {
               </div>
             </div>
             <div><label style={lbl}>Display name</label><input value={name} onChange={e => setName(e.target.value)} style={inp} /></div>
-            <div><label style={lbl}>Username</label><input value={user.username || ''} disabled style={{ ...inp, opacity: .35, cursor: 'not-allowed' }} /></div>
-            <div><label style={lbl}>Role</label><input value={user.role || ''} disabled style={{ ...inp, opacity: .35, cursor: 'not-allowed', textTransform: 'capitalize' }} /></div>
-            <button onClick={saveProfile} disabled={saving} style={{ height: 42, borderRadius: 12, border: '1px solid rgba(255,255,255,.20)', background: 'rgba(255,255,255,.10)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
-              {saving ? 'Saving…' : 'Save profile'}
+            <div><label style={lbl}>Email</label><input value={user.username || ''} disabled style={{ ...inp, opacity: .35, cursor: 'not-allowed' }} /></div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1 }}><label style={lbl}>Role</label><div style={{ height: 40, borderRadius: 12, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', padding: '0 12px', display: 'flex', alignItems: 'center', fontSize: 13, color: 'rgba(255,255,255,.45)', textTransform: 'capitalize' }}>{user.role === 'owner' ? 'Owner' : user.role === 'admin' ? 'Admin' : 'Member'}</div></div>
+            </div>
+            <button onClick={saveProfile} disabled={saving} style={{ height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: '#e8e8ed', cursor: 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
+              {saving ? 'Saving…' : 'Save'}
             </button>
           </>}
 
           {tab === 'password' && <>
             <div><label style={lbl}>Current password</label><input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} placeholder="••••••••" style={inp} /></div>
             <div><label style={lbl}>New password</label><input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="min 4 characters" style={inp} /></div>
-            <button onClick={savePassword} disabled={saving} style={{ height: 42, borderRadius: 12, border: '1px solid rgba(255,255,255,.20)', background: 'rgba(255,255,255,.10)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
+            <button onClick={savePassword} disabled={saving} style={{ height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: '#e8e8ed', cursor: 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
               {saving ? 'Saving…' : 'Update password'}
             </button>
-            <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', paddingTop: 14, marginTop: 6 }}>
-              <div style={{ fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,107,107,.55)', marginBottom: 8 }}>Danger zone</div>
-              <button onClick={async () => {
-                if (!confirm('Are you sure you want to delete your account? This action cannot be undone.')) return
-                if (!confirm('This will permanently delete your account and all data. Type your password to confirm.')) return
-                try {
-                  const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
-                  const res = await fetch(`${API}/api/auth/delete-account`, {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ password: currentPw })
-                  })
-                  const data = await res.json()
-                  if (!res.ok) throw new Error(data.error || 'Failed to delete account')
-                  localStorage.removeItem('VURIUMBOOK_TOKEN')
-                  localStorage.removeItem('VURIUMBOOK_USER')
-                  window.location.href = '/signin'
-                } catch (e: any) { setErr(e.message) }
-              }} style={{ height: 38, padding: '0 16px', borderRadius: 10, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.08)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit' }}>
-                Delete my account
-              </button>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 6 }}>Enter your current password above, then click delete. This cannot be undone.</div>
-            </div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Password change and account deletion available in Settings → Accounts</div>
           </>}
 
           {tab === 'notifications' && <>
