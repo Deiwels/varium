@@ -395,7 +395,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
   studentSchedule?: DaySchedule[]; onStudentScheduleChange?: (s: DaySchedule[]) => void
 }) {
   const _isOwnerOrAdmin = !isStudent && !isBarber
-  const [tab, setTab] = useState<'team'|'services'|'account'>(isStudent ? 'account' : 'team')
+  const [tab, setTab] = useState<'team'|'services'>(isStudent ? 'team' : 'team')
   const [msg, setMsg] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -456,11 +456,11 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
 
   const inp: React.CSSProperties = { width: '100%', height: 40, borderRadius: 12, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', padding: '0 10px', outline: 'none', fontSize: 13, fontFamily: 'inherit' }
   const lbl: React.CSSProperties = { fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', display: 'block', marginBottom: 4 }
-  const tabs = (isStudent ? ['account'] : ['team','services','account']) as ('team'|'services'|'account')[]
+  const tabs = (isStudent ? ['team'] : ['team','services']) as ('team'|'services')[]
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 90, padding: 'clamp(8px,2vw,16px)' }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={{ width: 'min(680px,100%)', maxWidth: 'calc(100vw - 16px)', height: 'min(800px,calc(100dvh - 32px))', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', color: '#e8e8ed', fontFamily: 'Inter,sans-serif', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,.55), inset 0 0 0 0.5px rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', margin: '0 auto' }}>
+      <div style={{ width: 'min(480px,100%)', maxWidth: 'calc(100vw - 24px)', height: 'min(560px,calc(100dvh - 48px))', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', color: '#e8e8ed', fontFamily: 'Inter,sans-serif', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,.55), inset 0 0 0 0.5px rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
           <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.04em', fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.7)' }}>Settings</div>
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontSize: 16, fontFamily: 'inherit' }}>✕</button>
@@ -671,28 +671,6 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
             </div>
           )}
 
-          {/* Account tab */}
-          {tab === 'account' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ padding: '14px', borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)' }}>
-                <div style={{ fontWeight: 900, marginBottom: 4 }}>Current session</div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.45)' }}>
-                  {(() => { try { const u = JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || 'null'); return u ? `${u.role} · ${u.name || u.username}` : 'Guest' } catch { return 'Guest' } })()}
-                </div>
-              </div>
-
-              {/* Student schedule editor */}
-              {isStudent && studentSchedule && onStudentScheduleChange && (
-                <div style={{ padding: '14px', borderRadius: 14, border: '1px solid rgba(168,107,255,.20)', background: 'rgba(168,107,255,.04)' }}>
-                  <div style={{ fontWeight: 900, marginBottom: 8, color: 'rgba(180,140,220,.6)' }}>My schedule</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginBottom: 12 }}>Set your working hours — off-hours will be grayed out on your calendar</div>
-                  <SchedGrid schedule={studentSchedule} onChange={onStudentScheduleChange} />
-                </div>
-              )}
-
-              <button onClick={() => { localStorage.removeItem('VURIUMBOOK_TOKEN'); localStorage.removeItem('VURIUMBOOK_USER'); window.location.href = '/signin' }} style={{ height: 42, borderRadius: 12, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>Log out</button>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -2427,7 +2405,7 @@ export default function CalendarPage() {
               )})}
             </div>
             {/* Gear left + Plus right — above pill nav shadow */}
-            <div style={{ position: 'fixed', bottom: 48, left: 0, right: 0, zIndex: 62, padding: '0 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none' }}>
+            <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 62, padding: '6px 16px max(6px, env(safe-area-inset-bottom, 6px))', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none' }}>
               <button onClick={() => setSettingsOpen(true)} style={{ width: 30, height: 30, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.85)', color: 'rgba(255,255,255,.40)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               </button>
