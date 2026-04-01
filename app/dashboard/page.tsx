@@ -913,9 +913,9 @@ export default function DashboardPage() {
 
         {/* ── WIDGETS GRID ── */}
         <div onClick={e => { if (editingWidgets && e.target === e.currentTarget) { setEditingWidgets(false); setEditingShortcuts(false) } }}
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 10, marginBottom: 14 }}>
+          style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14, justifyContent: 'center' }}>
           {dashWidgets.map(wId => {
-            const wBox: React.CSSProperties = { borderRadius: 14, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: '10px 12px', position: 'relative', transition: 'all .2s', animation: editingWidgets ? 'widgetBreathe 2s ease-in-out infinite' : 'none' }
+            const wBox: React.CSSProperties = { width: 120, borderRadius: 14, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', padding: '10px 12px', position: 'relative', transition: 'all .2s', animation: editingWidgets ? 'widgetBreathe 2s ease-in-out infinite' : 'none' }
             const wTitle: React.CSSProperties = { fontSize: 8, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }
             const longPress = {
               onTouchStart: () => { longPressRef.current = setTimeout(() => setEditingWidgets(true), 600) },
@@ -1039,7 +1039,7 @@ export default function DashboardPage() {
             }
             if (wId === 'mini-calendar') {
               return (
-                <div key={wId} {...longPress} style={wBox}>
+                <div key={wId} {...longPress} style={{ ...wBox, width: 250 }}>
                   {removeBtn}
                   <MiniCalendarWidget bookings={bookings} />
                 </div>
@@ -1065,7 +1065,7 @@ export default function DashboardPage() {
             const available = ALL_WIDGETS.filter(w => !dashWidgets.includes(w.id))
             return available.map(w => (
               <button key={w.id} onClick={() => toggleWidget(w.id)}
-                style={{ padding: '10px 12px', borderRadius: 14, border: '1px dashed rgba(255,255,255,.12)', background: 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', fontFamily: 'inherit', animation: 'widgetBreathe 2s ease-in-out infinite' }}>
+                style={{ width: 120, padding: '10px 12px', borderRadius: 14, border: '1px dashed rgba(255,255,255,.12)', background: 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', fontFamily: 'inherit', animation: 'widgetBreathe 2s ease-in-out infinite' }}>
                 <div style={{ fontSize: 14, color: 'rgba(255,255,255,.25)', marginBottom: 2 }}>+</div>
                 <div style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.35)' }}>{w.label}</div>
               </button>
@@ -1125,20 +1125,20 @@ export default function DashboardPage() {
                     const sm = sched?.startMin ?? 600
                     const em = sched?.endMin ?? 1200
                     return (
-                      <div key={b.id} style={{ width: 'min(180px, 100%)', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+                      <div key={b.id} style={{ width: 220, padding: '10px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 6 }}>
                           {b.photo_url
-                            ? <img src={b.photo_url} alt={b.name} style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)' }} onError={e => (e.currentTarget.style.display='none')} />
-                            : <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.4)' }}>{(b.name||'?')[0]}</div>
+                            ? <img src={b.photo_url} alt={b.name} style={{ width: 26, height: 26, borderRadius: 7, objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)' }} onError={e => (e.currentTarget.style.display='none')} />
+                            : <div style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.4)' }}>{(b.name||'?')[0]}</div>
                           }
-                          <span style={{ fontWeight: 600, fontSize: 13, color: 'rgba(255,255,255,.8)' }}>{b.name}</span>
+                          <span style={{ fontWeight: 600, fontSize: 12, color: 'rgba(255,255,255,.8)' }}>{b.name}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: 3, marginBottom: 6 }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginBottom: 4 }}>
                           {DAY_NAMES_SHORT.map((day, i) => (
-                            <span key={day} style={{ fontSize: 8, padding: '2px 5px', borderRadius: 4, border: `1px solid ${workDays.includes(i) ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.03)'}`, color: workDays.includes(i) ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.15)', fontWeight: 500 }}>{day}</span>
+                            <span key={day} style={{ fontSize: 7, padding: '1px 4px', borderRadius: 3, border: `1px solid ${workDays.includes(i) ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.03)'}`, color: workDays.includes(i) ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.15)', fontWeight: 500 }}>{day}</span>
                           ))}
                         </div>
-                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,.4)' }}>{fmt(sm)} — {fmt(em)}</div>
+                        <div style={{ fontSize: 9, color: 'rgba(255,255,255,.35)' }}>{fmt(sm)} — {fmt(em)}</div>
                       </div>
                     )
                   })}
