@@ -913,7 +913,7 @@ export default function DashboardPage() {
 
         {/* ── WIDGETS GRID ── */}
         <div onClick={e => { if (editingWidgets && e.target === e.currentTarget) { setEditingWidgets(false); setEditingShortcuts(false) } }}
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 10, marginBottom: 14, maxWidth: 600, margin: '0 auto 14px', padding: '0 4px' }}>
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 10, marginBottom: 14 }}>
           {dashWidgets.map(wId => {
             const wBox: React.CSSProperties = { borderRadius: 14, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: '10px 12px', position: 'relative', transition: 'all .2s', animation: editingWidgets ? 'widgetBreathe 2s ease-in-out infinite' : 'none' }
             const wTitle: React.CSSProperties = { fontSize: 8, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }
@@ -1075,7 +1075,7 @@ export default function DashboardPage() {
 
         {/* ── Quick Access Shortcuts ── */}
         <div onClick={e => { if (editingWidgets && e.target === e.currentTarget) { setEditingWidgets(false) } }}
-          style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14, maxWidth: 600, margin: '0 auto 14px', padding: '0 4px' }}>
+          style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
           {actions.filter(item => editingWidgets || dashShortcuts.includes(item.href)).filter(item => item.label !== 'Settings').map(item => {
             const isActive = dashShortcuts.includes(item.href)
             const isEditing = editingWidgets
