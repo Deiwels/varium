@@ -207,7 +207,7 @@ export default function PublicBookingPage() {
       {!isLightTheme && <div className="noise-overlay" />}
 
       {/* Header */}
-      <header style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
+      <header style={{ padding: '20px 24px', borderBottom: `1px solid ${t.cardBorder}`, background: t.headerBg, backdropFilter: isLightTheme ? 'none' : 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {config.hero_media_url && <img src={config.hero_media_url} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }} />}
           <span style={{ fontSize: 16, fontWeight: 600, color: '#e8e8ed' }}>{shopName}</span>
@@ -232,46 +232,34 @@ export default function PublicBookingPage() {
                 <img src={config.hero_media_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             )}
-            <h1 style={{ fontSize: 28, fontWeight: 600, color: '#f0f0f5', marginBottom: 8 }}>{shopName || config.shop_name || 'Welcome'}</h1>
-            {siteConfig?.hero_subtitle && <p style={{ fontSize: 15, color: 'rgba(255,255,255,.4)', lineHeight: 1.6 }}>{siteConfig.hero_subtitle}</p>}
+            <h1 style={{ fontSize: 28, fontWeight: 600, color: t.text, marginBottom: 8 }}>{shopName || config.shop_name || 'Welcome'}</h1>
+            {siteConfig?.hero_subtitle && <p style={{ fontSize: 15, color: isLightTheme ? 'rgba(0,0,0,.5)' : 'rgba(255,255,255,.4)', lineHeight: 1.6 }}>{siteConfig.hero_subtitle}</p>}
           </div>
 
           {/* About */}
           {siteConfig?.about_text && (
-            <div style={{ marginBottom: 40, padding: '20px 24px', borderRadius: 16, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)', backdropFilter: 'blur(12px)' }}>
-              <p style={{ fontSize: 14, color: 'rgba(255,255,255,.5)', lineHeight: 1.7 }}>{siteConfig.about_text}</p>
+            <div style={{ marginBottom: 40, padding: '20px 24px', borderRadius: 16, border: `1px solid ${t.cardBorder}`, background: t.card, backdropFilter: isLightTheme ? 'none' : 'blur(12px)' }}>
+              <p style={{ fontSize: 14, color: isLightTheme ? 'rgba(0,0,0,.6)' : 'rgba(255,255,255,.5)', lineHeight: 1.7 }}>{siteConfig.about_text}</p>
             </div>
           )}
 
-          {/* Services preview */}
-          {services.length > 0 && (
-            <div style={{ marginBottom: 40 }}>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Services</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {services.map(s => (
-                  <div key={s.id} style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)', fontSize: 13, color: 'rgba(255,255,255,.5)' }}>
-                    {s.name}{s.price_cents > 0 ? ` · ${fmtPrice(s.price_cents)}` : ''}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Services listed in booking flow after Book Now — not here */}
 
           {/* Team */}
           {barbers.length > 1 && (
             <div style={{ marginBottom: 40 }}>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Our Team</div>
+              <div style={{ fontSize: 12, color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Our Team</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 12 }}>
                 {barbers.map(b => (
-                  <div key={b.id} style={{ textAlign: 'center', padding: '16px 8px', borderRadius: 14, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.015)' }}>
+                  <div key={b.id} style={{ textAlign: 'center', padding: '16px 8px', borderRadius: 14, border: `1px solid ${t.cardBorder}`, background: t.card }}>
                     <div style={{
                       width: 48, height: 48, borderRadius: 999, margin: '0 auto 10px',
-                      background: b.photo_url ? `url(${b.photo_url}) center/cover` : 'rgba(255,255,255,.06)',
-                      border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,.35)',
+                      background: b.photo_url ? `url(${b.photo_url}) center/cover` : (isLightTheme ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.06)'),
+                      border: `1px solid ${t.cardBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 16, fontWeight: 600, color: isLightTheme ? 'rgba(0,0,0,.35)' : 'rgba(255,255,255,.35)',
                     }}>{!b.photo_url && b.name?.[0]}</div>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.7)' }}>{b.name}</div>
-                    {b.level && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{b.level}</div>}
+                    <div style={{ fontSize: 13, fontWeight: 500, color: t.text }}>{b.name}</div>
+                    {b.level && <div style={{ fontSize: 11, color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.3)', marginTop: 2 }}>{b.level}</div>}
                   </div>
                 ))}
               </div>
@@ -297,11 +285,12 @@ export default function PublicBookingPage() {
           )}
 
           {/* Book Now CTA */}
-          <div style={{ textAlign: 'center', padding: '32px 0' }}>
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
             <button onClick={() => setShowBooking(true)} style={{
-              padding: '14px 40px', borderRadius: 14, fontSize: 16, fontWeight: 600, fontFamily: 'inherit',
-              background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)',
-              color: '#fff', cursor: 'pointer', transition: 'all .2s',
+              padding: '16px 48px', borderRadius: 14, fontSize: 16, fontWeight: 600, fontFamily: 'inherit',
+              background: isLightTheme ? t.accent : 'rgba(255,255,255,.1)',
+              border: `1px solid ${isLightTheme ? t.accent : 'rgba(255,255,255,.15)'}`,
+              color: isLightTheme ? '#fff' : t.text, cursor: 'pointer', transition: 'all .2s',
             }}>Book Now</button>
           </div>
         </main>
