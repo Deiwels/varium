@@ -325,7 +325,7 @@ export default function SignupPage() {
 
       <footer style={{ borderTop: '1px solid rgba(255,255,255,.05)', padding: '20px clamp(20px, 4vw, 48px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2, flexWrap: 'wrap', gap: 12 }}>
         <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)' }}>&copy; 2026 Vurium. All rights reserved.</span>
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,.15)' }}>Powered by VuriumBook</span>
+        <a href="https://vurium.com/vuriumbook" target="_blank" rel="noopener" style={{ fontSize: 11, color: 'rgba(255,255,255,.15)', textDecoration: 'none' }}>Powered by VuriumBook</a>
       </footer>
     </>
   )

@@ -291,7 +291,7 @@ export default function PublicBookingPage() {
           {config.hero_media_url && <img src={config.hero_media_url} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }} />}
           <span style={{ fontSize: 16, fontWeight: 600, color: t.text }}>{shopName}</span>
         </div>
-        <span style={{ fontSize: 11, color: isLightTheme ? 'rgba(0,0,0,.2)' : 'rgba(255,255,255,.15)' }}>Powered by VuriumBook</span>
+        <a href="https://vurium.com/vuriumbook" target="_blank" rel="noopener" style={{ fontSize: 11, color: isLightTheme ? 'rgba(0,0,0,.2)' : 'rgba(255,255,255,.15)', textDecoration: 'none' }}>Powered by VuriumBook</a>
       </header>
 
       {/* Banner */}
