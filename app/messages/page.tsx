@@ -142,7 +142,7 @@ function AudioPlayer({ src, isOwn }: { src: string; isOwn: boolean }) {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 180, padding: '2px 0' }}>
-      <button onClick={toggle} style={{ width: 32, height: 32, borderRadius: 999, border: 'none', background: isOwn ? 'rgba(255,255,255,.20)' : 'rgba(10,132,255,.25)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <button onClick={toggle} style={{ width: 32, height: 32, borderRadius: 999, border: 'none', background: isOwn ? 'rgba(255,255,255,.20)' : 'rgba(255,255,255,.08)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
         {playing ? (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
         ) : (
@@ -153,7 +153,7 @@ function AudioPlayer({ src, isOwn }: { src: string; isOwn: boolean }) {
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1.5, height: 22 }}>
           {bars.map((h, i) => {
             const filled = progress > i / bars.length
-            return <div key={i} style={{ flex: 1, height: `${h * 100}%`, borderRadius: 1, background: filled ? (isOwn ? 'rgba(255,255,255,.80)' : 'rgba(10,132,255,.80)') : (isOwn ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.15)'), transition: 'background .15s' }} />
+            return <div key={i} style={{ flex: 1, height: `${h * 100}%`, borderRadius: 1, background: filled ? (isOwn ? 'rgba(255,255,255,.80)' : 'rgba(255,255,255,.6)') : (isOwn ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.15)'), transition: 'background .15s' }} />
           })}
         </div>
         <div style={{ fontSize: 10, color: isOwn ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.30)' }}>
@@ -210,7 +210,7 @@ function MessageBubble({ msg, isOwn, onImageClick, isGrouped, onReaction, myUid 
             ? (isGrouped ? '18px' : '20px 20px 4px 20px')
             : (isGrouped ? '18px' : '20px 20px 20px 4px'),
           background: isOwn
-            ? 'linear-gradient(135deg, rgba(10,132,255,.85), rgba(10,100,220,.90))'
+            ? 'linear-gradient(135deg, rgba(255,255,255,.15), rgba(255,255,255,.10))'
             : 'rgba(255,255,255,.08)',
           backdropFilter: isOwn ? 'none' : 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: isOwn ? 'none' : 'blur(20px) saturate(180%)',
@@ -252,8 +252,8 @@ function MessageBubble({ msg, isOwn, onImageClick, isGrouped, onReaction, myUid 
               return (
                 <button key={emoji} onClick={() => onReaction?.(msg.id, emoji)}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 3, height: 24, padding: '0 7px', borderRadius: 999,
-                    border: `1px solid ${isMine ? 'rgba(10,132,255,.45)' : 'rgba(255,255,255,.12)'}`,
-                    background: isMine ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.06)',
+                    border: `1px solid ${isMine ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.12)'}`,
+                    background: isMine ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.06)',
                     cursor: 'pointer', fontSize: 12, color: '#e8e8ed', fontFamily: 'inherit',
                     transition: 'all .2s ease',
                   }}>
@@ -439,7 +439,7 @@ function NewRequestModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {DAY_NAMES.map(d => (
                     <button key={d} onClick={() => setDays(prev => prev.includes(d) ? prev.filter(x=>x!==d) : [...prev, d])}
-                      style={{ width: 42, height: 34, borderRadius: 8, border: `1px solid ${days.includes(d) ? 'rgba(10,132,255,.50)' : 'rgba(255,255,255,.10)'}`, background: days.includes(d) ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.04)', color: days.includes(d) ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.40)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>{d}</button>
+                      style={{ width: 42, height: 34, borderRadius: 8, border: `1px solid ${days.includes(d) ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.10)'}`, background: days.includes(d) ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.04)', color: days.includes(d) ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.40)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>{d}</button>
                   ))}
                 </div>
               </div>
@@ -469,7 +469,7 @@ function NewRequestModal({ onClose, onCreated }: { onClose: () => void; onCreate
           )}
 
           <button onClick={submit} disabled={saving}
-            style={{ height: 42, borderRadius: 12, border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.14)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
+            style={{ height: 42, borderRadius: 12, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
             {saving ? 'Sending…' : 'Send request'}
           </button>
         </div>
@@ -816,7 +816,7 @@ export default function MessagesPage() {
         </div>
       )}
       <style>{`
-        .msg-input:focus { border-color: rgba(10,132,255,.40) !important; box-shadow: 0 0 0 3px rgba(10,132,255,.10) !important; }
+        .msg-input:focus { border-color: rgba(255,255,255,.20) !important; box-shadow: 0 0 0 3px rgba(255,255,255,.04) !important; }
         .msg-list::-webkit-scrollbar { width: 4px; }
         .msg-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 2px; }
         @keyframes msgSlideUp {
@@ -826,8 +826,8 @@ export default function MessagesPage() {
         }
         .msg-bubble-wrap { animation: msgSlideUp .35s cubic-bezier(.16,1.2,.3,1) both }
         @keyframes sendGlow {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(10,132,255,0); }
-          50% { box-shadow: 0 0 16px 4px rgba(10,132,255,.40); }
+          0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+          50% { box-shadow: 0 0 12px 3px rgba(255,255,255,.08); }
         }
         .msg-send-glow { animation: sendGlow 1.8s ease-in-out infinite; }
         @keyframes reactionPopIn {
@@ -845,40 +845,33 @@ export default function MessagesPage() {
         }
         .wave-bar { animation: waveBar .6s ease-in-out infinite; }
         @media(max-width:640px) {
-          .msg-tabs { gap: 6px !important; }
-          .msg-tab { font-size: 11px !important; padding: 0 12px !important; height: 34px !important; }
+          .msg-tabs { gap: 4px !important; }
+          .msg-tab { font-size: 10px !important; padding: 0 10px !important; height: 30px !important; }
         }
         .msg-tabs-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
         .msg-tabs-scroll::-webkit-scrollbar { display: none; }
       `}</style>
 
       <div className="msg-container" style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Inter,sans-serif', color: '#e8e8ed' }}>
-        {/* Header — glass morphism */}
-        <div style={{ padding: '18px 20px 0', flexShrink: 0, background: 'rgba(0,0,0,.60)', backdropFilter: 'blur(30px) saturate(200%)', WebkitBackdropFilter: 'blur(30px) saturate(200%)' } as React.CSSProperties}>
-          <h2 style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 'clamp(16px,3vw,20px)', margin: 0, fontWeight: 400, textAlign: 'center' }}>Messages</h2>
-          <div style={{ textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 2, letterSpacing: '.06em' }}>Team communication</div>
-
-          {/* Tabs — pill shape, frosted glass */}
-          <div className="msg-tabs msg-tabs-scroll" style={{ display: 'flex', gap: 6, padding: '14px 0 12px', overflowX: 'auto', flexShrink: 0 }}>
-            {visibleTabs.map(t => {
-              const isActive = activeTab === t.id
-              return (
-                <button key={t.id} className="msg-tab" onClick={() => setActiveTab(t.id)}
-                  style={{
-                    height: 36, padding: '0 14px', borderRadius: 999,
-                    border: isActive ? '1px solid rgba(10,132,255,.40)' : '1px solid rgba(255,255,255,.08)',
-                    background: isActive ? 'rgba(10,132,255,.20)' : 'rgba(255,255,255,.06)',
-                    boxShadow: isActive ? '0 0 12px rgba(10,132,255,.15)' : 'none',
-                    color: isActive ? '#fff' : 'rgba(255,255,255,.50)',
-                    cursor: 'pointer', fontWeight: 800, fontSize: 12, fontFamily: 'inherit',
-                    whiteSpace: 'nowrap', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
-                    transition: 'all .2s ease',
-                  }}>
-                  <TabIcon id={t.id} color={isActive ? (TAB_COLORS[t.id] || '#fff') : 'rgba(255,255,255,.35)'} /> {t.label}
-                </button>
-              )
-            })}
-          </div>
+        {/* Compact tab bar */}
+        <div className="msg-tabs msg-tabs-scroll" style={{ display: 'flex', gap: 6, padding: '10px 18px', borderBottom: '1px solid rgba(255,255,255,.06)', overflowX: 'auto', flexShrink: 0 }}>
+          {visibleTabs.map(t => {
+            const isActive = activeTab === t.id
+            return (
+              <button key={t.id} className="msg-tab" onClick={() => setActiveTab(t.id)}
+                style={{
+                  height: 32, padding: '0 12px', borderRadius: 999,
+                  border: `1px solid ${isActive ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.06)'}`,
+                  background: isActive ? 'rgba(255,255,255,.08)' : 'transparent',
+                  color: isActive ? '#e8e8ed' : 'rgba(255,255,255,.35)',
+                  cursor: 'pointer', fontWeight: isActive ? 600 : 400, fontSize: 11, fontFamily: 'inherit',
+                  whiteSpace: 'nowrap', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5,
+                  transition: 'all .2s ease',
+                }}>
+                <TabIcon id={t.id} color={isActive ? (TAB_COLORS[t.id] || '#fff') : 'rgba(255,255,255,.25)'} /> {t.label}
+              </button>
+            )
+          })}
         </div>
 
         {/* Content */}
@@ -897,14 +890,14 @@ export default function MessagesPage() {
               const isBarber = roleType.includes('barber') && !roleType.includes('academy')
               const isAcademy = roleType.includes('academy')
               const statusColors: Record<string,{bg:string;border:string;color:string}> = {
-                new:       { bg: 'rgba(10,132,255,.08)', border: 'rgba(10,132,255,.35)', color: 'rgba(130,150,220,.6)' },
+                new:       { bg: 'rgba(255,255,255,.04)', border: 'rgba(255,255,255,.12)', color: 'rgba(130,150,220,.6)' },
                 reviewed:  { bg: 'rgba(255,207,63,.08)', border: 'rgba(255,207,63,.35)', color: 'rgba(220,190,130,.5)' },
                 interview: { bg: 'rgba(168,107,255,.08)', border: 'rgba(168,107,255,.35)', color: 'rgba(180,140,220,.6)' },
                 hired:     { bg: 'rgba(143,240,177,.08)', border: 'rgba(143,240,177,.35)', color: 'rgba(130,220,170,.5)' },
                 rejected:  { bg: 'rgba(255,107,107,.08)', border: 'rgba(255,107,107,.35)', color: 'rgba(220,130,160,.5)' },
               }
               const sc = statusColors[app.status] || statusColors.new
-              const roleBadge = isAcademy ? { bg: 'rgba(168,107,255,.12)', border: 'rgba(168,107,255,.40)', color: 'rgba(180,140,220,.6)', label: 'ACADEMY' } : isBarber ? { bg: 'rgba(10,132,255,.12)', border: 'rgba(10,132,255,.40)', color: 'rgba(130,150,220,.6)', label: 'BARBER' } : { bg: 'rgba(143,240,177,.12)', border: 'rgba(143,240,177,.40)', color: 'rgba(130,220,170,.5)', label: 'ADMIN' }
+              const roleBadge = isAcademy ? { bg: 'rgba(168,107,255,.12)', border: 'rgba(168,107,255,.40)', color: 'rgba(180,140,220,.6)', label: 'ACADEMY' } : isBarber ? { bg: 'rgba(255,255,255,.06)', border: 'rgba(255,255,255,.12)', color: 'rgba(130,150,220,.6)', label: 'BARBER' } : { bg: 'rgba(143,240,177,.12)', border: 'rgba(143,240,177,.40)', color: 'rgba(130,220,170,.5)', label: 'ADMIN' }
               return (
                 <div key={app.id} style={{ padding: '14px 16px', borderRadius: 16, border: `1px solid ${sc.border}`, background: sc.bg, marginBottom: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
@@ -1008,7 +1001,7 @@ export default function MessagesPage() {
                       <div key={i} className="wave-bar" style={{ width: 3, borderRadius: 2, background: 'rgba(255,59,48,.60)', animationDelay: `${i * 0.08}s` }} />
                     ))}
                   </div>
-                  <button onClick={handleVoiceToggle} style={{ width: 34, height: 34, borderRadius: 999, border: 'none', background: 'linear-gradient(135deg, rgba(10,132,255,.85), rgba(10,100,220,.90))', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 12px rgba(10,132,255,.30)' }}>
+                  <button onClick={handleVoiceToggle} style={{ width: 34, height: 34, borderRadius: 999, border: 'none', background: 'linear-gradient(135deg, rgba(255,255,255,.15), rgba(255,255,255,.10))', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 12px rgba(255,255,255,.08)' }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                   </button>
                 </div>
@@ -1017,7 +1010,7 @@ export default function MessagesPage() {
                 <>
                   <div style={{ position: 'relative', flexShrink: 0 }}>
                     <button onClick={() => setShowAttachMenu(v => !v)}
-                      style={{ width: 34, height: 34, borderRadius: 999, border: `1px solid ${showAttachMenu ? 'rgba(10,132,255,.40)' : 'rgba(255,255,255,.08)'}`, background: showAttachMenu ? 'rgba(10,132,255,.10)' : 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all .2s ease', transform: showAttachMenu ? 'rotate(45deg)' : 'none', color: showAttachMenu ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.40)' }}>
+                      style={{ width: 34, height: 34, borderRadius: 999, border: `1px solid ${showAttachMenu ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.08)'}`, background: showAttachMenu ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all .2s ease', transform: showAttachMenu ? 'rotate(45deg)' : 'none', color: showAttachMenu ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.40)' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>
                     {showAttachMenu && (
@@ -1026,7 +1019,7 @@ export default function MessagesPage() {
                         <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 8, zIndex: 99, display: 'flex', flexDirection: 'column', gap: 4, padding: '6px', borderRadius: 16, background: 'rgba(20,20,20,.92)', border: '1px solid rgba(255,255,255,.12)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', boxShadow: '0 8px 32px rgba(0,0,0,.5)', animation: 'reactionPopIn .2s ease', minWidth: 150 }}>
                           <label onClick={() => setShowAttachMenu(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', background: 'transparent', border: 'none', color: '#e8e8ed', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
                             onPointerDown={e => (e.currentTarget.style.background = 'rgba(255,255,255,.06)')} onPointerUp={e => (e.currentTarget.style.background = 'transparent')}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(10,132,255,.80)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
                             Photo
                             <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { handleImageAttach(e.target.files?.[0] || null); e.target.value = '' }} />
                           </label>
@@ -1060,7 +1053,7 @@ export default function MessagesPage() {
                     /* Send button with glow */
                     <button onClick={sendMessage} disabled={sending}
                       className="msg-send-glow"
-                      style={{ width: 34, height: 34, borderRadius: 999, border: 'none', background: 'linear-gradient(135deg, rgba(10,132,255,.85), rgba(10,100,220,.90))', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .2s' }}>
+                      style={{ width: 34, height: 34, borderRadius: 999, border: 'none', background: 'linear-gradient(135deg, rgba(255,255,255,.15), rgba(255,255,255,.10))', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .2s' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                     </button>
                   ) : voiceSupported ? (

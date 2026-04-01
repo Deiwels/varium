@@ -47,7 +47,7 @@ function DatePicker({ value, onChange, label }: { value: string; onChange: (v: s
     <div ref={ref} style={{ position: 'relative' }}>
       <div style={{ fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.50)', marginBottom: 5 }}>{label}</div>
       <button onClick={() => { setOpen(!open); const dd = value ? new Date(value + 'T12:00:00') : new Date(); setViewYear(dd.getFullYear()); setViewMonth(dd.getMonth()) }}
-        style={{ width: '100%', height: 44, borderRadius: 14, border: `1px solid ${open ? 'rgba(10,132,255,.50)' : 'rgba(255,255,255,.12)'}`, background: open ? 'rgba(10,132,255,.06)' : 'rgba(0,0,0,.22)', color: '#fff', padding: '0 14px', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left', transition: 'all .2s ease', boxShadow: open ? '0 0 12px rgba(10,132,255,.15)' : 'none' }}>
+        style={{ width: '100%', height: 44, borderRadius: 14, border: `1px solid ${open ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.12)'}`, background: open ? 'rgba(255,255,255,.03)' : 'rgba(0,0,0,.22)', color: '#fff', padding: '0 14px', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left', transition: 'all .2s ease', boxShadow: open ? '0 0 12px rgba(255,255,255,.04)' : 'none' }}>
         {displayDate}
       </button>
       {open && (
@@ -66,7 +66,7 @@ function DatePicker({ value, onChange, label }: { value: string; onChange: (v: s
               const isToday = dateStr === today
               return (
                 <button key={i} onClick={() => { onChange(dateStr); setOpen(false) }}
-                  style={{ width: '100%', height: 36, borderRadius: 10, border: isSelected ? '1px solid rgba(10,132,255,.65)' : isToday ? '1px solid rgba(255,255,255,.25)' : '1px solid transparent', background: isSelected ? 'rgba(10,132,255,.20)' : 'transparent', color: isSelected ? '#fff' : isToday ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.75)', cursor: 'pointer', fontWeight: isSelected || isToday ? 900 : 500, fontSize: 13, fontFamily: 'inherit', transition: 'all .15s ease', boxShadow: isSelected ? '0 0 14px rgba(10,132,255,.25)' : 'none' }}>
+                  style={{ width: '100%', height: 36, borderRadius: 10, border: isSelected ? '1px solid rgba(255,255,255,.18)' : isToday ? '1px solid rgba(255,255,255,.25)' : '1px solid transparent', background: isSelected ? 'rgba(255,255,255,.06)' : 'transparent', color: isSelected ? '#fff' : isToday ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.75)', cursor: 'pointer', fontWeight: isSelected || isToday ? 900 : 500, fontSize: 13, fontFamily: 'inherit', transition: 'all .15s ease', boxShadow: isSelected ? '0 0 14px rgba(255,255,255,.08)' : 'none' }}>
                   {day}
                 </button>
               )
@@ -170,7 +170,7 @@ export default function CashPage() {
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
         @keyframes calPopIn { 0%{opacity:0;transform:translateY(-6px) scale(.97)} 100%{opacity:1;transform:translateY(0) scale(1)} }
         @keyframes cashSlide { 0%{opacity:0;transform:translateY(12px)} 100%{opacity:1;transform:translateY(0)} }
-        @keyframes kpiPulse { 0%{box-shadow:0 0 0 0 rgba(10,132,255,0)} 50%{box-shadow:0 0 16px 0 rgba(10,132,255,.12)} 100%{box-shadow:0 0 0 0 rgba(10,132,255,0)} }
+        @keyframes kpiPulse { 0%{box-shadow:0 0 0 0 rgba(255,255,255,0)} 50%{box-shadow:0 0 16px 0 rgba(255,255,255,.06)} 100%{box-shadow:0 0 0 0 rgba(255,255,255,0)} }
         @keyframes toastIn { 0%{opacity:0;transform:translateX(-50%) translateY(16px)} 100%{opacity:1;transform:translateX(-50%) translateY(0)} }
         @keyframes kpiGlow {
           0%, 100% { box-shadow: 0 0 0 0 var(--kpi-glow-color, rgba(255,255,255,0)); }
@@ -199,23 +199,20 @@ export default function CashPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
 
-        {/* Header */}
-        <div style={{ padding: '16px 20px 14px', background: 'linear-gradient(to bottom, rgba(0,0,0,.90), rgba(0,0,0,.70))', backdropFilter: 'blur(18px) saturate(160%)', WebkitBackdropFilter: 'blur(18px) saturate(160%)', borderBottom: '1px solid rgba(255,255,255,.06)', position: 'sticky', top: 0, zIndex: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ flex: 1, textAlign: 'center' }}>
-              <h2 style={{ margin: 0, fontFamily: '"Inter",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 16 }}>Cash Register</h2>
-              <p style={{ margin: '4px 0 0', color: 'rgba(255,255,255,.35)', fontSize: 11, letterSpacing: '.06em' }}>
-                {loading ? 'Loading…' : `${days.length} day${days.length !== 1 ? 's' : ''} · ${days.reduce((s, d) => s + d.cashCount + d.zelleCount, 0)} transactions`}
-              </p>
-            </div>
-            {loading && <div style={{ width: 18, height: 18, borderRadius: 999, border: '2px solid rgba(255,255,255,.15)', borderTopColor: 'rgba(10,132,255,.80)', animation: 'spin .7s linear infinite' }} />}
+        {/* Header — compact */}
+        <div style={{ padding: '10px 18px', borderBottom: '1px solid rgba(255,255,255,.06)', position: 'sticky', top: 0, zIndex: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>
+              {loading ? 'Loading…' : `${days.length} day${days.length !== 1 ? 's' : ''} · ${days.reduce((s, d) => s + d.cashCount + d.zelleCount, 0)} transactions`}
+            </span>
+            {loading && <div style={{ width: 14, height: 14, borderRadius: 999, border: '2px solid rgba(255,255,255,.10)', borderTopColor: 'rgba(255,255,255,.5)', animation: 'spin .7s linear infinite' }} />}
           </div>
 
           {/* Presets */}
           <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
             {[{ id: 'today', label: 'Today' }, { id: 'week', label: '7 days' }, { id: 'month', label: '30 days' }].map(p => (
               <button key={p.id} className="cash-preset" onClick={() => setPreset(p.id)}
-                style={{ height: 32, padding: '0 14px', borderRadius: 999, border: `1px solid ${activePreset === p.id ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)'}`, background: activePreset === p.id ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.03)', color: activePreset === p.id ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.55)', cursor: 'pointer', fontWeight: 800, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: 'inherit', boxShadow: activePreset === p.id ? '0 0 10px rgba(10,132,255,.15)' : 'none' }}>
+                style={{ height: 32, padding: '0 14px', borderRadius: 999, border: `1px solid ${activePreset === p.id ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.10)'}`, background: activePreset === p.id ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.03)', color: activePreset === p.id ? '#e8e8ed' : 'rgba(255,255,255,.55)', cursor: 'pointer', fontWeight: 800, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: 'inherit', boxShadow: activePreset === p.id ? '0 0 10px rgba(255,255,255,.04)' : 'none' }}>
                 {p.label}
               </button>
             ))}
@@ -232,7 +229,7 @@ export default function CashPage() {
         <div className="cash-kpi-grid cash-page-pad" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, padding: '14px 20px' }}>
           {[
             { label: 'Cash', value: usd(totalExpectedCash), color: 'rgba(220,190,130,.5)', border: 'rgba(255,207,63,.18)', bg: 'rgba(255,207,63,.04)', delay: '0s', glow: 'rgba(255,207,63,.12)', perfectGlow: false },
-            { label: 'Zelle', value: usd(totalExpectedZelle), color: 'rgba(130,150,220,.6)', border: 'rgba(10,132,255,.18)', bg: 'rgba(10,132,255,.04)', delay: '.05s', glow: 'rgba(10,132,255,.12)', perfectGlow: false },
+            { label: 'Zelle', value: usd(totalExpectedZelle), color: 'rgba(255,255,255,.6)', border: 'rgba(255,255,255,.06)', bg: 'rgba(255,255,255,.03)', delay: '.05s', glow: 'rgba(255,255,255,.06)', perfectGlow: false },
             { label: 'Counted', value: reportsCount > 0 ? usd(totalActual) : '—', color: 'rgba(130,220,170,.5)', border: 'rgba(143,240,177,.18)', bg: 'rgba(143,240,177,.04)', delay: '.1s', glow: 'rgba(143,240,177,.12)', perfectGlow: reportsCount > 0 && totalDiff === 0 },
             { label: 'Diff', value: reportsCount > 0 ? (totalDiff >= 0 ? '+' : '') + usd(totalDiff) : '—', color: totalDiff >= 0 ? 'rgba(130,220,170,.5)' : 'rgba(220,130,160,.5)', border: totalDiff >= 0 ? 'rgba(143,240,177,.18)' : 'rgba(255,107,107,.18)', bg: totalDiff >= 0 ? 'rgba(143,240,177,.04)' : 'rgba(255,107,107,.04)', delay: '.15s', glow: totalDiff >= 0 ? 'rgba(143,240,177,.12)' : 'rgba(255,107,107,.12)', perfectGlow: false },
           ].map(kpi => (
@@ -247,7 +244,7 @@ export default function CashPage() {
         <div className="cash-page-pad" style={{ flex: 1, overflowY: 'auto', padding: '0 20px 100px' }}>
           {loading && days.length === 0 ? (
             <div style={{ padding: 50, textAlign: 'center' }}>
-              <div style={{ width: 28, height: 28, borderRadius: 999, border: '2px solid rgba(255,255,255,.12)', borderTopColor: 'rgba(10,132,255,.70)', animation: 'spin .7s linear infinite', margin: '0 auto 12px' }} />
+              <div style={{ width: 28, height: 28, borderRadius: 999, border: '2px solid rgba(255,255,255,.12)', borderTopColor: 'rgba(255,255,255,.5)', animation: 'spin .7s linear infinite', margin: '0 auto 12px' }} />
               <div style={{ color: 'rgba(255,255,255,.25)', fontSize: 12 }}>Loading cash data…</div>
             </div>
           ) : days.length === 0 ? (
@@ -267,8 +264,8 @@ export default function CashPage() {
             return (
               <div key={day.date} className="cash-day cash-card" style={{
                 marginTop: i > 0 ? 10 : 0, padding: '14px 14px', borderRadius: 18,
-                border: `1px solid ${isToday ? 'rgba(10,132,255,.25)' : 'rgba(255,255,255,.07)'}`,
-                background: isToday ? 'rgba(10,132,255,.03)' : 'rgba(255,255,255,.015)',
+                border: `1px solid ${isToday ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.07)'}`,
+                background: isToday ? 'rgba(255,255,255,.02)' : 'rgba(255,255,255,.015)',
                 animationDelay: `${i * 0.04}s`,
               }}>
                 {/* Day header */}
@@ -276,7 +273,7 @@ export default function CashPage() {
                   <div>
                     <div style={{ fontWeight: 900, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
                       {dayLabel}
-                      {isToday && <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 999, border: '1px solid rgba(10,132,255,.35)', background: 'rgba(10,132,255,.10)', color: 'rgba(130,150,220,.6)', fontWeight: 800, letterSpacing: '.06em' }}>TODAY</span>}
+                      {isToday && <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.6)', fontWeight: 800, letterSpacing: '.06em' }}>TODAY</span>}
                       {day.report && diff === 0 && <span style={{ display: 'inline-flex', alignItems: 'center' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(130,220,170,.8)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg></span>}
                     </div>
                     <div style={{ fontSize: 11, color: 'rgba(255,255,255,.30)', marginTop: 2 }}>
@@ -300,9 +297,9 @@ export default function CashPage() {
                       <div style={{ fontSize: 17, fontWeight: 900, color: 'rgba(220,190,130,.5)', marginTop: 3 }}>{usd(expectedCash)}</div>
                       <div style={{ fontSize: 8, color: 'rgba(255,255,255,.20)', marginTop: 2 }}>{usd(day.cashTotal)} + {usd(day.cashTips)} tips</div>
                     </div>
-                    <div style={{ padding: '10px 10px', borderRadius: 12, background: 'rgba(10,132,255,.04)', border: '1px solid rgba(10,132,255,.10)' }}>
-                      <div style={{ fontSize: 8, color: 'rgba(10,132,255,.55)', letterSpacing: '.10em', textTransform: 'uppercase', fontWeight: 800 }}>Zelle</div>
-                      <div style={{ fontSize: 17, fontWeight: 900, color: 'rgba(130,150,220,.6)', marginTop: 3 }}>{usd(expectedZelle)}</div>
+                    <div style={{ padding: '10px 10px', borderRadius: 12, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.04)' }}>
+                      <div style={{ fontSize: 8, color: 'rgba(255,255,255,.18)', letterSpacing: '.10em', textTransform: 'uppercase', fontWeight: 800 }}>Zelle</div>
+                      <div style={{ fontSize: 17, fontWeight: 900, color: 'rgba(255,255,255,.6)', marginTop: 3 }}>{usd(expectedZelle)}</div>
                       <div style={{ fontSize: 8, color: 'rgba(255,255,255,.20)', marginTop: 2 }}>{usd(day.zelleTotal)} + {usd(day.zelleTips)} tips</div>
                     </div>
                     <div style={{ padding: '10px 10px', borderRadius: 12, background: day.report ? (diff !== null && diff >= 0 ? 'rgba(143,240,177,.04)' : 'rgba(255,107,107,.04)') : 'rgba(255,255,255,.02)', border: `1px solid ${day.report ? (diff !== null && diff >= 0 ? 'rgba(143,240,177,.12)' : 'rgba(255,107,107,.12)') : 'rgba(255,255,255,.06)'}` }}>
@@ -329,12 +326,12 @@ export default function CashPage() {
 
                 {/* Edit form */}
                 {isEditing && (
-                  <div style={{ marginTop: 10, padding: '12px 12px', borderRadius: 14, border: '1px solid rgba(10,132,255,.20)', background: 'rgba(10,132,255,.03)', animation: 'cashSlide .25s ease' }}>
+                  <div style={{ marginTop: 10, padding: '12px 12px', borderRadius: 14, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)', animation: 'cashSlide .25s ease' }}>
                     <div className="cash-edit-row" style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 4, fontWeight: 700 }}>Cash in drawer ($)</div>
                         <input type="number" min="0" step="0.01" value={cashInput} onChange={e => setCashInput(e.target.value)} placeholder="0.00" autoFocus
-                          style={{ width: '100%', height: 44, borderRadius: 12, border: '1px solid rgba(10,132,255,.30)', background: 'rgba(0,0,0,.25)', color: '#fff', padding: '0 12px', outline: 'none', fontSize: 16, fontWeight: 700, fontFamily: 'inherit' }} />
+                          style={{ width: '100%', height: 44, borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.25)', color: '#fff', padding: '0 12px', outline: 'none', fontSize: 16, fontWeight: 700, fontFamily: 'inherit' }} />
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 4, fontWeight: 700 }}>Note</div>
@@ -346,7 +343,7 @@ export default function CashPage() {
                       <button onClick={() => setEditingDay(null)}
                         style={{ flex: 1, height: 38, borderRadius: 12, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit' }}>Cancel</button>
                       <button onClick={() => saveReport(day.date)} disabled={saving === day.date}
-                        style={{ flex: 2, height: 38, borderRadius: 12, border: '1px solid rgba(10,132,255,.55)', background: 'rgba(10,132,255,.10)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', boxShadow: '0 0 12px rgba(10,132,255,.15)' }}>
+                        style={{ flex: 2, height: 38, borderRadius: 12, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', boxShadow: '0 0 12px rgba(255,255,255,.04)' }}>
                         {saving === day.date ? 'Saving…' : 'Save count'}
                       </button>
                     </div>

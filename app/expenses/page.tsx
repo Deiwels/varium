@@ -57,7 +57,7 @@ function DatePicker({ value, onChange, label }: { value: string; onChange: (v: s
     <div ref={ref} style={{ position: 'relative' }}>
       {label && <div style={{ fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 5 }}>{label}</div>}
       <button onClick={() => { setOpen(!open); const dd = value ? new Date(value + 'T12:00:00') : new Date(); setViewYear(dd.getFullYear()); setViewMonth(dd.getMonth()) }}
-        style={{ width: '100%', height: 44, borderRadius: 14, border: `1px solid ${open ? 'rgba(10,132,255,.50)' : 'rgba(255,255,255,.12)'}`, background: open ? 'rgba(10,132,255,.06)' : 'rgba(0,0,0,.22)', color: '#fff', padding: '0 14px', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left', transition: 'all .2s ease', boxShadow: open ? '0 0 12px rgba(10,132,255,.15)' : 'none' }}>
+        style={{ width: '100%', height: 44, borderRadius: 14, border: `1px solid ${open ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.12)'}`, background: open ? 'rgba(255,255,255,.03)' : 'rgba(0,0,0,.22)', color: '#fff', padding: '0 14px', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left', transition: 'all .2s ease', boxShadow: open ? '0 0 12px rgba(255,255,255,.04)' : 'none' }}>
         {displayDate}
       </button>
       {open && (
@@ -76,7 +76,7 @@ function DatePicker({ value, onChange, label }: { value: string; onChange: (v: s
               const isToday = dateStr === todayStr
               return (
                 <button key={i} onClick={() => { onChange(dateStr); setOpen(false) }}
-                  style={{ width: '100%', height: 36, borderRadius: 10, border: isSelected ? '1px solid rgba(10,132,255,.65)' : isToday ? '1px solid rgba(255,255,255,.25)' : '1px solid transparent', background: isSelected ? 'rgba(10,132,255,.20)' : 'transparent', color: isSelected ? '#fff' : isToday ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.75)', cursor: 'pointer', fontWeight: isSelected || isToday ? 900 : 500, fontSize: 13, fontFamily: 'inherit', transition: 'all .15s ease', boxShadow: isSelected ? '0 0 14px rgba(10,132,255,.25)' : 'none' }}>
+                  style={{ width: '100%', height: 36, borderRadius: 10, border: isSelected ? '1px solid rgba(255,255,255,.18)' : isToday ? '1px solid rgba(255,255,255,.25)' : '1px solid transparent', background: isSelected ? 'rgba(255,255,255,.06)' : 'transparent', color: isSelected ? '#fff' : isToday ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.75)', cursor: 'pointer', fontWeight: isSelected || isToday ? 900 : 500, fontSize: 13, fontFamily: 'inherit', transition: 'all .15s ease', boxShadow: isSelected ? '0 0 14px rgba(255,255,255,.08)' : 'none' }}>
                   {day}
                 </button>
               )
@@ -231,16 +231,13 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* Header */}
-      <div style={{ padding: '18px 16px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-          <div>
-            <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.22em', textTransform: 'uppercase', fontSize: 18 }}>Expenses</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.40)', marginTop: 2 }}>{expenses.length} expenses · {money(totalExpenses)}</div>
-          </div>
-          <button onClick={openAdd} style={{ height: 38, padding: '0 18px', borderRadius: 12, border: '1px solid rgba(143,240,177,.35)', background: 'rgba(143,240,177,.08)', color: 'rgba(130,220,170,.5)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', letterSpacing: '.06em', display: 'flex', alignItems: 'center', gap: 6, transition: 'all .2s' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Add expense
+      {/* Header — compact */}
+      <div style={{ padding: '10px 16px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>{expenses.length} expenses · {money(totalExpenses)}</span>
+          <div style={{ flex: 1 }} />
+          <button onClick={openAdd} style={{ height: 32, padding: '0 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontWeight: 600, fontSize: 11, fontFamily: 'inherit' }}>
+            + Add
           </button>
         </div>
 
@@ -378,7 +375,7 @@ export default function ExpensesPage() {
               <DatePicker value={fDate} onChange={setFDate} label="Date" />
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <button onClick={() => setShowModal(false)} style={{ flex: 1, height: 44, borderRadius: 12, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit' }}>Cancel</button>
-                <button onClick={handleSave} disabled={saving} style={{ flex: 1, height: 44, borderRadius: 12, border: '1px solid rgba(10,132,255,.50)', background: 'rgba(10,132,255,.12)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1, transition: 'all .2s' }}>
+                <button onClick={handleSave} disabled={saving} style={{ flex: 1, height: 44, borderRadius: 12, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1, transition: 'all .2s' }}>
                   {saving ? 'Saving…' : editing ? 'Update' : 'Add expense'}
                 </button>
               </div>

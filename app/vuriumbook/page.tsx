@@ -8,30 +8,43 @@ export default function VuriumBook() {
   useEffect(() => {
     const mobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window
     setIsMobile(mobile)
-    if (mobile) return
 
     let tx = 0, ty = 0, cx = 0, cy = 0
     let raf: number
+
+    function tick() {
+      cx += (tx - cx) * 0.02
+      cy += (ty - cy) * 0.02
+      const far  = document.querySelector('.stars-far')    as HTMLElement
+      const mid  = document.querySelector('.stars-mid')    as HTMLElement
+      const near = document.querySelector('.stars-near')   as HTMLElement
+      const orb  = document.querySelector('.orb-parallax') as HTMLElement
+      if (far)  far.style.transform  = `translate(${cx * 8}px, ${cy * 8}px)`
+      if (mid)  mid.style.transform  = `translate(${cx * 20}px, ${cy * 20}px)`
+      if (near) near.style.transform = `translate(${cx * 35}px, ${cy * 35}px)`
+      if (orb)  orb.style.transform  = `translate(${cx * -8}px, ${cy * -8}px)`
+      raf = requestAnimationFrame(tick)
+    }
+
+    if (mobile) {
+      function onOrientation(e: DeviceOrientationEvent) {
+        const gamma = Math.max(-15, Math.min(15, e.gamma || 0))
+        const beta  = Math.max(-15, Math.min(15, (e.beta || 0) - 45))
+        tx = gamma / 15 * 4; ty = beta / 15 * 4
+      }
+      const doe = DeviceOrientationEvent as any
+      if (typeof doe.requestPermission === 'function') {
+        const req = () => { doe.requestPermission().then((s: string) => { if (s === 'granted') window.addEventListener('deviceorientation', onOrientation, { passive: true }) }).catch(() => {}); document.removeEventListener('click', req) }
+        document.addEventListener('click', req, { once: true })
+      } else { window.addEventListener('deviceorientation', onOrientation, { passive: true }) }
+      raf = requestAnimationFrame(tick)
+      return () => { window.removeEventListener('deviceorientation', onOrientation); cancelAnimationFrame(raf) }
+    }
 
     function onMouse(e: MouseEvent) {
       tx = (e.clientX / window.innerWidth - 0.5) * 2
       ty = (e.clientY / window.innerHeight - 0.5) * 2
     }
-
-    function tick() {
-      cx += (tx - cx) * 0.04
-      cy += (ty - cy) * 0.04
-      const far  = document.querySelector('.stars-far')    as HTMLElement
-      const mid  = document.querySelector('.stars-mid')    as HTMLElement
-      const near = document.querySelector('.stars-near')   as HTMLElement
-      const orb  = document.querySelector('.orb-parallax') as HTMLElement
-      if (far)  far.style.transform  = `translate(${cx * 3}px, ${cy * 3}px)`
-      if (mid)  mid.style.transform  = `translate(${cx * 7}px, ${cy * 7}px)`
-      if (near) near.style.transform = `translate(${cx * 12}px, ${cy * 12}px)`
-      if (orb)  orb.style.transform  = `translate(${cx * -8}px, ${cy * -8}px)`
-      raf = requestAnimationFrame(tick)
-    }
-
     function onScroll() {
       const y = window.scrollY
       const scale = 1 + y * 0.00008
@@ -41,11 +54,7 @@ export default function VuriumBook() {
     window.addEventListener('mousemove', onMouse, { passive: true })
     window.addEventListener('scroll', onScroll, { passive: true })
     raf = requestAnimationFrame(tick)
-    return () => {
-      window.removeEventListener('mousemove', onMouse)
-      window.removeEventListener('scroll', onScroll)
-      cancelAnimationFrame(raf)
-    }
+    return () => { window.removeEventListener('mousemove', onMouse); window.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf) }
   }, [])
 
   return (
@@ -137,7 +146,7 @@ export default function VuriumBook() {
           {[
             { name: 'Individual', price: '$29', period: '/mo', desc: 'For solo specialists and freelancers', features: ['1 user — your own calendar', 'Online booking page', 'Client management', 'Payments', 'Basic analytics'], featured: false, plan: 'individual' },
             { name: 'Salon', price: '$79', period: '/mo', desc: 'For teams, salons, and studios', features: ['Up to 10 team members', 'Team management & roles', 'Waitlist & Messages', 'Portfolio & Membership', 'Advanced analytics'], featured: true, plan: 'salon' },
-            { name: 'Custom', price: 'Custom', period: '', desc: 'For networks and enterprises', features: ['Everything in Salon', 'Unlimited team members', 'Multi-location', 'API access', 'Expenses & Payroll'], featured: false, plan: 'custom' },
+            { name: 'Custom', price: '$99', period: '/mo', desc: 'Full customizable site', features: ['Custom booking site', '5 design templates', 'Unlimited team members', 'Expenses & Payroll', 'Dedicated support'], featured: false, plan: 'custom' },
           ].map((p, i) => (
             <div key={i} className="glass-card" style={{ borderColor: p.featured ? 'rgba(130,150,220,.2)' : undefined, background: p.featured ? 'rgba(130,150,220,.03)' : undefined }}>
               {p.featured && <div style={{ position: 'absolute', top: 14, right: 18, fontSize: 9, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(130,150,220,.7)', background: 'rgba(130,150,220,.1)', padding: '3px 10px', borderRadius: 999 }}>Popular</div>}

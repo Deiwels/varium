@@ -57,7 +57,7 @@ const fmtDateLong = () => new Date().toLocaleDateString([], { weekday: 'long', m
 
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
   paid:      { borderColor: 'rgba(143,240,177,.40)', background: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)' },
-  booked:    { borderColor: 'rgba(10,132,255,.40)',  background: 'rgba(10,132,255,.10)',  color: 'rgba(130,150,220,.6)' },
+  booked:    { borderColor: 'rgba(255,255,255,.15)',  background: 'rgba(255,255,255,.06)',  color: 'rgba(255,255,255,.6)' },
   arrived:   { borderColor: 'rgba(143,240,177,.40)', background: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)' },
   done:      { borderColor: 'rgba(255,207,63,.40)',  background: 'rgba(255,207,63,.08)',  color: 'rgba(220,190,130,.5)' },
   noshow:    { borderColor: 'rgba(255,107,107,.40)', background: 'rgba(255,107,107,.10)', color: 'rgba(220,130,160,.5)' },
@@ -79,6 +79,72 @@ function KpiCard({ title, value, sub, color }: { title: string; value: string; s
         {color && <span style={{ width: 5, height: 5, borderRadius: 999, background: dots[color] || 'rgba(255,255,255,.15)', flexShrink: 0, display: 'inline-block' }} />}
         {sub}
       </div>
+    </div>
+  )
+}
+
+// ─── Clock Widget — transparent analog clock ──────────────────────────────────
+function ClockWidget() {
+  const [time, setTime] = useState(new Date())
+  useEffect(() => { const t = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(t) }, [])
+  const h = time.getHours() % 12, m = time.getMinutes(), s = time.getSeconds()
+  const hDeg = h * 30 + m * 0.5, mDeg = m * 6, sDeg = s * 6
+  const size = 70, cx = size / 2, cy = size / 2
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {Array.from({ length: 12 }, (_, i) => {
+        const a = (i * 30 - 90) * Math.PI / 180
+        return <line key={i} x1={cx + Math.cos(a) * 27} y1={cy + Math.sin(a) * 27} x2={cx + Math.cos(a) * 31} y2={cy + Math.sin(a) * 31} stroke="rgba(255,255,255,.18)" strokeWidth={i % 3 === 0 ? 1.5 : .5} strokeLinecap="round" />
+      })}
+      <line x1={cx} y1={cy} x2={cx + Math.cos((hDeg - 90) * Math.PI / 180) * 16} y2={cy + Math.sin((hDeg - 90) * Math.PI / 180) * 16} stroke="rgba(255,255,255,.7)" strokeWidth={2} strokeLinecap="round" />
+      <line x1={cx} y1={cy} x2={cx + Math.cos((mDeg - 90) * Math.PI / 180) * 24} y2={cy + Math.sin((mDeg - 90) * Math.PI / 180) * 24} stroke="rgba(255,255,255,.5)" strokeWidth={1.2} strokeLinecap="round" />
+      <line x1={cx} y1={cy} x2={cx + Math.cos((sDeg - 90) * Math.PI / 180) * 27} y2={cy + Math.sin((sDeg - 90) * Math.PI / 180) * 27} stroke="rgba(255,255,255,.2)" strokeWidth={.5} strokeLinecap="round" />
+      <circle cx={cx} cy={cy} r={1.5} fill="rgba(255,255,255,.35)" />
+    </svg>
+  )
+}
+
+// ─── Mini Calendar Widget — today's schedule by barber ────────────────────────
+function MiniCalendarWidget({ bookings }: { bookings: Booking[] }) {
+  const now = new Date()
+  // Group today's bookings by barber
+  const byBarber: Record<string, Booking[]> = {}
+  bookings.forEach(b => {
+    const name = b.barber_name || b.barber || 'Unassigned'
+    if (!byBarber[name]) byBarber[name] = []
+    byBarber[name].push(b)
+  })
+  const barberNames = Object.keys(byBarber).sort()
+  const fmt = (iso?: string) => { try { return new Date(iso!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) } catch { return '' } }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <div style={{ fontSize: 9, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>
+          {now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+        </div>
+        <div style={{ fontSize: 10, color: 'rgba(255,255,255,.3)' }}>{bookings.length} bookings</div>
+      </div>
+      {barberNames.length === 0 ? (
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', padding: '6px 0' }}>No appointments today</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 80, overflowY: 'auto' }}>
+          {barberNames.slice(0, 3).map(name => (
+            <div key={name}>
+              <div style={{ fontSize: 8, fontWeight: 600, color: 'rgba(255,255,255,.3)', marginBottom: 2 }}>{name}</div>
+              <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                {byBarber[name].sort((a, b) => (a.start_at || '').localeCompare(b.start_at || '')).slice(0, 4).map((b, i) => (
+                  <div key={i} style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, border: '1px solid rgba(255,255,255,.05)', background: b.paid || b.is_paid ? 'rgba(130,220,170,.05)' : 'rgba(255,255,255,.02)', color: b.paid || b.is_paid ? 'rgba(130,220,170,.5)' : 'rgba(255,255,255,.35)' }}>
+                    {fmt(b.start_at)}
+                  </div>
+                ))}
+                {byBarber[name].length > 4 && <span style={{ fontSize: 7, color: 'rgba(255,255,255,.2)' }}>+{byBarber[name].length - 4}</span>}
+              </div>
+            </div>
+          ))}
+          {barberNames.length > 3 && <div style={{ fontSize: 7, color: 'rgba(255,255,255,.2)' }}>+{barberNames.length - 3} more</div>}
+        </div>
+      )}
     </div>
   )
 }
@@ -159,11 +225,115 @@ export default function DashboardPage() {
   const myBarberId: string = user?.barber_id || ''
   const myBarberName: string = user?.name || ''
 
-  // Dashboard shortcut settings
+  // Dashboard shortcut settings + slug
   const [dashSettings, setDashSettings] = useState<Record<string, any>>({})
+  const [slug, setSlug] = useState('')
+  const [editingShortcuts, setEditingShortcuts] = useState(false)
+  const [dashShortcuts, setDashShortcuts] = useState<string[]>([])
+  // Widgets
+  const [dashWidgets, setDashWidgets] = useState<string[]>([])
+  const [editingWidgets, setEditingWidgets] = useState(false)
+  const [widgetData, setWidgetData] = useState<Record<string, any>>({})
+  const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const editJustActivated = useRef(false)
+
   useEffect(() => {
-    apiFetch('/api/settings').then(d => setDashSettings(d || {})).catch(() => {})
+    apiFetch('/api/settings').then(d => {
+      setDashSettings(d || {})
+      const saved = d?.dash_shortcuts
+      setDashShortcuts(saved && saved.length ? saved : ['/payments', '/waitlist', '/portfolio', '/cash', '/membership'])
+      const savedW = d?.dash_widgets
+      setDashWidgets(savedW && savedW.length ? savedW : ['clock', 'todays-earnings', 'mini-calendar', 'weekly-chart', 'new-clients', 'expenses-month', 'site-analytics'])
+    }).catch(() => {})
+    apiFetch('/api/account/limits').then(d => { if (d?.slug) setSlug(d.slug) }).catch(() => {})
   }, [])
+
+  // Load widget-specific data
+  useEffect(() => {
+    const today = isoToday()
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6)
+    const monthStart = new Date(); monthStart.setDate(1)
+
+    // Today's earnings + weekly revenue
+    if (dashWidgets.includes('todays-earnings') || dashWidgets.includes('weekly-chart')) {
+      apiFetch(`/api/payments?from=${today}T00:00:00.000Z&to=${today}T23:59:59.999Z`).then(d => {
+        const payments = d?.payments || d || []
+        const todayTotal = Array.isArray(payments) ? payments.reduce((s: number, p: any) => s + (Number(p.amount_cents || 0) / 100), 0) : 0
+        setWidgetData(prev => ({ ...prev, todaysEarnings: todayTotal }))
+      }).catch(() => {})
+    }
+    if (dashWidgets.includes('weekly-chart')) {
+      apiFetch(`/api/payments?from=${isoDate(weekAgo)}T00:00:00.000Z&to=${today}T23:59:59.999Z`).then(d => {
+        const payments = d?.payments || d || []
+        if (!Array.isArray(payments)) return
+        const byDay: Record<string, number> = {}
+        for (let i = 0; i < 7; i++) {
+          const dd = new Date(); dd.setDate(dd.getDate() - 6 + i)
+          byDay[isoDate(dd)] = 0
+        }
+        payments.forEach((p: any) => {
+          const day = (p.created_at || '').slice(0, 10)
+          if (byDay[day] !== undefined) byDay[day] += Number(p.amount_cents || 0) / 100
+        })
+        setWidgetData(prev => ({ ...prev, weeklyRevenue: Object.entries(byDay).map(([d, v]) => ({ day: d, amount: v })) }))
+      }).catch(() => {})
+    }
+    // New clients this week
+    if (dashWidgets.includes('new-clients')) {
+      apiFetch('/api/clients').then(d => {
+        const clients = d?.clients || d || []
+        if (!Array.isArray(clients)) return
+        const weekStart = isoDate(weekAgo)
+        const newCount = clients.filter((c: any) => (c.created_at || '') >= weekStart).length
+        setWidgetData(prev => ({ ...prev, newClients: newCount, totalClients: clients.length }))
+      }).catch(() => {})
+    }
+    // Pending requests
+    if (dashWidgets.includes('pending-requests')) {
+      apiFetch('/api/requests').then(d => {
+        const reqs = d?.requests || []
+        const pending = reqs.filter((r: any) => r.status === 'pending').length
+        setWidgetData(prev => ({ ...prev, pendingRequests: pending }))
+      }).catch(() => {})
+    }
+    // Cash register
+    if (dashWidgets.includes('cash-register')) {
+      apiFetch(`/api/cash-reports?date=${today}`).then(d => {
+        const reports = d?.reports || d || []
+        const total = Array.isArray(reports) ? reports.reduce((s: number, r: any) => s + Number(r.amount || 0), 0) : 0
+        setWidgetData(prev => ({ ...prev, cashBalance: total }))
+      }).catch(() => {})
+    }
+    // Expenses this month
+    if (dashWidgets.includes('expenses-month')) {
+      apiFetch(`/api/expenses?from=${isoDate(monthStart)}&to=${today}`).then(d => {
+        const expenses = d?.expenses || d || []
+        const total = Array.isArray(expenses) ? expenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0) : 0
+        setWidgetData(prev => ({ ...prev, expensesMonth: total }))
+      }).catch(() => {})
+    }
+    // Site analytics
+    if (dashWidgets.includes('site-analytics')) {
+      apiFetch('/api/analytics/summary').then(d => {
+        if (d && !d.error) setWidgetData(prev => ({ ...prev, analytics: d }))
+      }).catch(() => {})
+    }
+  }, [dashWidgets])
+
+  function toggleShortcut(href: string) {
+    setDashShortcuts(prev => {
+      const next = prev.includes(href) ? prev.filter(h => h !== href) : [...prev, href]
+      apiFetch('/api/settings', { method: 'POST', body: JSON.stringify({ dash_shortcuts: next }) }).catch(() => {})
+      return next
+    })
+  }
+  function toggleWidget(id: string) {
+    setDashWidgets(prev => {
+      const next = prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id]
+      apiFetch('/api/settings', { method: 'POST', body: JSON.stringify({ dash_widgets: next }) }).catch(() => {})
+      return next
+    })
+  }
   const isOwnerOrAdmin = role === 'owner' || role === 'admin'
 
   const loadAll = useCallback(async () => {
@@ -609,11 +779,15 @@ export default function DashboardPage() {
       })()}
 
       {/* ── Desktop layout ── */}
-      {!isMobile && <div className="dash-container" style={{ padding: '18px 18px 40px', maxWidth: 1400, margin: '0 auto', overflowY: 'auto', height: '100vh', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      {!isMobile && <div className="dash-container" style={{ padding: '10px 18px 0', maxWidth: 1400, margin: '0 auto', height: '100%', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Topbar removed — page name shown in Shell top-bar */}
 
         <style>{`
+          @keyframes widgetBreathe {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); border-color: rgba(255,255,255,.06); }
+            50% { box-shadow: 0 0 14px 3px rgba(255,255,255,.05); border-color: rgba(255,255,255,.20); }
+          }
           @keyframes clockPulse {
             0%, 100% { box-shadow: 0 0 0 0 rgba(143,240,177,0); }
             50% { box-shadow: 0 0 16px 4px rgba(143,240,177,.35); }
@@ -692,6 +866,9 @@ export default function DashboardPage() {
           .radar-overlay { animation: radarFadeIn .2s ease-out, radarFadeOut 3.2s ease-in-out forwards }
           .radar-x { animation: radarXIn .4s cubic-bezier(.16,1.2,.3,1) 1.6s both }
           .radar-text { animation: radarFadeIn .3s ease-out 2s both }
+          @media (min-width: 769px) {
+            .content { overflow: hidden !important; }
+          }
           @media (max-width: 768px) {
             .dash-topbar-row { flex-direction: column !important; align-items: stretch !important; gap: 8px !important; }
             .dash-search { width: 100% !important; }
@@ -727,7 +904,7 @@ export default function DashboardPage() {
               </div>
               <div className="clock-summary-item" style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)' }}>
                 <div style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>Services</div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: 'rgba(130,150,220,.6)' }}>{clockOutSummary.services}</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: 'rgba(255,255,255,.6)' }}>{clockOutSummary.services}</div>
               </div>
               <div className="clock-summary-item" style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)' }}>
                 <div style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>Clients</div>
@@ -853,8 +1030,8 @@ export default function DashboardPage() {
                   <div style={{ display: 'flex', gap: 4 }}>
                     {(['today', 'week', 'month'] as EarningsPeriod[]).map(p => (
                       <button key={p} onClick={() => { setEarningsPeriod(p); setEarningsOffset(0) }} style={{
-                        height: 24, padding: '0 8px', borderRadius: 6, border: `1px solid ${earningsPeriod === p ? 'rgba(10,132,255,.45)' : 'rgba(255,255,255,.10)'}`,
-                        background: earningsPeriod === p ? 'rgba(10,132,255,.12)' : 'transparent',
+                        height: 24, padding: '0 8px', borderRadius: 6, border: `1px solid ${earningsPeriod === p ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.10)'}`,
+                        background: earningsPeriod === p ? 'rgba(255,255,255,.06)' : 'transparent',
                         color: earningsPeriod === p ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.35)', fontSize: 9, fontWeight: 700,
                         cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '.06em', textTransform: 'uppercase',
                       }}>{p === 'today' ? 'Day' : p === 'week' ? 'Week' : 'Month'}</button>
@@ -872,11 +1049,11 @@ export default function DashboardPage() {
                 {loading && !myPayroll ? <div style={{ color: 'rgba(255,255,255,.35)', fontSize: 12 }}>Loading…</div> : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {[
-                      { label: 'Services', value: money(myPayroll?.barber_service_share || 0), color: 'rgba(130,150,220,.6)' },
+                      { label: 'Services', value: money(myPayroll?.barber_service_share || 0), color: 'rgba(255,255,255,.6)' },
                       { label: 'Tips', value: money(barberTips), color: 'rgba(130,220,170,.8)' },
                       { label: 'Total payout', value: money(barberEarnings), color: '#fff', big: true },
                     ].map(row => (
-                      <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: row.big ? 'rgba(10,132,255,.08)' : 'rgba(0,0,0,.14)', borderColor: row.big ? 'rgba(10,132,255,.30)' : 'rgba(255,255,255,.08)' }}>
+                      <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: row.big ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.14)', borderColor: row.big ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.08)' }}>
                         <span style={{ fontSize: 12, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,.55)' }}>{row.label}</span>
                         <span style={{ fontWeight: 900, fontSize: row.big ? 18 : 14, color: row.color }}>{row.value}</span>
                       </div>
@@ -887,112 +1064,291 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
-        {/* KPIs — barber sees their own earnings, owner sees totals */}
-        <div className="dash-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12, marginBottom: 14 }}>
-          {isBarber ? <>
-            <KpiCard title="My bookings today" value={String(total)} sub={`${upcoming} upcoming`} color="blue" />
-            <KpiCard title={`My earnings · ${getDateRange(earningsPeriod, earningsOffset).label}`} value={money(barberEarnings)} sub={`incl. ${money(barberTips)} tips`} color="ok" />
-            <KpiCard title="My clients" value={String(barberClients)} sub={paid > 0 ? `${paid} paid` : ''} color="gold" />
-            <KpiCard title="No-shows" value={String(noshow)} sub={noshow > 0 ? 'needs attention' : 'all good'} color={noshow > 0 ? 'bad' : undefined} />
-          </> : <>
-            <KpiCard title="Bookings today" value={String(total)} sub={`${upcoming} upcoming`} color="blue" />
-            <KpiCard title="Paid / Unpaid" value={`${paid}/${total}`} sub={total - paid > 0 ? `${total - paid} unpaid` : 'all paid ✓'} color={paid === total && total > 0 ? 'ok' : 'gold'} />
-            <KpiCard title="No-shows" value={String(noshow)} sub={noshow > 0 ? 'needs attention' : 'all good'} color={noshow > 0 ? 'bad' : undefined} />
-            <KpiCard title="Team working" value={String(Object.keys(byBarber).length)} sub="today" color="blue" />
-          </>}
-        </div>
+        {/* ── ALL WIDGETS + SHORTCUTS + TEAM — single centered flex grid ── */}
+        {(() => {
+          const wBox: React.CSSProperties = { width: 170, minHeight: 110, borderRadius: 20, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', padding: '14px 16px', position: 'relative', transition: 'all .2s', animation: editingWidgets ? 'widgetBreathe 2s ease-in-out infinite' : 'none', display: 'flex', flexDirection: 'column' as const, justifyContent: 'space-between' as const }
+          const wTitle: React.CSSProperties = { fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,.4)', marginBottom: 6 }
+          const longPress = {
+            onTouchStart: () => { longPressRef.current = setTimeout(() => { setEditingWidgets(true); editJustActivated.current = true; setTimeout(() => { editJustActivated.current = false }, 300) }, 600) },
+            onTouchEnd: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
+            onMouseDown: () => { longPressRef.current = setTimeout(() => { setEditingWidgets(true); editJustActivated.current = true; setTimeout(() => { editJustActivated.current = false }, 300) }, 600) },
+            onMouseUp: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
+            onMouseLeave: () => { if (longPressRef.current) clearTimeout(longPressRef.current) },
+          }
+          return (<>
+        {/* ── WIDGETS (centered on screen) ── */}
+        <div onClick={e => { if (editingWidgets && e.target === e.currentTarget && !editJustActivated.current) { setEditingWidgets(false); setEditingShortcuts(false) } }}
+          style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', alignContent: 'center', overflow: 'hidden', position: 'relative', marginTop: '-5%' }}>
+          {dashWidgets.map(wId => {
+            const removeBtn = editingWidgets ? (
+              <button onClick={() => toggleWidget(wId)} style={{ position: 'absolute', top: -4, right: -4, width: 20, height: 20, borderRadius: 999, background: 'rgba(255,107,107,.8)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>−</button>
+            ) : null
 
-        {/* Main grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 14 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-            {/* ── Booking Link (compact) ── */}
-            {!isBarber && user?.workspace_id && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
-                <div style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,.5)' }}>Booking Page</div>
-                <button onClick={() => navigator.clipboard.writeText(`https://vurium.com/book/${user.workspace_id}`)} style={{ padding: '6px 14px', borderRadius: 8, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.55)', flexShrink: 0 }}>Copy Link</button>
-                <a href={`/book/${user.workspace_id}`} target="_blank" rel="noopener" style={{ padding: '6px 14px', borderRadius: 8, fontSize: 11, textDecoration: 'none', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.45)', flexShrink: 0 }}>Preview</a>
-              </div>
-            )}
-
-            {/* ── Today Activity ── */}
-            {!isBarber && Object.keys(byBarber).length > 0 && (
-              <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 12 }}>Today Activity</div>
-                {Object.entries(byBarber).sort((a, b) => b[1] - a[1]).map(([name, count]) => (
-                  <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.03)' }}>
-                    <span style={{ width: 80, fontWeight: 500, fontSize: 13, color: 'rgba(255,255,255,.75)', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                    <div style={{ flex: 1, height: 4, borderRadius: 999, background: 'rgba(255,255,255,.05)' }}>
-                      <div style={{ height: 4, borderRadius: 999, background: 'rgba(255,255,255,.2)', width: `${Math.round(count / maxCount * 100)}%`, transition: 'width .6s ease' }} />
-                    </div>
-                    <span style={{ width: 40, textAlign: 'right', fontSize: 12, color: 'rgba(255,255,255,.5)' }}>{count}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* ── Core Navigation (minimal) ── */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-              {actions.slice(0, 4).map(item => (
-                <a key={item.href} href={item.href} style={{ flex: '1 1 120px', padding: '12px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', textDecoration: 'none', transition: 'border-color .2s' }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.75)' }}>{item.label}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', marginTop: 2 }}>{item.desc}</div>
-                </a>
-              ))}
-            </div>
-
-          </div>
-        </div>
-          {/* ── OWNER/ADMIN ONLY: Shop Status + Banner + Barbers ── */}
-          {isOwnerOrAdmin && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
-
-              {/* Team — days + ratings */}
-              <div style={{ marginTop: 20 }}>
-                <div style={{ fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 10 }}>Team</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-                  {barbers.map((b: any) => {
-                    const sched = b.schedule
-                    const workDays: number[] = Array.isArray(sched?.days) ? sched.days : [1,2,3,4,5,6]
-                    return (
-                      <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
-                        {b.photo_url
-                          ? <img src={b.photo_url} alt={b.name} style={{ width: 34, height: 34, borderRadius: 9, objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)', flexShrink: 0 }} onError={e => (e.currentTarget.style.display='none')} />
-                          : <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.4)', flexShrink: 0 }}>{(b.name||'?')[0]}</div>
-                        }
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 500, fontSize: 13, color: 'rgba(255,255,255,.8)', marginBottom: 3 }}>{b.name}</div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                            {DAY_NAMES_SHORT.map((day, i) => {
-                              const works = workDays.includes(i)
-                              return (
-                                <span key={day} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: `1px solid ${works ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.04)'}`, background: 'transparent', color: works ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.2)', letterSpacing: '.04em', textTransform: 'uppercase', fontWeight: 500 }}>
-                                  {day}
-                                </span>
-                              )
-                            })}
-                          </div>
-                          {(() => {
-                            const fmt = (m: number) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
-                            const sm = sched?.startMin ?? 600
-                            const em = sched?.endMin ?? 1200
-                            return (
-                              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', marginTop: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                <span>{fmt(sm)} — {fmt(em)}</span>
-                              </div>
-                            )
-                          })()}
-                        </div>
-                      </div>
-                    )
-                  })}
-                  {barbers.length === 0 && <div style={{ color: 'rgba(255,255,255,.30)', fontSize: 12 }}>Loading…</div>}
+            if (wId === 'clock') {
+              return (
+                <div key={wId} {...longPress} style={{ ...wBox, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {removeBtn}
+                  <ClockWidget />
                 </div>
-              </div>
+              )
+            }
+            if (wId === 'todays-earnings') {
+              return (
+                <div key={wId} {...longPress} style={wBox}>
+                  {removeBtn}
+                  <div style={wTitle}>Earnings</div>
+                  <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(130,220,170,.8)', letterSpacing: '-.02em' }}>{money(widgetData.todaysEarnings || 0)}</div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>{total} bookings · {paid} paid</div>
+                </div>
+              )
+            }
+            if (wId === 'weekly-chart') {
+              const days = widgetData.weeklyRevenue || []
+              const max = Math.max(...days.map((d: any) => d.amount), 1)
+              return (
+                <div key={wId} {...longPress} style={wBox}>
+                  {removeBtn}
+                  <div style={wTitle}>Revenue</div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 40 }}>
+                    {days.map((d: any, i: number) => (
+                      <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <div style={{ width: '100%', borderRadius: 2, background: i === days.length - 1 ? 'rgba(130,220,170,.4)' : 'rgba(255,255,255,.1)', height: `${Math.max(2, (d.amount / max) * 32)}px`, transition: 'height .4s' }} />
+                        <span style={{ fontSize: 7, color: 'rgba(255,255,255,.2)' }}>{new Date(d.day + 'T12:00').toLocaleDateString([], { weekday: 'narrow' })}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {days.length > 0 && <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 3 }}>{money(days.reduce((s: number, d: any) => s + d.amount, 0))}</div>}
+                </div>
+              )
+            }
+            if (wId === 'new-clients') {
+              return (
+                <div key={wId} {...longPress} style={wBox}>
+                  {removeBtn}
+                  <div style={wTitle}>New Clients</div>
+                  <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.7)' }}>{widgetData.newClients ?? '—'}</div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>this week</div>
+                </div>
+              )
+            }
+            if (wId === 'quick-book') {
+              return (
+                <div key={wId} {...longPress} style={wBox}>
+                  {removeBtn}
+                  <a href="/calendar?action=new-booking" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'rgba(255,255,255,.5)', flexShrink: 0 }}>+</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.5)' }}>Quick Book</div>
+                  </a>
+                </div>
+              )
+            }
+            if (wId === 'pending-requests') {
+              const cnt = widgetData.pendingRequests ?? 0
+              return (
+                <div key={wId} {...longPress} style={wBox}>
+                  {removeBtn}
+                  <div style={wTitle}>Requests</div>
+                  <div style={{ fontSize: 22, fontWeight: 600, color: cnt > 0 ? 'rgba(255,180,100,.7)' : 'rgba(255,255,255,.2)' }}>{cnt}</div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>{cnt > 0 ? 'pending' : 'clear'}</div>
+                </div>
+              )
+            }
+            if (wId === 'cash-register') {
+              return (
+                <div key={wId} {...longPress} style={wBox}>
+                  {removeBtn}
+                  <div style={wTitle}>Cash</div>
+                  <div style={{ fontSize: 22, fontWeight: 600, color: '#e8e8ed' }}>{money(widgetData.cashBalance || 0)}</div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>today</div>
+                </div>
+              )
+            }
+            if (wId === 'team-on-duty') {
+              return (
+                <div key={wId} {...longPress} style={wBox}>
+                  {removeBtn}
+                  <div style={wTitle}>On Duty</div>
+                  {staffOnClock.length === 0 ? (
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.2)' }}>No one</div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {staffOnClock.slice(0, 4).map((s: any, i: number) => (
+                        <div key={i} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(130,220,170,.06)', border: '1px solid rgba(130,220,170,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'rgba(130,220,170,.6)' }}>
+                          {(s.user_name || '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
+                        </div>
+                      ))}
+                      {staffOnClock.length > 4 && <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', display: 'flex', alignItems: 'center' }}>+{staffOnClock.length - 4}</div>}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+            if (wId === 'expenses-month') {
+              return (
+                <div key={wId} {...longPress} style={wBox}>
+                  {removeBtn}
+                  <div style={wTitle}>Expenses</div>
+                  <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,130,130,.6)' }}>{money(widgetData.expensesMonth || 0)}</div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>this month</div>
+                </div>
+              )
+            }
+            if (wId === 'mini-calendar') {
+              return (
+                <div key={wId} {...longPress} style={{ ...wBox, width: 350 }}>
+                  {removeBtn}
+                  <MiniCalendarWidget bookings={bookings} />
+                </div>
+              )
+            }
+            if (wId === 'site-analytics') {
+              const a = widgetData.analytics || { total: 0, by_source: {}, by_day: [] }
+              const sources = Object.entries(a.by_source || {}).sort((x: any, y: any) => y[1] - x[1])
+              const sourceIcons: Record<string, string> = { instagram: '📸', google: '🔍', facebook: '📘', tiktok: '🎵', twitter: '𝕏', direct: '🔗', other: '🌐' }
+              const maxS = Math.max(...sources.map((s: any) => s[1]), 1)
+              const days = a.by_day || []
+              const maxD = Math.max(...days.map((d: any) => d.count), 1)
+              return (
+                <div key={wId} {...longPress} style={{ ...wBox, width: 350 }}>
+                  {removeBtn}
+                  <div style={wTitle}>Site Visits</div>
+                  <div style={{ fontSize: 22, fontWeight: 600, color: '#e8e8ed', marginBottom: 8 }}>{a.total}</div>
+                  {/* Sources */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 8 }}>
+                    {sources.slice(0, 5).map(([src, cnt]: any) => (
+                      <div key={src} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 10, width: 14, textAlign: 'center' }}>{sourceIcons[src] || '🌐'}</span>
+                        <span style={{ fontSize: 9, color: 'rgba(255,255,255,.5)', width: 55, textTransform: 'capitalize' }}>{src}</span>
+                        <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(255,255,255,.06)' }}>
+                          <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,.2)', width: `${(cnt / maxS) * 100}%` }} />
+                        </div>
+                        <span style={{ fontSize: 9, color: 'rgba(255,255,255,.4)', width: 20, textAlign: 'right' }}>{cnt}</span>
+                      </div>
+                    ))}
+                    {sources.length === 0 && <div style={{ fontSize: 9, color: 'rgba(255,255,255,.2)' }}>No visits yet</div>}
+                  </div>
+                  {/* Daily chart */}
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 28 }}>
+                    {days.map((d: any, i: number) => (
+                      <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <div style={{ width: '100%', borderRadius: 2, background: i === days.length - 1 ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.1)', height: `${Math.max(2, (d.count / maxD) * 22)}px` }} />
+                        <span style={{ fontSize: 6, color: 'rgba(255,255,255,.2)' }}>{new Date(d.day + 'T12:00').toLocaleDateString([], { weekday: 'narrow' })}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 8, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Last 7 days</div>
+                </div>
+              )
+            }
+            return null
+          })}
 
-            </div>
+
+          {/* ── Team member widgets (in widget section) ── */}
+          {isOwnerOrAdmin && barbers.map((b: any) => {
+            const sched = b.schedule
+            const workDays: number[] = Array.isArray(sched?.days) ? sched.days : [1,2,3,4,5,6]
+            const fmtM = (m: number) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
+            const sm = sched?.startMin ?? 600
+            const em = sched?.endMin ?? 1200
+            return (
+              <div key={'team-'+b.id} {...longPress} style={{ ...wBox, width: 190, textAlign: 'center' as const }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 6 }}>
+                  {b.photo_url
+                    ? <img src={b.photo_url} alt={b.name} style={{ width: 24, height: 24, borderRadius: 7, objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)' }} onError={(e: any) => (e.currentTarget.style.display='none')} />
+                    : <div style={{ width: 24, height: 24, borderRadius: 7, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.4)' }}>{(b.name||'?')[0]}</div>
+                  }
+                  <span style={{ fontWeight: 600, fontSize: 11, color: 'rgba(255,255,255,.8)' }}>{b.name}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginBottom: 4 }}>
+                  {DAY_NAMES_SHORT.map((day: string, i: number) => (
+                    <span key={day} style={{ fontSize: 7, padding: '1px 4px', borderRadius: 3, border: `1px solid ${workDays.includes(i) ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.03)'}`, color: workDays.includes(i) ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.15)', fontWeight: 500 }}>{day}</span>
+                  ))}
+                </div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,.35)' }}>{fmtM(sm)} — {fmtM(em)}</div>
+              </div>
+            )
+          })}
+
+          {/* Available widgets in edit mode */}
+          {editingWidgets && (() => {
+            const ALL_WIDGETS = [
+              { id: 'clock', label: 'Clock' },
+              { id: 'todays-earnings', label: 'Earnings' },
+              { id: 'weekly-chart', label: 'Revenue' },
+              { id: 'new-clients', label: 'New Clients' },
+              { id: 'quick-book', label: 'Quick Book' },
+              { id: 'pending-requests', label: 'Requests' },
+              { id: 'cash-register', label: 'Cash' },
+              { id: 'team-on-duty', label: 'On Duty' },
+              { id: 'expenses-month', label: 'Expenses' },
+              { id: 'mini-calendar', label: 'Schedule' },
+              { id: 'site-analytics', label: 'Site Visits' },
+            ]
+            const available = ALL_WIDGETS.filter(w => !dashWidgets.includes(w.id))
+            return available.map(w => (
+              <button key={w.id} onClick={() => toggleWidget(w.id)}
+                style={{ width: 170, minHeight: 110, padding: '14px 16px', borderRadius: 20, border: '1px dashed rgba(255,255,255,.10)', background: 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', fontFamily: 'inherit', animation: 'widgetBreathe 2s ease-in-out infinite', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.25)', marginBottom: 2 }}>+</div>
+                <div style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.35)' }}>{w.label}</div>
+              </button>
+            ))
+          })()}
+
+        </div>
+
+        {/* ── APP ICONS (above bottom nav) ── */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', paddingBottom: 8, flexShrink: 0, marginBottom: '5%' }}>
+          {/* ── App Shortcuts (icon + label, like iOS app icons) ── */}
+          {(() => {
+            const shortcutIcons: Record<string, React.ReactNode> = {
+              '/calendar': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+              '/clients': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+              '/payments': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
+              '/waitlist': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M12 2v4"/><path d="M12 18v4"/><circle cx="12" cy="12" r="6"/></svg>,
+              '/portfolio': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>,
+              '/cash': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+              '/membership': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+              '/attendance': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+              '/expenses': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M21 4H3v16h18V4z"/><path d="M3 10h18"/><path d="M9 4v16"/></svg>,
+              '/payroll': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 0 0-8 0v2"/></svg>,
+            }
+            return actions.filter(item => item.label !== 'Settings').map(item => {
+              const isActive = dashShortcuts.includes(item.href)
+              const isEditing = editingWidgets
+              return (
+                <a key={'sc-'+item.href} {...longPress} href={isEditing ? undefined : item.href} onClick={isEditing ? (e: any) => { e.preventDefault(); e.stopPropagation(); toggleShortcut(item.href) } : undefined}
+                  style={{ width: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '10px 4px', textDecoration: 'none', position: 'relative', opacity: !isActive && isEditing ? 0.4 : 1, animation: isEditing ? 'widgetBreathe 2s ease-in-out infinite' : 'none', cursor: isEditing ? 'pointer' : undefined }}>
+                  {isEditing && isActive && (
+                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleShortcut(item.href) }} style={{ position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: 999, background: 'rgba(255,107,107,.8)', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>−</button>
+                  )}
+                  {isEditing && !isActive && (
+                    <div style={{ position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: 999, background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff', fontWeight: 700, zIndex: 2 }}>+</div>
+                  )}
+                  <div style={{ width: 56, height: 56, borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.5)' }}>
+                    {shortcutIcons[item.href] || <span style={{ fontSize: 16 }}>•</span>}
+                  </div>
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', textAlign: 'center', lineHeight: 1.2, fontWeight: 500 }}>{item.label}</span>
+                </a>
+              )
+            })
+          })()}
+
+          {/* ── Booking shortcut ── */}
+          {!isBarber && user?.workspace_id && (
+            <a href={`/book/${slug || user.workspace_id}`} target="_blank" rel="noopener"
+              style={{ width: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '10px 4px', textDecoration: 'none' }}>
+              <div style={{ width: 56, height: 56, borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.5)' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              </div>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', textAlign: 'center', lineHeight: 1.2, fontWeight: 500 }}>Booking</span>
+            </a>
           )}
+
+        </div>
+
+        </>)
+        })()}
 
           {/* ─── Reviews — hidden, moved to separate page ─── */}
           {false && isOwnerOrAdmin && (
@@ -1070,7 +1426,7 @@ export default function DashboardPage() {
                   const cnt = reviews.filter(r => r.barber_id === b.id).length
                   return (
                     <button key={b.id} onClick={() => setReviewFilter(b.id)}
-                      style={{ height: 28, padding: '0 10px', borderRadius: 999, border: `1px solid ${reviewFilter === b.id ? 'rgba(10,132,255,.45)' : 'rgba(255,255,255,.08)'}`, background: reviewFilter === b.id ? 'rgba(10,132,255,.10)' : 'transparent', color: reviewFilter === b.id ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.55)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' }}>
+                      style={{ height: 28, padding: '0 10px', borderRadius: 999, border: `1px solid ${reviewFilter === b.id ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.08)'}`, background: reviewFilter === b.id ? 'rgba(255,255,255,.06)' : 'transparent', color: reviewFilter === b.id ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.55)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' }}>
                       {b.name} ({cnt})
                     </button>
                   )
@@ -1093,7 +1449,7 @@ export default function DashboardPage() {
                               <span style={{ fontWeight: 700, fontSize: 13 }}>{r.name || 'Anonymous'}</span>
                               <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 999, border: '1px solid rgba(255,207,63,.35)', background: 'rgba(255,207,63,.10)', color: 'rgba(220,190,130,.5)', letterSpacing: '.06em', textTransform: 'uppercase' }}>PENDING</span>
                             </div>
-                            {r.barber_name && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, border: '1px solid rgba(10,132,255,.25)', background: 'rgba(10,132,255,.06)', color: 'rgba(10,132,255,.80)', letterSpacing: '.06em', textTransform: 'uppercase' }}>{r.barber_name}</span>}
+                            {r.barber_name && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.6)', letterSpacing: '.06em', textTransform: 'uppercase' }}>{r.barber_name}</span>}
                           </div>
                           {r.text && <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 2, lineHeight: 1.4 }}>{String(r.text).slice(0, 300)}{String(r.text).length > 300 ? '…' : ''}</div>}
                           <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
@@ -1137,7 +1493,7 @@ export default function DashboardPage() {
                         {r.status === 'rejected' && <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 999, border: '1px solid rgba(255,107,107,.30)', color: 'rgba(220,130,160,.5)', letterSpacing: '.06em', textTransform: 'uppercase' }}>REJECTED</span>}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {r.barber_name && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, border: '1px solid rgba(10,132,255,.25)', background: 'rgba(10,132,255,.06)', color: 'rgba(10,132,255,.80)', letterSpacing: '.06em', textTransform: 'uppercase' }}>{r.barber_name}</span>}
+                        {r.barber_name && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.6)', letterSpacing: '.06em', textTransform: 'uppercase' }}>{r.barber_name}</span>}
                         {r.source === 'google' && <span style={{ fontSize: 9, color: 'rgba(255,255,255,.4)' }}>Google</span>}
                       </div>
                     </div>

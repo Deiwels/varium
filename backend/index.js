@@ -97,6 +97,42 @@ function checkPassword(plain, stored) {
 }
 
 // ============================================================
+// SLUG SYSTEM — human-readable booking URLs
+// ============================================================
+function slugify(name) {
+  return String(name || '').toLowerCase().trim()
+    .replace(/[^a-z0-9\s-]/g, '').replace(/[\s]+/g, '-').replace(/-+/g, '-')
+    .replace(/^-|-$/g, '').slice(0, 60) || 'business';
+}
+
+async function generateUniqueSlug(baseName) {
+  const base = slugify(baseName);
+  let slug = base;
+  let attempt = 0;
+  while (true) {
+    const existing = await db.collection('slugs').doc(slug).get();
+    if (!existing.exists) return slug;
+    attempt++;
+    slug = `${base}-${attempt + 1}`;
+    if (attempt > 100) return `${base}-${crypto.randomBytes(3).toString('hex')}`;
+  }
+}
+
+async function registerSlug(slug, workspaceId) {
+  await db.collection('slugs').doc(slug).set({ workspace_id: workspaceId, created_at: toIso(new Date()) });
+}
+
+async function resolveSlug(slugOrId) {
+  // Try slug first
+  const slugDoc = await db.collection('slugs').doc(slugOrId).get();
+  if (slugDoc.exists) return slugDoc.data().workspace_id;
+  // Fallback: try as workspace ID directly
+  const wsDoc = await db.collection('workspaces').doc(slugOrId).get();
+  if (wsDoc.exists) return slugOrId;
+  return null;
+}
+
+// ============================================================
 // PLAN FEATURES — single source of truth
 // plan_type: individual | salon | custom
 // billing_status: trialing | active | past_due | canceled | inactive
@@ -994,7 +1030,7 @@ function clearAuthCookie(res) {
 // ============================================================
 // HEALTH
 // ============================================================
-app.get('/health', (req, res) => res.json({ ok: true, service: 'vuriumbook-api', version: '2.0.0' }));
+app.get('/health', (req, res) => res.json({ ok: true, service: 'vuriumbook-api', version: '3.0.0' }));
 
 // ============================================================
 // AUTH ROUTES (no workspace middleware — pre /api)
@@ -1008,12 +1044,14 @@ app.post('/auth/signup', async (req, res) => {
     // Check if username already used in any workspace
     const usernameLC = username.toLowerCase();
 
-    // Create workspace
+    // Create workspace with slug
     const wsRef = db.collection('workspaces').doc();
+    const slug = await generateUniqueSlug(workspace_name);
     const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30-day trial
     const wsData = {
       name: sanitizeHtml(workspace_name),
-      plan_type: 'individual', // default plan, NOT 'trial'
+      slug,
+      plan_type: 'individual',
       billing_status: 'trialing',
       trial_ends_at: toIso(trialEnd),
       trial_used: false,
@@ -1023,6 +1061,7 @@ app.post('/auth/signup', async (req, res) => {
       updated_at: toIso(new Date()),
     };
     await wsRef.set(wsData);
+    await registerSlug(slug, wsRef.id);
 
     // Create owner user in workspace
     const userRef = wsRef.collection('users').doc();
@@ -1060,6 +1099,7 @@ app.post('/auth/signup', async (req, res) => {
       ok: true,
       workspace_id: wsRef.id,
       workspace_name: wsData.name,
+      slug,
       user_id: userRef.id,
       token,
     });
@@ -1259,7 +1299,6 @@ app.post('/api/auth/change-password', async (req, res) => {
 
 app.delete('/api/auth/delete-account', async (req, res) => {
   try {
-    if (req.user.role === 'owner') return res.status(400).json({ error: 'Owner accounts cannot be self-deleted' });
     const password = safeStr(req.body?.password || '');
     if (!password) return res.status(400).json({ error: 'Password required to confirm deletion' });
     const userRef = req.ws('users').doc(req.user.uid);
@@ -1268,11 +1307,32 @@ app.delete('/api/auth/delete-account', async (req, res) => {
     if (!checkPassword(password, userDoc.data().password_hash)) {
       return res.status(401).json({ error: 'Incorrect password' });
     }
-    await userRef.update({ active: false, deleted: true, deleted_at: toIso(new Date()), updated_at: toIso(new Date()) });
-    // Remove CRM push tokens
-    const tokenSnap = await req.ws('crm_push_tokens').where('user_id', '==', req.user.uid).get();
-    for (const d of tokenSnap.docs) await d.ref.delete();
-    writeAuditLog(req.wsId, { action: 'user.delete_self', resource_id: req.user.uid, req }).catch(() => {});
+
+    if (req.user.role === 'owner') {
+      // Owner: delete entire workspace and all subcollections
+      const wsRef = db.collection('workspaces').doc(req.wsId);
+      const subcollections = [
+        'users', 'barbers', 'services', 'clients', 'bookings', 'memberships',
+        'expenses', 'reviews', 'applications', 'attendance', 'audit_logs',
+        'cash_reports', 'crm_push_tokens', 'expense_categories', 'messages',
+        'payment_requests', 'payroll_rules', 'phone_access_log', 'requests',
+        'settings', 'waitlist'
+      ];
+      for (const colName of subcollections) {
+        const snap = await wsRef.collection(colName).get();
+        const batch = db.batch();
+        snap.docs.forEach(d => batch.delete(d.ref));
+        if (!snap.empty) await batch.commit();
+      }
+      await wsRef.delete();
+    } else {
+      // Non-owner: soft-delete user only
+      await userRef.update({ active: false, deleted: true, deleted_at: toIso(new Date()), updated_at: toIso(new Date()) });
+      const tokenSnap = await req.ws('crm_push_tokens').where('user_id', '==', req.user.uid).get();
+      for (const d of tokenSnap.docs) await d.ref.delete();
+      writeAuditLog(req.wsId, { action: 'user.delete_self', resource_id: req.user.uid, req }).catch(() => {});
+    }
+
     clearAuthCookie(res);
     res.json({ ok: true, deleted: true });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -2325,10 +2385,38 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
     const ALLOWED_SETTINGS = ['timezone', 'shop_name', 'shop_address', 'shop_phone', 'shop_email',
       'booking_buffer_minutes', 'default_duration_minutes', 'currency', 'locale',
       'sms_enabled', 'push_enabled', 'booking_confirmation', 'hero_url', 'logo_url',
-      'geofence_lat', 'geofence_lng', 'geofence_radius_m', 'theme', 'custom_css'];
+      'geofence_lat', 'geofence_lng', 'geofence_radius_m', 'theme', 'custom_css',
+      'dash_calendar', 'dash_clients', 'dash_payments', 'dash_waitlist', 'dash_portfolio',
+      'dash_cash', 'dash_membership', 'dash_attendance', 'dash_expenses', 'dash_payroll',
+      'clock_in_enabled', 'waitlist_enabled', 'portfolio_enabled', 'membership_enabled', 'cash_register_enabled',
+      'dash_shortcuts', 'dash_widgets'];
     const patch = { updated_at: toIso(new Date()) };
     for (const key of ALLOWED_SETTINGS) {
       if (b[key] !== undefined) patch[key] = typeof b[key] === 'string' ? sanitizeHtml(b[key]) : b[key];
+    }
+    // Slug update — on workspace doc, not settings
+    if (b.slug !== undefined) {
+      const newSlug = slugify(b.slug);
+      if (newSlug && newSlug.length >= 2) {
+        const wsDoc = await req.wsDoc().get();
+        const oldSlug = wsDoc.exists ? wsDoc.data()?.slug : null;
+        if (newSlug !== oldSlug) {
+          const existing = await db.collection('slugs').doc(newSlug).get();
+          if (existing.exists && existing.data()?.workspace_id !== req.wsId) {
+            return res.status(409).json({ error: 'This URL is already taken. Try a different one.' });
+          }
+          if (oldSlug) await db.collection('slugs').doc(oldSlug).delete().catch(() => {});
+          await registerSlug(newSlug, req.wsId);
+          await req.wsDoc().update({ slug: newSlug, updated_at: toIso(new Date()) });
+        }
+      }
+    }
+    // Nested objects — stored on settings doc
+    if (b.tax !== undefined && typeof b.tax === 'object') patch.tax = b.tax;
+    if (b.payroll !== undefined && typeof b.payroll === 'object') patch.payroll = b.payroll;
+    // Site config — stored on workspace doc for custom plan
+    if (b.site_config !== undefined && typeof b.site_config === 'object') {
+      await req.wsDoc().update({ site_config: b.site_config, updated_at: toIso(new Date()) });
     }
     const ref = req.ws('settings').doc('config');
     await ref.set(patch, { merge: true });
@@ -2877,6 +2965,26 @@ app.delete('/api/admin/cleanup-rate-limits', requireRole('owner'), async (req, r
 // ============================================================
 // PUBLIC ROUTES (no auth required, workspace_id in URL)
 // ============================================================
+// Resolve slug or workspace ID → workspace data
+app.get('/public/resolve/:slugOrId', async (req, res) => {
+  try {
+    const wsId = await resolveSlug(req.params.slugOrId);
+    if (!wsId) return res.status(404).json({ error: 'Not found' });
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Not found' });
+    const data = wsDoc.data();
+    const effectivePlan = getEffectivePlan(data);
+    res.json({
+      workspace_id: wsId,
+      slug: data.slug || null,
+      name: data.name || '',
+      plan_type: data.plan_type || 'individual',
+      effective_plan: effectivePlan,
+      site_config: data.site_config || null,
+    });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
 app.get('/public/services/:workspace_id', async (req, res) => {
   try {
     const wsId = req.params.workspace_id;
@@ -3181,6 +3289,64 @@ app.post('/public/applications/:workspace_id', async (req, res) => {
 });
 
 // ============================================================
+// PUBLIC ANALYTICS — track booking page visits
+// ============================================================
+app.post('/public/analytics/:workspace_id', async (req, res) => {
+  try {
+    const wsId = req.params.workspace_id;
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.json({ ok: true }); // silent fail
+    const b = req.body || {};
+    const now = new Date();
+    const date = now.toISOString().slice(0, 10);
+    await db.collection('workspaces').doc(wsId).collection('analytics').add({
+      source: safeStr(b.source || 'direct').slice(0, 50),
+      referrer: safeStr(b.referrer || '').slice(0, 200),
+      date,
+      created_at: toIso(now),
+    });
+    res.json({ ok: true });
+  } catch { res.json({ ok: true }); }
+});
+
+// ANALYTICS SUMMARY — auth required (owner/admin)
+app.get('/api/analytics/summary', async (req, res) => {
+  try {
+    const now = new Date();
+    const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 6);
+    const weekAgoStr = weekAgo.toISOString().slice(0, 10);
+    const snap = await req.ws('analytics').where('date', '>=', weekAgoStr).orderBy('date').get();
+    const docs = snap.docs.map(d => d.data());
+
+    // Total visits
+    const total = docs.length;
+
+    // By source
+    const bySource = {};
+    docs.forEach(d => {
+      const s = d.source || 'direct';
+      bySource[s] = (bySource[s] || 0) + 1;
+    });
+
+    // By day
+    const byDay = {};
+    for (let i = 0; i < 7; i++) {
+      const dd = new Date(now); dd.setDate(dd.getDate() - 6 + i);
+      byDay[dd.toISOString().slice(0, 10)] = 0;
+    }
+    docs.forEach(d => {
+      if (byDay[d.date] !== undefined) byDay[d.date]++;
+    });
+
+    res.json({
+      total,
+      by_source: bySource,
+      by_day: Object.entries(byDay).map(([day, count]) => ({ day, count })),
+    });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
 // BACKGROUND JOBS (multi-tenant)
 // ============================================================
 let _lastReminderRun = 0;
@@ -3275,6 +3441,7 @@ const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 const STRIPE_PRICES = {
   individual: process.env.STRIPE_PRICE_INDIVIDUAL || process.env.STRIPE_PRICE_STARTER || '',
   salon: process.env.STRIPE_PRICE_SALON || process.env.STRIPE_PRICE_PRO || '',
+  custom: process.env.STRIPE_PRICE_CUSTOM || '',
 };
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://vurium.com';
 
@@ -3375,12 +3542,57 @@ app.post('/api/billing/cancel', requireRole('owner'), async (req, res) => {
 });
 
 // Account limits — returns plan info, features, limits
-app.get('/api/account/limits', async (req, res) => {
+
+
+// Migrate workspace to activate trial
+app.post('/api/account/activate-trial', requireRole('owner'), async (req, res) => {
   try {
     const wsDoc = await req.wsDoc().get();
     const wsData = wsDoc.exists ? wsDoc.data() : {};
-    const planType = wsData.plan_type || wsData.plan || 'individual';
-    const billingStatus = wsData.billing_status || wsData.subscription_status || 'inactive';
+    if (wsData.billing_status === 'trialing' && wsData.trial_ends_at) {
+      return res.json({ ok: true, already: true, message: 'Trial already active' });
+    }
+    const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const slug = wsData.slug || await generateUniqueSlug(wsData.name || 'business');
+    const patch = {
+      plan_type: wsData.plan_type || 'individual',
+      billing_status: 'trialing',
+      trial_ends_at: toIso(trialEnd),
+      trial_used: false,
+      slug,
+      updated_at: toIso(new Date()),
+    };
+    await req.wsDoc().update(patch);
+    if (!wsData.slug) await registerSlug(slug, req.wsId);
+    res.json({ ok: true, plan_type: patch.plan_type, billing_status: 'trialing', trial_ends_at: patch.trial_ends_at, slug });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.get('/api/account/limits', async (req, res) => {
+  try {
+    const wsDoc = await req.wsDoc().get();
+    let wsData = wsDoc.exists ? wsDoc.data() : {};
+
+    // Auto-migrate old accounts: if no plan_type, set defaults + activate trial
+    if (!wsData.plan_type && wsDoc.exists) {
+      const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const slug = wsData.slug || await generateUniqueSlug(wsData.name || 'business');
+      const migratePatch = {
+        plan_type: 'individual',
+        billing_status: 'trialing',
+        trial_ends_at: toIso(trialEnd),
+        trial_used: false,
+        slug,
+        updated_at: toIso(new Date()),
+      };
+      await req.wsDoc().update(migratePatch);
+      if (!wsData.slug) await registerSlug(slug, req.wsId).catch(() => {});
+      wsData = { ...wsData, ...migratePatch };
+      console.log('Auto-migrated workspace:', req.wsId, 'slug:', slug);
+    }
+
+    const planType = wsData.plan_type || 'individual';
+    const billingStatus = wsData.billing_status || 'inactive';
     const effectivePlan = getEffectivePlan(wsData);
     const planDef = getPlanDef(effectivePlan);
     const trialEnd = wsData.trial_ends_at ? new Date(wsData.trial_ends_at) : null;
@@ -3396,6 +3608,8 @@ app.get('/api/account/limits', async (req, res) => {
       trial_active: !!trialActive,
       trial_ends_at: wsData.trial_ends_at || null,
       trial_days_left: trialActive ? Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / 86400000)) : 0,
+      slug: wsData.slug || null,
+      site_config: wsData.site_config || null,
     });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -3462,6 +3676,7 @@ async function handleStripeEvent(wsId, type, obj) {
     const priceId = obj.items?.data?.[0]?.price?.id || '';
     if (priceId === STRIPE_PRICES.individual) patch.plan_type = 'individual';
     else if (priceId === STRIPE_PRICES.salon) patch.plan_type = 'salon';
+    else if (priceId === STRIPE_PRICES.custom) patch.plan_type = 'custom';
   } else if (type === 'customer.subscription.deleted') {
     patch.billing_status = 'canceled';
     patch.subscription_status = 'canceled';

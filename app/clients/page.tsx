@@ -24,7 +24,7 @@ const initials = (name: string) => { const p=(name||'').split(' '); return ((p[0
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
   vip:     { borderColor:'rgba(255,207,63,.45)', background:'rgba(255,207,63,.10)', color:'rgba(220,190,130,.5)' },
   active:  { borderColor:'rgba(143,240,177,.40)', background:'rgba(143,240,177,.10)', color:'rgba(130,220,170,.5)' },
-  new:     { borderColor:'rgba(10,132,255,.45)', background:'rgba(10,132,255,.10)', color:'rgba(130,150,220,.6)' },
+  new:     { borderColor:'rgba(255,255,255,.18)', background:'rgba(255,255,255,.06)', color:'rgba(255,255,255,.6)' },
   risk:    { borderColor:'rgba(255,107,107,.40)', background:'rgba(255,107,107,.10)', color:'rgba(220,130,160,.5)' },
   at_risk: { borderColor:'rgba(255,107,107,.40)', background:'rgba(255,107,107,.10)', color:'rgba(220,130,160,.5)' },
 }
@@ -85,7 +85,7 @@ function AddClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
           <div><label style={lbl}>Phone</label><input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="+1 (___) ___-____" style={inp} type="tel" /></div>
           <div><label style={lbl}>Email</label><input value={email} onChange={e=>setEmail(e.target.value)} placeholder="optional" style={inp} type="email" /></div>
           {err && <div style={{ fontSize:12, color:'rgba(220,130,160,.5)', padding:'8px 12px', borderRadius:10, border:'1px solid rgba(255,107,107,.30)', background:'rgba(255,107,107,.08)' }}>{err}</div>}
-          <button onClick={save} disabled={saving} style={{ height:44, borderRadius:12, border:'1px solid rgba(10,132,255,.65)', background:'rgba(10,132,255,.14)', color:'rgba(130,150,220,.6)', cursor:'pointer', fontWeight:900, fontSize:13, fontFamily:'inherit' }}>
+          <button onClick={save} disabled={saving} style={{ height:44, borderRadius:12, border:'1px solid rgba(255,255,255,.20)', background:'rgba(255,255,255,.06)', color:'rgba(255,255,255,.6)', cursor:'pointer', fontWeight:900, fontSize:13, fontFamily:'inherit' }}>
             {saving ? 'Saving…' : 'Add client'}
           </button>
         </div>
@@ -266,20 +266,20 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
         {c.phone && row('Phone',
           isOwner
             ? (revealedPhones[c.id]
-              ? <a href={`tel:${revealedPhones[c.id]}`} style={{ color:'rgba(130,150,220,.6)', textDecoration:'none' }}>{revealedPhones[c.id]}</a>
-              : <span onClick={() => revealPhone(c.id, c.phone!)} style={{ color:'rgba(10,132,255,.8)', cursor:'pointer', fontSize:12 }}>{maskPhone(c.phone)} · tap to reveal</span>)
+              ? <a href={`tel:${revealedPhones[c.id]}`} style={{ color:'rgba(255,255,255,.6)', textDecoration:'none' }}>{revealedPhones[c.id]}</a>
+              : <span onClick={() => revealPhone(c.id, c.phone!)} style={{ color:'rgba(255,255,255,.5)', cursor:'pointer', fontSize:12 }}>{maskPhone(c.phone)} · tap to reveal</span>)
             : isAdmin
               ? (revealedPhones[c.id]
                 ? <span style={{ color:'rgba(130,220,170,.8)' }}>{revealedPhones[c.id]} <span style={{ fontSize:9, color:'rgba(255,255,255,.30)' }}>auto-hide 15s</span></span>
                 : phoneLoading === c.id
                   ? <span style={{ color:'rgba(255,255,255,.40)', fontSize:11 }}>Verifying location...</span>
-                  : <button onClick={() => requestPhone(c.id)} style={{ height:28, padding:'0 10px', borderRadius:999, border:'1px solid rgba(10,132,255,.45)', background:'rgba(10,132,255,.12)', color:'rgba(130,150,220,.6)', cursor:'pointer', fontWeight:700, fontSize:10, fontFamily:'inherit' }}>
+                  : <button onClick={() => requestPhone(c.id)} style={{ height:28, padding:'0 10px', borderRadius:999, border:'1px solid rgba(255,255,255,.18)', background:'rgba(255,255,255,.06)', color:'rgba(255,255,255,.6)', cursor:'pointer', fontWeight:700, fontSize:10, fontFamily:'inherit' }}>
                       {maskPhone(c.phone)} · Request phone
                     </button>)
               : <span style={{ color:'rgba(255,255,255,.55)' }}>{maskPhone(c.phone)}</span>
         )}
         {phoneError && <div style={{ fontSize:11, color:'#ff6b6b', padding:'4px 0' }}>{phoneError}</div>}
-        {c.email && row('Email', <a href={`mailto:${c.email}`} style={{ color:'rgba(130,150,220,.6)', textDecoration:'none', overflow:'hidden', textOverflow:'ellipsis', maxWidth:160, display:'block' }}>{c.email}</a>)}
+        {c.email && row('Email', <a href={`mailto:${c.email}`} style={{ color:'rgba(255,255,255,.6)', textDecoration:'none', overflow:'hidden', textOverflow:'ellipsis', maxWidth:160, display:'block' }}>{c.email}</a>)}
         {lastVisit && row('Last visit', fmtDate(lastVisit))}
       </div>
 
@@ -289,7 +289,7 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
         <div style={{ display:'flex', gap:6, flexWrap:'wrap' as const }}>
           {(['vip','active','new','risk'] as const).map(s => (
             <button key={s} onClick={() => patch({ status:s })}
-              style={{ height:32, padding:'0 14px', borderRadius:999, border:`1px solid ${c.status===s ? (STATUS_STYLE[s]?.borderColor||'rgba(10,132,255,.55)') : 'rgba(255,255,255,.12)'}`, background:c.status===s ? (STATUS_STYLE[s]?.background||'rgba(10,132,255,.12)') : 'rgba(255,255,255,.04)', color:c.status===s ? (STATUS_STYLE[s]?.color||'#fff') : 'rgba(255,255,255,.65)', cursor:'pointer', fontWeight:700, fontSize:11, fontFamily:'inherit' }}>
+              style={{ height:32, padding:'0 14px', borderRadius:999, border:`1px solid ${c.status===s ? (STATUS_STYLE[s]?.borderColor||'rgba(255,255,255,.18)') : 'rgba(255,255,255,.12)'}`, background:c.status===s ? (STATUS_STYLE[s]?.background||'rgba(255,255,255,.06)') : 'rgba(255,255,255,.04)', color:c.status===s ? (STATUS_STYLE[s]?.color||'#fff') : 'rgba(255,255,255,.65)', cursor:'pointer', fontWeight:700, fontSize:11, fontFamily:'inherit' }}>
               {STATUS_LABELS[s]}
             </button>
           ))}
@@ -320,7 +320,7 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
           style={{ width:'100%', borderRadius:12, border:'1px solid rgba(255,255,255,.12)', background:'rgba(0,0,0,.22)', color:'#fff', padding:'10px 12px', outline:'none', fontSize:13, lineHeight:1.5, resize:'vertical' as const, fontFamily:'inherit' }} />
         <div style={{ display:'flex', gap:8, marginTop:8 }}>
           <button onClick={saveNotes} disabled={notesSaving}
-            style={{ height:34, padding:'0 16px', borderRadius:999, border:'1px solid rgba(10,132,255,.55)', background:'rgba(10,132,255,.12)', color:'rgba(130,150,220,.6)', cursor:'pointer', fontWeight:900, fontSize:12, fontFamily:'inherit' }}>
+            style={{ height:34, padding:'0 16px', borderRadius:999, border:'1px solid rgba(255,255,255,.18)', background:'rgba(255,255,255,.06)', color:'rgba(255,255,255,.6)', cursor:'pointer', fontWeight:900, fontSize:12, fontFamily:'inherit' }}>
             {notesSaving ? 'Saving…' : 'Save notes'}
           </button>
           {c.phone && <>
@@ -341,7 +341,7 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
           <div>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
               <div style={{ fontSize:10, letterSpacing:'.14em', textTransform:'uppercase', color:'rgba(255,255,255,.40)' }}>Photos ({allPhotos.length})</div>
-              <label style={{ height:28, padding:'0 10px', borderRadius:999, border:'1px solid rgba(10,132,255,.45)', background:'rgba(10,132,255,.10)', color:'rgba(130,150,220,.6)', cursor:'pointer', fontWeight:700, fontSize:10, fontFamily:'inherit', display:'flex', alignItems:'center', gap:4 }}>
+              <label style={{ height:28, padding:'0 10px', borderRadius:999, border:'1px solid rgba(255,255,255,.18)', background:'rgba(255,255,255,.06)', color:'rgba(255,255,255,.6)', cursor:'pointer', fontWeight:700, fontSize:10, fontFamily:'inherit', display:'flex', alignItems:'center', gap:4 }}>
                 {photoUploading ? 'Uploading…' : '📷 Add photo'}
                 <input type="file" accept="image/*" capture="environment" onChange={handlePhotoUpload} style={{ display:'none' }} disabled={photoUploading} />
               </label>
@@ -511,12 +511,9 @@ export default function ClientsPage() {
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
         select option{background:#111}
         .cl-row:hover td{background:rgba(255,255,255,.025)!important}
-        .cl-row.sel td{background:rgba(10,132,255,.07)!important}
+        .cl-row.sel td{background:rgba(255,255,255,.04)!important}
         @media(max-width:768px){
           .page-topbar{padding-left:60px!important;}
-          .page-topbar h2{font-size:13px!important;}
-          .cl-grid{grid-template-columns:1fr!important;}
-          .cl-profile-panel{display:none!important;}
           th:nth-child(3),td:nth-child(3){display:none;}
           th:nth-child(4),td:nth-child(4){display:none;}
           th:nth-child(5),td:nth-child(5){display:none;}
@@ -526,145 +523,113 @@ export default function ClientsPage() {
       `}</style>
       <div style={{ display:'flex', flexDirection:'column', height:'100vh', background:'transparent', color:'#e8e8ed', fontFamily:'Inter,system-ui,sans-serif' }}>
 
-        {/* Topbar */}
-        <div style={{ padding:'12px 18px', background:'rgba(0,0,0,.80)', backdropFilter:'blur(14px)', borderBottom:'1px solid rgba(255,255,255,.08)', position:'sticky', top:0, zIndex:20 }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' as const, marginBottom:10, position:'relative' }}>
-            <div style={{ position:'absolute', left:0, right:0, textAlign:'center', pointerEvents:'none' }}>
-              <h2 className="page-title" style={{ margin:0, fontFamily:'"Inter",sans-serif', letterSpacing:'.18em', textTransform:'uppercase', fontSize:15 }}>Clients</h2>
-              <p style={{ margin:'3px 0 0', color:'rgba(255,255,255,.40)', fontSize:11, letterSpacing:'.08em' }}>
-                {visible.length} of {clients.length} clients
-              </p>
+        {/* Compact topbar */}
+        <div style={{ padding:'10px 18px', borderBottom:'1px solid rgba(255,255,255,.06)', position:'sticky', top:0, zIndex:20 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+            <div style={{ flex:1, display:'flex', alignItems:'center', gap:10 }}>
+              <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search clients…"
+                style={{ ...inp, flex:1, maxWidth:280 }} />
+              <span style={{ fontSize:11, color:'rgba(255,255,255,.3)', whiteSpace:'nowrap' }}>{visible.length} clients</span>
             </div>
-            <div style={{ visibility:'hidden', pointerEvents:'none' }}>
-              <div style={{ height:40 }}>placeholder</div>
-            </div>
-            <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const, alignItems:'center', position:'relative', zIndex:1 }}>
-              <button onClick={() => setShowAdd(true)}
-                style={{ height:40, padding:'0 16px', borderRadius:999, border:'1px solid rgba(10,132,255,.75)', background:'rgba(0,0,0,.75)', color:'rgba(130,150,220,.6)', cursor:'pointer', fontWeight:900, fontSize:13, fontFamily:'inherit', boxShadow:'0 0 18px rgba(10,132,255,.25)' }}>
-                + Add client
-              </button>
-            </div>
-          </div>
-          <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const, alignItems:'center' }} className="cl-filters">
-            <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search name / phone / notes / tags…"
-              style={{ ...inp, width:'min(280px,55vw)' }} />
-            <select value={filterBarber} onChange={e=>setFilterBarber(e.target.value)} style={inp}>
-              <option value="">All barbers</option>
+            <select value={filterBarber} onChange={e=>setFilterBarber(e.target.value)} style={{ ...inp, width:'auto' }}>
+              <option value="">All team</option>
               {barbers.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
             </select>
-            <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={inp}>
-              <option value="">All statuses</option>
-              {Object.entries(STATUS_LABELS).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
+            <button onClick={() => setShowAdd(true)}
+              style={{ height:40, padding:'0 16px', borderRadius:12, border:'1px solid rgba(255,255,255,.12)', background:'rgba(255,255,255,.04)', color:'rgba(255,255,255,.6)', cursor:'pointer', fontWeight:600, fontSize:13, fontFamily:'inherit', whiteSpace:'nowrap' }}>
+              + Add
+            </button>
           </div>
-          <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', marginTop:8 }}>
+          <div style={{ display:'flex', gap:4, alignItems:'center' }}>
             {[{v:'',l:'All'},{v:'vip',l:'VIP'},{v:'active',l:'Active'},{v:'new',l:'New'},{v:'at_risk',l:'At Risk'}].map(f => (
               <button key={f.v} onClick={() => setFilterClientStatus(f.v)}
-                style={{ height:30, padding:'0 12px', borderRadius:999, border:`1px solid ${filterClientStatus===f.v ? 'rgba(10,132,255,.65)' : 'rgba(255,255,255,.12)'}`, background:filterClientStatus===f.v ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.04)', color:filterClientStatus===f.v ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.55)', cursor:'pointer', fontWeight:700, fontSize:11, fontFamily:'inherit', letterSpacing:'.04em' }}>
+                style={{ height:28, padding:'0 10px', borderRadius:999, border:`1px solid ${filterClientStatus===f.v ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.06)'}`, background:filterClientStatus===f.v ? 'rgba(255,255,255,.08)' : 'transparent', color:filterClientStatus===f.v ? '#e8e8ed' : 'rgba(255,255,255,.35)', cursor:'pointer', fontWeight:filterClientStatus===f.v ? 600 : 400, fontSize:10, fontFamily:'inherit', letterSpacing:'.02em', transition:'all .2s' }}>
                 {f.l}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Main grid */}
-        <div style={{ flex:1, overflow:'hidden', display:'grid', gridTemplateColumns:'1.6fr .9fr' }} className="cl-grid">
-
-          {/* Table */}
-          <div style={{ overflowY:'auto', borderRight:'1px solid rgba(255,255,255,.08)' }}>
-            {loading && clients.length===0 ? (
-              <div style={{ padding:40, textAlign:'center', color:'rgba(255,255,255,.40)', fontSize:13 }}>Loading…</div>
-            ) : visible.length===0 ? (
-              <div style={{ padding:40, textAlign:'center', color:'rgba(255,255,255,.40)', fontSize:13 }}>No clients found</div>
-            ) : (
-              <table style={{ width:'100%', borderCollapse:'collapse', tableLayout:'fixed' }}>
-                <thead>
-                  <tr>
-                    {[['Client','38%'],['Status','14%'],['Last visit','16%'],['Team member','16%'],['Tags','16%']].map(([h,w]) => (
-                      <th key={h} style={{ padding:'10px 14px', fontSize:10, letterSpacing:'.12em', textTransform:'uppercase', color:'rgba(255,255,255,.55)', background:'rgba(0,0,0,.90)', position:'sticky', top:0, textAlign:'left', borderBottom:'1px solid rgba(255,255,255,.08)', width:w }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {visible.map(c => {
-                    const isSel = c.id === selectedId
-                    return (
-                      <tr key={c.id} className={`cl-row${isSel?' sel':''}`} onClick={() => { setSelectedId(c.id); setMobileProfile(true) }} style={{ cursor:'pointer' }}>
-                        <td style={{ padding:'11px 14px', borderBottom:'1px solid rgba(255,255,255,.06)', overflow:'hidden' }}>
-                          <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
-                            <div style={{ width:34, height:34, borderRadius:12, border:'1px solid rgba(255,255,255,.12)', background:'rgba(255,255,255,.05)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:11, flexShrink:0 }}>
-                              {initials(c.name)}
-                            </div>
-                            <div style={{ minWidth:0 }}>
-                              <div style={{ fontWeight:900, fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.name}</div>
-                              <div style={{ fontSize:11, color:'rgba(255,255,255,.45)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginTop:1 }}>
-                                {isOwner
+        {/* Client list — full width */}
+        <div style={{ flex:1, overflowY:'auto' }}>
+          {loading && clients.length===0 ? (
+            <div style={{ padding:40, textAlign:'center', color:'rgba(255,255,255,.40)', fontSize:13 }}>Loading…</div>
+          ) : visible.length===0 ? (
+            <div style={{ padding:40, textAlign:'center', color:'rgba(255,255,255,.30)', fontSize:13 }}>No clients found</div>
+          ) : (
+            <table style={{ width:'100%', borderCollapse:'collapse', tableLayout:'fixed' }}>
+              <thead>
+                <tr>
+                  {[['Client','38%'],['Status','14%'],['Last visit','16%'],['Team member','16%'],['Tags','16%']].map(([h,w]) => (
+                    <th key={h} style={{ padding:'8px 14px', fontSize:9, letterSpacing:'.1em', textTransform:'uppercase', color:'rgba(255,255,255,.35)', position:'sticky', top:0, textAlign:'left', borderBottom:'1px solid rgba(255,255,255,.06)', width:w }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map(c => {
+                  const isSel = c.id === selectedId
+                  return (
+                    <tr key={c.id} className={`cl-row${isSel?' sel':''}`} onClick={() => { setSelectedId(c.id); setMobileProfile(true) }} style={{ cursor:'pointer' }}>
+                      <td style={{ padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,.04)', overflow:'hidden' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
+                          <div style={{ width:34, height:34, borderRadius:10, border:'1px solid rgba(255,255,255,.08)', background:'rgba(255,255,255,.04)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:11, color:'rgba(255,255,255,.5)', flexShrink:0 }}>
+                            {initials(c.name)}
+                          </div>
+                          <div style={{ minWidth:0 }}>
+                            <div style={{ fontWeight:600, fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.name}</div>
+                            <div style={{ fontSize:11, color:'rgba(255,255,255,.35)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginTop:1 }}>
+                              {isOwner
+                                ? (revealedPhones[c.id]
+                                  ? <span onClick={(e) => { e.stopPropagation(); setRevealedPhones(p => { const n={...p}; delete n[c.id]; return n }) }} style={{ cursor:'pointer' }}>{revealedPhones[c.id]}</span>
+                                  : <span onClick={(e) => { e.stopPropagation(); revealPhone(c.id, c.phone||'') }} style={{ cursor:'pointer', color:'rgba(255,255,255,.45)' }}>{maskPhone(c.phone||'')}</span>)
+                                : isAdmin
                                   ? (revealedPhones[c.id]
-                                    ? <span onClick={() => setRevealedPhones(p => { const n={...p}; delete n[c.id]; return n })} style={{ cursor:'pointer' }}>{revealedPhones[c.id]}</span>
-                                    : <span onClick={() => revealPhone(c.id, c.phone||'')} style={{ cursor:'pointer', color:'rgba(10,132,255,.8)' }}>{maskPhone(c.phone||'')}</span>)
-                                  : isAdmin
-                                    ? (revealedPhones[c.id]
-                                      ? <span style={{ color:'rgba(130,220,170,.8)' }}>{revealedPhones[c.id]}</span>
-                                      : phoneLoading === c.id
-                                        ? <span style={{ color:'rgba(255,255,255,.40)', fontSize:10 }}>Verifying...</span>
-                                        : <span onClick={() => requestPhone(c.id)} style={{ cursor:'pointer', color:'rgba(10,132,255,.8)', fontSize:10 }}>{maskPhone(c.phone||'')} · request</span>)
-                                    : maskPhone(c.phone||'')}
-                              </div>
+                                    ? <span style={{ color:'rgba(130,220,170,.8)' }}>{revealedPhones[c.id]}</span>
+                                    : phoneLoading === c.id
+                                      ? <span style={{ color:'rgba(255,255,255,.40)', fontSize:10 }}>Verifying...</span>
+                                      : <span onClick={(e) => { e.stopPropagation(); requestPhone(c.id) }} style={{ cursor:'pointer', color:'rgba(255,255,255,.45)', fontSize:10 }}>{maskPhone(c.phone||'')} · request</span>)
+                                  : maskPhone(c.phone||'')}
                             </div>
                           </div>
-                        </td>
-                        <td style={{ padding:'11px 14px', borderBottom:'1px solid rgba(255,255,255,.06)' }}><Chip status={c.client_status||c.status||'new'} /></td>
-                        <td style={{ padding:'11px 14px', borderBottom:'1px solid rgba(255,255,255,.06)', fontSize:12, color:'rgba(255,255,255,.55)' }}>{c.last_visit ? fmtDate(c.last_visit) : '—'}</td>
-                        <td style={{ padding:'11px 14px', borderBottom:'1px solid rgba(255,255,255,.06)', fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.preferred_barber||c.barber||'—'}</td>
-                        <td style={{ padding:'11px 14px', borderBottom:'1px solid rgba(255,255,255,.06)' }}>
-                          <div style={{ display:'flex', gap:4, flexWrap:'wrap' as const }}>
-                            {(c.tags||[]).slice(0,2).map(t => <span key={t} style={{ fontSize:9, padding:'3px 7px', borderRadius:999, border:'1px solid rgba(255,255,255,.12)', background:'rgba(255,255,255,.04)', color:'rgba(255,255,255,.60)', letterSpacing:'.06em', textTransform:'uppercase' }}>{t}</span>)}
-                            {(c.tags||[]).length>2 && <span style={{ fontSize:9, color:'rgba(255,255,255,.35)' }}>+{(c.tags||[]).length-2}</span>}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,.04)' }}><Chip status={c.client_status||c.status||'new'} /></td>
+                      <td style={{ padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,.04)', fontSize:12, color:'rgba(255,255,255,.4)' }}>{c.last_visit ? fmtDate(c.last_visit) : '—'}</td>
+                      <td style={{ padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,.04)', fontSize:12, color:'rgba(255,255,255,.4)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.preferred_barber||c.barber||'—'}</td>
+                      <td style={{ padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
+                        <div style={{ display:'flex', gap:4, flexWrap:'wrap' as const }}>
+                          {(c.tags||[]).slice(0,2).map(t => <span key={t} style={{ fontSize:9, padding:'3px 7px', borderRadius:999, border:'1px solid rgba(255,255,255,.08)', background:'rgba(255,255,255,.03)', color:'rgba(255,255,255,.45)', letterSpacing:'.04em' }}>{t}</span>)}
+                          {(c.tags||[]).length>2 && <span style={{ fontSize:9, color:'rgba(255,255,255,.25)' }}>+{(c.tags||[]).length-2}</span>}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
 
-          {/* Profile panel — desktop sidebar */}
-          <div className="cl-profile-panel"
-            style={{ overflowY:'auto', background:'rgba(0,0,0,.08)' }}>
-            {!selectedId ? (
-              <div style={{ padding:32, textAlign:'center', color:'rgba(255,255,255,.30)', fontSize:13 }}>Click any client to view profile</div>
-            ) : (
-              <ClientProfile
-                key={selectedId}
-                clientId={selectedId}
-                clients={clients}
-                onUpdate={updateClient}
-              />
-            )}
-          </div>
-
-          {/* Mobile profile modal */}
-          {mobileProfile && selectedId && (
-            <div style={{ position:'fixed', inset:0, zIndex:300, background:'#000', overflow:'hidden', display:'flex', flexDirection:'column' }}>
-              {/* Header */}
-              <div style={{ padding:'10px 14px', background:'rgba(0,0,0,.95)', backdropFilter:'blur(12px)', borderBottom:'1px solid rgba(255,255,255,.08)', display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
-                <button onClick={() => setMobileProfile(false)} style={{ height:36, padding:'0 14px', borderRadius:999, border:'1px solid rgba(255,255,255,.12)', background:'rgba(255,255,255,.06)', color:'#fff', cursor:'pointer', fontWeight:700, fontSize:13, fontFamily:'inherit' }}>← Back</button>
-                <span style={{ fontSize:12, color:'rgba(255,255,255,.55)', letterSpacing:'.06em' }}>Client profile</span>
+        {/* Client profile modal — glass overlay */}
+        {mobileProfile && selectedId && (
+          <div style={{ position:'fixed', inset:0, zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={() => setMobileProfile(false)}>
+            <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,.6)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)' }} />
+            <div onClick={e => e.stopPropagation()} style={{ position:'relative', width:'100%', maxWidth:480, maxHeight:'85vh', borderRadius:20, border:'1px solid rgba(255,255,255,.08)', background:'rgba(12,12,12,.95)', backdropFilter:'blur(24px)', WebkitBackdropFilter:'blur(24px)', overflow:'hidden', display:'flex', flexDirection:'column', boxShadow:'0 24px 80px rgba(0,0,0,.6)' }}>
+              <div style={{ padding:'12px 16px', borderBottom:'1px solid rgba(255,255,255,.06)', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
+                <span style={{ fontSize:12, color:'rgba(255,255,255,.4)', letterSpacing:'.04em' }}>Client Profile</span>
+                <button onClick={() => setMobileProfile(false)} style={{ width:28, height:28, borderRadius:8, border:'1px solid rgba(255,255,255,.1)', background:'rgba(255,255,255,.04)', color:'rgba(255,255,255,.5)', cursor:'pointer', fontSize:14, fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
               </div>
-              {/* Content */}
-              <div style={{ flex:1, overflowY:'auto', background:'#000' }}>
+              <div style={{ flex:1, overflowY:'auto' }}>
                 <ClientProfile
-                  key={selectedId + '_mobile'}
+                  key={selectedId}
                   clientId={selectedId}
                   clients={clients}
                   onUpdate={updateClient}
                 />
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {showAdd && (

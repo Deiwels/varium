@@ -14,6 +14,7 @@ interface PlanData {
   trial_ends_at: string | null
   trial_days_left: number
   loading: boolean
+  expired: boolean // true if trial ended and no active subscription
 }
 
 const defaultPlan: PlanData = {
@@ -28,6 +29,7 @@ const defaultPlan: PlanData = {
   trial_ends_at: null,
   trial_days_left: 0,
   loading: true,
+  expired: false,
 }
 
 interface PlanContextType extends PlanData {
@@ -50,9 +52,11 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
     apiFetch('/api/account/limits')
       .then((d: any) => {
+        const bs = d.billing_status || 'inactive'
+        const isExpired = !d.trial_active && !['active', 'trialing'].includes(bs)
         setData({
           plan_type: d.plan_type || 'individual',
-          billing_status: d.billing_status || 'inactive',
+          billing_status: bs,
           effective_plan: d.effective_plan || 'individual',
           features: d.features || defaultPlan.features,
           member_limit: d.member_limit ?? 1,
@@ -62,6 +66,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
           trial_ends_at: d.trial_ends_at || null,
           trial_days_left: d.trial_days_left || 0,
           loading: false,
+          expired: isExpired,
         })
       })
       .catch(() => {

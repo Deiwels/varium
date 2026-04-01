@@ -1806,10 +1806,9 @@ export default function CalendarPage() {
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               </button>}
 
-              {/* New booking */}
-              {isStudent ? (
+              {/* New booking — students see "+ Model" */}
+              {isStudent && (
                 <button onClick={() => {
-                  // Collect ALL free 90min slots
                   const freeSlots: { min: number; mentorId: string; mentorName: string }[] = []
                   for (let m = START_HOUR * 60; m <= END_HOUR * 60 - 90; m += 5) {
                     const mid = studentSlotMentorMap.get(m)
@@ -1818,7 +1817,6 @@ export default function CalendarPage() {
                     for (let c = m; c < m + 90; c += 5) { if (!studentSlotMentorMap.has(c)) { ok = false; break } }
                     if (ok) {
                       const mentor = barbers.find(b => b.id === mid)
-                      // Only add if previous slot wasn't same time (skip 5-min overlaps)
                       if (!freeSlots.length || freeSlots[freeSlots.length-1].min + 5 < m || freeSlots[freeSlots.length-1].mentorId !== mid) {
                         freeSlots.push({ min: m, mentorId: mid, mentorName: mentor?.name || '' })
                       }
@@ -1826,9 +1824,7 @@ export default function CalendarPage() {
                   }
                   if (!freeSlots.length) { showToast('No free 90min slot available today'); return }
                   setSlotPicker(freeSlots)
-                }} className="cal-student-btn" style={{ height: 36, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(168,107,255,.80)', background: 'rgba(0,0,0,.75)', color: 'rgba(180,140,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', boxShadow: '0 0 14px rgba(168,107,255,.20)', whiteSpace: 'nowrap', flexShrink: 0 }}>+ Model</button>
-              ) : (
-                <button className="cal-new-btn" onClick={() => openCreate(isBarber ? myBarberId : (barbers[0]?.id || ''), clamp(new Date().getHours()*60))} style={{ height: 26, padding: '0 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 500, fontSize: 11, fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>+ New</button>
+                }} className="cal-student-btn" style={{ height: 26, padding: '0 10px', borderRadius: 7, border: '1px solid rgba(168,107,255,.40)', background: 'rgba(168,107,255,.06)', color: 'rgba(180,140,220,.6)', cursor: 'pointer', fontWeight: 600, fontSize: 11, fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>+ Model</button>
               )}
           </div>,
           portalTarget
@@ -1848,7 +1844,7 @@ export default function CalendarPage() {
         <div className={`cal-container${dayTransition === 'out' ? ' day-transition-out' : dayTransition === 'in' ? ' day-transition-in' : ''}`} style={{ flex: 1, position: 'relative', overflowY: (drag || blockDrag) ? 'hidden' : 'auto', overflowX: 'hidden', touchAction: (drag || blockDrag) ? 'none' : 'pan-x pan-y', transformOrigin: 'center 40%' }} ref={scrollContainerRef} onTouchStart={onPinchStart} onTouchMove={onPinchMove} onTouchEnd={onPinchEnd}>
           <div style={{ minWidth: timeColW + pageBarbers.length * colMin }}>
             {/* Header */}
-            <div style={{ display: 'grid', gridTemplateColumns: `${timeColW}px repeat(${pageBarbers.length}, minmax(${colMin}px,1fr))`, borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(8,8,18,.6)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', position: 'sticky', top: 0, zIndex: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `${timeColW}px repeat(${pageBarbers.length}, minmax(${colMin}px,1fr))`, borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', position: 'sticky', top: 0, zIndex: 10 }}>
               <div style={{ padding: isMobile ? '10px 2px' : '10px 12px', borderRight: '1px solid rgba(255,255,255,.10)', color: 'rgba(255,255,255,.40)', fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', textAlign: 'center' }}>{isMobile ? '' : 'Time'}</div>
               {pageBarbers.map((b, i) => {
                 const attachedStudents = studentUsers.filter(s => s.mentorIds.includes(b.id))
@@ -1880,7 +1876,7 @@ export default function CalendarPage() {
             {/* Body */}
             <div style={{ display: 'grid', gridTemplateColumns: `${timeColW}px repeat(${pageBarbers.length}, minmax(${colMin}px,1fr))`, height: totalH, position: 'relative' }}>
               {/* Time labels */}
-              <div style={{ borderRight: '1px solid rgba(255,255,255,.04)', background: 'rgba(8,8,18,.4)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', position: 'relative' }}>
+              <div style={{ borderRight: '1px solid rgba(255,255,255,.04)', background: 'rgba(0,0,0,.3)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', position: 'relative' }}>
                 {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => {
                   const h = START_HOUR + i
                   const label = _is24h ? `${pad2(h)}` : (() => { const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h; return String(h12) })()
@@ -2020,7 +2016,7 @@ export default function CalendarPage() {
                     {/* Student: blocked slots overlay (where no mentor is free) */}
                     {isStudent && barber.id === '__student__' && studentBlockedRanges.map((range, ri) => {
                       return (
-                        <div key={ri} style={{ position: 'absolute', left: 0, right: 0, top: minToY(range.startMin), height: minToY(range.endMin) - minToY(range.startMin), zIndex: 2, background: 'rgba(8,8,14,.55)', backdropFilter: 'blur(8px) saturate(120%)', WebkitBackdropFilter: 'blur(8px) saturate(120%)', cursor: 'not-allowed', pointerEvents: 'none' } as React.CSSProperties} />
+                        <div key={ri} style={{ position: 'absolute', left: 0, right: 0, top: minToY(range.startMin), height: minToY(range.endMin) - minToY(range.startMin), zIndex: 2, background: 'rgba(0,0,0,.4)', backdropFilter: 'blur(8px) saturate(120%)', WebkitBackdropFilter: 'blur(8px) saturate(120%)', cursor: 'not-allowed', pointerEvents: 'none' } as React.CSSProperties} />
                       )
                     })}
                     {/* Off-hours blocks — gray, like red block but for non-working time */}

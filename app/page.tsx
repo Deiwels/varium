@@ -25,19 +25,13 @@ export default function Home() {
   useEffect(() => {
     const mobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window
     setIsMobile(mobile)
-    if (mobile) return
 
     let tx = 0, ty = 0, cx = 0, cy = 0
     let raf: number
 
-    function onMouse(e: MouseEvent) {
-      tx = (e.clientX / window.innerWidth - 0.5) * 2
-      ty = (e.clientY / window.innerHeight - 0.5) * 2
-    }
-
     function tick() {
-      cx += (tx - cx) * 0.04
-      cy += (ty - cy) * 0.04
+      cx += (tx - cx) * 0.02
+      cy += (ty - cy) * 0.02
 
       const far  = document.querySelector('.stars-far')   as HTMLElement
       const mid  = document.querySelector('.stars-mid')   as HTMLElement
@@ -54,6 +48,35 @@ export default function Home() {
       if (neb2) neb2.style.transform = `translate(${cx * -3}px, ${cy * -3}px)`
 
       raf = requestAnimationFrame(tick)
+    }
+
+    if (mobile) {
+      // Gyroscope parallax — tilt phone to move stars
+      function onOrientation(e: DeviceOrientationEvent) {
+        const gamma = Math.max(-15, Math.min(15, e.gamma || 0))
+        const beta  = Math.max(-15, Math.min(15, (e.beta || 0) - 45))
+        tx = gamma / 15 * 4
+        ty = beta  / 15 * 4
+      }
+      const doe = DeviceOrientationEvent as any
+      if (typeof doe.requestPermission === 'function') {
+        function reqGyro() {
+          doe.requestPermission().then((s: string) => {
+            if (s === 'granted') window.addEventListener('deviceorientation', onOrientation, { passive: true })
+          }).catch(() => {})
+          document.removeEventListener('click', reqGyro)
+        }
+        document.addEventListener('click', reqGyro, { once: true })
+      } else {
+        window.addEventListener('deviceorientation', onOrientation, { passive: true })
+      }
+      raf = requestAnimationFrame(tick)
+      return () => { window.removeEventListener('deviceorientation', onOrientation); cancelAnimationFrame(raf) }
+    }
+
+    function onMouse(e: MouseEvent) {
+      tx = (e.clientX / window.innerWidth - 0.5) * 2
+      ty = (e.clientY / window.innerHeight - 0.5) * 2
     }
 
     function onScroll() {

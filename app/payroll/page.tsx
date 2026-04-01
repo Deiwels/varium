@@ -82,7 +82,7 @@ function DatePicker({ from, to, onChange, onClose }: {
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
           {presets.map(p => (
             <button key={p.label} onClick={() => { onChange(p.f, p.t); onClose() }}
-              style={{ ...btnBase, padding: '0 12px', fontSize: 11, letterSpacing: '.06em', background: selFrom === p.f && selTo === p.t ? 'rgba(10,132,255,.18)' : 'rgba(255,255,255,.04)', borderColor: selFrom === p.f && selTo === p.t ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)' }}>
+              style={{ ...btnBase, padding: '0 12px', fontSize: 11, letterSpacing: '.06em', background: selFrom === p.f && selTo === p.t ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.04)', borderColor: selFrom === p.f && selTo === p.t ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.10)' }}>
               {p.label}
             </button>
           ))}
@@ -117,7 +117,7 @@ function DatePicker({ from, to, onChange, onClose }: {
             const inRange = iso > selFrom && iso < selTo
             return (
               <button key={iso} onClick={() => pickDay(iso)}
-                style={{ height: 40, borderRadius: 10, border: `1px solid ${isFrom ? 'rgba(10,132,255,.75)' : isTo ? 'rgba(143,240,177,.65)' : isToday ? 'rgba(255,207,63,.50)' : 'rgba(255,255,255,.08)'}`, background: isFrom ? 'rgba(10,132,255,.20)' : isTo ? 'rgba(143,240,177,.15)' : inRange ? 'rgba(10,132,255,.08)' : 'rgba(0,0,0,.18)', color: isTo ? 'rgba(130,220,170,.5)' : '#fff', cursor: 'pointer', opacity: inMonth ? 1 : 0.3, fontWeight: isFrom || isTo ? 900 : 500, fontSize: 13, fontFamily: 'inherit' }}>
+                style={{ height: 40, borderRadius: 10, border: `1px solid ${isFrom ? 'rgba(255,255,255,.15)' : isTo ? 'rgba(143,240,177,.65)' : isToday ? 'rgba(255,207,63,.50)' : 'rgba(255,255,255,.08)'}`, background: isFrom ? 'rgba(255,255,255,.06)' : isTo ? 'rgba(143,240,177,.15)' : inRange ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.18)', color: isTo ? 'rgba(130,220,170,.5)' : '#fff', cursor: 'pointer', opacity: inMonth ? 1 : 0.3, fontWeight: isFrom || isTo ? 900 : 500, fontSize: 13, fontFamily: 'inherit' }}>
                 {parseInt(iso.slice(8))}
               </button>
             )
@@ -127,7 +127,7 @@ function DatePicker({ from, to, onChange, onClose }: {
         {/* Footer */}
         <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)' }}>Click start date, then end date</div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(130,150,220,.6)' }}>{selFrom && selTo ? fmtDate(selFrom) + ' → ' + fmtDate(selTo) : '—'}</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.6)' }}>{selFrom && selTo ? fmtDate(selFrom) + ' → ' + fmtDate(selTo) : '—'}</div>
         </div>
       </div>
     </div>
@@ -160,7 +160,7 @@ function CommissionEditor({ barber, rule, onSaved }: { barber: BarberPayroll; ru
   }
 
   return (
-    <div style={{ borderRadius: 14, border: `1px solid ${open ? 'rgba(10,132,255,.30)' : 'rgba(255,255,255,.08)'}`, overflow: 'hidden', background: open ? 'rgba(10,132,255,.04)' : 'rgba(0,0,0,.12)' }}>
+    <div style={{ borderRadius: 14, border: `1px solid ${open ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.08)'}`, overflow: 'hidden', background: open ? 'rgba(255,255,255,.03)' : 'rgba(0,0,0,.12)' }}>
       <div onClick={() => setOpen(v => !v)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: 'pointer' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {barber.barber_photo
@@ -234,7 +234,7 @@ function CommissionEditor({ barber, rule, onSaved }: { barber: BarberPayroll; ru
           </button>
 
           <button onClick={save} disabled={saving}
-            style={{ width: '100%', height: 40, borderRadius: 12, border: '1px solid rgba(10,132,255,.55)', background: saved ? 'rgba(143,240,177,.12)' : 'rgba(10,132,255,.14)', color: saved ? 'rgba(130,220,170,.5)' : 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', borderColor: saved ? 'rgba(143,240,177,.45)' : 'rgba(10,132,255,.55)' }}>
+            style={{ width: '100%', height: 40, borderRadius: 12, border: '1px solid rgba(255,255,255,.18)', background: saved ? 'rgba(143,240,177,.12)' : 'rgba(255,255,255,.06)', color: saved ? 'rgba(130,220,170,.5)' : 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', borderColor: saved ? 'rgba(143,240,177,.45)' : 'rgba(255,255,255,.18)' }}>
             {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save rules'}
           </button>
         </div>
@@ -322,7 +322,7 @@ function AdminPayrollEditor({ userId, userName, rule, onSaved, extraDays }: { us
             <div className="day-pills" style={{ display: 'flex', gap: 6 }}>
               {DAY_LABELS.map((d, i) => (
                 <button key={i} onClick={() => toggleBonusDay(i)}
-                  style={{ height: 30, width: 40, borderRadius: 8, border: `1px solid ${bonusDays.includes(i) ? 'rgba(10,132,255,.45)' : 'rgba(255,255,255,.10)'}`, background: bonusDays.includes(i) ? 'rgba(10,132,255,.12)' : 'rgba(255,255,255,.03)', color: bonusDays.includes(i) ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.40)', cursor: 'pointer', fontSize: 10, fontWeight: 700, fontFamily: 'inherit' }}>
+                  style={{ height: 30, width: 40, borderRadius: 8, border: `1px solid ${bonusDays.includes(i) ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.10)'}`, background: bonusDays.includes(i) ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.03)', color: bonusDays.includes(i) ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.40)', cursor: 'pointer', fontSize: 10, fontWeight: 700, fontFamily: 'inherit' }}>
                   {d}
                 </button>
               ))}
@@ -611,14 +611,11 @@ export default function PayrollPage() {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif', overflowY: 'auto' }}>
 
         {/* Topbar */}
-        <div className="topbar-pad" style={{ padding: '14px 20px 12px', background: 'rgba(0,0,0,.80)', backdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,.08)', position: 'sticky', top: 0, zIndex: 20 }}>
-          <div className="payroll-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <div>
-              <h2 className="page-title" style={{ margin: 0, fontFamily: '"Inter",sans-serif', letterSpacing: '.18em', textTransform: 'uppercase', fontSize: 15 }}>Payroll</h2>
-              <p style={{ margin: '3px 0 0', color: 'rgba(255,255,255,.40)', fontSize: 11, letterSpacing: '.08em' }}>
-                Commission + tips · {barbers.length} barbers · {barbers.reduce((s,b)=>s+b.bookings_count,0)} bookings
-              </p>
-            </div>
+        <div className="topbar-pad" style={{ padding: '10px 18px', borderBottom: '1px solid rgba(255,255,255,.06)', position: 'sticky', top: 0, zIndex: 20 }}>
+          <div className="payroll-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>
+              {barbers.length} barbers · {barbers.reduce((s,b)=>s+b.bookings_count,0)} bookings
+            </span>
             <div className="payroll-topbar-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               {/* Date range */}
               <button className="payroll-date-btn" onClick={() => setShowDatePicker(true)}
@@ -634,7 +631,7 @@ export default function PayrollPage() {
               <button onClick={load} disabled={loading}
                 style={{ height: 40, width: 40, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontSize: 16, opacity: loading ? .5 : 1 }}>↻</button>
               <button onClick={exportCSV}
-                style={{ height: 40, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(10,132,255,.65)', background: 'rgba(10,132,255,.12)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>
+                style={{ height: 40, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>
                 Export CSV
               </button>
             </div>
@@ -680,9 +677,9 @@ export default function PayrollPage() {
                       const latePenalty = bLateMins * penaltyRate
                       const adjustedTotal = b.barber_total - latePenalty
                       return <>
-                        <tr key={b.barber_id} style={{ background: isOpen ? 'rgba(10,132,255,.04)' : 'transparent' }}
+                        <tr key={b.barber_id} style={{ background: isOpen ? 'rgba(255,255,255,.03)' : 'transparent' }}
                           onMouseEnter={e => (e.currentTarget.style.background='rgba(255,255,255,.025)')}
-                          onMouseLeave={e => (e.currentTarget.style.background=isOpen?'rgba(10,132,255,.04)':'transparent')}>
+                          onMouseLeave={e => (e.currentTarget.style.background=isOpen?'rgba(255,255,255,.03)':'transparent')}>
                           <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               {b.barber_photo
@@ -696,15 +693,15 @@ export default function PayrollPage() {
                             </div>
                           </td>
                           <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', whiteSpace: 'nowrap' }}>
-                            {(() => { const mins = adminAttendance[b.barber_id] || 0; const h = mins / 60; return h > 0 ? <span style={{ fontSize: 12, color: 'rgba(130,150,220,.6)', fontWeight: 700 }}>{h.toFixed(1)}h</span> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,.25)' }}>—</span> })()}
+                            {(() => { const mins = adminAttendance[b.barber_id] || 0; const h = mins / 60; return h > 0 ? <span style={{ fontSize: 12, color: 'rgba(255,255,255,.6)', fontWeight: 700 }}>{h.toFixed(1)}h</span> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,.25)' }}>—</span> })()}
                           </td>
                           <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', whiteSpace: 'nowrap' }}>
-                            <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 999, border: isBoosted ? '1px solid rgba(143,240,177,.45)' : '1px solid rgba(10,132,255,.40)', background: isBoosted ? 'rgba(143,240,177,.10)' : 'rgba(10,132,255,.10)', color: isBoosted ? 'rgba(130,220,170,.5)' : 'rgba(130,150,220,.6)' }}>
+                            <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 999, border: isBoosted ? '1px solid rgba(143,240,177,.45)' : '1px solid rgba(255,255,255,.12)', background: isBoosted ? 'rgba(143,240,177,.10)' : 'rgba(255,255,255,.04)', color: isBoosted ? 'rgba(130,220,170,.5)' : 'rgba(130,150,220,.6)' }}>
                               {b.effective_pct}%{isBoosted ? ' ↑' : ''}
                             </span>
                           </td>
                           <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', fontWeight: 700 }}>{fmtMoney(b.service_total)}</td>
-                          <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', color: 'rgba(130,150,220,.6)' }}>{fmtMoney(b.barber_service_share)}</td>
+                          <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)' }}>{fmtMoney(b.barber_service_share)}</td>
                           <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.45)' }}>{fmtMoney(b.owner_service_share)}</td>
                           <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', color: 'rgba(130,220,170,.8)' }}>{fmtMoney(b.tips_total)}</td>
                           <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', fontWeight: 900, fontSize: 14 }}>
@@ -780,7 +777,7 @@ export default function PayrollPage() {
               <div style={{ display: 'flex', gap: 6, padding: '12px 14px 0', flexWrap: 'wrap' }}>
                 {(['summary','attendance','rules'] as const).map(tab => (
                   <button key={tab} onClick={() => setActiveTab(tab)}
-                    style={{ height: 34, padding: '0 14px', borderRadius: 999, border: `1px solid ${activeTab===tab ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)'}`, background: activeTab===tab ? 'rgba(10,132,255,.14)' : 'rgba(255,255,255,.04)', color: activeTab===tab ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.70)', cursor: 'pointer', fontWeight: 900, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    style={{ height: 34, padding: '0 14px', borderRadius: 999, border: `1px solid ${activeTab===tab ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.10)'}`, background: activeTab===tab ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.04)', color: activeTab===tab ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.70)', cursor: 'pointer', fontWeight: 900, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     {tab === 'attendance' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
                     {tab === 'summary' ? 'Summary' : tab === 'attendance' ? 'Hours & Clock' : 'Commission rules'}
                   </button>
@@ -865,7 +862,7 @@ export default function PayrollPage() {
                               <div key={u.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
                                 <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, color: '#e8e8ed' }}>{u.name || u.username}</div>
                                 <div className="admin-payroll-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 12 }}>
-                                  <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Hours: </span><span style={{ color: 'rgba(130,150,220,.6)' }}>{hours.toFixed(1)}h</span></div>
+                                  <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Hours: </span><span style={{ color: 'rgba(255,255,255,.6)' }}>{hours.toFixed(1)}h</span></div>
                                   <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Base pay (${r.hourly_rate || 0}/hr): </span><span style={{ color: 'rgba(130,220,170,.8)' }}>{fmtMoney(basePay)}</span></div>
                                   <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Profit {r.owner_profit_pct || 0}%: </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(profitShare)}</span></div>
                                   <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Fee {r.service_fee_pct || 0}% ({allFeeDays.length}d): </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(feeShare)}</span></div>

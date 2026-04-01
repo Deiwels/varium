@@ -170,15 +170,12 @@ export default function MembershipPage() {
       )}
 
       <div style={{ padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 14, height: '100vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' as any, paddingBottom: 100 }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-          <div>
-            <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.22em', textTransform: 'uppercase', fontSize: 18 }}>Membership</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.40)', marginTop: 2 }}>{active.length} active · {paused.length} paused · {cancelled.length} cancelled</div>
-          </div>
-          <button onClick={openAdd} style={{ height: 38, padding: '0 18px', borderRadius: 12, border: '1px solid rgba(143,240,177,.35)', background: 'rgba(143,240,177,.08)', color: 'rgba(130,220,170,.5)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit', letterSpacing: '.06em', display: 'flex', alignItems: 'center', gap: 6, transition: 'all .2s' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Add membership
+        {/* Header — compact */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>{active.length} active · {paused.length} paused</span>
+          <div style={{ flex: 1 }} />
+          <button onClick={openAdd} style={{ height: 32, padding: '0 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontWeight: 600, fontSize: 11, fontFamily: 'inherit' }}>
+            + Add
           </button>
         </div>
 
@@ -202,7 +199,7 @@ export default function MembershipPage() {
                     <span style={{ color: 'rgba(255,255,255,.20)' }}>·</span>
                     <span>{m.service_name || 'No service'}</span>
                     <span style={{ color: 'rgba(255,255,255,.20)' }}>·</span>
-                    <span style={{ color: 'rgba(130,150,220,.6)', fontWeight: 700 }}>{FREQ_LABELS[m.frequency] || m.frequency}</span>
+                    <span style={{ color: 'rgba(255,255,255,.6)', fontWeight: 700 }}>{FREQ_LABELS[m.frequency] || m.frequency}</span>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,.40)' }}>
                     <span>Every {DAYS[m.preferred_day]} at {minToTime(m.preferred_time_min)}</span>
@@ -260,7 +257,7 @@ export default function MembershipPage() {
                         if (list.length > 0) { setFClient(list[0].name || ''); showToast(`Found: ${list[0].name}`) }
                         else showToast('Client not found')
                       } catch { showToast('Search failed') }
-                    }} style={{ height: 44, padding: '0 14px', borderRadius: 12, border: '1px solid rgba(10,132,255,.40)', background: 'rgba(10,132,255,.08)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Search</button>
+                    }} style={{ height: 44, padding: '0 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Search</button>
                   </div>
                   {fClient && <div style={{ marginTop: 6, fontSize: 13, color: 'rgba(130,220,170,.5)', fontWeight: 700 }}>{fClient}</div>}
                   {!fClient && <div style={{ marginTop: 6 }}><label style={lbl}>Or enter name manually</label><input value={fClient} onChange={e => setFClient(e.target.value)} placeholder="John Smith" style={inp} /></div>}
@@ -278,7 +275,7 @@ export default function MembershipPage() {
                     const on = fServiceIds.includes(s.id)
                     return (
                       <button key={s.id} onClick={() => setFServiceIds(prev => on ? prev.filter(x => x !== s.id) : [...prev, s.id])}
-                        style={{ height: 36, padding: '0 12px', borderRadius: 10, border: `1px solid ${on ? 'rgba(10,132,255,.55)' : 'rgba(255,255,255,.10)'}`, background: on ? 'rgba(10,132,255,.15)' : 'rgba(255,255,255,.03)', color: on ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.50)', cursor: 'pointer', fontSize: 12, fontWeight: on ? 800 : 500, fontFamily: 'inherit', transition: 'all .2s', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        style={{ height: 36, padding: '0 12px', borderRadius: 10, border: `1px solid ${on ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.10)'}`, background: on ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.03)', color: on ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.50)', cursor: 'pointer', fontSize: 12, fontWeight: on ? 800 : 500, fontFamily: 'inherit', transition: 'all .2s', display: 'flex', alignItems: 'center', gap: 6 }}>
                         {on && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
                         {s.name}{s.price ? ` $${s.price}` : ''}
                       </button>
@@ -290,7 +287,7 @@ export default function MembershipPage() {
                 <div style={{ display: 'flex', gap: 6 }}>
                   {(['weekly', 'biweekly', 'monthly'] as const).map(f => (
                     <button key={f} onClick={() => setFFreq(f)}
-                      style={{ flex: 1, height: 38, borderRadius: 10, border: `1px solid ${fFreq === f ? 'rgba(10,132,255,.50)' : 'rgba(255,255,255,.10)'}`, background: fFreq === f ? 'rgba(10,132,255,.12)' : 'rgba(255,255,255,.03)', color: fFreq === f ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.45)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit', transition: 'all .2s' }}>
+                      style={{ flex: 1, height: 38, borderRadius: 10, border: `1px solid ${fFreq === f ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.10)'}`, background: fFreq === f ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.03)', color: fFreq === f ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.45)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit', transition: 'all .2s' }}>
                       {FREQ_LABELS[f]}
                     </button>
                   ))}
@@ -339,7 +336,7 @@ export default function MembershipPage() {
               })()}
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <button onClick={() => setShowModal(false)} style={{ flex: 1, height: 44, borderRadius: 12, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit' }}>Cancel</button>
-                <button onClick={handleSave} disabled={saving} style={{ flex: 1, height: 44, borderRadius: 12, border: '1px solid rgba(10,132,255,.50)', background: 'rgba(10,132,255,.12)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
+                <button onClick={handleSave} disabled={saving} style={{ flex: 1, height: 44, borderRadius: 12, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
                   {saving ? 'Saving…' : editing ? 'Update' : 'Create membership'}
                 </button>
               </div>
