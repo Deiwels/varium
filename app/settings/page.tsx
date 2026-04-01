@@ -658,8 +658,51 @@ export default function SettingsPage() {
                     <Field label="About text">
                       <textarea value={(s.site_config || {}).about_text || ''} onChange={e => set('site_config', { ...(s.site_config || {}), about_text: e.target.value })} placeholder="Tell your clients about your business..." rows={3} style={{ ...inp, height: 'auto', padding: '10px 12px', resize: 'vertical' as const }} />
                     </Field>
-                    <Field label="Hero image URL">
-                      <input value={(s.site_config || {}).hero_image || s.hero_media_url || ''} onChange={e => { set('site_config', { ...(s.site_config || {}), hero_image: e.target.value }); set('hero_media_url', e.target.value) }} placeholder="https://..." style={inp} />
+                    <Field label="Hero image">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {((s.site_config || {}).hero_image || s.hero_media_url) && (
+                          <div style={{ position: 'relative', width: '100%', height: 120, borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,.08)' }}>
+                            <img src={(s.site_config || {}).hero_image || s.hero_media_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <button onClick={() => { set('site_config', { ...(s.site_config || {}), hero_image: '' }); set('hero_media_url', '') }}
+                              style={{ position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: 8, border: '1px solid rgba(255,255,255,.2)', background: 'rgba(0,0,0,.6)', color: '#fff', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>✕</button>
+                          </div>
+                        )}
+                        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 42, borderRadius: 12, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>
+                          {(s.site_config || {}).hero_image || s.hero_media_url ? 'Change photo' : 'Upload photo'}
+                          <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            if (file.size > 10 * 1024 * 1024) { showToast('Max 10MB'); return }
+                            const dataUrl: string = await new Promise((resolve, reject) => {
+                              const reader = new FileReader()
+                              reader.onload = () => {
+                                const img = new Image()
+                                img.onload = () => {
+                                  const MAX = 1200
+                                  let w = img.width, h = img.height
+                                  if (w > MAX || h > MAX) {
+                                    if (w > h) { h = Math.round(h * MAX / w); w = MAX }
+                                    else { w = Math.round(w * MAX / h); h = MAX }
+                                  }
+                                  const canvas = document.createElement('canvas')
+                                  canvas.width = w; canvas.height = h
+                                  canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+                                  let q = 0.78, out = canvas.toDataURL('image/jpeg', q)
+                                  while (out.length > 600000 && q > 0.3) { q -= 0.08; out = canvas.toDataURL('image/jpeg', q) }
+                                  resolve(out)
+                                }
+                                img.onerror = reject
+                                img.src = reader.result as string
+                              }
+                              reader.onerror = reject
+                              reader.readAsDataURL(file)
+                            })
+                            set('site_config', { ...(s.site_config || {}), hero_image: dataUrl })
+                            set('hero_media_url', dataUrl)
+                            e.target.value = ''
+                          }} />
+                        </label>
+                      </div>
                     </Field>
                   </div>
                 </SectionCard>
