@@ -231,9 +231,9 @@ export default function DashboardPage() {
     apiFetch('/api/settings').then(d => {
       setDashSettings(d || {})
       const saved = d?.dash_shortcuts
-      setDashShortcuts(saved && saved.length ? saved : ['/calendar', '/clients'])
+      setDashShortcuts(saved && saved.length ? saved : ['/payments', '/waitlist', '/portfolio', '/cash', '/membership'])
       const savedW = d?.dash_widgets
-      setDashWidgets(savedW && savedW.length ? savedW : ['clock', 'todays-earnings', 'mini-calendar'])
+      setDashWidgets(savedW && savedW.length ? savedW : ['clock', 'todays-earnings', 'mini-calendar', 'weekly-chart', 'new-clients', 'expenses-month'])
     }).catch(() => {})
     apiFetch('/api/account/limits').then(d => { if (d?.slug) setSlug(d.slug) }).catch(() => {})
   }, [])
