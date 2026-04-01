@@ -2051,8 +2051,8 @@ export default function CalendarPage() {
                       const ey = minToY(endMin)
 
                       // Frosted glass effect for off-hours
-                      const GLASS = { backdropFilter: 'blur(8px) saturate(120%)', WebkitBackdropFilter: 'blur(8px) saturate(120%)' } as React.CSSProperties
-                      const BG = 'rgba(8,8,14,.55)'
+                      const GLASS = { backdropFilter: 'blur(12px) saturate(100%) brightness(0.3)', WebkitBackdropFilter: 'blur(12px) saturate(100%) brightness(0.3)' } as React.CSSProperties
+                      const BG = 'rgba(0,0,0,.35)'
                       const BORDER_COLOR = 'rgba(255,255,255,.12)'
                       const TIME_PILL = { fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 999, background: 'rgba(0,0,0,.50)', border: '1px solid rgba(255,255,255,.18)', color: 'rgba(255,255,255,.55)', letterSpacing: '.04em', fontFamily: 'Inter,sans-serif' } as React.CSSProperties
 
