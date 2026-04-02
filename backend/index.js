@@ -2403,6 +2403,14 @@ app.get('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
+// Timezone endpoint — available to all authenticated users (not just owner/admin)
+app.get('/api/settings/timezone', async (req, res) => {
+  try {
+    const doc = await req.ws('settings').doc('config').get();
+    res.json({ timezone: doc.exists ? (doc.data()?.timezone || 'America/Chicago') : 'America/Chicago' });
+  } catch (e) { res.status(500).json({ timezone: 'America/Chicago' }); }
+});
+
 app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
   try {
     const b = req.body || {};

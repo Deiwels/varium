@@ -56,10 +56,11 @@ function getScheduleStartMin(barber: Barber | undefined, dayOfWeek: number): num
   return null
 }
 
-// Convert Date to Chicago timezone hours/minutes/dayOfWeek
-function toChicago(d: Date): { hours: number; minutes: number; dow: number } {
+// Convert Date to workspace timezone hours/minutes/dayOfWeek
+let _workspaceTz = 'America/Chicago' // default, updated on page load
+function toShopTz(d: Date): { hours: number; minutes: number; dow: number } {
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Chicago', hour: '2-digit', minute: '2-digit', weekday: 'short', hour12: false
+    timeZone: _workspaceTz, hour: '2-digit', minute: '2-digit', weekday: 'short', hour12: false
   }).formatToParts(d)
   const obj: Record<string, string> = {}
   parts.forEach(p => { obj[p.type] = p.value })
@@ -76,7 +77,7 @@ function getLateMinutes(clockIn: string | null, barber: Barber | undefined): num
   const d = new Date(clockIn)
   if (isNaN(d.getTime())) return 0
   // Convert to Chicago timezone (shop timezone)
-  const chi = toChicago(d)
+  const chi = toShopTz(d)
   const schedStart = getScheduleStartMin(barber, chi.dow)
   if (schedStart === null) return 0
   const clockMinOfDay = chi.hours * 60 + chi.minutes
@@ -116,11 +117,14 @@ export default function AttendancePage() {
   const loadAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [attData, brData, usData] = await Promise.all([
+      const [attData, brData, usData, settingsData] = await Promise.all([
         apiFetch(`/api/attendance?from=${from}&to=${to}`),
         apiFetch('/api/barbers'),
         apiFetch('/api/users'),
+        apiFetch('/api/settings').catch(() => ({})),
       ])
+      // Update workspace timezone
+      if (settingsData?.timezone) _workspaceTz = settingsData.timezone
       setRecords(attData?.attendance || [])
       const barberList = Array.isArray(brData) ? brData : (brData?.barbers || [])
       setBarbers(barberList)
@@ -229,7 +233,7 @@ export default function AttendancePage() {
                     {dayRecords.map(r => {
                       const barber = r.barber_id ? barberMap[r.barber_id] : userBarberMap[r.user_id]
                       const late = getLateMinutes(r.clock_in, barber)
-                      const schedStart = barber && r.clock_in ? getScheduleStartMin(barber, toChicago(new Date(r.clock_in)).dow) : null
+                      const schedStart = barber && r.clock_in ? getScheduleStartMin(barber, toShopTz(new Date(r.clock_in)).dow) : null
                       return (
                         <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 12, background: late > 0 ? 'rgba(255,107,107,.06)' : 'rgba(255,255,255,.03)', border: `1px solid ${late > 0 ? 'rgba(255,107,107,.15)' : 'rgba(255,255,255,.06)'}` }}>
                           {/* Clock icon */}

@@ -27,8 +27,16 @@ interface BarberPayroll {
 
 const money = (n: number) => '$' + Number(n || 0).toFixed(2)
 const fmtTime = (iso?: string) => { try { return new Date(iso!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) } catch { return '—' } }
-const isoToday = () => { const d = new Date(); const p = (n: number) => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}` }
-const isoDate = (d: Date) => { const p = (n: number) => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}` }
+let _dashTz = 'America/Chicago'
+const isoToday = () => {
+  // Use workspace timezone for "today" calculation
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: _dashTz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+  return parts // en-CA gives YYYY-MM-DD format
+}
+const isoDate = (d: Date) => {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: _dashTz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
+  return parts
+}
 type EarningsPeriod = 'today' | 'week' | 'month'
 function getDateRange(period: EarningsPeriod, offset: number): { from: string; to: string; label: string } {
   const now = new Date()
@@ -351,6 +359,8 @@ export default function DashboardPage() {
   const loadAll = useCallback(async () => {
     const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
     const headers: Record<string,string> = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+    // Load workspace timezone first
+    try { const tz = await fetch(`${API}/api/settings/timezone`, { headers }).then(r => r.json()); if (tz?.timezone) _dashTz = tz.timezone } catch {}
     const today = isoToday()
     const range = getDateRange(earningsPeriod, earningsOffset)
     if (!bookings.length && !myPayroll) setLoading(true) // only show loading on first load

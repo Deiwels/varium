@@ -57,6 +57,14 @@ const minToAMPM = (min: number) => {
   return m === 0 ? `${h12} ${period}` : `${h12}:${pad2(m)} ${period}`
 }
 const isoDate = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`
+// Timezone-aware helpers
+let _calTz = 'America/Chicago'
+function tzHourMin(d: Date): { h: number; m: number } {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: _calTz, hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d)
+  const obj: Record<string, string> = {}; parts.forEach(p => { obj[p.type] = p.value })
+  return { h: Number(obj.hour || 0), m: Number(obj.minute || 0) }
+}
+function tzMinOfDay(d: Date): number { const t = tzHourMin(d); return t.h * 60 + t.m }
 const uid = () => 'e_' + Math.random().toString(16).slice(2)
 const clamp = (min: number) => Math.max(START_HOUR * 60, Math.min(min, END_HOUR * 60 - 5))
 const timeStrToMin = (s: string) => { const [h,m] = s.split(':').map(Number); return (h||0)*60+(m||0) }
@@ -850,7 +858,7 @@ export default function CalendarPage() {
     if (!container) return
     const now = new Date()
     const today = isoDate(now)
-    const currentMin = now.getHours() * 60 + now.getMinutes()
+    const currentMin = tzMinOfDay(now)
     // Find earliest work start across visible barbers
     let earliestWorkStart = 8 * 60 // fallback
     for (const b of barbers) {
@@ -1045,7 +1053,7 @@ export default function CalendarPage() {
   const selectedEvent = events.find(e => e.id === modal.eventId) || null
 
   useEffect(() => {
-    const tick = () => { const n = new Date(); setNowMin(n.getHours() * 60 + n.getMinutes()) }
+    const tick = () => { setNowMin(tzMinOfDay(new Date())) }
     tick(); const t = setInterval(tick, 30000); return () => clearInterval(t)
   }, [])
 
@@ -1152,7 +1160,7 @@ export default function CalendarPage() {
     return list.map((b: any) => {
       const startAt = b.start_at ? new Date(b.start_at) : null
       // Use LOCAL time for startMin and date — not UTC slice
-      const startMin = startAt ? startAt.getHours() * 60 + startAt.getMinutes() : 10*60
+      const startMin = startAt ? tzMinOfDay(startAt) : 10*60
       const localDate = startAt ? isoDate(startAt) : todayStr
       const isBlock = b.status === 'block' || b.type === 'block' || b.booking_type === 'block' || b.client_name === 'BLOCKED'
       const isModelOrTraining = b.booking_type === 'model' || b.booking_type === 'training'
@@ -1237,6 +1245,8 @@ export default function CalendarPage() {
   useEffect(() => {
     // Only show full loading overlay on first load — subsequent date changes keep old data visible
     if (isFirstLoad.current) setLoading(true)
+    // Load workspace timezone
+    apiFetch('/api/settings/timezone').then(d => { if (d?.timezone) _calTz = d.timezone }).catch(() => {})
     // Fire all independent fetches in parallel
     const mainP = Promise.all([loadBarbers(), loadServices()])
     loadStudents(); loadWaitlist(); loadPendingBlocks()
