@@ -1,5 +1,5 @@
 // ============================================================
-// VuriumBook SaaS — Multi-Tenant Backend
+// Vurium SaaS — Multi-Tenant Backend
 // Cloud Run: https://vuriumbook-api-431945333485.us-central1.run.app
 // Based on Element CRM, adapted for multi-tenant SaaS
 // ============================================================
