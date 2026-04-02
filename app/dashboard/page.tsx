@@ -166,19 +166,23 @@ export default function DashboardPage() {
   const [barbers, setBarbers] = useState<any[]>([])
 
   // Mobile iPhone home screen
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 768)
+  const [isMobile, setIsMobile] = useState(false)
   const [homePage, setHomePage] = useState(0)
   const [jiggleMode, setJiggleMode] = useState(false)
   const [showAddSheet, setShowAddSheet] = useState(false)
   const HOME_LAYOUT_KEY = 'VB_HOME_LAYOUT'
-  const [homeLayout, setHomeLayout] = useState<string[]>(() => {
-    try { const s = JSON.parse(localStorage.getItem(HOME_LAYOUT_KEY) || 'null'); return Array.isArray(s) && s.length > 0 ? s : [] } catch { return [] }
-  })
+  const [homeLayout, setHomeLayout] = useState<string[]>([])
+  const homeLayoutLoaded = useRef(false)
   const homeSwipeRef = useRef<{ startX: number; startY: number } | null>(null)
   const jiggleTimerRef = useRef<any>(null)
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
     check(); window.addEventListener('resize', check)
+    // Load home layout from localStorage
+    if (!homeLayoutLoaded.current) {
+      homeLayoutLoaded.current = true
+      try { const s = JSON.parse(localStorage.getItem(HOME_LAYOUT_KEY) || 'null'); if (Array.isArray(s) && s.length > 0) setHomeLayout(s) } catch {}
+    }
     return () => window.removeEventListener('resize', check)
   }, [])
 
