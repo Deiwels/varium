@@ -166,25 +166,20 @@ export default function DashboardPage() {
   const [barbers, setBarbers] = useState<any[]>([])
 
   // Mobile iPhone home screen
-  const [isMobile, setIsMobile] = useState(false)
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 768)
   const [homePage, setHomePage] = useState(0)
   const [jiggleMode, setJiggleMode] = useState(false)
   const [showAddSheet, setShowAddSheet] = useState(false)
-  const [homeLayout, setHomeLayout] = useState<string[]>([]) // item IDs in order
+  const HOME_LAYOUT_KEY = 'VB_HOME_LAYOUT'
+  const [homeLayout, setHomeLayout] = useState<string[]>(() => {
+    try { const s = JSON.parse(localStorage.getItem(HOME_LAYOUT_KEY) || 'null'); return Array.isArray(s) && s.length > 0 ? s : [] } catch { return [] }
+  })
   const homeSwipeRef = useRef<{ startX: number; startY: number } | null>(null)
   const jiggleTimerRef = useRef<any>(null)
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
     check(); window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
-  }, [])
-  // Load/save home layout from localStorage
-  const HOME_LAYOUT_KEY = 'VB_HOME_LAYOUT'
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(HOME_LAYOUT_KEY) || 'null')
-      if (Array.isArray(saved) && saved.length > 0) setHomeLayout(saved)
-    } catch {}
   }, [])
 
   // Reviews
@@ -251,7 +246,7 @@ export default function DashboardPage() {
   const [editingShortcuts, setEditingShortcuts] = useState(false)
   const [dashShortcuts, setDashShortcuts] = useState<string[]>([])
   // Widgets
-  const [dashWidgets, setDashWidgets] = useState<string[]>([])
+  const [dashWidgets, setDashWidgets] = useState<string[]>(['clock', 'todays-earnings', 'mini-calendar', 'weekly-chart', 'new-clients', 'expenses-month', 'site-analytics'])
   const [editingWidgets, setEditingWidgets] = useState(false)
   const [widgetData, setWidgetData] = useState<Record<string, any>>({})
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
