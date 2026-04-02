@@ -1571,9 +1571,11 @@ export default function CalendarPage() {
       if (ev._raw?.id) clearArrived(String(ev._raw.id))
       // Update booking on backend with tip + status + payment_method
       if (ev._raw?.id) {
-        apiFetch(`/api/bookings/${encodeURIComponent(String(ev._raw.id))}`, {
-          method: 'PATCH', body: JSON.stringify({ status: 'completed', paid: true, tip, tip_amount: tip, payment_method: method })
-        }).catch(e => console.warn('Payment PATCH failed:', e))
+        const patchBody = JSON.stringify({ status: 'completed', paid: true, tip, tip_amount: tip, payment_method: method })
+        const patchUrl = `/api/bookings/${encodeURIComponent(String(ev._raw.id))}`
+        apiFetch(patchUrl, { method: 'PATCH', body: patchBody })
+          .catch(e => { console.warn('Payment PATCH failed, retrying:', e); return apiFetch(patchUrl, { method: 'PATCH', body: patchBody }) })
+          .catch(e => console.warn('Payment PATCH retry also failed:', e))
       }
     }
     setEvents(prev => prev.map((e: any) => e.id === modal.eventId ? { ...e, paid: true, status: 'done', paymentMethod: method, tipAmount: tip, _raw: { ...(e._raw || {}), tip, tip_amount: tip, paid: true, payment_method: method } } : e))
@@ -1594,6 +1596,8 @@ export default function CalendarPage() {
         const serverMap = new Map(evs.map((e: CalEvent) => [e.id, e]))
         return prev.map(pe => {
           const se = serverMap.get(pe.id)
+          if (se && se.paid) return { ...se, status: pe.status === 'arrived' ? 'arrived' : se.status }
+          if (se && !se.paid && pe.paid) return { ...pe, tip: se._raw?.tip ?? pe.tipAmount, tipAmount: se._raw?.tip ?? pe.tipAmount }
           if (se) return { ...se, status: (pe.status === 'arrived' && !se.paid) ? 'arrived' : se.status }
           return pe
         })
