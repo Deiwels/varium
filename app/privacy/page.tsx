@@ -73,7 +73,7 @@ export default function PrivacyPage() {
         <h2 style={heading}>4. How We Share Your Information</h2>
         <p style={text}>We do not sell your personal data. We may share information with:</p>
         <ul style={list}>
-          <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Service Providers:</strong> Twilio (SMS delivery), Google Cloud (hosting and infrastructure), Stripe (payment processing) &mdash; only as necessary to provide our services.</li>
+          <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Service Providers:</strong> Telnyx (SMS delivery), Google Cloud (hosting and infrastructure), Stripe (payment processing) &mdash; only as necessary to provide our services.</li>
           <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Business Partners:</strong> The specific barbershop, salon, or service provider you book an appointment with receives your booking information to fulfill your appointment.</li>
           <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Legal Compliance:</strong> When required by law, subpoena, or legal process.</li>
         </ul>
