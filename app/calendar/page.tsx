@@ -1801,15 +1801,7 @@ export default function CalendarPage() {
         {/* Calendar controls — rendered into Shell topbar via portal */}
         {portalTarget && createPortal(
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-              {/* Date picker */}
-              <button className="cal-btn-date" onClick={() => setDatePickerOpen(true)} style={{ height: 26, padding: '0 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 500, fontSize: 12, fontFamily: 'inherit' }}>Date</button>
-
-              {/* Nav: ‹ Today › */}
-              <div className="cal-nav-arrows" style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                <button onClick={() => animateDayChange(-1)} style={{ height: 26, width: 26, borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', flexShrink: 0 }}>‹</button>
-                <button onClick={() => { if (dayTransition !== 'idle') return; setDayTransition('out'); setTimeout(() => { const d=new Date(); d.setHours(0,0,0,0); setAnchor(d); setDayTransition('in'); setTimeout(() => setDayTransition('idle'), 220) }, 180) }} style={{ height: 26, padding: '0 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 500, fontSize: 11, fontFamily: 'inherit', flexShrink: 0 }}>Today</button>
-                <button onClick={() => animateDayChange(1)} style={{ height: 26, width: 26, borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', flexShrink: 0 }}>›</button>
-              </div>
+              {/* Date/Today nav hidden — dates are in bottom date strip */}
 
               {/* Settings */}
               {(isOwnerOrAdmin || isStudent || isBarber) && <button onClick={() => setSettingsOpen(true)} style={{ height: 26, width: 26, borderRadius: 7, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} className="cal-settings-icon">
