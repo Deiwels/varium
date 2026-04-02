@@ -1,7 +1,88 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { API } from '@/lib/api'
+import { API, apiFetch } from '@/lib/api'
 import { setAuthCookie } from '@/lib/auth-cookie'
+import { loadStripe, Appearance } from '@stripe/stripe-js'
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
+
+// ─── Stripe setup ───────────────────────────────────────────────────────────
+const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''
+const stripePromise = STRIPE_PK ? loadStripe(STRIPE_PK) : null
+
+const stripeAppearance: Appearance = {
+  theme: 'night',
+  variables: {
+    colorPrimary: 'rgba(255,255,255,.85)',
+    colorBackground: '#0d0d0d',
+    colorText: '#e8e8ed',
+    colorTextSecondary: 'rgba(255,255,255,.45)',
+    colorDanger: 'rgba(220,130,160,.8)',
+    borderRadius: '12px',
+    fontFamily: 'Inter, system-ui, sans-serif',
+    fontSizeBase: '14px',
+    colorTextPlaceholder: 'rgba(255,255,255,.25)',
+  },
+  rules: {
+    '.Input': { border: '1px solid rgba(255,255,255,.10)', backgroundColor: 'rgba(255,255,255,.04)', boxShadow: 'none' },
+    '.Input:focus': { border: '1px solid rgba(255,255,255,.25)', boxShadow: '0 0 0 1px rgba(255,255,255,.08)' },
+    '.Label': { color: 'rgba(255,255,255,.45)', fontSize: '12px', fontWeight: '500' },
+    '.Tab': { border: '1px solid rgba(255,255,255,.08)', backgroundColor: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.50)' },
+    '.Tab--selected': { border: '1px solid rgba(255,255,255,.18)', backgroundColor: 'rgba(255,255,255,.06)', color: '#e8e8ed' },
+    '.Error': { color: 'rgba(220,130,160,.8)' },
+  },
+}
+
+const SIGNUP_PLANS = [
+  { id: 'individual', name: 'Individual', price: 29, desc: 'For solo professionals' },
+  { id: 'salon', name: 'Salon', price: 79, desc: 'For teams up to 10', featured: true },
+]
+
+// ─── Inline Checkout Form ───────────────────────────────────────────────────
+function SignupCheckoutForm({ planId, planPrice, planName, onSuccess }: { planId: string; planPrice: number; planName: string; onSuccess: () => void }) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [processing, setProcessing] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!stripe || !elements) return
+    setProcessing(true); setError('')
+    const { error: submitErr } = await elements.submit()
+    if (submitErr) { setError(submitErr.message || 'Validation failed'); setProcessing(false); return }
+    // Try confirmSetup first (for trial subscriptions), fall back to confirmPayment
+    const { error: err } = await stripe.confirmSetup({
+      elements,
+      confirmParams: { return_url: `${window.location.origin}/dashboard?billing=success` },
+      redirect: 'if_required',
+    }).catch(() => stripe.confirmPayment({
+      elements,
+      confirmParams: { return_url: `${window.location.origin}/dashboard?billing=success` },
+      redirect: 'if_required',
+    }))
+    if (err) { setError(err.message || 'Payment failed'); setProcessing(false); return }
+    onSuccess()
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div style={{ marginBottom: 20 }}>
+        <PaymentElement options={{ layout: 'tabs', defaultValues: { billingDetails: { address: { country: 'US' } } } }} />
+      </div>
+      {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(220,130,160,.08)', border: '1px solid rgba(220,130,160,.15)', color: 'rgba(220,130,160,.8)', fontSize: 13, marginBottom: 16 }}>{error}</div>}
+      <button type="submit" disabled={!stripe || processing} style={{
+        width: '100%', height: 50, borderRadius: 999, border: '1px solid rgba(255,255,255,.15)',
+        background: '#000', color: 'rgba(255,255,255,.85)', fontSize: 15, fontWeight: 600,
+        cursor: processing ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: processing ? 0.5 : 1,
+      }}>
+        {processing ? 'Processing...' : `Start 14-Day Free Trial — then $${planPrice}/mo`}
+      </button>
+      <div style={{ textAlign: 'center', marginTop: 12, fontSize: 11, color: 'rgba(255,255,255,.15)' }}>
+        No charge for 14 days · Cancel anytime · Secured by Stripe
+      </div>
+    </form>
+  )
+}
 
 export default function SignupPage() {
   const spaceRef = useRef<HTMLDivElement>(null)
@@ -17,6 +98,9 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [wsId, setWsId] = useState('')
+  const [selectedPlan, setSelectedPlan] = useState<string>('salon')
+  const [clientSecret, setClientSecret] = useState('')
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -279,8 +363,75 @@ export default function SignupPage() {
           </div>
         )}
 
-        {/* STEP 1: Success */}
+        {/* STEP 1: Choose Plan & Payment */}
         {step === 1 && (
+          <div className="fade-up" style={{ maxWidth: 520, width: '100%' }}>
+            <div className="glass-card" style={{ padding: '36px 28px' }}>
+              <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 6, color: '#e8e8ed', textAlign: 'center' }}>Choose Your Plan</h2>
+              <p style={{ color: 'rgba(255,255,255,.35)', fontSize: 13, textAlign: 'center', marginBottom: 28, lineHeight: 1.5 }}>
+                14 days free, then your subscription begins. Cancel anytime.
+              </p>
+
+              {/* Plan selector */}
+              <div style={{ display: 'flex', gap: 10, marginBottom: 28 }}>
+                {SIGNUP_PLANS.map(p => (
+                  <button key={p.id} type="button" onClick={() => { setSelectedPlan(p.id); setClientSecret('') }}
+                    style={{
+                      flex: 1, padding: '16px 14px', borderRadius: 16, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                      border: `1.5px solid ${selectedPlan === p.id ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.08)'}`,
+                      background: selectedPlan === p.id ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.02)',
+                      transition: 'all .2s',
+                    }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: selectedPlan === p.id ? '#e8e8ed' : 'rgba(255,255,255,.50)', marginBottom: 2 }}>{p.name}</div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.30)', marginBottom: 8 }}>{p.desc}</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: selectedPlan === p.id ? '#e8e8ed' : 'rgba(255,255,255,.40)' }}>
+                      ${p.price}<span style={{ fontSize: 12, fontWeight: 400, color: 'rgba(255,255,255,.25)' }}>/mo</span>
+                    </div>
+                    {p.featured && <div style={{ marginTop: 6, fontSize: 9, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(130,220,170,.6)' }}>POPULAR</div>}
+                  </button>
+                ))}
+              </div>
+
+              {/* Load Stripe Elements for selected plan */}
+              {!clientSecret && (
+                <button type="button" disabled={checkoutLoading} onClick={async () => {
+                  setCheckoutLoading(true); setError('')
+                  try {
+                    const data = await apiFetch('/api/billing/create-subscription', {
+                      method: 'POST', body: JSON.stringify({ plan: selectedPlan }),
+                    })
+                    if (data.clientSecret) setClientSecret(data.clientSecret)
+                    else throw new Error('Failed to initialize payment')
+                  } catch (e: any) { setError(e.message || 'Failed to start checkout') }
+                  setCheckoutLoading(false)
+                }} style={{
+                  width: '100%', height: 50, borderRadius: 999, border: '1px solid rgba(255,255,255,.15)',
+                  background: '#000', color: 'rgba(255,255,255,.85)', fontSize: 15, fontWeight: 600,
+                  cursor: checkoutLoading ? 'wait' : 'pointer', fontFamily: 'inherit',
+                  opacity: checkoutLoading ? 0.5 : 1,
+                }}>
+                  {checkoutLoading ? 'Loading...' : 'Continue to Payment'}
+                </button>
+              )}
+
+              {clientSecret && stripePromise && (
+                <Elements stripe={stripePromise} options={{ clientSecret, appearance: stripeAppearance, loader: 'auto' }}>
+                  <SignupCheckoutForm
+                    planId={selectedPlan}
+                    planPrice={SIGNUP_PLANS.find(p => p.id === selectedPlan)?.price || 79}
+                    planName={SIGNUP_PLANS.find(p => p.id === selectedPlan)?.name || 'Salon'}
+                    onSuccess={() => setStep(2)}
+                  />
+                </Elements>
+              )}
+
+              {error && <div style={{ marginTop: 16, padding: '10px 14px', borderRadius: 10, background: 'rgba(220,130,160,.08)', border: '1px solid rgba(220,130,160,.15)', color: 'rgba(220,130,160,.8)', fontSize: 13 }}>{error}</div>}
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: Success */}
+        {step === 2 && (
           <div className="fade-up" style={{ maxWidth: 480, width: '100%', textAlign: 'center' }}>
             <div className="glass-card" style={{ padding: '48px 32px' }}>
               <div style={{
