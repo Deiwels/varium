@@ -3453,7 +3453,7 @@ setInterval(() => {
 }, 3 * 60 * 1000);
 
 // ============================================================
-// STRIPE BILLING
+// STRIPE BILLING (env vars: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_*)
 // ============================================================
 const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
