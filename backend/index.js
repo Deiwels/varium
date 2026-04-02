@@ -272,10 +272,11 @@ function formatPhone(phone) {
 
 function sendSms(to, body) {
   const { apiKey, from } = telnyxCredentials();
-  if (!apiKey || !from) { console.warn('Telnyx not configured'); return Promise.resolve(null); }
+  if (!apiKey || !from) { console.warn('Telnyx not configured – apiKey:', !!apiKey, 'from:', !!from); return Promise.resolve(null); }
   const toFormatted = formatPhone(to);
   if (!toFormatted) { console.warn('sendSms: invalid phone', to); return Promise.resolve(null); }
   const payload = JSON.stringify({ from, to: toFormatted, text: body });
+  console.log('sendSms: sending to', toFormatted, 'from', from);
   return new Promise((resolve) => {
     const req = https.request({
       hostname: 'api.telnyx.com',
@@ -286,6 +287,7 @@ function sendSms(to, body) {
       let data = '';
       resp.on('data', c => data += c);
       resp.on('end', () => {
+        console.log('sendSms response:', resp.statusCode, data.slice(0, 300));
         try { resolve(JSON.parse(data)); } catch { resolve(null); }
       });
     });
@@ -294,6 +296,18 @@ function sendSms(to, body) {
     req.end();
   });
 }
+
+// Temporary test endpoint – DELETE after debugging
+app.get('/debug/sms-test', async (req, res) => {
+  const { apiKey, from } = telnyxCredentials();
+  if (!apiKey || !from) return res.json({ error: 'Telnyx not configured', apiKey: !!apiKey, from: !!from });
+  const phone = req.query.phone;
+  if (!phone) return res.json({ error: 'Pass ?phone=+1XXXXXXXXXX' });
+  try {
+    const result = await sendSms(phone, 'Test SMS from Vurium');
+    res.json({ ok: true, result });
+  } catch (e) { res.json({ error: e?.message }); }
+});
 
 async function scheduleReminders(wsCol, bookingId, booking, timeZone, shopName) {
   try {
