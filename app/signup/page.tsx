@@ -226,7 +226,7 @@ export default function SignupPage() {
   ]
 
   return (
-    <>
+    <div style={{ overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
       <div className="space-bg" ref={spaceRef}>
         <div className="stars-wrap stars-wrap-far"><div className="stars stars-far" /></div>
         <div className="stars-wrap stars-wrap-mid"><div className="stars stars-mid" /></div>
@@ -365,29 +365,29 @@ export default function SignupPage() {
 
         {/* STEP 1: Choose Plan & Payment */}
         {step === 1 && (
-          <div className="fade-up" style={{ maxWidth: 520, width: '100%' }}>
-            <div className="glass-card" style={{ padding: '36px 28px' }}>
-              <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 6, color: '#e8e8ed', textAlign: 'center' }}>Choose Your Plan</h2>
-              <p style={{ color: 'rgba(255,255,255,.35)', fontSize: 13, textAlign: 'center', marginBottom: 28, lineHeight: 1.5 }}>
-                14 days free, then your subscription begins. Cancel anytime.
+          <div className="fade-up" style={{ maxWidth: 440, width: '100%' }}>
+            <div className="glass-card" style={{ padding: 'clamp(24px, 5vw, 36px) clamp(16px, 4vw, 28px)' }}>
+              <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 6, color: '#e8e8ed', textAlign: 'center' }}>Choose Your Plan</h2>
+              <p style={{ color: 'rgba(255,255,255,.35)', fontSize: 13, textAlign: 'center', marginBottom: 24, lineHeight: 1.5 }}>
+                Try free for 14 days. After that, you&#39;ll be charged automatically. Cancel anytime.
               </p>
 
               {/* Plan selector */}
-              <div style={{ display: 'flex', gap: 10, marginBottom: 28 }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
                 {SIGNUP_PLANS.map(p => (
                   <button key={p.id} type="button" onClick={() => { setSelectedPlan(p.id); setClientSecret('') }}
                     style={{
-                      flex: 1, padding: '16px 14px', borderRadius: 16, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                      flex: 1, padding: 'clamp(12px, 3vw, 16px) clamp(10px, 2.5vw, 14px)', borderRadius: 14, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
                       border: `1.5px solid ${selectedPlan === p.id ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.08)'}`,
                       background: selectedPlan === p.id ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.02)',
-                      transition: 'all .2s',
+                      transition: 'all .2s', minWidth: 0,
                     }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: selectedPlan === p.id ? '#e8e8ed' : 'rgba(255,255,255,.50)', marginBottom: 2 }}>{p.name}</div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.30)', marginBottom: 8 }}>{p.desc}</div>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: selectedPlan === p.id ? '#e8e8ed' : 'rgba(255,255,255,.40)' }}>
-                      ${p.price}<span style={{ fontSize: 12, fontWeight: 400, color: 'rgba(255,255,255,.25)' }}>/mo</span>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: selectedPlan === p.id ? '#e8e8ed' : 'rgba(255,255,255,.50)', marginBottom: 2 }}>{p.name}</div>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginBottom: 6 }}>{p.desc}</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: selectedPlan === p.id ? '#e8e8ed' : 'rgba(255,255,255,.40)' }}>
+                      ${p.price}<span style={{ fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,.20)' }}>/mo</span>
                     </div>
-                    {p.featured && <div style={{ marginTop: 6, fontSize: 9, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(130,220,170,.6)' }}>POPULAR</div>}
+                    {p.featured && <div style={{ marginTop: 4, fontSize: 9, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(130,220,170,.6)' }}>POPULAR</div>}
                   </button>
                 ))}
               </div>
@@ -405,8 +405,8 @@ export default function SignupPage() {
                   } catch (e: any) { setError(e.message || 'Failed to start checkout') }
                   setCheckoutLoading(false)
                 }} style={{
-                  width: '100%', height: 50, borderRadius: 999, border: '1px solid rgba(255,255,255,.15)',
-                  background: '#000', color: 'rgba(255,255,255,.85)', fontSize: 15, fontWeight: 600,
+                  width: '100%', height: 48, borderRadius: 999, border: '1px solid rgba(255,255,255,.15)',
+                  background: '#000', color: 'rgba(255,255,255,.85)', fontSize: 14, fontWeight: 600,
                   cursor: checkoutLoading ? 'wait' : 'pointer', fontFamily: 'inherit',
                   opacity: checkoutLoading ? 0.5 : 1,
                 }}>
@@ -425,7 +425,7 @@ export default function SignupPage() {
                 </Elements>
               )}
 
-              {error && <div style={{ marginTop: 16, padding: '10px 14px', borderRadius: 10, background: 'rgba(220,130,160,.08)', border: '1px solid rgba(220,130,160,.15)', color: 'rgba(220,130,160,.8)', fontSize: 13 }}>{error}</div>}
+              {error && <div style={{ marginTop: 14, padding: '8px 12px', borderRadius: 10, background: 'rgba(220,130,160,.08)', border: '1px solid rgba(220,130,160,.15)', color: 'rgba(220,130,160,.8)', fontSize: 12 }}>{error}</div>}
             </div>
           </div>
         )}
@@ -481,6 +481,6 @@ export default function SignupPage() {
           <a href="/terms" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Terms</a>
         </div>
       </footer>
-    </>
+    </div>
   )
 }
