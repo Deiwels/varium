@@ -251,13 +251,12 @@ function phoneForRole(encryptedPhone, role) {
 }
 
 // ============================================================
-// TWILIO SMS
+// TELNYX SMS
 // ============================================================
-function twilioCredentials() {
+function telnyxCredentials() {
   return {
-    accountSid: safeStr(process.env.TWILIO_ACCOUNT_SID),
-    authToken: safeStr(process.env.TWILIO_AUTH_TOKEN),
-    from: safeStr(process.env.TWILIO_FROM),
+    apiKey: safeStr(process.env.TELNYX_API_KEY),
+    from: safeStr(process.env.TELNYX_FROM),
   };
 }
 
@@ -272,18 +271,17 @@ function formatPhone(phone) {
 }
 
 function sendSms(to, body) {
-  const { accountSid, authToken, from } = twilioCredentials();
-  if (!accountSid || !authToken || !from) { console.warn('Twilio not configured'); return Promise.resolve(null); }
+  const { apiKey, from } = telnyxCredentials();
+  if (!apiKey || !from) { console.warn('Telnyx not configured'); return Promise.resolve(null); }
   const toFormatted = formatPhone(to);
   if (!toFormatted) { console.warn('sendSms: invalid phone', to); return Promise.resolve(null); }
-  const payload = new URLSearchParams({ To: toFormatted, From: from, Body: body }).toString();
-  const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+  const payload = JSON.stringify({ from, to: toFormatted, text: body });
   return new Promise((resolve) => {
     const req = https.request({
-      hostname: 'api.twilio.com',
-      path: `/2010-04-01/Accounts/${accountSid}/Messages.json`,
+      hostname: 'api.telnyx.com',
+      path: '/v2/messages',
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': `Basic ${auth}`, 'Content-Length': Buffer.byteLength(payload) },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`, 'Content-Length': Buffer.byteLength(payload) },
     }, (resp) => {
       let data = '';
       resp.on('data', c => data += c);
