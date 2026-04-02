@@ -348,7 +348,7 @@ export default function SignupPage() {
                   width: '100%', fontSize: 15, fontFamily: 'inherit',
                   opacity: loading ? 0.5 : 1,
                 }}>
-                  {loading ? 'Creating workspace...' : 'Create Workspace — Free'}
+                  {loading ? 'Creating workspace...' : 'Create Workspace'}
                 </button>
 
                 <p style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: 'rgba(255,255,255,.2)', lineHeight: 1.5 }}>
