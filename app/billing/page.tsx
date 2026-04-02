@@ -429,7 +429,7 @@ export default function BillingPage() {
           </div>
 
           {/* Content */}
-          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'env(safe-area-inset-top, 16px) 20px env(safe-area-inset-bottom, 20px)', minHeight: '100vh' }}>
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'calc(var(--sat, 0px) + 8px) 20px calc(var(--sab, 0px) + 20px)', minHeight: '100vh' }}>
 
             {/* Back button */}
             <div style={{ width: '100%', maxWidth: 420, display: 'flex', justifyContent: 'flex-start', padding: '16px 0 12px' }}>
