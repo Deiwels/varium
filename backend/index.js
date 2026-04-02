@@ -1731,13 +1731,13 @@ app.post('/api/bookings', async (req, res) => {
     const settingsData = settingsDoc.exists ? settingsDoc.data() : {};
     const tz = settingsData?.timezone || 'America/Chicago';
     const shopName = safeStr(settingsData?.shop_name || '');
-    if (doc.client_phone && doc.sms_consent) {
+    if (doc.client_phone) {
       const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
       const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
       const prefix = shopName ? `${shopName}: ` : '';
       sendSms(doc.client_phone, `${prefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your barber'}. Reply STOP to unsubscribe.`).catch(() => {});
+      scheduleReminders(req.ws, bookingRef.id, doc, tz, shopName).catch(() => {});
     }
-    if (doc.sms_consent) scheduleReminders(req.ws, bookingRef.id, doc, tz, shopName).catch(() => {});
     sendCrmPushToStaff(req.ws, doc.barber_id, 'New Booking', `${doc.client_name || 'Client'} booked for ${doc.start_at?.slice(0, 10)}`, { type: 'booking_confirmed' }).catch(() => {});
     res.status(201).json({ id: bookingRef.id, ...doc });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -1807,8 +1807,8 @@ app.delete('/api/bookings/:id', async (req, res) => {
     const bookingData = doc.data();
     await ref.update({ status: 'cancelled', updated_at: toIso(new Date()) });
     writeAuditLog(req.wsId, { action: 'booking.cancelled', resource_id: req.params.id, req }).catch(() => {});
-    // SMS cancellation notification (only if consent was given)
-    if (bookingData.client_phone && bookingData.sms_consent) {
+    // SMS cancellation notification
+    if (bookingData.client_phone) {
       const cancelSettings = await req.ws('settings').doc('config').get();
       const cancelShopName = cancelSettings.exists ? safeStr(cancelSettings.data()?.shop_name || '') : '';
       const cancelPrefix = cancelShopName ? `${cancelShopName}: ` : '';
