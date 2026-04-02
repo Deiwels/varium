@@ -254,6 +254,110 @@ function UsersTab() {
   )
 }
 
+// ─── Billing Section ────────────────────────────────────────────────────────
+function BillingSection() {
+  const [billing, setBilling] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [cancelling, setCancelling] = useState(false)
+
+  useEffect(() => {
+    apiFetch('/api/billing/status').then(setBilling).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  async function handleCancel() {
+    if (!confirm('Are you sure you want to cancel? You\'ll keep access until the end of your billing period.')) return
+    setCancelling(true)
+    try {
+      await apiFetch('/api/billing/cancel', { method: 'POST' })
+      const updated = await apiFetch('/api/billing/status')
+      setBilling(updated)
+    } catch (e: any) { alert(e.message || 'Failed to cancel') }
+    setCancelling(false)
+  }
+
+  async function handlePortal() {
+    try {
+      const data = await apiFetch('/api/billing/portal', { method: 'POST' })
+      if (data.url) window.location.href = data.url
+    } catch (e: any) { alert(e.message || 'Failed') }
+  }
+
+  const statusStyles: Record<string, { bg: string; color: string; label: string }> = {
+    trialing: { bg: 'rgba(130,220,170,.1)', color: 'rgba(130,220,170,.8)', label: 'Free Trial' },
+    active: { bg: 'rgba(130,150,220,.1)', color: 'rgba(130,150,220,.8)', label: 'Active' },
+    past_due: { bg: 'rgba(220,170,100,.1)', color: 'rgba(220,170,100,.8)', label: 'Past Due' },
+    canceled: { bg: 'rgba(220,130,160,.1)', color: 'rgba(220,130,160,.8)', label: 'Canceled' },
+    cancelling: { bg: 'rgba(220,170,100,.1)', color: 'rgba(220,170,100,.8)', label: 'Cancelling' },
+    inactive: { bg: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.4)', label: 'Inactive' },
+  }
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.3)' }}>Loading...</div>
+
+  const s = statusStyles[billing?.subscription_status] || statusStyles.inactive
+  const hasSub = !!billing?.stripe_subscription_id
+  const canCancel = hasSub && billing?.subscription_status !== 'canceled' && billing?.subscription_status !== 'cancelling'
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Current plan */}
+      <div style={{ padding: '18px 20px', borderRadius: 16, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)' }}>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.30)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 8 }}>Current Plan</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: billing?.trial_active ? 8 : 0 }}>
+          <span style={{ fontSize: 20, fontWeight: 700, color: '#e8e8ed', textTransform: 'capitalize' }}>{billing?.plan || 'Individual'}</span>
+          <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 10, fontWeight: 600, background: s.bg, color: s.color }}>{s.label}</span>
+        </div>
+        {billing?.trial_active && (
+          <div style={{ fontSize: 12, color: 'rgba(130,220,170,.6)' }}>
+            {billing.trial_days_left} days left in trial
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <a href="/billing" style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', height: 44, borderRadius: 12,
+          background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.10)',
+          color: 'rgba(255,255,255,.65)', fontSize: 13, fontWeight: 500, textDecoration: 'none',
+        }}>
+          Change Plan
+        </a>
+
+        {hasSub && (
+          <button onClick={handlePortal} style={{
+            height: 44, borderRadius: 12, fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
+            background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.50)',
+          }}>
+            Manage Payment Method
+          </button>
+        )}
+
+        {canCancel && (
+          <button onClick={handleCancel} disabled={cancelling} style={{
+            height: 44, borderRadius: 12, fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
+            background: 'rgba(220,80,80,.04)', border: '1px solid rgba(220,80,80,.12)', color: 'rgba(220,130,130,.7)',
+            opacity: cancelling ? 0.5 : 1,
+          }}>
+            {cancelling ? 'Cancelling...' : 'Cancel Subscription'}
+          </button>
+        )}
+
+        {billing?.subscription_status === 'cancelling' && (
+          <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(220,170,100,.06)', border: '1px solid rgba(220,170,100,.12)', fontSize: 12, color: 'rgba(220,170,100,.7)' }}>
+            Your subscription will end at the end of the current billing period.
+          </div>
+        )}
+
+        {billing?.subscription_status === 'canceled' && (
+          <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(220,130,160,.06)', border: '1px solid rgba(220,130,160,.12)', fontSize: 12, color: 'rgba(220,130,160,.7)' }}>
+            Subscription canceled. <a href="/billing" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Resubscribe →</a>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Settings Page ───────────────────────────────────────────────────────
 export default function SettingsPage() {
   const { effective_plan: currentPlan } = usePlan()
@@ -774,14 +878,7 @@ export default function SettingsPage() {
             {/* ── FEATURES ── */}
 
             {/* ── BILLING ── */}
-            {tab === 'billing' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, textAlign: 'center', padding: '40px 0' }}>
-                <p style={{ fontSize: 14, color: 'rgba(255,255,255,.4)' }}>Manage your subscription and payment details</p>
-                <a href="/billing" style={{ display: 'inline-block', padding: '12px 28px', borderRadius: 12, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.7)', fontSize: 14, textDecoration: 'none', margin: '0 auto' }}>
-                  Open Billing & Plan →
-                </a>
-              </div>
-            )}
+            {tab === 'billing' && <BillingSection />}
 
           </>)}
         </div>
