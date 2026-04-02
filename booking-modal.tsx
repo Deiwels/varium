@@ -681,7 +681,14 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
           const st = String(s?.status || '').toUpperCase()
           if (st === 'COMPLETED') {
             clearInterval(pollRef.current); setPolling(false); setActiveCheckoutId(null)
-            const tip = Number(s?.raw?.tip_money?.amount || 0) / 100
+            // Extract tip from all possible Square response paths (cents → dollars)
+            const tipCents = Number(
+              s?.tip_money?.amount || s?.raw?.tip_money?.amount ||
+              s?.checkout?.tip_money?.amount || s?.payment?.tip_money?.amount ||
+              s?.tip_cents || s?.raw?.tip_cents || s?.tip_amount_money?.amount || 0
+            )
+            const tip = tipCents / 100
+            console.log('[Terminal] payment status response:', JSON.stringify(s), 'tip extracted:', tip)
             setHint('Payment completed ✓'); setHintType('success'); onPayment('terminal', tip)
           } else if (st === 'CANCELED' || st.includes('CANCEL')) {
             clearInterval(pollRef.current); setPolling(false); setActiveCheckoutId(null)
