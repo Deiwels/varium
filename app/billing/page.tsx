@@ -179,7 +179,7 @@ function CheckoutForm({ plan, onSuccess, onCancel }: { plan: PlanDef; onSuccess:
         cursor: processing ? 'wait' : 'pointer', fontFamily: 'inherit',
         opacity: processing ? 0.5 : 1, transition: 'all .2s',
       }}>
-        {processing ? 'Processing...' : `Subscribe — $${plan.price}/mo`}
+        {processing ? 'Processing...' : `Start 14-Day Free Trial — $${plan.price}/mo`}
       </button>
 
       {/* Cancel */}
@@ -193,7 +193,7 @@ function CheckoutForm({ plan, onSuccess, onCancel }: { plan: PlanDef; onSuccess:
       </button>
 
       <div style={{ textAlign: 'center', marginTop: 10, fontSize: 10, color: 'rgba(255,255,255,.12)' }}>
-        Secured by Stripe · Cancel anytime
+        No charge for 14 days · Cancel anytime · Secured by Stripe
       </div>
     </form>
   )

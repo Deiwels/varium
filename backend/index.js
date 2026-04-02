@@ -3760,6 +3760,7 @@ async function handleStripeEvent(wsId, type, obj) {
     patch.stripe_subscription_id = obj.id;
     patch.billing_status = obj.status; // active, trialing, past_due, canceled
     patch.subscription_status = obj.status;
+    patch.trial_used = true; // Mark trial as used once subscription exists
     if (obj.trial_end) patch.trial_ends_at = toIso(new Date(obj.trial_end * 1000));
     const priceId = obj.items?.data?.[0]?.price?.id || '';
     if (priceId === STRIPE_PRICES.individual) patch.plan_type = 'individual';
