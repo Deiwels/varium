@@ -79,7 +79,8 @@ function UsersTab() {
 
   async function createUser() {
     if (!name.trim() || !email.trim() || !password) { setMsg('All fields required'); return }
-    if (password.length < 6) { setMsg('Password min 6 characters'); return }
+    if (password.length < 8) { setMsg('Password min 8 characters with letter + number'); return }
+    if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) { setMsg('Password must contain a letter and a number'); return }
     setCreating(true); setMsg('')
     try {
       await apiFetch('/api/users', { method: 'POST', body: JSON.stringify({ name: name.trim(), username: email.trim().toLowerCase(), password, role }) })
@@ -90,7 +91,7 @@ function UsersTab() {
   }
 
   async function resetPw(uid: string) {
-    const pw = prompt('New password (min 6 chars):')
+    const pw = prompt('New password (min 8 chars, letter + number):')
     if (!pw || pw.length < 6) return
     try { await apiFetch(`/api/users/${encodeURIComponent(uid)}`, { method: 'PATCH', body: JSON.stringify({ password: pw }) }); setMsg('Password reset'); load() }
     catch (e: any) { alert(e.message) }
@@ -129,7 +130,7 @@ function UsersTab() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Field label="Full name"><input value={name} onChange={e => setName(e.target.value)} placeholder="Jane Smith" style={inp} /></Field>
             <Field label="Email (login)"><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@business.com" style={inp} /></Field>
-            <Field label="Password"><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 6 characters" style={inp} /></Field>
+            <Field label="Password"><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 8 chars, letter + number" style={inp} /></Field>
             <Field label="Role">
               <select value={role} onChange={e => setRole(e.target.value as any)} style={inp}>
                 <option value="admin">Admin — manage everything</option>
@@ -190,12 +191,13 @@ function UsersTab() {
         <div style={{ fontSize: 12, fontWeight: 700, color: '#e8e8ed', marginBottom: 10 }}>Change Password</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <input type="password" placeholder="Current password" id="pw-current" style={{ height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.22)', color: '#fff', padding: '0 12px', outline: 'none', fontSize: 12, fontFamily: 'inherit' }} />
-          <input type="password" placeholder="New password (min 4 characters)" id="pw-new" style={{ height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.22)', color: '#fff', padding: '0 12px', outline: 'none', fontSize: 12, fontFamily: 'inherit' }} />
+          <input type="password" placeholder="Min 8 chars, letter + number" id="pw-new" style={{ height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.22)', color: '#fff', padding: '0 12px', outline: 'none', fontSize: 12, fontFamily: 'inherit' }} />
           <button onClick={async () => {
             const curr = (document.getElementById('pw-current') as HTMLInputElement)?.value
             const newp = (document.getElementById('pw-new') as HTMLInputElement)?.value
             if (!curr || !newp) return
-            if (newp.length < 4) { alert('Password must be at least 4 characters'); return }
+            if (newp.length < 8) { alert('Password must be at least 8 characters'); return }
+            if (!/[a-zA-Z]/.test(newp) || !/[0-9]/.test(newp)) { alert('Password must contain at least one letter and one number'); return }
             try {
               const r = await apiFetch('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ current_password: curr, new_password: newp }) })
               if (r?.ok) { alert('Password updated'); (document.getElementById('pw-current') as HTMLInputElement).value = '';  (document.getElementById('pw-new') as HTMLInputElement).value = '' }

@@ -522,7 +522,7 @@ const validate = (schema, input) => {
 const SignupSchema = z.object({
   workspace_name: z.string().min(2).max(120).trim(),
   username: z.string().min(2).max(80).trim(),
-  password: z.string().min(4).max(200),
+  password: z.string().min(8).max(200),
   name: z.string().max(120).optional(),
   email: z.string().email().optional(),
   phone: z.string().max(30).optional(),
@@ -586,12 +586,12 @@ const ClientPatchSchema = z.object({
 
 const ChangePasswordSchema = z.object({
   current_password: z.string().min(1, 'required'),
-  new_password: z.string().min(4, 'min 4 chars').max(200),
+  new_password: z.string().min(8, 'min 8 characters').max(200),
 });
 
 const UserCreateSchema = z.object({
   username: z.string().min(2).max(80).trim(),
-  password: z.string().min(4).max(200),
+  password: z.string().min(8).max(200),
   role: z.enum(['owner', 'admin', 'barber', 'student']).optional().default('barber'),
   name: z.string().max(120).optional(),
   barber_id: z.string().max(80).optional(),
@@ -615,7 +615,7 @@ const UserPatchSchema = z.object({
   role: z.enum(['owner', 'admin', 'barber', 'student']).optional(),
   active: z.boolean().optional(),
   barber_id: z.string().max(80).optional(),
-  password: z.string().min(4).max(200).optional(),
+  password: z.string().min(8).max(200).optional(),
   mentor_barber_ids: z.array(z.string().max(80)).optional(),
   phone: z.string().max(30).optional(),
   photo_url: z.string().max(500000).optional().or(z.literal('')),

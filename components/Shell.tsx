@@ -324,7 +324,7 @@ function ProfileModal({ user, onClose, onUpdated }: {
 
           {tab === 'password' && <>
             <div><label style={lbl}>Current password</label><input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} placeholder="••••••••" style={inp} /></div>
-            <div><label style={lbl}>New password</label><input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="min 4 characters" style={inp} /></div>
+            <div><label style={lbl}>New password</label><input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="Min 8 chars, letter + number" style={inp} /></div>
             <button onClick={savePassword} disabled={saving} style={{ height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: '#e8e8ed', cursor: 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
               {saving ? 'Saving…' : 'Update password'}
             </button>
