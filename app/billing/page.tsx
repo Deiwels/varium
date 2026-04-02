@@ -228,6 +228,7 @@ export default function BillingPage() {
 
     setCheckoutLoading(plan.id)
     try {
+      // Try custom Elements checkout first
       const data = await apiFetch('/api/billing/create-subscription', {
         method: 'POST',
         body: JSON.stringify({ plan: plan.id }),
@@ -236,16 +237,15 @@ export default function BillingPage() {
         setClientSecret(data.clientSecret)
         setIntentType(data.type === 'setup' ? 'setup' : 'payment')
         setCheckoutPlan(plan)
-      } else {
-        throw new Error('No client secret returned')
+        setCheckoutLoading('')
+        return
       }
-    } catch (e: any) {
-      // Fallback to hosted checkout
-      try {
-        const data = await apiFetch('/api/billing/checkout', { method: 'POST', body: JSON.stringify({ plan: plan.id }) })
-        if (data.url) window.location.href = data.url
-      } catch (e2: any) { alert(e2.message || 'Failed') }
-    }
+    } catch { /* fall through to hosted checkout */ }
+    // Fallback: hosted Stripe Checkout
+    try {
+      const data = await apiFetch('/api/billing/checkout', { method: 'POST', body: JSON.stringify({ plan: plan.id }) })
+      if (data.url) { window.location.href = data.url; return }
+    } catch (e2: any) { alert(e2.message || 'Failed to start checkout') }
     setCheckoutLoading('')
   }
 
@@ -412,7 +412,7 @@ export default function BillingPage() {
         }}>
           {/* Hide Shell completely */}
           <style>{`
-            .top-bar,.pill-bar,.shell,.content{display:none!important;}
+            .top-bar,.pill-bar{display:none!important;}.content{overflow:visible!important;}
             @keyframes checkoutStarBreathe {
               0%, 100% { opacity: 0.15; transform: scale(0.8); box-shadow: 0 0 3px 1px rgba(200,220,255,.08); }
               50% { opacity: 0.6; transform: scale(1.3); box-shadow: 0 0 8px 3px rgba(200,220,255,.15); }
