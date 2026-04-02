@@ -757,8 +757,12 @@ export default function DashboardPage() {
         // Build grid items in a 4-col grid
         // Each item knows how many cols it spans
         const COLS = 4
-        const nativeSafeExtra = typeof window !== 'undefined' && (window as any).__VURIUM_IS_NATIVE ? ((window as any).__VURIUM_SAFE_TOP || 0) + ((window as any).__VURIUM_SAFE_BOTTOM || 0) : 0
-        const availH = typeof window !== 'undefined' ? window.innerHeight - 140 - nativeSafeExtra : 600
+        const isNative = typeof window !== 'undefined' && (window as any).__VURIUM_IS_NATIVE
+        const nativeSafeTop = isNative ? ((window as any).__VURIUM_SAFE_TOP || 59) : 0
+        const nativeSafeBot = isNative ? ((window as any).__VURIUM_SAFE_BOTTOM || 34) : 0
+        // In native app: top-bar = 52 + safeTop, bottom pill = 46 + safeBot, plus padding
+        const chromeH = isNative ? (52 + nativeSafeTop + 46 + nativeSafeBot + 30) : 140
+        const availH = typeof window !== 'undefined' ? window.innerHeight - chromeH : 600
 
         // Simple flow: place items sequentially, track col position
         // Widgets take 2 or 4 cols, icons take 1 col
