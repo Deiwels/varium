@@ -403,19 +403,17 @@ export default function BillingPage() {
         )}
       </div>
 
-      {/* ─── Checkout Modal ────────────────────────────────────────────────── */}
+      {/* ─── Checkout Modal — hides Shell header & nav ─────────────────── */}
       {checkoutPlan && clientSecret && stripePromise && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
           display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-          padding: '60px 16px 16px',
+          padding: '16px 16px env(safe-area-inset-bottom, 16px)',
           overflowY: 'auto',
+          background: '#010101',
         }}>
-          {/* Backdrop */}
-          <div onClick={() => { setCheckoutPlan(null); setClientSecret('') }} style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,.92)',
-          }} />
+          {/* Hide Shell top-bar and pill-bar */}
+          <style>{`.top-bar,.pill-bar{display:none!important;}`}</style>
 
           {/* Modal — compact */}
           <div style={{
