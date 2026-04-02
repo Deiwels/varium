@@ -403,54 +403,66 @@ export default function BillingPage() {
         )}
       </div>
 
-      {/* ─── Checkout Modal — hides Shell header & nav ─────────────────── */}
+      {/* ─── Fullscreen Checkout Page ────────────────────────────────────── */}
       {checkoutPlan && clientSecret && stripePromise && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
-          display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-          padding: '16px 16px env(safe-area-inset-bottom, 16px)',
-          overflowY: 'auto',
-          background: '#010101',
+          overflowY: 'auto', background: '#010101',
         }}>
-          {/* Hide Shell top-bar and pill-bar */}
-          <style>{`.top-bar,.pill-bar{display:none!important;}`}</style>
+          {/* Hide Shell */}
+          <style>{`.top-bar,.pill-bar,.shell>*:not(:last-child){display:none!important;}`}</style>
 
-          {/* Modal — compact */}
-          <div style={{
-            position: 'relative', width: 'min(400px, 100%)',
-            borderRadius: 20, padding: '20px 18px',
-            background: '#0a0a0a',
-            border: '1px solid rgba(255,255,255,.08)',
-            boxShadow: '0 40px 100px rgba(0,0,0,.6)',
-            marginBottom: 40,
-          }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div>
-                <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.25)', marginBottom: 2 }}>Subscribe to</div>
-                <div style={{ fontSize: 17, fontWeight: 700, color: '#e8e8ed' }}>VuriumBook {checkoutPlan.name}</div>
-              </div>
+          {/* Stars background */}
+          <div style={{ position: 'fixed', inset: 0, zIndex: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+            {Array.from({ length: 60 }, (_, i) => (
+              <div key={i} style={{
+                position: 'absolute',
+                left: `${(i * 17.3 + 5) % 100}%`,
+                top: `${(i * 23.7 + 11) % 100}%`,
+                width: i % 5 === 0 ? 2 : 1,
+                height: i % 5 === 0 ? 2 : 1,
+                borderRadius: 999,
+                background: '#fff',
+                opacity: 0.08 + (i % 7) * 0.04,
+              }} />
+            ))}
+          </div>
+
+          {/* Content */}
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'env(safe-area-inset-top, 16px) 20px env(safe-area-inset-bottom, 20px)', minHeight: '100vh' }}>
+
+            {/* Back button */}
+            <div style={{ width: '100%', maxWidth: 420, display: 'flex', justifyContent: 'flex-start', padding: '16px 0 12px' }}>
               <button onClick={() => { setCheckoutPlan(null); setClientSecret('') }} style={{
-                width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,.10)',
-                background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.50)',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
+                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 999,
+                border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)',
+                color: 'rgba(255,255,255,.50)', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
               }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                Back
               </button>
             </div>
 
-            {/* Stripe Elements */}
-            <Elements stripe={stripePromise} options={{
-              clientSecret,
-              appearance: stripeAppearance,
-              loader: 'auto',
-            }}>
-              <CheckoutForm
-                plan={checkoutPlan}
-                onSuccess={onCheckoutSuccess}
-                onCancel={() => { setCheckoutPlan(null); setClientSecret('') }}
-              />
-            </Elements>
+            {/* Title */}
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,.25)', marginBottom: 6 }}>Subscribe to</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#e8e8ed' }}>VuriumBook {checkoutPlan.name}</div>
+            </div>
+
+            {/* Form container */}
+            <div style={{ width: '100%', maxWidth: 420 }}>
+              <Elements stripe={stripePromise} options={{
+                clientSecret,
+                appearance: stripeAppearance,
+                loader: 'auto',
+              }}>
+                <CheckoutForm
+                  plan={checkoutPlan}
+                  onSuccess={onCheckoutSuccess}
+                  onCancel={() => { setCheckoutPlan(null); setClientSecret('') }}
+                />
+              </Elements>
+            </div>
           </div>
         </div>
       )}
