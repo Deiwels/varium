@@ -923,7 +923,7 @@ export function BookingModal({
       <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 'clamp(8px,3vw,16px)' }}
         onClick={e => { if (e.target === e.currentTarget) onClose() }}>
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }} />
-        <div className="bm-scroll" style={{ position: 'relative', width: 'min(420px,calc(100% - 24px))', maxHeight: 'calc(100dvh - var(--shell-top, 60px) - var(--sab, 34px) - 80px)', borderRadius: 20, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(12,12,12,.95)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', boxShadow: '0 24px 80px rgba(0,0,0,.6)', overflowY: 'auto', display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter,sans-serif' }}>
+        <div className="bm-scroll" style={{ position: 'relative', width: 'min(420px,calc(100% - 24px))', maxHeight: 'calc(100dvh - 100px)', borderRadius: 20, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(12,12,12,.95)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', boxShadow: '0 24px 80px rgba(0,0,0,.6)', overflowY: 'auto', display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter,sans-serif' }}>
 
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px 12px', borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0 }}>
