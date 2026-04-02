@@ -359,6 +359,26 @@ function ProfileModal({ user, onClose, onUpdated }: {
 
           {msg && <div style={{ fontSize: 12, color: 'rgba(130,220,170,.5)', padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(143,240,177,.22)', background: 'rgba(143,240,177,.06)' }}>{msg}</div>}
           {err && <div style={{ fontSize: 12, color: 'rgba(220,130,160,.5)', padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(255,107,107,.22)', background: 'rgba(255,107,107,.06)' }}>{err}</div>}
+
+          {/* Sign Out */}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', marginTop: 8, paddingTop: 14 }}>
+            <button onClick={() => {
+              if (!confirm('Sign out of VuriumBook?')) return
+              localStorage.removeItem('VURIUMBOOK_TOKEN')
+              localStorage.removeItem('VURIUMBOOK_USER')
+              document.cookie = 'VURIUMBOOK_TOKEN=; path=/; max-age=0; SameSite=Lax'
+              window.location.href = '/signin'
+            }} style={{
+              width: '100%', height: 42, borderRadius: 12,
+              border: '1px solid rgba(220,80,80,.15)', background: 'rgba(220,80,80,.04)',
+              color: 'rgba(220,130,130,.7)', fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
       {cropSrc && <ImageCropper src={cropSrc} onSave={(url) => { setPhoto(url); setCropSrc('') }} onClose={() => setCropSrc('')} shape="circle" />}
