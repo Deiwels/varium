@@ -2725,6 +2725,200 @@ app.post('/api/square/oauth/disconnect', requireRole('owner'), async (req, res) 
 });
 
 // ============================================================
+// STRIPE CONNECT (for accepting client payments)
+// ============================================================
+const STRIPE_CONNECT_CLIENT_ID = process.env.STRIPE_CONNECT_CLIENT_ID || '';
+
+// Create Express Connect account and return onboarding URL
+app.get('/api/stripe-connect/oauth/url', requireRole('owner'), async (req, res) => {
+  try {
+    if (!STRIPE_SECRET) return res.status(400).json({ error: 'Stripe not configured' });
+    // Check if already connected
+    const existing = await req.ws('settings').doc('stripe_connect').get();
+    if (existing.exists && existing.data()?.account_id) {
+      return res.status(400).json({ error: 'Already connected. Disconnect first.' });
+    }
+    // Create Express account
+    const account = await stripeFetch('/v1/accounts', {
+      method: 'POST',
+      body: new URLSearchParams({
+        type: 'express',
+        'capabilities[card_payments][requested]': 'true',
+        'capabilities[transfers][requested]': 'true',
+        'metadata[workspace_id]': req.wsId,
+      }).toString(),
+    });
+    // Save account_id immediately
+    await req.ws('settings').doc('stripe_connect').set({
+      account_id: account.id,
+      connected_at: toIso(new Date()),
+      onboarding_complete: false,
+    });
+    // Create account link for onboarding
+    const accountLink = await stripeFetch('/v1/account_links', {
+      method: 'POST',
+      body: new URLSearchParams({
+        account: account.id,
+        refresh_url: `${FRONTEND_URL}/settings?tab=square&stripe=refresh`,
+        return_url: `${FRONTEND_URL}/settings?tab=square&stripe=connected`,
+        type: 'account_onboarding',
+      }).toString(),
+    });
+    res.json({ url: accountLink.url });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Check Stripe Connect status
+app.get('/api/stripe-connect/status', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const doc = await req.ws('settings').doc('stripe_connect').get();
+    if (!doc.exists || !doc.data()?.account_id) {
+      return res.json({ connected: false });
+    }
+    const data = doc.data();
+    // Check account status from Stripe
+    let charges_enabled = false, payouts_enabled = false;
+    if (STRIPE_SECRET && data.account_id) {
+      try {
+        const acct = await stripeFetch(`/v1/accounts/${data.account_id}`);
+        charges_enabled = !!acct.charges_enabled;
+        payouts_enabled = !!acct.payouts_enabled;
+        // Update onboarding status
+        if (charges_enabled && !data.onboarding_complete) {
+          await req.ws('settings').doc('stripe_connect').update({ onboarding_complete: true });
+        }
+      } catch {}
+    }
+    res.json({
+      connected: true,
+      account_id: data.account_id,
+      connected_at: data.connected_at,
+      charges_enabled,
+      payouts_enabled,
+      onboarding_complete: data.onboarding_complete || charges_enabled,
+    });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Resume onboarding (if user didn't finish)
+app.get('/api/stripe-connect/onboarding-url', requireRole('owner'), async (req, res) => {
+  try {
+    const doc = await req.ws('settings').doc('stripe_connect').get();
+    if (!doc.exists || !doc.data()?.account_id) {
+      return res.status(400).json({ error: 'Not connected. Start connection first.' });
+    }
+    const accountLink = await stripeFetch('/v1/account_links', {
+      method: 'POST',
+      body: new URLSearchParams({
+        account: doc.data().account_id,
+        refresh_url: `${FRONTEND_URL}/settings?tab=square&stripe=refresh`,
+        return_url: `${FRONTEND_URL}/settings?tab=square&stripe=connected`,
+        type: 'account_onboarding',
+      }).toString(),
+    });
+    res.json({ url: accountLink.url });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Disconnect Stripe Connect
+app.post('/api/stripe-connect/disconnect', requireRole('owner'), async (req, res) => {
+  try {
+    await req.ws('settings').doc('stripe_connect').delete();
+    res.json({ ok: true, disconnected: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Create Payment Intent on connected account (authenticated — staff use)
+app.post('/api/stripe-connect/create-payment-intent', async (req, res) => {
+  try {
+    const doc = await req.ws('settings').doc('stripe_connect').get();
+    if (!doc.exists || !doc.data()?.account_id) {
+      return res.status(400).json({ error: 'Stripe not connected' });
+    }
+    const b = req.body || {};
+    const amountCents = Math.round(Number(b.amount_cents) || 0);
+    if (amountCents < 50) return res.status(400).json({ error: 'Amount too small (min $0.50)' });
+    const connectedAccountId = doc.data().account_id;
+    const platformFee = Math.round(amountCents * 0.02); // 2% platform fee
+    const pi = await stripeFetch('/v1/payment_intents', {
+      method: 'POST',
+      body: new URLSearchParams({
+        amount: String(amountCents),
+        currency: b.currency || 'usd',
+        'payment_method_types[0]': 'card',
+        'payment_method_types[1]': 'apple_pay',
+        'payment_method_types[2]': 'google_pay',
+        application_fee_amount: String(platformFee),
+        'transfer_data[destination]': connectedAccountId,
+        'metadata[booking_id]': safeStr(b.booking_id || ''),
+        'metadata[workspace_id]': req.wsId,
+        description: safeStr(b.description || 'VuriumBook payment'),
+      }).toString(),
+    });
+    res.json({ clientSecret: pi.client_secret, paymentIntentId: pi.id });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Create Payment Intent on connected account (PUBLIC — booking page)
+app.post('/public/stripe-connect/create-payment-intent/:wsId', async (req, res) => {
+  try {
+    const wsId = safeStr(req.params.wsId);
+    if (!wsId) return res.status(400).json({ error: 'Missing workspace' });
+    const wsCol = (col) => db.collection(`workspaces/${wsId}/${col}`);
+    const doc = await wsCol('settings').doc('stripe_connect').get();
+    if (!doc.exists || !doc.data()?.account_id) {
+      return res.status(400).json({ error: 'Online payments not available' });
+    }
+    const b = req.body || {};
+    const amountCents = Math.round(Number(b.amount_cents) || 0);
+    if (amountCents < 50) return res.status(400).json({ error: 'Amount too small' });
+    const connectedAccountId = doc.data().account_id;
+    const platformFee = Math.round(amountCents * 0.02);
+    const pi = await stripeFetch('/v1/payment_intents', {
+      method: 'POST',
+      body: new URLSearchParams({
+        amount: String(amountCents),
+        currency: b.currency || 'usd',
+        'automatic_payment_methods[enabled]': 'true',
+        application_fee_amount: String(platformFee),
+        'transfer_data[destination]': connectedAccountId,
+        'metadata[booking_id]': safeStr(b.booking_id || ''),
+        'metadata[workspace_id]': wsId,
+        'metadata[client_name]': safeStr(b.client_name || ''),
+        description: safeStr(b.description || 'Booking payment'),
+      }).toString(),
+    });
+    res.json({ clientSecret: pi.client_secret, paymentIntentId: pi.id });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Stripe Connect webhook
+app.post('/api/webhooks/stripe-connect', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const event = JSON.parse(req.body.toString());
+    const obj = event.data?.object;
+    if (!obj) return res.json({ ok: true });
+    const wsId = obj.metadata?.workspace_id || '';
+    if (!wsId) return res.json({ ok: true });
+    if (event.type === 'payment_intent.succeeded') {
+      const bookingId = obj.metadata?.booking_id;
+      if (bookingId) {
+        const wsRef = db.collection(`workspaces/${wsId}/bookings`).doc(bookingId);
+        await wsRef.update({
+          paid: true,
+          payment_status: 'paid',
+          payment_method: 'stripe',
+          payment_id: obj.id,
+          amount: (obj.amount || 0) / 100,
+          updated_at: toIso(new Date()),
+        }).catch(() => {});
+      }
+    }
+    res.json({ ok: true });
+  } catch (e) { res.json({ ok: true }); }
+});
+
+// ============================================================
 // SQUARE TERMINAL PAYMENTS
 // ============================================================
 app.get('/api/payments/terminal/devices', requireRole('owner', 'admin'), async (req, res) => {

@@ -372,6 +372,8 @@ export default function SettingsPage() {
   const [toast, setToast] = useState('')
   const [squareOAuth, setSquareOAuth] = useState<{ connected: boolean; merchant_id?: string; expires_at?: string; connected_at?: string }>({ connected: false })
   const [squareConnecting, setSquareConnecting] = useState(false)
+  const [stripeConnect, setStripeConnect] = useState<{ connected: boolean; account_id?: string; connected_at?: string; charges_enabled?: boolean; payouts_enabled?: boolean }>({ connected: false })
+  const [stripeConnecting, setStripeConnecting] = useState(false)
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
@@ -394,9 +396,10 @@ export default function SettingsPage() {
 
   useEffect(() => { load() }, [load])
 
-  // Load Square OAuth status & handle callback redirect
+  // Load Square & Stripe Connect status on mount
   useEffect(() => {
     apiFetch('/api/square/oauth/status').then(d => setSquareOAuth(d)).catch(() => {})
+    apiFetch('/api/stripe-connect/status').then(d => setStripeConnect(d)).catch(() => {})
     const params = new URLSearchParams(window.location.search)
     if (params.get('square') === 'connected') {
       showToast('Square connected successfully ✓')
@@ -405,6 +408,14 @@ export default function SettingsPage() {
     } else if (params.get('square') === 'error') {
       showToast('❌ Square connection failed: ' + (params.get('msg') || 'unknown error'))
       window.history.replaceState({}, '', '/settings')
+    }
+    if (params.get('stripe') === 'connected') {
+      showToast('Stripe connected successfully ✓')
+      apiFetch('/api/stripe-connect/status').then(d => setStripeConnect(d)).catch(() => {})
+      window.history.replaceState({}, '', '/settings?tab=square')
+    } else if (params.get('stripe') === 'refresh') {
+      showToast('Please complete Stripe onboarding')
+      window.history.replaceState({}, '', '/settings?tab=square')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -725,6 +736,55 @@ export default function SettingsPage() {
                       <button onClick={connectSquare} disabled={squareConnecting}
                         style={{ height: 38, padding: '0 20px', borderRadius: 999, border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: squareConnecting ? .5 : 1, transition: 'opacity .2s' }}>
                         {squareConnecting ? 'Connecting…' : 'Connect Square'}
+                      </button>
+                    </div>
+                  )}
+                </SectionCard>
+
+                {/* ── STRIPE CONNECT ── */}
+                <SectionCard title="Stripe Connect">
+                  {stripeConnect.connected ? (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', borderRadius: 12, border: '1px solid rgba(130,150,220,.25)', background: 'rgba(130,150,220,.06)' }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(130,150,220,.8)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 999, background: stripeConnect.charges_enabled ? 'rgba(130,220,170,.8)' : 'rgba(220,190,130,.8)', display: 'inline-block' }} />
+                            {stripeConnect.charges_enabled ? 'Stripe Connected' : 'Onboarding Incomplete'}
+                          </div>
+                          {stripeConnect.account_id && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', marginTop: 3 }}>Account: {stripeConnect.account_id}</div>}
+                          {stripeConnect.connected_at && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 1 }}>Since {new Date(stripeConnect.connected_at).toLocaleDateString()}</div>}
+                        </div>
+                        <SmBtn danger onClick={async () => {
+                          if (!confirm('Disconnect Stripe? Clients won\'t be able to pay online.')) return
+                          await apiFetch('/api/stripe-connect/disconnect', { method: 'POST' })
+                          setStripeConnect({ connected: false })
+                        }}>Disconnect</SmBtn>
+                      </div>
+                      {!stripeConnect.charges_enabled && (
+                        <button onClick={async () => {
+                          const r = await apiFetch('/api/stripe-connect/onboarding-url')
+                          if (r.url) window.location.href = r.url
+                        }} style={{ marginTop: 10, height: 38, width: '100%', borderRadius: 999, border: '1px solid rgba(220,190,130,.3)', background: 'rgba(220,190,130,.08)', color: 'rgba(220,190,130,.8)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit' }}>
+                          Complete Onboarding →
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.14)' }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>Connect Stripe</div>
+                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', marginTop: 2 }}>Accept online payments from clients, Apple Pay, Google Pay</div>
+                      </div>
+                      <button onClick={async () => {
+                        setStripeConnecting(true)
+                        try {
+                          const r = await apiFetch('/api/stripe-connect/oauth/url')
+                          if (r.url) window.location.href = r.url
+                        } catch (e: any) { alert(e.message || 'Failed') }
+                        setStripeConnecting(false)
+                      }} disabled={stripeConnecting}
+                        style={{ height: 38, padding: '0 20px', borderRadius: 999, border: 'none', background: 'rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: stripeConnecting ? .5 : 1 }}>
+                        {stripeConnecting ? 'Connecting…' : 'Connect Stripe'}
                       </button>
                     </div>
                   )}

@@ -1,8 +1,106 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
+import { loadStripe, Appearance } from '@stripe/stripe-js'
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
+const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''
+const stripePromise = STRIPE_PK ? loadStripe(STRIPE_PK) : null
+
+const stripeAppearanceDark: Appearance = {
+  theme: 'night',
+  variables: {
+    colorPrimary: 'rgba(255,255,255,.85)',
+    colorBackground: '#0d0d0d',
+    colorText: '#e8e8ed',
+    colorTextSecondary: 'rgba(255,255,255,.45)',
+    colorDanger: 'rgba(220,130,160,.8)',
+    borderRadius: '12px',
+    fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+    fontSizeBase: '14px',
+    spacingUnit: '4px',
+    colorTextPlaceholder: 'rgba(255,255,255,.25)',
+  },
+  rules: {
+    '.Input': { border: '1px solid rgba(255,255,255,.10)', backgroundColor: 'rgba(255,255,255,.04)', boxShadow: 'none', transition: 'border-color .2s' },
+    '.Input:focus': { border: '1px solid rgba(255,255,255,.25)', boxShadow: '0 0 0 1px rgba(255,255,255,.08)' },
+    '.Label': { color: 'rgba(255,255,255,.45)', fontSize: '12px', fontWeight: '500', letterSpacing: '.03em' },
+    '.Tab': { border: '1px solid rgba(255,255,255,.08)', backgroundColor: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.50)' },
+    '.Tab--selected': { border: '1px solid rgba(255,255,255,.18)', backgroundColor: 'rgba(255,255,255,.06)', color: '#e8e8ed' },
+    '.Tab:hover': { backgroundColor: 'rgba(255,255,255,.05)' },
+    '.Block': { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,.06)' },
+    '.Error': { color: 'rgba(220,130,160,.8)' },
+  },
+}
+
+const stripeAppearanceLight: Appearance = {
+  theme: 'stripe',
+  variables: {
+    colorPrimary: '#333',
+    borderRadius: '12px',
+    fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+    fontSizeBase: '14px',
+    spacingUnit: '4px',
+  },
+}
+
+/* ── Inline Payment Form (rendered inside <Elements>) ── */
+function InlinePaymentForm({ onSuccess, onError, amount, isLight }: {
+  onSuccess: (paymentIntentId: string) => void
+  onError: (msg: string) => void
+  amount: number
+  isLight: boolean
+}) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [paying, setPaying] = useState(false)
+  const [payError, setPayError] = useState('')
+
+  async function handlePay(e: React.FormEvent) {
+    e.preventDefault()
+    if (!stripe || !elements) return
+    setPaying(true); setPayError('')
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: { return_url: window.location.href },
+        redirect: 'if_required',
+      })
+      if (error) {
+        setPayError(error.message || 'Payment failed')
+        onError(error.message || 'Payment failed')
+      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+        onSuccess(paymentIntent.id)
+      } else {
+        setPayError('Payment was not completed')
+        onError('Payment was not completed')
+      }
+    } catch (err: any) {
+      setPayError(err.message || 'Payment failed')
+      onError(err.message || 'Payment failed')
+    } finally { setPaying(false) }
+  }
+
+  const textMuted = isLight ? 'rgba(0,0,0,.45)' : 'rgba(255,255,255,.3)'
+
+  return (
+    <form onSubmit={handlePay}>
+      <PaymentElement options={{ layout: 'tabs' }} />
+      {payError && (
+        <div style={{ marginTop: 12, padding: '8px 12px', borderRadius: 8, background: 'rgba(220,80,80,.08)', border: '1px solid rgba(220,80,80,.15)', color: 'rgba(255,160,160,.8)', fontSize: 13 }}>{payError}</div>
+      )}
+      <button type="submit" disabled={!stripe || paying} style={{
+        width: '100%', marginTop: 20, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit',
+        cursor: !stripe || paying ? 'default' : 'pointer',
+        background: 'rgba(130,220,170,.1)', border: '1px solid rgba(130,220,170,.2)', color: 'rgba(130,220,170,.9)',
+        opacity: !stripe || paying ? 0.5 : 1,
+      }}>
+        {paying ? 'Processing...' : `Pay $${(amount / 100).toFixed(2)} & Confirm`}
+      </button>
+    </form>
+  )
+}
 
 interface Barber { id: string; name: string; photo_url?: string; level?: string; schedule?: any }
 interface Service { id: string; name: string; duration_minutes: number; price_cents: number; barber_ids?: string[] }
@@ -44,6 +142,13 @@ export default function PublicBookingPage() {
   const [bookLoading, setBookLoading] = useState(false)
   const [booked, setBooked] = useState(false)
   const [error, setError] = useState('')
+
+  // Payment state
+  const [stripeConnected, setStripeConnected] = useState(false)
+  const [payOnline, setPayOnline] = useState(false)
+  const [paymentClientSecret, setPaymentClientSecret] = useState('')
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [paymentBookingId, setPaymentBookingId] = useState('')
 
   // Parallax stars — targets both global (#v-stars-*) and page-level (.stars-*) stars
   useEffect(() => {
@@ -134,6 +239,16 @@ export default function PublicBookingPage() {
       setBarbers(bData?.barbers || [])
       setServices(sData?.services || [])
       setReviews(revData?.items || [])
+      // Check if workspace has Stripe Connect for online payments
+      if (stripePromise) {
+        api(`/public/stripe-connect/create-payment-intent/${realWsId}`, {
+          method: 'POST', body: JSON.stringify({ amount_cents: 0 }),
+        }).then(r => {
+          // "Amount too small" means Stripe IS connected; "Online payments not available" means not
+          if (r.error && r.error !== 'Online payments not available') setStripeConnected(true)
+          if (r.clientSecret) setStripeConnected(true)
+        }).catch(() => {})
+      }
       if ((bData?.barbers || []).length === 1) setSelectedBarber((bData.barbers)[0])
       // Track page visit
       try {
@@ -208,10 +323,60 @@ export default function PublicBookingPage() {
     } finally { setBookLoading(false) }
   }
 
+  async function handlePayOnlineFlow() {
+    if (!clientName || !selectedBarber || !selectedSlot || !selectedService) return
+    setPaymentLoading(true); setError('')
+    try {
+      // 1. Create booking first
+      const bookRes = await api(`/public/bookings/${resolvedWsId}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          barber_id: selectedBarber.id,
+          barber_name: selectedBarber.name,
+          start_at: selectedSlot,
+          client_name: clientName,
+          client_phone: clientPhone || undefined,
+          sms_consent: clientPhone ? smsConsent : undefined,
+          service_id: selectedService.id,
+          service_name: selectedService.name,
+          duration_minutes: selectedService.duration_minutes || 30,
+          customer_note: clientNote || undefined,
+        }),
+      })
+      if (bookRes.error) throw new Error(bookRes.error)
+      const bookingId = bookRes.booking_id || bookRes.id
+      setPaymentBookingId(bookingId)
+      // 2. Create payment intent
+      const piRes = await api(`/public/stripe-connect/create-payment-intent/${resolvedWsId}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          amount_cents: selectedService.price_cents,
+          booking_id: bookingId,
+          client_name: clientName,
+          description: `${selectedService.name} – ${clientName}`,
+        }),
+      })
+      if (piRes.error) throw new Error(piRes.error)
+      setPaymentClientSecret(piRes.clientSecret)
+    } catch (e: any) {
+      setError(e.message || 'Could not initiate payment. Please try again.')
+    } finally { setPaymentLoading(false) }
+  }
+
+  function onPaymentSuccess(_paymentIntentId: string) {
+    // Booking already created, webhook will mark it paid
+    setBooked(true); setStep(4)
+  }
+
+  function onPaymentError(msg: string) {
+    setError(msg)
+  }
+
   function resetBooking() {
     setStep(0); setSelectedService(null); setSelectedSlot('')
     setSelectedDate(''); setClientName(''); setClientPhone('')
     setClientNote(''); setBooked(false); setError('')
+    setPayOnline(false); setPaymentClientSecret(''); setPaymentBookingId('')
     if (!isSolo) setSelectedBarber(null)
   }
 
@@ -576,14 +741,65 @@ export default function PublicBookingPage() {
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-              <button onClick={() => setStep(2)} style={{ padding: '12px 20px', background: 'none', border: `1px solid ${borderSoft}`, borderRadius: 12, color: textMuted, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Back</button>
-              <button onClick={handleBook} disabled={!clientName || bookLoading} style={{
-                flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: !clientName || bookLoading ? 'default' : 'pointer',
-                background: 'rgba(130,220,170,.1)', border: '1px solid rgba(130,220,170,.2)', color: 'rgba(130,220,170,.9)',
-                opacity: !clientName || bookLoading ? 0.5 : 1,
-              }}>{bookLoading ? 'Booking...' : 'Confirm Booking'}</button>
-            </div>
+            {/* Payment option */}
+            {stripeConnected && selectedService && selectedService.price_cents > 0 && !paymentClientSecret && (
+              <div style={{ marginTop: 20, padding: '16px 20px', borderRadius: 14, border: `1px solid ${borderSoft}`, background: bgSubtle }}>
+                <div style={{ fontSize: 13, color: textMuted, marginBottom: 12, fontWeight: 500 }}>Payment</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setPayOnline(false)} style={{
+                    flex: 1, padding: '12px 10px', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer',
+                    background: !payOnline ? 'rgba(130,220,170,.1)' : bgSubtle,
+                    border: `1px solid ${!payOnline ? 'rgba(130,220,170,.2)' : borderSoft}`,
+                    color: !payOnline ? 'rgba(130,220,170,.9)' : textMuted,
+                  }}>Pay at salon</button>
+                  <button onClick={() => setPayOnline(true)} style={{
+                    flex: 1, padding: '12px 10px', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer',
+                    background: payOnline ? 'rgba(130,150,220,.12)' : bgSubtle,
+                    border: `1px solid ${payOnline ? 'rgba(130,150,220,.2)' : borderSoft}`,
+                    color: payOnline ? 'rgba(130,150,220,.9)' : textMuted,
+                  }}>Pay now ({fmtPrice(selectedService.price_cents)})</button>
+                </div>
+              </div>
+            )}
+
+            {/* Stripe Payment Form (shown after payment intent created) */}
+            {paymentClientSecret && stripePromise && (
+              <div style={{ marginTop: 20, padding: '20px', borderRadius: 14, border: `1px solid ${borderSoft}`, background: bgSubtle }}>
+                <div style={{ fontSize: 13, color: textMuted, marginBottom: 14, fontWeight: 500 }}>Complete payment</div>
+                <Elements stripe={stripePromise} options={{
+                  clientSecret: paymentClientSecret,
+                  appearance: isLightTheme ? stripeAppearanceLight : stripeAppearanceDark,
+                  loader: 'auto',
+                }}>
+                  <InlinePaymentForm
+                    onSuccess={onPaymentSuccess}
+                    onError={onPaymentError}
+                    amount={selectedService?.price_cents || 0}
+                    isLight={isLightTheme}
+                  />
+                </Elements>
+              </div>
+            )}
+
+            {!paymentClientSecret && (
+              <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+                <button onClick={() => setStep(2)} style={{ padding: '12px 20px', background: 'none', border: `1px solid ${borderSoft}`, borderRadius: 12, color: textMuted, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Back</button>
+                {payOnline ? (
+                  <button onClick={handlePayOnlineFlow} disabled={!clientName || paymentLoading} style={{
+                    flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit',
+                    cursor: !clientName || paymentLoading ? 'default' : 'pointer',
+                    background: 'rgba(130,150,220,.12)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
+                    opacity: !clientName || paymentLoading ? 0.5 : 1,
+                  }}>{paymentLoading ? 'Setting up payment...' : `Pay ${fmtPrice(selectedService?.price_cents || 0)} & Book`}</button>
+                ) : (
+                  <button onClick={handleBook} disabled={!clientName || bookLoading} style={{
+                    flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: !clientName || bookLoading ? 'default' : 'pointer',
+                    background: 'rgba(130,220,170,.1)', border: '1px solid rgba(130,220,170,.2)', color: 'rgba(130,220,170,.9)',
+                    opacity: !clientName || bookLoading ? 0.5 : 1,
+                  }}>{bookLoading ? 'Booking...' : 'Confirm Booking'}</button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
