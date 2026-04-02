@@ -6,8 +6,7 @@ import FeatureGate from '@/components/FeatureGate'
 import { apiFetch } from '@/lib/api'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type ChatType = 'general' | 'barbers' | 'admins' | 'students'
-type Tab = ChatType | 'requests' | 'applications'
+type TopTab = 'chat' | 'requests' | 'applications'
 
 interface Application {
   id: string; type: string; role: string; name: string; phone: string; email: string
@@ -20,7 +19,7 @@ interface Application {
 
 interface Message {
   id: string
-  chatType: ChatType
+  chatType: string
   senderId: string
   senderName: string
   senderRole: string
@@ -47,14 +46,10 @@ interface Request {
 }
 
 // ─── Tab config ──────────────────────────────────────────────────────────────
-// SVG icons for tabs (matching glass-dark style)
 function TabIcon({ id, color }: { id: string; color: string }) {
   const s = { stroke: color, strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' }
   switch (id) {
-    case 'general': return <svg width="14" height="14" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" {...s}/></svg>
-    case 'barbers': return <svg width="14" height="14" viewBox="0 0 24 24"><path d="M5 3v18" {...s}/><path d="M5 8c4-1 7 1 7 4s-3 5-7 4" {...s}/><circle cx="16" cy="12" r="3" {...s}/><path d="M19 12h2" {...s}/></svg>
-    case 'admins': return <svg width="14" height="14" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" {...s}/></svg>
-    case 'students': return <svg width="14" height="14" viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z" {...s}/><path d="M6 12v5c0 2 3 3 6 3s6-1 6-3v-5" {...s}/></svg>
+    case 'chat': return <svg width="14" height="14" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" {...s}/></svg>
     case 'requests': return <svg width="14" height="14" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" {...s}/><path d="M9 12l2 2 4-4" {...s}/><line x1="9" y1="7" x2="15" y2="7" {...s}/><line x1="9" y1="17" x2="13" y2="17" {...s}/></svg>
     case 'applications': return <svg width="14" height="14" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2" {...s}/><rect x="8" y="2" width="8" height="4" rx="1" {...s}/><path d="M9 14h6M9 18h4" {...s}/></svg>
     default: return null
@@ -62,15 +57,12 @@ function TabIcon({ id, color }: { id: string; color: string }) {
 }
 
 const TAB_COLORS: Record<string, string> = {
-  general: 'rgba(130,150,220,.6)', barbers: 'rgba(130,150,220,.6)', admins: 'rgba(130,220,170,.5)', students: 'rgba(180,140,220,.6)', requests: 'rgba(220,190,130,.5)', applications: 'rgba(220,130,160,.5)'
+  chat: 'rgba(130,150,220,.6)', requests: 'rgba(220,190,130,.5)', applications: 'rgba(220,130,160,.5)'
 }
 
-const TABS: { id: Tab; label: string; roles: string[] }[] = [
-  { id: 'general',  label: 'General',  roles: ['owner','admin','barber','student'] },
-  { id: 'barbers',  label: 'Team',  roles: ['owner','admin','barber'] },
-  { id: 'admins',   label: 'Admins',   roles: ['owner','admin'] },
-  { id: 'students', label: 'Students', roles: ['owner','admin','student'] },
-  { id: 'requests',     label: 'Requests',     roles: ['owner','admin','barber'] },
+const TABS: { id: TopTab; label: string; roles: string[] }[] = [
+  { id: 'chat', label: 'Chat', roles: ['owner','admin','barber','student'] },
+  { id: 'requests', label: 'Requests', roles: ['owner','admin','barber'] },
   { id: 'applications', label: 'Applications', roles: ['owner','admin'] },
 ]
 
@@ -104,6 +96,9 @@ const ROLE_GRADIENTS: Record<string, string> = {
 
 // ─── Reaction emojis ─────────────────────────────────────────────────────────
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '🔥', '👏', '😢']
+
+// ─── DM helper ───────────────────────────────────────────────────────────────
+function dmChatType(a: string, b: string) { return 'dm_' + [a, b].sort().join('_') }
 
 // ─── AudioPlayer ─────────────────────────────────────────────────────────────
 function AudioPlayer({ src, isOwn }: { src: string; isOwn: boolean }) {
@@ -481,7 +476,10 @@ function NewRequestModal({ onClose, onCreated }: { onClose: () => void; onCreate
 // ─── Messages Page ───────────────────────────────────────────────────────────
 export default function MessagesPage() {
   const [user, setUser] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<Tab>('general')
+  const [topTab, setTopTab] = useState<TopTab>('chat')
+  const [chatView, setChatView] = useState<'list' | 'conversation'>('list')
+  const [chatTarget, setChatTarget] = useState<{ chatType: string; label: string; photo?: string } | null>(null)
+  const [staffList, setStaffList] = useState<{id: string; name: string; photo_url?: string; role: string}[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [requests, setRequests] = useState<Request[]>([])
   const [applications, setApplications] = useState<Application[]>([])
@@ -506,17 +504,24 @@ export default function MessagesPage() {
   const streamRef = useRef<MediaStream | null>(null)
 
   // Show mic button but test actual support only on first tap (lazy check)
-  // This avoids calling getUserMedia on mount which crashes some iOS WebViews
   const [micTested, setMicTested] = useState(false)
   useEffect(() => { setVoiceSupported(true) }, []) // optimistic — hide on first failure
 
   useEffect(() => {
     try { setUser(JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || 'null')) } catch {}
-    // Re-read after Shell may have updated photo from API
     const t = setTimeout(() => {
       try { setUser(JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || 'null')) } catch {}
     }, 2000)
     return () => clearTimeout(t)
+  }, [])
+
+  // Load staff list on mount
+  useEffect(() => {
+    apiFetch('/api/barbers').then(r => {
+      if (Array.isArray(r)) setStaffList(r)
+      else if (r && Array.isArray(r.barbers)) setStaffList(r.barbers)
+      else setStaffList([])
+    }).catch(() => setStaffList([]))
   }, [])
 
   const role = user?.role || 'barber'
@@ -525,13 +530,16 @@ export default function MessagesPage() {
   const visibleTabs = TABS.filter(t => t.roles.includes(role))
 
   // Load messages
-  const loadMessages = useCallback(async () => {
-    if (activeTab === 'requests' || activeTab === 'applications') return
+  const loadMessages = useCallback(async (ct?: string) => {
+    const chatType = ct || chatTarget?.chatType
+    if (!chatType) return
     try {
-      const data = await apiFetch(`/api/messages?chatType=${activeTab}&limit=100`)
-      setMessages(Array.isArray(data?.messages) ? data.messages : [])
+      const res = await apiFetch(`/api/messages?chatType=${chatType}&limit=100`)
+      const data = Array.isArray(res?.messages) ? res.messages : Array.isArray(res) ? res : []
+      const mapped = data.map((m: any) => ({ ...m, text: m.content || m.text || '', senderId: m.sender_id || m.senderId, senderName: m.sender_name || m.senderName, senderRole: m.sender_role || m.senderRole, senderPhoto: m.senderPhoto || m.sender_photo }))
+      setMessages(mapped)
     } catch { /* ignore */ }
-  }, [activeTab])
+  }, [chatTarget?.chatType])
 
   // Toggle reaction on a message
   async function handleReaction(msgId: string, emoji: string) {
@@ -539,7 +547,6 @@ export default function MessagesPage() {
       const data = await apiFetch(`/api/messages/${encodeURIComponent(msgId)}/reactions`, {
         method: 'PATCH', body: JSON.stringify({ emoji })
       })
-      // Update local state
       setMessages(prev => prev.map(m => m.id === msgId ? { ...m, reactions: data.reactions || {} } : m))
     } catch {}
   }
@@ -562,25 +569,26 @@ export default function MessagesPage() {
 
   // Initial load + polling
   useEffect(() => {
-    // Only show loading on first load when no data yet
     const hasData = messages.length > 0 || requests.length > 0 || applications.length > 0
     if (!hasData) setLoading(true)
-    if (activeTab === 'requests') {
+    if (topTab === 'requests') {
       loadRequests().then(() => setLoading(false))
-    } else if (activeTab === 'applications') {
+    } else if (topTab === 'applications') {
       loadApplications().then(() => setLoading(false))
-    } else {
+    } else if (topTab === 'chat' && chatView === 'conversation' && chatTarget) {
       loadMessages().then(() => setLoading(false))
+    } else {
+      setLoading(false)
     }
     const interval = setInterval(() => {
-      if (activeTab === 'requests') loadRequests()
-      else if (activeTab === 'applications') loadApplications()
-      else loadMessages()
+      if (topTab === 'requests') loadRequests()
+      else if (topTab === 'applications') loadApplications()
+      else if (topTab === 'chat' && chatView === 'conversation' && chatTarget) loadMessages()
     }, 10000)
     return () => clearInterval(interval)
-  }, [activeTab, loadMessages, loadRequests, loadApplications])
+  }, [topTab, chatView, chatTarget, loadMessages, loadRequests, loadApplications])
 
-  // Fix mobile keyboard pushing content — reset scroll position on blur
+  // Fix mobile keyboard pushing content
   useEffect(() => {
     const vv = window.visualViewport
     if (!vv) return
@@ -588,14 +596,12 @@ export default function MessagesPage() {
       const container = document.querySelector('.msg-container') as HTMLElement
       if (!container) return
       container.style.height = `${vv!.height}px`
-      // Prevent iOS Safari from scrolling the page up
       window.scrollTo(0, 0)
       document.documentElement.scrollTop = 0
       document.body.scrollTop = 0
     }
     vv.addEventListener('resize', onResize)
     vv.addEventListener('scroll', onResize)
-    // Also reset on any input blur (keyboard close)
     function onBlur() {
       setTimeout(() => {
         window.scrollTo(0, 0)
@@ -631,12 +637,12 @@ export default function MessagesPage() {
   }
 
   async function sendMessage() {
-    if ((!input.trim() && !imagePreview && !filePreview) || sending) return
+    if ((!input.trim() && !imagePreview && !filePreview) || sending || !chatTarget) return
     setSending(true)
     try {
       let userPhoto = user?.photo || ''
       try { const fresh = JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}'); userPhoto = fresh?.photo || userPhoto } catch {}
-      const body: any = { chatType: activeTab, text: input.trim(), senderPhoto: userPhoto }
+      const body: any = { chatType: chatTarget.chatType, text: input.trim(), senderPhoto: userPhoto }
       if (imagePreview) body.imageUrl = imagePreview
       if (filePreview) { body.fileUrl = filePreview.dataUrl; body.fileName = filePreview.name }
       await apiFetch('/api/messages', { method: 'POST', body: JSON.stringify(body) })
@@ -651,7 +657,6 @@ export default function MessagesPage() {
   async function startRecording() {
     if (!voiceSupported) return
 
-    // First-time check: verify APIs exist before calling them
     if (!micTested) {
       setMicTested(true)
       try {
@@ -659,18 +664,16 @@ export default function MessagesPage() {
           setVoiceSupported(false)
           return
         }
-        // Check permission state if available (without triggering prompt)
         if (navigator.permissions?.query) {
           try {
             const perm = await navigator.permissions.query({ name: 'microphone' as PermissionName })
             if (perm.state === 'denied') { setVoiceSupported(false); return }
-          } catch {} // permissions.query not supported — proceed
+          } catch {}
         }
       } catch { setVoiceSupported(false); return }
     }
 
     try {
-      // This triggers the system permission dialog on first call
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
       let mimeType = ''
@@ -699,7 +702,7 @@ export default function MessagesPage() {
       try { streamRef.current?.getTracks().forEach(t => t.stop()) } catch {}
       streamRef.current = null
       setIsRecording(false)
-      setVoiceSupported(false) // Hide mic button permanently if it fails
+      setVoiceSupported(false)
     }
   }
 
@@ -714,7 +717,6 @@ export default function MessagesPage() {
         const reader = new FileReader()
         reader.onloadend = () => resolve(reader.result as string)
         reader.readAsDataURL(blob)
-        // Clean up stream
         streamRef.current?.getTracks().forEach(t => t.stop())
         streamRef.current = null
       }
@@ -728,12 +730,12 @@ export default function MessagesPage() {
     try {
       if (isRecording) {
         const audioUrl = await stopRecording()
-        if (audioUrl) {
+        if (audioUrl && chatTarget) {
           setSending(true)
           try {
             let userPhoto = user?.photo || ''
             try { const fresh = JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}'); userPhoto = fresh?.photo || userPhoto } catch {}
-            await apiFetch('/api/messages', { method: 'POST', body: JSON.stringify({ chatType: activeTab, text: '', senderPhoto: userPhoto, audioUrl }) })
+            await apiFetch('/api/messages', { method: 'POST', body: JSON.stringify({ chatType: chatTarget.chatType, text: '', senderPhoto: userPhoto, audioUrl }) })
             wasAtBottom.current = true
             await loadMessages()
           } catch (e: any) { console.warn(e.message) }
@@ -783,7 +785,6 @@ export default function MessagesPage() {
   async function reviewRequest(id: string, status: 'approved' | 'rejected') {
     try {
       await apiFetch(`/api/requests/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ status }) })
-      // When approving a block_time request, create the actual booking
       if (status === 'approved') {
         const req = requests.find(r => r.id === id)
         if (req?.type === 'block_time' && req.data) {
@@ -802,14 +803,47 @@ export default function MessagesPage() {
     } catch (e: any) { alert(e.message) }
   }
 
+  // Navigation helpers
+  function openChat(chatType: string, label: string, photo?: string) {
+    setChatTarget({ chatType, label, photo })
+    setChatView('conversation')
+    setMessages([])
+    setLoading(true)
+    // load messages for this chat
+    apiFetch(`/api/messages?chatType=${chatType}&limit=100`).then(res => {
+      const data = Array.isArray(res?.messages) ? res.messages : Array.isArray(res) ? res : []
+      const mapped = data.map((m: any) => ({ ...m, text: m.content || m.text || '', senderId: m.sender_id || m.senderId, senderName: m.sender_name || m.senderName, senderRole: m.sender_role || m.senderRole, senderPhoto: m.senderPhoto || m.sender_photo }))
+      setMessages(mapped)
+      setLoading(false)
+      wasAtBottom.current = true
+      setTimeout(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight }, 50)
+    }).catch(() => setLoading(false))
+  }
+
+  function goBackToList() {
+    setChatView('list')
+    setChatTarget(null)
+    setMessages([])
+  }
+
+  function handleTabChange(tab: TopTab) {
+    setTopTab(tab)
+    setChatView('list')
+    setChatTarget(null)
+    setMessages([])
+  }
+
   const hasContent = input.trim() || imagePreview || filePreview
   const fmtDur = (s: number) => { const m = Math.floor(s / 60); const sec = s % 60; return `${m}:${sec.toString().padStart(2, '0')}` }
+
+  // Staff list excluding current user
+  const otherStaff = staffList.filter(s => s.id !== uid)
 
   return (
     <Shell page="Messages"><FeatureGate feature="messages" label="Messages" requiredPlan="salon">
 
       {/* Loading — inline spinner, no fullscreen overlay */}
-      {loading && messages.length === 0 && requests.length === 0 && applications.length === 0 && (
+      {loading && messages.length === 0 && requests.length === 0 && applications.length === 0 && chatView === 'conversation' && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(1,1,1,.8)' }}>
           <div style={{ width: 24, height: 24, border: '2px solid rgba(255,255,255,.10)', borderTop: '2px solid rgba(255,255,255,.50)', borderRadius: '50%', animation: 'msgLoadSpin .8s linear infinite' }} />
           <style>{`@keyframes msgLoadSpin { to { transform: rotate(360deg) } }`}</style>
@@ -850,33 +884,38 @@ export default function MessagesPage() {
         }
         .msg-tabs-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
         .msg-tabs-scroll::-webkit-scrollbar { display: none; }
+        .chat-list-item { transition: background .15s ease; }
+        .chat-list-item:active { background: rgba(255,255,255,.08) !important; }
       `}</style>
 
       <div className="msg-container" style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Inter,sans-serif', color: '#e8e8ed' }}>
-        {/* Compact tab bar */}
-        <div className="msg-tabs msg-tabs-scroll" style={{ display: 'flex', gap: 6, padding: '10px 18px', borderBottom: '1px solid rgba(255,255,255,.06)', overflowX: 'auto', flexShrink: 0 }}>
-          {visibleTabs.map(t => {
-            const isActive = activeTab === t.id
-            return (
-              <button key={t.id} className="msg-tab" onClick={() => setActiveTab(t.id)}
-                style={{
-                  height: 32, padding: '0 12px', borderRadius: 999,
-                  border: `1px solid ${isActive ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.06)'}`,
-                  background: isActive ? 'rgba(255,255,255,.08)' : 'transparent',
-                  color: isActive ? '#e8e8ed' : 'rgba(255,255,255,.35)',
-                  cursor: 'pointer', fontWeight: isActive ? 600 : 400, fontSize: 11, fontFamily: 'inherit',
-                  whiteSpace: 'nowrap', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5,
-                  transition: 'all .2s ease',
-                }}>
-                <TabIcon id={t.id} color={isActive ? (TAB_COLORS[t.id] || '#fff') : 'rgba(255,255,255,.25)'} /> {t.label}
-              </button>
-            )
-          })}
-        </div>
+        {/* Top tab bar — only show when NOT in conversation view */}
+        {!(topTab === 'chat' && chatView === 'conversation') && (
+          <div className="msg-tabs msg-tabs-scroll" style={{ display: 'flex', gap: 6, padding: '10px 18px', borderBottom: '1px solid rgba(255,255,255,.06)', overflowX: 'auto', flexShrink: 0 }}>
+            {visibleTabs.map(t => {
+              const isActive = topTab === t.id
+              return (
+                <button key={t.id} className="msg-tab" onClick={() => handleTabChange(t.id)}
+                  style={{
+                    height: 32, padding: '0 12px', borderRadius: 999,
+                    border: `1px solid ${isActive ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.06)'}`,
+                    background: isActive ? 'rgba(255,255,255,.08)' : 'transparent',
+                    color: isActive ? '#e8e8ed' : 'rgba(255,255,255,.35)',
+                    cursor: 'pointer', fontWeight: isActive ? 600 : 400, fontSize: 11, fontFamily: 'inherit',
+                    whiteSpace: 'nowrap', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5,
+                    transition: 'all .2s ease',
+                  }}>
+                  <TabIcon id={t.id} color={isActive ? (TAB_COLORS[t.id] || '#fff') : 'rgba(255,255,255,.25)'} /> {t.label}
+                </button>
+              )
+            })}
+          </div>
+        )}
 
-        {/* Content */}
-        {activeTab === 'applications' ? (
-          /* Applications tab */
+        {/* ─── CONTENT ─── */}
+
+        {/* ─── Applications tab ─── */}
+        {topTab === 'applications' ? (
           <div className="msg-list" style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
             {loading && !messages.length && !requests.length && !applications.length && <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 40 }}><div style={{ width: 20, height: 20, border: '2px solid rgba(255,255,255,.08)', borderTop: '2px solid rgba(255,255,255,.40)', borderRadius: '50%', animation: 'msgSpin .8s linear infinite' }} /><style>{`@keyframes msgSpin{to{transform:rotate(360deg)}}`}</style></div>}
             {!loading && applications.length === 0 && (
@@ -937,7 +976,9 @@ export default function MessagesPage() {
               )
             })}
           </div>
-        ) : activeTab === 'requests' ? (
+
+        ) : topTab === 'requests' ? (
+          /* ─── Requests tab ─── */
           <div className="msg-list" style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
             {(role === 'barber') && (
               <div style={{ padding: '12px 14px', borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', marginBottom: 12, fontSize: 12, color: 'rgba(255,255,255,.40)', lineHeight: 1.5 }}>
@@ -956,11 +997,95 @@ export default function MessagesPage() {
               <RequestCard key={req.id} req={req} isOwnerOrAdmin={isOwnerOrAdmin} onReview={reviewRequest} />
             ))}
           </div>
+
+        ) : topTab === 'chat' && chatView === 'list' ? (
+          /* ─── Chat List View ─── */
+          <div className="msg-list" style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
+            {/* Team Chat card */}
+            <button className="chat-list-item" onClick={() => openChat('team', 'Team Chat')}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 18, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'saturate(180%) blur(20px)', cursor: 'pointer', marginBottom: 16, textAlign: 'left', fontFamily: 'inherit', color: 'inherit' }}>
+              {/* Group icon */}
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: 'linear-gradient(135deg, rgba(130,150,220,.25), rgba(130,150,220,.10))', border: '1px solid rgba(130,150,220,.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(130,150,220,.8)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#e8e8ed' }}>Team Chat</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', marginTop: 1 }}>All staff</div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.20)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            {/* Direct Messages header */}
+            {otherStaff.length > 0 && (
+              <>
+                <div style={{ fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.30)', fontWeight: 700, padding: '0 4px 8px', marginTop: 4 }}>Direct Messages</div>
+                {otherStaff.map(s => {
+                  const staffRole = s.role || 'barber'
+                  const rc = ROLE_COLORS[staffRole] || 'rgba(255,255,255,.30)'
+                  const rg = ROLE_GRADIENTS[staffRole] || 'rgba(255,255,255,.10)'
+                  return (
+                    <button key={s.id} className="chat-list-item" onClick={() => openChat(dmChatType(uid, s.id), s.name, s.photo_url)}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 14, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)', cursor: 'pointer', marginBottom: 4, textAlign: 'left', fontFamily: 'inherit', color: 'inherit' }}>
+                      {/* Avatar */}
+                      {s.photo_url ? (
+                        <img src={s.photo_url} alt="" style={{ width: 38, height: 38, borderRadius: 999, objectFit: 'cover', border: '1.5px solid rgba(255,255,255,.12)', flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: 38, height: 38, borderRadius: 999, background: rg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#1a1a2e', flexShrink: 0 }}>
+                          {initials(s.name)}
+                        </div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#e8e8ed' }}>{s.name}</div>
+                      </div>
+                      <span style={{ fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: 999, border: `1px solid ${rc}`, color: rc, fontWeight: 700, opacity: .7, flexShrink: 0 }}>{staffRole}</span>
+                    </button>
+                  )
+                })}
+              </>
+            )}
+
+            {otherStaff.length === 0 && !loading && (
+              <div style={{ textAlign: 'center', padding: 20, color: 'rgba(255,255,255,.20)', fontSize: 12 }}>No other staff members found</div>
+            )}
+          </div>
+
         ) : (
+          /* ─── Conversation View ─── */
           <>
+            {/* Conversation header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0 }}>
+              <button onClick={goBackToList}
+                style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: '#e8e8ed', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              {chatTarget?.photo ? (
+                <img src={chatTarget.photo} alt="" style={{ width: 32, height: 32, borderRadius: 999, objectFit: 'cover', border: '1.5px solid rgba(255,255,255,.12)', flexShrink: 0 }} />
+              ) : chatTarget?.chatType === 'general' ? (
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg, rgba(130,150,220,.25), rgba(130,150,220,.10))', border: '1px solid rgba(130,150,220,.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(130,150,220,.8)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                </div>
+              ) : (
+                <div style={{ width: 32, height: 32, borderRadius: 999, background: 'rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,.50)', flexShrink: 0 }}>
+                  {chatTarget ? initials(chatTarget.label) : '?'}
+                </div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#e8e8ed', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{chatTarget?.label || 'Chat'}</div>
+                {chatTarget?.chatType === 'general' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.30)' }}>All staff</div>}
+              </div>
+            </div>
+
+            {/* Messages list */}
             <div ref={listRef} className="msg-list" onScroll={onScroll}
               style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 12, paddingBottom: 8 }}>
-              {loading && !messages.length && !requests.length && !applications.length && <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 40 }}><div style={{ width: 20, height: 20, border: '2px solid rgba(255,255,255,.08)', borderTop: '2px solid rgba(255,255,255,.40)', borderRadius: '50%', animation: 'msgSpin .8s linear infinite' }} /><style>{`@keyframes msgSpin{to{transform:rotate(360deg)}}`}</style></div>}
+              {loading && messages.length === 0 && <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 40 }}><div style={{ width: 20, height: 20, border: '2px solid rgba(255,255,255,.08)', borderTop: '2px solid rgba(255,255,255,.40)', borderRadius: '50%', animation: 'msgSpin .8s linear infinite' }} /><style>{`@keyframes msgSpin{to{transform:rotate(360deg)}}`}</style></div>}
               {!loading && messages.length === 0 && (
                 <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,.20)' }}>
                   <div style={{ marginBottom: 8 }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.15)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
@@ -974,6 +1099,8 @@ export default function MessagesPage() {
                 return <MessageBubble key={msg.id} msg={msg} isOwn={msg.senderId === uid} onImageClick={url => setLightboxUrl(url)} isGrouped={isGrouped} onReaction={handleReaction} myUid={uid} />
               })}
             </div>
+
+            {/* Attachment previews */}
             {(imagePreview || filePreview) && (
               <div style={{ padding: '8px 16px 0', flexShrink: 0, display: 'flex', gap: 8, alignItems: 'center' }}>
                 {imagePreview && <img src={imagePreview} alt="" style={{ width: 60, height: 60, borderRadius: 10, objectFit: 'cover', border: '1px solid rgba(255,255,255,.14)' }} />}
@@ -988,6 +1115,7 @@ export default function MessagesPage() {
                 </button>
               </div>
             )}
+
             {/* Input Bar — glass style */}
             <div style={{ padding: '4px 10px', paddingBottom: 'max(6px, env(safe-area-inset-bottom))', flexShrink: 0, display: 'flex', gap: 6, alignItems: 'center', background: 'rgba(18,18,18,.50)', backdropFilter: 'blur(30px) saturate(180%)', WebkitBackdropFilter: 'blur(30px) saturate(180%)', borderTop: '1px solid rgba(255,255,255,.04)' } as React.CSSProperties}>
               {isRecording && voiceSupported ? (
@@ -1050,14 +1178,12 @@ export default function MessagesPage() {
                     placeholder="Type a message..."
                     style={{ flex: 1, height: 36, borderRadius: 18, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.06)', color: '#fff', padding: '0 14px', outline: 'none', fontSize: 13, fontFamily: 'inherit', transition: 'border-color .2s, box-shadow .2s' }} />
                   {hasContent ? (
-                    /* Send button with glow */
                     <button onClick={sendMessage} disabled={sending}
                       className="msg-send-glow"
                       style={{ width: 34, height: 34, borderRadius: 999, border: 'none', background: 'linear-gradient(135deg, rgba(255,255,255,.15), rgba(255,255,255,.10))', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .2s' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                     </button>
                   ) : voiceSupported ? (
-                    /* Mic button — only shown if device supports recording */
                     <button onClick={handleVoiceToggle}
                       style={{ width: 34, height: 34, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.45)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .2s' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="1" width="6" height="12" rx="3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>

@@ -2293,7 +2293,10 @@ app.delete('/api/reviews/:id', requireRole('owner', 'admin'), async (req, res) =
 app.get('/api/messages', requirePlanFeature('messages'), async (req, res) => {
   try {
     const chatType = safeStr(req.query?.chatType || 'general');
-    const snap = await req.ws('messages').where('chatType', '==', chatType).orderBy('createdAt', 'desc').limit(100).get();
+    // 'team' includes old 'general' messages for backward compat
+    const snap = chatType === 'team'
+      ? await req.ws('messages').where('chatType', 'in', ['team', 'general']).orderBy('createdAt', 'desc').limit(100).get()
+      : await req.ws('messages').where('chatType', '==', chatType).orderBy('createdAt', 'desc').limit(100).get();
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -2302,19 +2305,35 @@ app.post('/api/messages', requirePlanFeature('messages'), async (req, res) => {
   try {
     const b = req.body || {};
     const doc = {
-      content: sanitizeHtml(safeStr(b.content)),
+      content: sanitizeHtml(safeStr(b.content || b.text)),
       chatType: safeStr(b.chatType || 'general'),
       sender_id: req.user.uid,
       sender_name: req.user.name || req.user.username,
       sender_role: req.user.role,
       createdAt: toIso(new Date()),
     };
-    if (!doc.content) return res.status(400).json({ error: 'content required' });
+    // Allow media-only messages (image, audio, file)
+    if (b.imageUrl) doc.imageUrl = safeStr(b.imageUrl);
+    if (b.audioUrl) doc.audioUrl = safeStr(b.audioUrl);
+    if (b.fileUrl) doc.fileUrl = safeStr(b.fileUrl);
+    if (b.fileName) doc.fileName = safeStr(b.fileName);
+    if (b.senderPhoto) doc.senderPhoto = safeStr(b.senderPhoto);
+    if (!doc.content && !doc.imageUrl && !doc.audioUrl && !doc.fileUrl) return res.status(400).json({ error: 'content required' });
     const ref = await req.ws('messages').add(doc);
-    // Push notification for new messages
-    const chatRoleMap = { general: ['owner', 'admin', 'barber'], barbers: ['barber'], admins: ['owner', 'admin'], students: ['student'] };
-    const targetRoles = chatRoleMap[doc.chatType] || ['owner', 'admin', 'barber'];
-    sendCrmPushToRoles(req.ws, targetRoles, `Chat: ${doc.sender_name}`, doc.content.slice(0, 100), { type: 'message', chatType: doc.chatType }).catch(() => {});
+    // Push notification — DMs go to specific user, group chats broadcast by role
+    const pushTitle = doc.chatType.startsWith('dm_') ? doc.sender_name : `Chat: ${doc.sender_name}`;
+    const pushBody = doc.content ? doc.content.slice(0, 100) : (doc.imageUrl ? '📷 Photo' : doc.audioUrl ? '🎤 Voice' : '📎 File');
+    const pushData = { type: 'message', chatType: doc.chatType };
+    if (doc.chatType.startsWith('dm_')) {
+      // DM: push only to the other user
+      const parts = doc.chatType.split('_');
+      const otherUid = parts[1] === req.user.uid ? parts[2] : parts[1];
+      sendCrmPush(req.ws, otherUid, pushTitle, pushBody, pushData).catch(() => {});
+    } else {
+      const chatRoleMap = { general: ['owner', 'admin', 'barber'], team: ['owner', 'admin', 'barber'], barbers: ['barber'], admins: ['owner', 'admin'], students: ['student'] };
+      const targetRoles = chatRoleMap[doc.chatType] || ['owner', 'admin', 'barber'];
+      sendCrmPushToRoles(req.ws, targetRoles, pushTitle, pushBody, pushData).catch(() => {});
+    }
     res.status(201).json({ id: ref.id, ...doc });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
