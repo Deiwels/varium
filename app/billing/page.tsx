@@ -403,66 +403,80 @@ export default function BillingPage() {
         )}
       </div>
 
-      {/* ─── Fullscreen Checkout Page ────────────────────────────────────── */}
+      {/* ─── Fullscreen Checkout Page (like /book style) ──────────────── */}
       {checkoutPlan && clientSecret && stripePromise && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
-          overflowY: 'auto', background: '#010101',
+          overflowY: 'auto', background: '#0a0a0a',
+          fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
         }}>
-          {/* Hide Shell */}
-          <style>{`.top-bar,.pill-bar,.shell>*:not(:last-child){display:none!important;}`}</style>
+          {/* Hide Shell completely */}
+          <style>{`
+            .top-bar,.pill-bar,.shell,.content{display:none!important;}
+            @keyframes checkoutStarBreathe {
+              0%, 100% { opacity: 0.15; transform: scale(0.8); box-shadow: 0 0 3px 1px rgba(200,220,255,.08); }
+              50% { opacity: 0.6; transform: scale(1.3); box-shadow: 0 0 8px 3px rgba(200,220,255,.15); }
+            }
+          `}</style>
 
-          {/* Stars background */}
+          {/* Cosmic background — matches /book dark template */}
           <div style={{ position: 'fixed', inset: 0, zIndex: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-            {Array.from({ length: 60 }, (_, i) => (
-              <div key={i} style={{
+            {/* Static stars */}
+            {Array.from({ length: 80 }, (_, i) => (
+              <div key={`s${i}`} style={{
                 position: 'absolute',
-                left: `${(i * 17.3 + 5) % 100}%`,
-                top: `${(i * 23.7 + 11) % 100}%`,
-                width: i % 5 === 0 ? 2 : 1,
-                height: i % 5 === 0 ? 2 : 1,
+                left: `${(i * 13.7 + 3) % 100}%`,
+                top: `${(i * 19.3 + 7) % 100}%`,
+                width: i % 8 === 0 ? 1.5 : i % 3 === 0 ? 1 : 0.5,
+                height: i % 8 === 0 ? 1.5 : i % 3 === 0 ? 1 : 0.5,
                 borderRadius: 999,
                 background: '#fff',
-                opacity: 0.08 + (i % 7) * 0.04,
+                opacity: 0.1 + (i % 5) * 0.08,
+              }} />
+            ))}
+            {/* Breathing glow stars */}
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={`g${i}`} style={{
+                position: 'absolute',
+                left: `${15 + i * 18}%`,
+                top: `${10 + i * 17}%`,
+                width: 3, height: 3, borderRadius: 999,
+                background: 'rgba(200,220,255,.5)',
+                animation: `checkoutStarBreathe ${3.5 + i * 0.4}s ease-in-out ${i * 0.8}s infinite`,
               }} />
             ))}
           </div>
 
           {/* Content */}
-          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'calc(var(--sat, 0px) + 8px) 20px calc(var(--sab, 0px) + 20px)', minHeight: '100vh' }}>
+          <div style={{ position: 'relative', zIndex: 2, maxWidth: 440, margin: '0 auto', padding: 'calc(var(--sat, 16px) + 12px) 24px calc(var(--sab, 16px) + 24px)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
 
-            {/* Back button */}
-            <div style={{ width: '100%', maxWidth: 420, display: 'flex', justifyContent: 'flex-start', padding: '16px 0 12px' }}>
+            {/* Header row: back + title */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>
               <button onClick={() => { setCheckoutPlan(null); setClientSecret('') }} style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 999,
+                width: 36, height: 36, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)',
-                color: 'rgba(255,255,255,.50)', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+                color: 'rgba(255,255,255,.45)', cursor: 'pointer', flexShrink: 0,
               }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                Back
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
               </button>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#e8e8ed', letterSpacing: '-.02em' }}>VuriumBook {checkoutPlan.name}</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.30)' }}>Monthly subscription</div>
+              </div>
             </div>
 
-            {/* Title */}
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,.25)', marginBottom: 6 }}>Subscribe to</div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: '#e8e8ed' }}>VuriumBook {checkoutPlan.name}</div>
-            </div>
-
-            {/* Form container */}
-            <div style={{ width: '100%', maxWidth: 420 }}>
-              <Elements stripe={stripePromise} options={{
-                clientSecret,
-                appearance: stripeAppearance,
-                loader: 'auto',
-              }}>
-                <CheckoutForm
-                  plan={checkoutPlan}
-                  onSuccess={onCheckoutSuccess}
-                  onCancel={() => { setCheckoutPlan(null); setClientSecret('') }}
-                />
-              </Elements>
-            </div>
+            {/* Stripe Elements */}
+            <Elements stripe={stripePromise} options={{
+              clientSecret,
+              appearance: stripeAppearance,
+              loader: 'auto',
+            }}>
+              <CheckoutForm
+                plan={checkoutPlan}
+                onSuccess={onCheckoutSuccess}
+                onCancel={() => { setCheckoutPlan(null); setClientSecret('') }}
+              />
+            </Elements>
           </div>
         </div>
       )}
