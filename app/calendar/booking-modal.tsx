@@ -688,7 +688,7 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
           const st = String(s?.status || '').toUpperCase()
           if (st === 'COMPLETED') {
             clearInterval(pollRef.current); setPolling(false); setActiveCheckoutId(null)
-            const tip = Number(s?.raw?.tip_money?.amount || 0) / 100
+            const tip = Number(s?.tip_money?.amount || s?.tip_cents || 0) / 100
             setHint('Payment completed ✓'); setHintType('success'); onPayment('terminal', tip)
           } else if (st === 'CANCELED' || st.includes('CANCEL')) {
             clearInterval(pollRef.current); setPolling(false); setActiveCheckoutId(null)
@@ -696,7 +696,7 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
           } else if (st === 'IN_PROGRESS') {
             setHint('Customer is completing payment on Terminal…'); setHintType('info')
           }
-        } catch {}
+        } catch (err) { console.warn('Terminal poll error:', err) }
       }, 3000)
     } catch (e: any) { setHint('Error: ' + e.message); setHintType('error'); setPolling(false) }
   }

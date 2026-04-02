@@ -556,10 +556,13 @@ const BookingCreateSchema = z.object({
 const BookingPatchSchema = BookingCreateSchema.partial().extend({
   payment_status: z.enum(['paid', 'unpaid']).optional(),
   payment_method: z.string().max(40).optional(),
+  payment_id: z.string().max(200).optional(),
   tip: z.number().min(0).optional(),
   tip_amount: z.number().min(0).optional(),
   amount: z.number().min(0).optional(),
   service_amount: z.number().min(0).optional(),
+  tax_amount: z.number().min(0).optional(),
+  fee_amount: z.number().min(0).optional(),
 });
 
 const ClientCreateSchema = z.object({
@@ -2943,10 +2946,21 @@ app.post('/api/payments/terminal', async (req, res) => {
       const doc = {
         booking_id: bookingId, amount_cents: amountCents, payment_method: paymentMethod,
         status: 'completed', created_by: req.user.uid, created_at: toIso(new Date()),
+        client_name: safeStr(b.client_name || ''),
+        service_name: safeStr(b.service_name || ''),
+        service_amount: Number(b.service_amount || 0),
+        tax_amount: Number(b.tax_amount || 0),
+        fee_amount: Number(b.fee_amount || 0),
+        tip_amount: Number(b.tip_amount || 0),
       };
       const ref = await req.ws('payment_requests').add(doc);
       if (bookingId) {
-        await req.ws('bookings').doc(bookingId).update({ payment_status: 'paid', paid: true, payment_method: paymentMethod, updated_at: toIso(new Date()) }).catch(() => {});
+        const bookingPatch = { payment_status: 'paid', paid: true, payment_method: paymentMethod, amount: amountCents / 100, updated_at: toIso(new Date()) };
+        if (b.tip_amount) bookingPatch.tip_amount = Number(b.tip_amount);
+        if (b.tax_amount) bookingPatch.tax_amount = Number(b.tax_amount);
+        if (b.fee_amount) bookingPatch.fee_amount = Number(b.fee_amount);
+        if (b.service_amount) bookingPatch.service_amount = Number(b.service_amount);
+        await req.ws('bookings').doc(bookingId).update(bookingPatch).catch(() => {});
       }
       return res.status(201).json({ id: ref.id, ...doc });
     }
