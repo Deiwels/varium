@@ -72,7 +72,7 @@ function Chip({ label, type }: { label: string; type: string }) {
 function KpiCard({ title, value, sub, color }: { title: string; value: string; sub: string; color?: string }) {
   const dots: Record<string, string> = { ok: 'rgba(130,220,170,.6)', bad: '#ff6b6b', blue: 'rgba(255,255,255,.4)', gold: 'rgba(220,190,100,.6)' }
   return (
-    <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.025)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', padding: '12px 14px' }}>
+    <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.025)', padding: '12px 14px' }}>
       <div style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 6 }}>{title}</div>
       <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-.02em', lineHeight: 1, color: '#e8e8ed' }}>{value}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,.4)' }}>
@@ -161,6 +161,7 @@ export default function DashboardPage() {
   const [isMobile, setIsMobile] = useState(false)
   const [homePage, setHomePage] = useState(0)
   const [jiggleMode, setJiggleMode] = useState(false)
+  const [showAddSheet, setShowAddSheet] = useState(false)
   const [homeLayout, setHomeLayout] = useState<string[]>([]) // item IDs in order
   const homeSwipeRef = useRef<{ startX: number; startY: number } | null>(null)
   const jiggleTimerRef = useRef<any>(null)
@@ -706,7 +707,7 @@ export default function DashboardPage() {
 
         // Render widget content
         const renderWidget = (item: HItem) => {
-          const ws = { borderRadius: 16, background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,.06)', padding: '12px 12px 10px', minHeight: 76 } as React.CSSProperties
+          const ws = { borderRadius: 16, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)', padding: '12px 12px 10px', minHeight: 76 } as React.CSSProperties
           const wl: React.CSSProperties = { fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }
           switch (item.id) {
             case 'w_clock': return <div style={{...ws, display: 'flex', alignItems: 'center', justifyContent: 'center'}}><ClockWidget /></div>
@@ -841,7 +842,7 @@ export default function DashboardPage() {
             {/* Pages */}
             <div style={{ flex: 1, display: 'flex', transition: 'transform .35s cubic-bezier(.25,.1,.25,1)', transform: `translateX(-${homePage * 100}%)`, minHeight: 0 }}>
               {pages.map((pg, pi) => (
-                <div key={pi} style={{ minWidth: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 16px', gap: GAP }}>
+                <div key={pi} style={{ minWidth: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', padding: '8px 16px 0', gap: GAP }}>
                   {/* Render rows for this page */}
                   {Array.from({ length: pg.endRow - pg.startRow + 1 }, (_, ri) => {
                     const r = pg.startRow + ri
@@ -859,7 +860,7 @@ export default function DashboardPage() {
                               )}
                               {isWidget ? renderWidget(c.item) : (
                                 <a href={c.item.href} onClick={e => { if (jiggleMode) e.preventDefault() }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, textDecoration: 'none', padding: '4px 0' }}>
-                                  <div style={{ width: 60, height: 60, borderRadius: 15, background: 'rgba(255,255,255,.06)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.55)' }}>
+                                  <div style={{ width: 60, height: 60, borderRadius: 15, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.55)' }}>
                                     {iconSvgs[c.item.label] || iconSvgs.Calendar}
                                   </div>
                                   <span style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.1, fontWeight: 500 }}>{c.item.label}</span>
@@ -871,14 +872,10 @@ export default function DashboardPage() {
                       </div>
                     )
                   })}
-                  {/* Add back hidden items — shown on every page in edit mode */}
-                  {jiggleMode && hiddenItems.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 12 }}>
-                      {hiddenItems.map(hi => (
-                        <button key={hi.id} onClick={e => { e.stopPropagation(); addItem(hi.id) }} style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', color: 'rgba(255,255,255,.60)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span style={{ fontSize: 14, fontWeight: 300, lineHeight: 1 }}>+</span> {hi.label}
-                        </button>
-                      ))}
+                  {/* Add widget "+" button — only in edit mode, only on last page */}
+                  {jiggleMode && hiddenItems.length > 0 && pi === pages.length - 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
+                      <button onClick={e => { e.stopPropagation(); setShowAddSheet(true) }} style={{ width: 44, height: 44, borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.55)', fontSize: 22, fontWeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>+</button>
                     </div>
                   )}
                 </div>
@@ -887,12 +884,30 @@ export default function DashboardPage() {
 
             {/* Done button in jiggle mode */}
             {jiggleMode && (
-              <button onClick={e => { e.stopPropagation(); setJiggleMode(false) }} style={{ position: 'absolute', top: 8, right: 16, zIndex: 20, padding: '6px 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.10)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Done</button>
+              <button onClick={e => { e.stopPropagation(); setJiggleMode(false); setShowAddSheet(false) }} style={{ position: 'absolute', top: 8, right: 16, zIndex: 20, padding: '6px 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Done</button>
             )}
 
-            {/* Page dots */}
+            {/* Add widget sheet */}
+            {showAddSheet && hiddenItems.length > 0 && (
+              <div style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }} onClick={() => setShowAddSheet(false)}>
+                <div style={{ background: 'rgba(0,0,0,.7)', position: 'absolute', inset: 0 }} />
+                <div onClick={e => e.stopPropagation()} style={{ position: 'relative', background: 'rgba(20,20,20,.95)', borderRadius: '20px 20px 0 0', border: '1px solid rgba(255,255,255,.08)', borderBottom: 'none', padding: '16px 20px 24px', maxHeight: '50%', overflowY: 'auto' }}>
+                  <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,.15)', margin: '0 auto 16px' }} />
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.55)', marginBottom: 14, letterSpacing: '.06em', textTransform: 'uppercase' }}>Add Widget</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {hiddenItems.map(hi => (
+                      <button key={hi.id} onClick={e => { e.stopPropagation(); addItem(hi.id); if (hiddenItems.length <= 1) setShowAddSheet(false) }} style={{ padding: '10px 18px', borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.70)', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 16, fontWeight: 300, lineHeight: 1, color: 'rgba(255,255,255,.4)' }}>+</span> {hi.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Page dots — below content, above pill bar */}
             {totalPages > 1 && (
-              <div style={{ position: 'absolute', bottom: 52, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6, pointerEvents: 'none' }}>
+              <div style={{ flex: '0 0 auto', display: 'flex', justifyContent: 'center', gap: 6, padding: '10px 0 6px', pointerEvents: 'none' }}>
                 {Array.from({ length: totalPages }, (_, i) => (
                   <div key={i} style={{ width: homePage === i ? 7 : 5, height: homePage === i ? 7 : 5, borderRadius: 999, background: homePage === i ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.15)', transition: 'all .25s ease' }} />
                 ))}
