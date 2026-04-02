@@ -295,7 +295,7 @@ function sendSms(to, body) {
   });
 }
 
-async function scheduleReminders(wsCol, bookingId, booking, timeZone) {
+async function scheduleReminders(wsCol, bookingId, booking, timeZone, shopName) {
   try {
     const startAt = parseIso(booking.start_at);
     if (!startAt) return;
@@ -303,17 +303,18 @@ async function scheduleReminders(wsCol, bookingId, booking, timeZone) {
     if (!phone) return;
     const clientName = booking.client_name || 'Client';
     const barberName = booking.barber_name || 'your barber';
+    const prefix = shopName ? `${shopName}: ` : '';
     const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: timeZone || 'America/Chicago' });
     const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: timeZone || 'America/Chicago' });
     // 24h reminder
     const remind24 = new Date(startAt.getTime() - 24 * 60 * 60 * 1000);
     if (remind24 > new Date()) {
-      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, type: '24h', send_at: toIso(remind24), sent: false, message: `Reminder: Your appointment with ${barberName} is tomorrow ${dateStr} at ${timeStr}. Reply STOP to unsubscribe.`, created_at: toIso(new Date()) });
+      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, type: '24h', send_at: toIso(remind24), sent: false, message: `${prefix}Reminder: Your appointment with ${barberName} is tomorrow ${dateStr} at ${timeStr}. Reply STOP to unsubscribe.`, created_at: toIso(new Date()) });
     }
     // 2h reminder
     const remind2 = new Date(startAt.getTime() - 2 * 60 * 60 * 1000);
     if (remind2 > new Date()) {
-      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, type: '2h', send_at: toIso(remind2), sent: false, message: `Reminder: Your appointment with ${barberName} is in 2 hours at ${timeStr}. Reply STOP to unsubscribe.`, created_at: toIso(new Date()) });
+      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, type: '2h', send_at: toIso(remind2), sent: false, message: `${prefix}Reminder: Your appointment with ${barberName} is in 2 hours at ${timeStr}. Reply STOP to unsubscribe.`, created_at: toIso(new Date()) });
     }
   } catch (e) { console.warn('scheduleReminders error:', e?.message); }
 }
@@ -1727,13 +1728,16 @@ app.post('/api/bookings', async (req, res) => {
     writeAuditLog(req.wsId, { action: 'booking.create', resource_id: bookingRef.id, data: { client_name: doc.client_name, barber_id: doc.barber_id }, req }).catch(() => {});
     // SMS confirmation + push + schedule reminders
     const settingsDoc = await req.ws('settings').doc('config').get();
-    const tz = settingsDoc.exists ? (settingsDoc.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+    const settingsData = settingsDoc.exists ? settingsDoc.data() : {};
+    const tz = settingsData?.timezone || 'America/Chicago';
+    const shopName = safeStr(settingsData?.shop_name || '');
     if (doc.client_phone && doc.sms_consent) {
       const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
       const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
-      sendSms(doc.client_phone, `Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your barber'}. Reply STOP to unsubscribe.`).catch(() => {});
+      const prefix = shopName ? `${shopName}: ` : '';
+      sendSms(doc.client_phone, `${prefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your barber'}. Reply STOP to unsubscribe.`).catch(() => {});
     }
-    if (doc.sms_consent) scheduleReminders(req.ws, bookingRef.id, doc, tz).catch(() => {});
+    if (doc.sms_consent) scheduleReminders(req.ws, bookingRef.id, doc, tz, shopName).catch(() => {});
     sendCrmPushToStaff(req.ws, doc.barber_id, 'New Booking', `${doc.client_name || 'Client'} booked for ${doc.start_at?.slice(0, 10)}`, { type: 'booking_confirmed' }).catch(() => {});
     res.status(201).json({ id: bookingRef.id, ...doc });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -1805,7 +1809,10 @@ app.delete('/api/bookings/:id', async (req, res) => {
     writeAuditLog(req.wsId, { action: 'booking.cancelled', resource_id: req.params.id, req }).catch(() => {});
     // SMS cancellation notification (only if consent was given)
     if (bookingData.client_phone && bookingData.sms_consent) {
-      sendSms(bookingData.client_phone, `Your appointment with ${bookingData.barber_name || 'your barber'} has been cancelled. Reply STOP to unsubscribe.`).catch(() => {});
+      const cancelSettings = await req.ws('settings').doc('config').get();
+      const cancelShopName = cancelSettings.exists ? safeStr(cancelSettings.data()?.shop_name || '') : '';
+      const cancelPrefix = cancelShopName ? `${cancelShopName}: ` : '';
+      sendSms(bookingData.client_phone, `${cancelPrefix}Your appointment with ${bookingData.barber_name || 'your barber'} has been cancelled. Reply STOP to unsubscribe.`).catch(() => {});
     }
     sendCrmPushToBarber(req.ws, bookingData.barber_id, 'Booking Cancelled', `${bookingData.client_name || 'Client'} cancelled`, { type: 'booking_cancelled' }).catch(() => {});
     res.json({ ok: true, id: req.params.id, status: 'cancelled' });
@@ -2587,7 +2594,10 @@ app.get('/api/admin/waitlist/check', requireRole('owner', 'admin'), async (req, 
         if (!slots.length) continue;
         const slotTime = slots[0].toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone });
         const svcText = Array.isArray(w.service_names) && w.service_names.length ? w.service_names.join(', ') : 'your service';
-        const msg = `VuriumBook: A spot opened up for ${svcText} with ${w.barber_name || 'your barber'} on ${w.date} at ${slotTime}. Book now! Reply STOP to unsubscribe.`;
+        const wlSettings = await req.ws('settings').doc('config').get();
+        const wlShopName = wlSettings.exists ? safeStr(wlSettings.data()?.shop_name || '') : '';
+        const wlPrefix = wlShopName || 'VuriumBook';
+        const msg = `${wlPrefix}: A spot opened up for ${svcText} with ${w.barber_name || 'your barber'} on ${w.date} at ${slotTime}. Book now! Reply STOP to unsubscribe.`;
         sendSms(w.phone_raw || w.phone_norm, msg).catch(() => {});
         await wDoc.ref.update({ notified: true, notified_at: toIso(new Date()), notified_slot: toIso(slots[0]) });
         notified++;
@@ -3324,11 +3334,14 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
     // SMS confirmation + reminders (only if consented)
     if (smsConsent && clientPhone) {
       const settingsDoc = await wsCol('settings').doc('config').get();
-      const tz = settingsDoc.exists ? (settingsDoc.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+      const pubSettingsData = settingsDoc.exists ? settingsDoc.data() : {};
+      const tz = pubSettingsData?.timezone || 'America/Chicago';
+      const pubShopName = safeStr(pubSettingsData?.shop_name || '');
       const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
       const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
-      sendSms(clientPhone, `Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your barber'}. Reply STOP to unsubscribe.`).catch(() => {});
-      scheduleReminders(wsCol, bookingRef.id, doc, tz).catch(() => {});
+      const pubPrefix = pubShopName ? `${pubShopName}: ` : '';
+      sendSms(clientPhone, `${pubPrefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your barber'}. Reply STOP to unsubscribe.`).catch(() => {});
+      scheduleReminders(wsCol, bookingRef.id, doc, tz, pubShopName).catch(() => {});
     }
     res.status(201).json({ booking_id: bookingRef.id, id: bookingRef.id });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -3432,7 +3445,10 @@ app.post('/public/verify/send/:workspace_id', async (req, res) => {
       created_at: toIso(new Date()),
     });
     const formatted = phone.length === 10 ? `+1${phone}` : `+${phone}`;
-    sendSms(formatted, `VuriumBook: Your verification code is ${code}. Do not share this code.`).catch(e => console.warn('verify SMS error:', e?.message));
+    const verifySettings = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
+    const verifyShopName = verifySettings.exists ? safeStr(verifySettings.data()?.shop_name || '') : '';
+    const verifyPrefix = verifyShopName || 'VuriumBook';
+    sendSms(formatted, `${verifyPrefix}: Your verification code is ${code}. Do not share this code.`).catch(e => console.warn('verify SMS error:', e?.message));
     res.json({ ok: true, sent: true });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
