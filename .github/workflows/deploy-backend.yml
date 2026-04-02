@@ -54,9 +54,8 @@ jobs:
             --max-instances 10 \
             --set-env-vars "NODE_ENV=production" \
             --set-env-vars "JWT_SECRET=${{ secrets.JWT_SECRET }}" \
-            --set-env-vars "TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }}" \
-            --set-env-vars "TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}" \
-            --set-env-vars "TWILIO_FROM=${{ secrets.TWILIO_FROM }}" \
+            --set-env-vars "TELNYX_API_KEY=${{ secrets.TELNYX_API_KEY }}" \
+            --set-env-vars "TELNYX_FROM=${{ secrets.TELNYX_FROM }}" \
             --set-env-vars "SQUARE_APP_ID=${{ secrets.SQUARE_APP_ID }}" \
             --set-env-vars "SQUARE_APP_SECRET=${{ secrets.SQUARE_APP_SECRET }}" \
             --set-env-vars "PHONE_ENCRYPTION_KEY=${{ secrets.PHONE_ENCRYPTION_KEY }}" \
