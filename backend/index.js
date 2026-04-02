@@ -3533,6 +3533,62 @@ app.post('/api/billing/checkout', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
+// Create subscription with incomplete payment (for Stripe Elements on frontend)
+app.post('/api/billing/create-subscription', async (req, res) => {
+  try {
+    if (!STRIPE_SECRET) return res.status(400).json({ error: 'Stripe not configured' });
+    const plan = safeStr(req.body?.plan || 'salon');
+    const priceId = STRIPE_PRICES[plan];
+    if (!priceId) return res.status(400).json({ error: 'Invalid plan' });
+    const wsDoc = await req.wsDoc().get();
+    const wsData = wsDoc.exists ? wsDoc.data() : {};
+    // Create or get Stripe customer
+    let customerId = wsData.stripe_customer_id;
+    if (!customerId) {
+      const customer = await stripeFetch('/v1/customers', {
+        method: 'POST',
+        body: new URLSearchParams({
+          email: req.user.username || '',
+          name: wsData.name || req.user.name || '',
+          'metadata[workspace_id]': req.wsId,
+        }).toString(),
+      });
+      customerId = customer.id;
+      await req.wsDoc().update({ stripe_customer_id: customerId });
+    }
+    // Create subscription with incomplete payment
+    const params = new URLSearchParams({
+      'customer': customerId,
+      'items[0][price]': priceId,
+      'payment_behavior': 'default_incomplete',
+      'payment_settings[save_default_payment_method]': 'on_subscription',
+      'metadata[workspace_id]': req.wsId,
+      'expand[0]': 'latest_invoice.payment_intent',
+    });
+    if (!wsData.trial_used) {
+      params.set('trial_period_days', '14');
+      params.set('expand[0]', 'pending_setup_intent');
+    }
+    const subscription = await stripeFetch('/v1/subscriptions', {
+      method: 'POST',
+      body: params.toString(),
+    });
+    // Return clientSecret for frontend Stripe Elements
+    let clientSecret;
+    if (subscription.pending_setup_intent) {
+      clientSecret = subscription.pending_setup_intent.client_secret;
+    } else if (subscription.latest_invoice?.payment_intent) {
+      clientSecret = subscription.latest_invoice.payment_intent.client_secret;
+    }
+    if (!clientSecret) return res.status(400).json({ error: 'Could not create payment intent' });
+    res.json({
+      subscriptionId: subscription.id,
+      clientSecret,
+      type: subscription.pending_setup_intent ? 'setup' : 'payment',
+    });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
 // Get billing status
 app.get('/api/billing/status', async (req, res) => {
   try {
