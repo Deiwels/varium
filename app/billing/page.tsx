@@ -148,36 +148,34 @@ function CheckoutForm({ plan, onSuccess, onCancel }: { plan: PlanDef; onSuccess:
 
   return (
     <form onSubmit={handleSubmit}>
-      {/* Plan summary */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, padding: '16px 18px', borderRadius: 14, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)' }}>
+      {/* Plan summary — compact */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)' }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#e8e8ed' }}>{plan.name}</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', marginTop: 2 }}>Monthly subscription</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#e8e8ed' }}>{plan.name}</div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.30)' }}>Monthly subscription</div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#e8e8ed' }}>${plan.price}</div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.30)' }}>/month</div>
-        </div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: '#e8e8ed' }}>${plan.price}<span style={{ fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,.25)' }}>/mo</span></div>
       </div>
 
-      {/* Stripe Payment Element */}
-      <div style={{ marginBottom: 24 }}>
+      {/* Stripe Payment Element — accordion is more compact on mobile */}
+      <div style={{ marginBottom: 16 }}>
         <PaymentElement options={{
-          layout: 'tabs',
+          layout: { type: 'accordion', defaultCollapsed: false, radios: false, spacedAccordionItems: false },
           defaultValues: { billingDetails: { address: { country: 'US' } } },
+          business: { name: 'Vurium' },
         }} />
       </div>
 
       {error && (
-        <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(220,130,160,.08)', border: '1px solid rgba(220,130,160,.15)', color: 'rgba(220,130,160,.8)', fontSize: 13, marginBottom: 16 }}>
+        <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(220,130,160,.08)', border: '1px solid rgba(220,130,160,.15)', color: 'rgba(220,130,160,.8)', fontSize: 12, marginBottom: 12 }}>
           {error}
         </div>
       )}
 
       {/* Submit */}
       <button type="submit" disabled={!stripe || processing} style={{
-        width: '100%', height: 50, borderRadius: 999, border: '1px solid rgba(255,255,255,.15)',
-        background: '#000', color: 'rgba(255,255,255,.85)', fontSize: 15, fontWeight: 600,
+        width: '100%', height: 46, borderRadius: 999, border: '1px solid rgba(255,255,255,.15)',
+        background: '#000', color: 'rgba(255,255,255,.85)', fontSize: 14, fontWeight: 600,
         cursor: processing ? 'wait' : 'pointer', fontFamily: 'inherit',
         opacity: processing ? 0.5 : 1, transition: 'all .2s',
       }}>
@@ -186,15 +184,15 @@ function CheckoutForm({ plan, onSuccess, onCancel }: { plan: PlanDef; onSuccess:
 
       {/* Cancel */}
       <button type="button" onClick={onCancel} style={{
-        width: '100%', height: 42, marginTop: 10, borderRadius: 999,
+        width: '100%', height: 36, marginTop: 8, borderRadius: 999,
         border: '1px solid rgba(255,255,255,.06)', background: 'transparent',
-        color: 'rgba(255,255,255,.35)', fontSize: 13, fontWeight: 500,
+        color: 'rgba(255,255,255,.30)', fontSize: 12, fontWeight: 500,
         cursor: 'pointer', fontFamily: 'inherit',
       }}>
         Cancel
       </button>
 
-      <div style={{ textAlign: 'center', marginTop: 16, fontSize: 11, color: 'rgba(255,255,255,.15)' }}>
+      <div style={{ textAlign: 'center', marginTop: 10, fontSize: 10, color: 'rgba(255,255,255,.12)' }}>
         Secured by Stripe · Cancel anytime
       </div>
     </form>
@@ -419,19 +417,19 @@ export default function BillingPage() {
             backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
           }} />
 
-          {/* Modal */}
+          {/* Modal — compact */}
           <div style={{
-            position: 'relative', width: 'min(440px, 100%)', maxHeight: '90vh', overflowY: 'auto',
-            borderRadius: 24, padding: '28px 24px',
+            position: 'relative', width: 'min(400px, 100%)', maxHeight: '85vh', overflowY: 'auto',
+            borderRadius: 20, padding: '20px 18px',
             background: 'rgba(10,10,10,.97)',
             border: '1px solid rgba(255,255,255,.08)',
-            boxShadow: '0 40px 100px rgba(0,0,0,.6), inset 0 0 0 0.5px rgba(255,255,255,.04)',
+            boxShadow: '0 40px 100px rgba(0,0,0,.6)',
           }}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
-                <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.30)', marginBottom: 4 }}>Subscribe to</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: '#e8e8ed' }}>VuriumBook {checkoutPlan.name}</div>
+                <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.25)', marginBottom: 2 }}>Subscribe to</div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: '#e8e8ed' }}>VuriumBook {checkoutPlan.name}</div>
               </div>
               <button onClick={() => { setCheckoutPlan(null); setClientSecret('') }} style={{
                 width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,.10)',
