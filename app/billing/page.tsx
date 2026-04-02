@@ -406,24 +406,25 @@ export default function BillingPage() {
       {/* ─── Checkout Modal ────────────────────────────────────────────────── */}
       {checkoutPlan && clientSecret && stripePromise && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 300,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 16,
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+          padding: '60px 16px 16px',
+          overflowY: 'auto',
         }}>
           {/* Backdrop */}
           <div onClick={() => { setCheckoutPlan(null); setClientSecret('') }} style={{
-            position: 'absolute', inset: 0,
-            background: 'rgba(0,0,0,.80)',
-            backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,.92)',
           }} />
 
           {/* Modal — compact */}
           <div style={{
-            position: 'relative', width: 'min(400px, 100%)', maxHeight: '85vh', overflowY: 'auto',
+            position: 'relative', width: 'min(400px, 100%)',
             borderRadius: 20, padding: '20px 18px',
-            background: 'rgba(10,10,10,.97)',
+            background: '#0a0a0a',
             border: '1px solid rgba(255,255,255,.08)',
             boxShadow: '0 40px 100px rgba(0,0,0,.6)',
+            marginBottom: 40,
           }}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
