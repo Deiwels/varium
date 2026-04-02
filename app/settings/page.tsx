@@ -173,7 +173,7 @@ function UsersTab() {
                 border: `1px solid ${u.role === 'owner' ? 'rgba(220,190,100,.15)' : u.role === 'admin' ? 'rgba(130,220,170,.12)' : 'rgba(255,255,255,.08)'}`,
                 color: u.role === 'owner' ? 'rgba(220,190,100,.7)' : u.role === 'admin' ? 'rgba(130,220,170,.6)' : 'rgba(255,255,255,.4)',
                 textTransform: 'capitalize', flexShrink: 0,
-              }}>{u.role === 'barber' ? 'member' : u.role}</span>
+              }}>{u.role === 'barber' ? 'team member' : u.role}</span>
               {/* Actions */}
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 <SmBtn onClick={() => resetPw(u.id)}>Reset PW</SmBtn>

@@ -1328,7 +1328,7 @@ export default function CalendarPage() {
     const ev = events.find(e => e.id === dragConfirm.eventId); if (!ev) { setDragConfirm(null); return }
     // Barbers cannot drag bookings to other barbers
     if (isBarber && dragConfirm.newBarberId !== ev.barberId) {
-      showToast('Cannot move to another barber')
+      showToast('Cannot move to another team member')
       setDragConfirm(null); return
     }
     const newBarber = barbers.find(b => b.id === dragConfirm.newBarberId)
@@ -1513,7 +1513,7 @@ export default function CalendarPage() {
         body: JSON.stringify({ chatType: 'barbers', text: msgText, system: true })
       })
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json() })
-        .then(() => showToast('Client arrived — barbers notified'))
+        .then(() => showToast('Client arrived — team notified'))
         .catch(() => showToast('Arrived saved'))
     }
     try {
@@ -2888,7 +2888,7 @@ export default function CalendarPage() {
                   <span style={{ fontSize: 14, fontWeight: 800 }}>{w.client_name || 'Client'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', letterSpacing: '.08em', textTransform: 'uppercase' }}>Barber</span>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', letterSpacing: '.08em', textTransform: 'uppercase' }}>Team Member</span>
                   <span style={{ fontSize: 14, fontWeight: 700 }}>{barberName}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>

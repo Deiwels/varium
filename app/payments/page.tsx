@@ -299,7 +299,7 @@ export default function PaymentsPage() {
   }
 
   function exportCSV() {
-    const rows = [['Date','Client','Barber','Method','Amount','Tip','Fee','Net','Status','Note','ID']]
+    const rows = [['Date','Client','Team Member','Method','Amount','Tip','Fee','Net','Status','Note','ID']]
     visible.forEach(p => rows.push([p.date, getClientName(p), p.barber_name||'', methodLabel(p.method), String(p.amount.toFixed(2)), String((p.tip||0).toFixed(2)), String((p.fee||0).toFixed(2)), String((p.net||0).toFixed(2)), p.status, (p.note||'').replace(/"/g,"'"), p.square_id||p.id]))
     const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n')
     const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv); a.download = `payments_${from}_${to}.csv`; a.click()
@@ -373,7 +373,7 @@ export default function PaymentsPage() {
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search…"
               style={{ ...inp, width: 'min(160px,35vw)', flexShrink: 0 }} />
             {[
-              { value: filterBarber, set: setFilterBarber, opts: allBarbers.map(b => ({ v: b, l: b })), ph: 'All barbers' },
+              { value: filterBarber, set: setFilterBarber, opts: allBarbers.map(b => ({ v: b, l: b })), ph: 'All team members' },
               { value: filterStatus, set: setFilterStatus, opts: ['paid','pending','refunded'].map(s => ({ v: s, l: s })), ph: 'All statuses' },
               { value: filterMethod, set: setFilterMethod, opts: ['card','applepay','terminal','cash','zelle','other'].map(m => ({ v: m, l: methodLabel(m) })), ph: 'All methods' },
             ].map((f, i) => (
@@ -413,7 +413,7 @@ export default function PaymentsPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                 <thead>
                   <tr>
-                    {[['Date', 70], ['Client / Barber', undefined], ['Method', 75], ['Amount', 80], ['Tip', 65], ['Status', 90]].map(([h, w]) => (
+                    {[['Date', 70], ['Client / Team Member', undefined], ['Method', 75], ['Amount', 80], ['Tip', 65], ['Status', 90]].map(([h, w]) => (
                       <th key={String(h)} style={{ padding: '10px 12px', ...lbl, background: 'rgba(0,0,0,.90)', position: 'sticky', top: 0, textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,.08)', ...(w ? { width: w } : {}) }}>{h}</th>
                     ))}
                   </tr>
@@ -525,7 +525,7 @@ export default function PaymentsPage() {
                 </>)}
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {row('Barber', p.barber_name || '—')}
+                  {row('Team Member', p.barber_name || '—')}
                   {service && row('Service', service)}
                   {row('Date', fmtDateFull(p.date) + (timePart ? ' · ' + timePart : ''))}
                   {row('Method', methodLabel(p.method))}

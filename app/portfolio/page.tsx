@@ -509,8 +509,8 @@ export default function PortfolioPage() {
           ) : !barberId ? (
             <div style={{ padding: 60, textAlign: 'center', color: 'rgba(255,255,255,.30)' }}>
               <div style={{ marginBottom: 12, animation: 'emptyFloat 3s ease-in-out infinite' }}><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.30)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
-              <div style={{ fontSize: 14 }}>No barber profile linked</div>
-              <div style={{ fontSize: 12, marginTop: 4, color: 'rgba(255,255,255,.20)' }}>Ask admin to link your account to a barber profile</div>
+              <div style={{ fontSize: 14 }}>No team member profile linked</div>
+              <div style={{ fontSize: 12, marginTop: 4, color: 'rgba(255,255,255,.20)' }}>Ask admin to link your account to a team member profile</div>
             </div>
           ) : photos.length === 0 ? (
             <div style={{ padding: 60, textAlign: 'center', color: 'rgba(255,255,255,.30)' }}>

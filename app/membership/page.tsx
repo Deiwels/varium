@@ -84,7 +84,7 @@ export default function MembershipPage() {
 
   async function handleSave() {
     if (!fClient.trim()) { showToast('Enter client name'); return }
-    if (!fBarber) { showToast('Select barber'); return }
+    if (!fBarber) { showToast('Select team member'); return }
     if (!fServiceIds.length) { showToast('Select at least one service'); return }
     setSaving(true)
     const barber = barbers.find(b => b.id === fBarber)
@@ -195,7 +195,7 @@ export default function MembershipPage() {
                     <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 999, border: `1px solid ${st.border}`, background: st.bg, color: st.color }}>{m.status}</span>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 12, color: 'rgba(255,255,255,.50)' }}>
-                    <span>{m.barber_name || 'No barber'}</span>
+                    <span>{m.barber_name || 'No team member'}</span>
                     <span style={{ color: 'rgba(255,255,255,.20)' }}>·</span>
                     <span>{m.service_name || 'No service'}</span>
                     <span style={{ color: 'rgba(255,255,255,.20)' }}>·</span>
@@ -263,9 +263,9 @@ export default function MembershipPage() {
                   {!fClient && <div style={{ marginTop: 6 }}><label style={lbl}>Or enter name manually</label><input value={fClient} onChange={e => setFClient(e.target.value)} placeholder="John Smith" style={inp} /></div>}
                 </div>
               </>}
-              <div><label style={lbl}>Barber</label>
+              <div><label style={lbl}>Team Member</label>
                 <select value={fBarber} onChange={e => setFBarber(e.target.value)} style={inp}>
-                  <option value="">Select barber</option>
+                  <option value="">Select team member</option>
                   {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>

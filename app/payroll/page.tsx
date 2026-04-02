@@ -625,7 +625,7 @@ export default function PayrollPage() {
               {/* Barber filter */}
               <select value={filterBarber} onChange={e => setFilterBarber(e.target.value)}
                 style={{ height: 40, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(0,0,0,.22)', color: '#fff', padding: '0 14px', outline: 'none', fontSize: 13 }}>
-                <option value="">All barbers</option>
+                <option value="">All team members</option>
                 {barbers.map(b => <option key={b.barber_id} value={b.barber_id}>{b.barber_name}</option>)}
               </select>
               <button onClick={load} disabled={loading}
@@ -789,10 +789,10 @@ export default function PayrollPage() {
                   <div className="summary-cards" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '12px 14px' }}>
                     {[
                       { label: 'Services gross', value: fmtMoney(totals?.service_total||0), wide: true },
-                      { label: 'Barbers total', value: fmtMoney(totals?.barber_service_share||0) },
+                      { label: 'Team total', value: fmtMoney(totals?.barber_service_share||0) },
                       { label: 'Owner share', value: fmtMoney(totals?.owner_service_share||0) },
                       { label: 'Tips', value: fmtMoney(totals?.tips_total||0) },
-                      { label: 'Barbers total payout', value: fmtMoney(totals?.barber_total||0), wide: true, big: true },
+                      { label: 'Team total payout', value: fmtMoney(totals?.barber_total||0), wide: true, big: true },
                     ].map(k => (
                       <div key={k.label} style={{ padding: '12px', borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)', gridColumn: k.wide ? '1/-1' : undefined }}>
                         <div style={{ ...lbl, marginBottom: 4 }}>{k.label}</div>
@@ -947,7 +947,7 @@ export default function PayrollPage() {
                         />
                       ))}
                       <div style={{ height: 1, background: 'rgba(255,255,255,.08)', margin: '4px 0' }} />
-                      <div style={{ ...lbl, marginBottom: 4 }}>Barber commission rules</div>
+                      <div style={{ ...lbl, marginBottom: 4 }}>Commission rules</div>
                     </>
                   )}
                   {barbers.length === 0 ? (

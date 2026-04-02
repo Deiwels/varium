@@ -310,7 +310,7 @@ export default function WaitlistPage() {
             {/* Barber, date, services */}
             <div className="wl-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
-                <label style={lbl}>Barber</label>
+                <label style={lbl}>Team Member</label>
                 <select value={newBarberId} onChange={e => setNewBarberId(e.target.value)} style={inp}>
                   {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>

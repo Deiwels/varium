@@ -370,7 +370,7 @@ function RequestCard({ req, isOwnerOrAdmin, onReview }: { req: Request; isOwnerO
         <div style={detailStyle}>
           <div>Date: <strong style={{ color: '#e8e8ed' }}>{req.data.date || '—'}</strong></div>
           <div>Time: <strong style={{ color: '#e8e8ed' }}>{req.data.startAt ? new Date(req.data.startAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—'} — {req.data.endAt ? new Date(req.data.endAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—'}</strong></div>
-          {req.data.barberName && <div>Barber: <strong style={{ color: '#e8e8ed' }}>{req.data.barberName}</strong></div>}
+          {req.data.barberName && <div>Team Member: <strong style={{ color: '#e8e8ed' }}>{req.data.barberName}</strong></div>}
         </div>
       )}
 
@@ -936,7 +936,7 @@ export default function MessagesPage() {
                 rejected:  { bg: 'rgba(255,107,107,.08)', border: 'rgba(255,107,107,.35)', color: 'rgba(220,130,160,.5)' },
               }
               const sc = statusColors[app.status] || statusColors.new
-              const roleBadge = isAcademy ? { bg: 'rgba(168,107,255,.12)', border: 'rgba(168,107,255,.40)', color: 'rgba(180,140,220,.6)', label: 'ACADEMY' } : isBarber ? { bg: 'rgba(255,255,255,.06)', border: 'rgba(255,255,255,.12)', color: 'rgba(130,150,220,.6)', label: 'BARBER' } : { bg: 'rgba(143,240,177,.12)', border: 'rgba(143,240,177,.40)', color: 'rgba(130,220,170,.5)', label: 'ADMIN' }
+              const roleBadge = isAcademy ? { bg: 'rgba(168,107,255,.12)', border: 'rgba(168,107,255,.40)', color: 'rgba(180,140,220,.6)', label: 'ACADEMY' } : isBarber ? { bg: 'rgba(255,255,255,.06)', border: 'rgba(255,255,255,.12)', color: 'rgba(130,150,220,.6)', label: 'TEAM MEMBER' } : { bg: 'rgba(143,240,177,.12)', border: 'rgba(143,240,177,.40)', color: 'rgba(130,220,170,.5)', label: 'ADMIN' }
               return (
                 <div key={app.id} style={{ padding: '14px 16px', borderRadius: 16, border: `1px solid ${sc.border}`, background: sc.bg, marginBottom: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
