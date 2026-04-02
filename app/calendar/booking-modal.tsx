@@ -61,7 +61,7 @@ interface Client {
 }
 
 interface Barber { id: string; name: string; color: string }
-interface Service { id: string; name: string; durationMin: number; price?: string; barberIds: string[] }
+interface Service { id: string; name: string; durationMin: number; price?: string; barberIds: string[]; service_type?: string }
 
 interface BookingModalProps {
   isOpen: boolean
@@ -558,8 +558,10 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
   useEffect(() => { getShopSettings().then(setShopSettings) }, [])
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
 
-  const svc = services.find(s => s.id === ev?.serviceId)
-  const basePrice = svc?.price ? Number(String(svc.price).replace(/[^\d.]/g, '')) : 0
+  const evServiceIds = ev?.serviceIds?.length ? ev.serviceIds : ev?.serviceId ? [ev.serviceId] : []
+  const evSvcs = services.filter(s => evServiceIds.includes(s.id))
+  const svc = evSvcs[0]
+  const basePrice = evSvcs.reduce((sum, s) => sum + (s.price ? Number(String(s.price).replace(/[^\d.]/g, '')) : 0), 0)
   const priceCalc = calcTotal(basePrice, shopSettings)
   const price = priceCalc.total  // total with tax + fees
 
@@ -664,7 +666,7 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
           amount: priceCalc.total,
           currency: 'USD',
           client_name: ev?._raw?.client_name || '',
-          service_name: svc?.name || '',
+          service_name: evSvcs.map(s => s.name).join(' + ') || '',
           service_amount: basePrice,
           tax_amount: priceCalc.tax,
           fee_amount: priceCalc.fees,
@@ -733,7 +735,7 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
     try {
       await apiFetch('/api/payments/terminal', {
         method: 'POST',
-        body: JSON.stringify({ booking_id: backendId ? String(backendId) : '', amount: priceCalc.total, tip, tip_amount: tip, source: method, payment_method: method, currency: 'USD', client_name: ev?._raw?.client_name || '', service_name: svc?.name || '', service_amount: basePrice, tax_amount: priceCalc.tax, fee_amount: priceCalc.fees })
+        body: JSON.stringify({ booking_id: backendId ? String(backendId) : '', amount: priceCalc.total, tip, tip_amount: tip, source: method, payment_method: method, currency: 'USD', client_name: ev?._raw?.client_name || '', service_name: evSvcs.map(s => s.name).join(' + ') || '', service_amount: basePrice, tax_amount: priceCalc.tax, fee_amount: priceCalc.fees })
       })
       if (backendId) {
         await apiFetch('/api/bookings/' + encodeURIComponent(String(backendId)), {
@@ -828,7 +830,7 @@ export function BookingModal({
   const [clientName, setClientName] = useState('')
   const [modalKey, setModalKey] = useState(0)  // force remount ClientSearch on open
   const [selBarberId, setSelBarberId] = useState(barberId)
-  const [serviceId, setServiceId] = useState('')
+  const [serviceIds, setServiceIds] = useState<string[]>([])
   const [selStartMin, setSelStartMin] = useState(startMin)
   const [status, setStatus] = useState('booked')
   const [notes, setNotes] = useState('')
@@ -848,7 +850,7 @@ export function BookingModal({
     setModalKey(k => k + 1)  // remount ClientSearch
     if (existingEvent) {
       setClientName(existingEvent.clientName || '')
-      setServiceId(existingEvent.serviceId || '')
+      setServiceIds(existingEvent.serviceIds?.length ? existingEvent.serviceIds : existingEvent.serviceId ? [existingEvent.serviceId] : [])
       setStatus(existingEvent.status || 'booked')
       setNotes(existingEvent.notes || '')
       setPhotoUrl('')
@@ -859,13 +861,13 @@ export function BookingModal({
         setSelectedClient(null)
       }
     } else {
-      setClientName(''); setServiceId(''); setStatus('booked'); setNotes(''); setPhotoUrl('')
+      setClientName(''); setServiceIds([]); setStatus('booked'); setNotes(''); setPhotoUrl('')
       setSelectedClient(null)
     }
   }, [isOpen, existingEvent?.id, barberId, startMin])
 
-  const svc = services.find(s => s.id === serviceId)
-  const durMin = svc?.durationMin || 30
+  const selectedSvcs = services.filter(s => serviceIds.includes(s.id))
+  const durMin = selectedSvcs.reduce((sum, s) => sum + (s.durationMin || 30), 0) || 30
   const barberServices = services.filter(s => !s.barberIds.length || s.barberIds.includes(selBarberId))
 
   // Time slots 5min
@@ -874,21 +876,26 @@ export function BookingModal({
 
   async function handleSave() {
     if (!clientName.trim()) { alert('Enter client name'); return }
-    if (!serviceId) { alert('Choose service'); return }
+    if (!serviceIds.length) { alert('Choose at least one service'); return }
     setSaving(true)
+    const selSvcs = services.filter(s => serviceIds.includes(s.id))
+    const totalDur = selSvcs.reduce((sum, s) => sum + (s.durationMin || 30), 0) || 30
     onSave({
       clientName: clientName.trim(),
       clientPhone: selectedClient?.phone || '',
       clientId: selectedClient?.id,
       barberId: selBarberId,
-      serviceId,
+      serviceId: serviceIds[0] || '',
+      service_ids: serviceIds,
+      service_name: selSvcs.map(s => s.name).join(' + '),
       date,
       startMin: selStartMin,
-      durMin,
+      durMin: totalDur,
+      duration_minutes: totalDur,
       status,
       notes,
       photoUrl,
-    })
+    } as any)
     setSaving(false)
   }
 
@@ -952,28 +959,10 @@ export function BookingModal({
                 </select>
               </div>
               <div>
-                <label style={lbl}>Service</label>
-                <select value={serviceId} onChange={e => setServiceId(e.target.value)} style={inp}>
-                  <option value="">Choose service…</option>
-                  {barberServices.map(s => {
-                    const bp = s.price ? Number(String(s.price).replace(/[^\d.]/g, '')) : 0
-                    const calc = calcTotal(bp, shopSettings)
-                    const label = bp > 0 ? (calc.total !== bp ? ` — $${calc.total.toFixed(2)} (base $${bp.toFixed(2)})` : ` — $${bp.toFixed(2)}`) : ''
-                    return <option key={s.id} value={s.id}>{s.name}{label}</option>
-                  })}
-                </select>
-              </div>
-              <div>
                 <label style={lbl}>Time</label>
                 <select value={selStartMin} onChange={e => setSelStartMin(Number(e.target.value))} style={inp}>
                   {slots.map(m => <option key={m} value={m}>{minToHHMM(m)}</option>)}
                 </select>
-              </div>
-              <div>
-                <label style={lbl}>Duration → end time</label>
-                <div style={{ height: 44, borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', padding: '0 12px', display: 'flex', alignItems: 'center', fontSize: 13, color: 'rgba(255,255,255,.60)' }}>
-                  {durMin}min → {minToHHMM(selStartMin + durMin)}
-                </div>
               </div>
               {!isNew && (
                 <div>
@@ -989,6 +978,83 @@ export function BookingModal({
                   style={{ ...inp, height: 'auto', padding: '10px 12px', resize: 'vertical' as const, lineHeight: 1.5 }} />
               </div>
             </div>
+
+            {/* Services — checkbox list grouped by type */}
+            {(() => {
+              const mainSvcs = barberServices.filter(s => s.service_type !== 'addon')
+              const addonSvcs = barberServices.filter(s => s.service_type === 'addon')
+              const totalPrice = selectedSvcs.reduce((sum, s) => sum + (s.price ? Number(String(s.price).replace(/[^\d.]/g, '')) : 0), 0)
+              const totalDur = selectedSvcs.reduce((sum, s) => sum + (s.durationMin || 30), 0)
+
+              function toggleService(id: string) {
+                setServiceIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+              }
+
+              const rowStyle = (checked: boolean): React.CSSProperties => ({
+                display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 10,
+                cursor: 'pointer', transition: 'background .15s',
+                background: checked ? 'rgba(130,150,220,.08)' : 'transparent',
+              })
+
+              const checkboxStyle = (checked: boolean): React.CSSProperties => ({
+                width: 18, height: 18, borderRadius: 6, flexShrink: 0,
+                border: checked ? '1.5px solid rgba(130,150,220,.6)' : '1.5px solid rgba(255,255,255,.15)',
+                background: checked ? 'rgba(130,150,220,.20)' : 'rgba(255,255,255,.04)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s',
+              })
+
+              const dividerStyle: React.CSSProperties = {
+                fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.30)',
+                padding: '6px 10px 2px', display: 'flex', alignItems: 'center', gap: 8,
+              }
+              const lineStyle: React.CSSProperties = { flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }
+
+              function ServiceRow({ s }: { s: Service }) {
+                const checked = serviceIds.includes(s.id)
+                const bp = s.price ? Number(String(s.price).replace(/[^\d.]/g, '')) : 0
+                return (
+                  <div style={rowStyle(checked)} onClick={() => toggleService(s.id)}
+                    onMouseEnter={e => { if (!checked) e.currentTarget.style.background = 'rgba(255,255,255,.03)' }}
+                    onMouseLeave={e => { if (!checked) e.currentTarget.style.background = 'transparent' }}>
+                    <div style={checkboxStyle(checked)}>
+                      {checked && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(130,150,220,.9)" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                    </div>
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: checked ? 700 : 500, color: checked ? '#e8e8ed' : 'rgba(255,255,255,.65)' }}>{s.name}</span>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', whiteSpace: 'nowrap' }}>{s.durationMin || 30}min</span>
+                    {bp > 0 && <span style={{ fontSize: 11, color: 'rgba(130,220,170,.55)', fontWeight: 600, whiteSpace: 'nowrap' }}>${bp.toFixed(2)}</span>}
+                  </div>
+                )
+              }
+
+              return (
+                <div>
+                  <label style={lbl}>Services</label>
+                  <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', overflow: 'hidden', padding: '4px 0' }}>
+                    {mainSvcs.length > 0 && (
+                      <>
+                        {addonSvcs.length > 0 && <div style={dividerStyle}><span style={lineStyle} /><span>Main</span><span style={lineStyle} /></div>}
+                        {mainSvcs.map(s => <ServiceRow key={s.id} s={s} />)}
+                      </>
+                    )}
+                    {addonSvcs.length > 0 && (
+                      <>
+                        <div style={dividerStyle}><span style={lineStyle} /><span>Add-ons</span><span style={lineStyle} /></div>
+                        {addonSvcs.map(s => <ServiceRow key={s.id} s={s} />)}
+                      </>
+                    )}
+                    {barberServices.length === 0 && (
+                      <div style={{ padding: '12px 14px', fontSize: 12, color: 'rgba(255,255,255,.35)' }}>No services available for this team member</div>
+                    )}
+                  </div>
+                  {serviceIds.length > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 6, fontSize: 12, color: 'rgba(255,255,255,.50)' }}>
+                      <span>{totalDur}min {'\u2192'} {minToHHMM(selStartMin + totalDur)}</span>
+                      {totalPrice > 0 && <span style={{ color: 'rgba(130,220,170,.6)', fontWeight: 700 }}>${totalPrice.toFixed(2)}</span>}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* Client photo — clean, no decoration */}
             {existingEvent?.photoUrl && (

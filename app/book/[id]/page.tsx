@@ -103,7 +103,7 @@ function InlinePaymentForm({ onSuccess, onError, amount, isLight }: {
 }
 
 interface Barber { id: string; name: string; photo_url?: string; level?: string; schedule?: any }
-interface Service { id: string; name: string; duration_minutes: number; price_cents: number; barber_ids?: string[] }
+interface Service { id: string; name: string; duration_minutes: number; price_cents: number; barber_ids?: string[]; service_type?: string }
 interface Config { shop_name?: string; hero_media_url?: string; bannerText?: string; bannerEnabled?: boolean }
 
 async function api(path: string, opts?: RequestInit) {
@@ -128,8 +128,8 @@ export default function PublicBookingPage() {
   const [showBooking, setShowBooking] = useState(false) // for salon/custom: landing first
 
   // Booking state
-  const [step, setStep] = useState(0) // 0=service, 1=barber(if multi), 2=date/time, 3=info, 4=done
-  const [selectedService, setSelectedService] = useState<Service | null>(null)
+  const [step, setStep] = useState(0) // 0=barber, 1=services(multi), 2=date/time, 3=info, 4=done
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([])
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null)
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedSlot, setSelectedSlot] = useState('')
@@ -215,6 +215,13 @@ export default function PublicBookingPage() {
 
   const isSolo = barbers.length <= 1
 
+  // Computed from multi-select
+  const selectedServices = services.filter(s => selectedServiceIds.includes(s.id))
+  const selectedService = selectedServices.length > 0 ? selectedServices[0] : null
+  const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration_minutes, 0) || 30
+  const totalPrice = selectedServices.reduce((sum, s) => sum + s.price_cents, 0)
+  const combinedServiceName = selectedServices.map(s => s.name).join(' + ')
+
   useEffect(() => {
     if (!wsId) return
     // Step 1: Resolve slug → workspace_id + plan
@@ -249,7 +256,7 @@ export default function PublicBookingPage() {
           if (r.clientSecret) setStripeConnected(true)
         }).catch(() => {})
       }
-      if ((bData?.barbers || []).length === 1) setSelectedBarber((bData.barbers)[0])
+      if ((bData?.barbers || []).length === 1) { setSelectedBarber((bData.barbers)[0]); setStep(1) }
       // Track page visit
       try {
         const ref = document.referrer?.toLowerCase() || ''
@@ -279,21 +286,26 @@ export default function PublicBookingPage() {
         barber_id: selectedBarber.id,
         start_at: start.toISOString(),
         end_at: end.toISOString(),
-        duration_minutes: selectedService?.duration_minutes || 30,
+        duration_minutes: totalDuration,
       }),
     }).then(d => setSlots(d.slots || []))
       .catch(() => {})
       .finally(() => setSlotsLoading(false))
-  }, [selectedBarber, selectedDate, selectedService, resolvedWsId])
-
-  function selectService(s: Service) {
-    setSelectedService(s)
-    if (isSolo) setStep(2) // Skip barber for solo
-    else setStep(1)
-  }
+  }, [selectedBarber, selectedDate, totalDuration, resolvedWsId])
 
   function selectBarber(b: Barber) {
     setSelectedBarber(b)
+    setStep(1)
+  }
+
+  function toggleService(s: Service) {
+    setSelectedServiceIds(prev =>
+      prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id]
+    )
+  }
+
+  function confirmServices() {
+    if (selectedServiceIds.length === 0) return
     setStep(2)
   }
 
@@ -311,8 +323,9 @@ export default function PublicBookingPage() {
           client_phone: clientPhone || undefined,
           sms_consent: clientPhone ? smsConsent : undefined,
           service_id: selectedService?.id,
-          service_name: selectedService?.name,
-          duration_minutes: selectedService?.duration_minutes || 30,
+          service_ids: selectedServiceIds,
+          service_name: combinedServiceName || 'Appointment',
+          duration_minutes: totalDuration,
           customer_note: clientNote || undefined,
         }),
       })
@@ -324,7 +337,7 @@ export default function PublicBookingPage() {
   }
 
   async function handlePayOnlineFlow() {
-    if (!clientName || !selectedBarber || !selectedSlot || !selectedService) return
+    if (!clientName || !selectedBarber || !selectedSlot || selectedServiceIds.length === 0) return
     setPaymentLoading(true); setError('')
     try {
       // 1. Create booking first
@@ -337,9 +350,10 @@ export default function PublicBookingPage() {
           client_name: clientName,
           client_phone: clientPhone || undefined,
           sms_consent: clientPhone ? smsConsent : undefined,
-          service_id: selectedService.id,
-          service_name: selectedService.name,
-          duration_minutes: selectedService.duration_minutes || 30,
+          service_id: selectedService?.id,
+          service_ids: selectedServiceIds,
+          service_name: combinedServiceName || 'Appointment',
+          duration_minutes: totalDuration,
           customer_note: clientNote || undefined,
         }),
       })
@@ -350,10 +364,10 @@ export default function PublicBookingPage() {
       const piRes = await api(`/public/stripe-connect/create-payment-intent/${resolvedWsId}`, {
         method: 'POST',
         body: JSON.stringify({
-          amount_cents: selectedService.price_cents,
+          amount_cents: totalPrice,
           booking_id: bookingId,
           client_name: clientName,
-          description: `${selectedService.name} – ${clientName}`,
+          description: `${combinedServiceName} – ${clientName}`,
         }),
       })
       if (piRes.error) throw new Error(piRes.error)
@@ -373,7 +387,7 @@ export default function PublicBookingPage() {
   }
 
   function resetBooking() {
-    setStep(0); setSelectedService(null); setSelectedSlot('')
+    setStep(isSolo ? 1 : 0); setSelectedServiceIds([]); setSelectedSlot('')
     setSelectedDate(''); setClientName(''); setClientPhone('')
     setClientNote(''); setBooked(false); setError('')
     setPayOnline(false); setPaymentClientSecret(''); setPaymentBookingId('')
@@ -562,14 +576,14 @@ export default function PublicBookingPage() {
 
         {/* Back to landing (salon/custom only) */}
         {effectivePlan !== 'individual' && !booked && (
-          <button onClick={() => { setShowBooking(false); setStep(0); setSelectedService(null); setSelectedSlot('') }} style={{ marginBottom: 16, padding: '6px 14px', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', background: 'none', border: `1px solid ${borderSoft}`, color: textMuted }}>← Back</button>
+          <button onClick={() => { setShowBooking(false); setStep(isSolo ? 1 : 0); setSelectedServiceIds([]); setSelectedSlot('') }} style={{ marginBottom: 16, padding: '6px 14px', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', background: 'none', border: `1px solid ${borderSoft}`, color: textMuted }}>← Back</button>
         )}
 
         {/* Progress */}
         {!booked && (
           <div style={{ display: 'flex', gap: 4, marginBottom: 36, alignItems: 'center', justifyContent: 'center' }}>
-            {[isSolo ? 'Service' : 'Service', !isSolo ? 'Staff' : null, 'Date & Time', 'Your Info'].filter(Boolean).map((t, i) => {
-              const actualStep = isSolo ? (i >= 1 ? i + 1 : i) : i
+            {[!isSolo ? 'Staff' : null, 'Services', 'Date & Time', 'Your Info'].filter(Boolean).map((lbl, i) => {
+              const actualStep = isSolo ? (i + 1) : i
               const isActive = step === actualStep
               const isDone = step > actualStep
               return (
@@ -592,27 +606,8 @@ export default function PublicBookingPage() {
           <div style={{ padding: '10px 16px', borderRadius: 10, background: 'rgba(220,80,80,.08)', border: '1px solid rgba(220,80,80,.15)', color: 'rgba(255,160,160,.8)', fontSize: 13, marginBottom: 20 }}>{error}</div>
         )}
 
-        {/* Step 0: Services */}
-        {step === 0 && (
-          <div>
-            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, color: textHeading }}>Choose a service</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {services.map(s => (
-                <div key={s.id} onClick={() => selectService(s)} style={{ ...card, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 500, color: textMain }}>{s.name}</div>
-                    <div style={{ fontSize: 12, color: textMuted, marginTop: 3 }}>{s.duration_minutes} min</div>
-                  </div>
-                  {s.price_cents > 0 && <div style={{ fontSize: 17, fontWeight: 600, color: 'rgba(130,220,170,.7)' }}>{fmtPrice(s.price_cents)}</div>}
-                </div>
-              ))}
-              {services.length === 0 && <div style={{ textAlign: 'center', color: textDim, padding: 40 }}>No services available</div>}
-            </div>
-          </div>
-        )}
-
-        {/* Step 1: Barbers (salon mode only) */}
-        {step === 1 && !isSolo && (
+        {/* Step 0: Team Member (salon mode only — solo skips to step 1) */}
+        {step === 0 && !isSolo && (
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, color: textHeading }}>Choose your specialist</h2>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${barbers.length <= 3 ? '140px' : '120px'}, 1fr))`, gap: 12 }}>
@@ -630,9 +625,122 @@ export default function PublicBookingPage() {
                 </div>
               ))}
             </div>
-            <button onClick={() => setStep(0)} style={{ marginTop: 16, padding: '8px 18px', background: 'none', border: `1px solid ${borderSoft}`, borderRadius: 10, color: textMuted, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Back</button>
           </div>
         )}
+
+        {/* Step 1: Services — multi-select with checkboxes, grouped by type */}
+        {step === 1 && (() => {
+          const filteredServices = services.filter(s =>
+            !s.barber_ids || s.barber_ids.length === 0 || (selectedBarber && s.barber_ids.includes(selectedBarber.id))
+          )
+          const primaryServices = filteredServices.filter(s => s.service_type !== 'addon')
+          const addonServices = filteredServices.filter(s => s.service_type === 'addon')
+
+          return (
+            <div>
+              <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, color: textHeading }}>Select services</h2>
+
+              {/* Primary Services */}
+              {primaryServices.length > 0 && (
+                <div style={{ marginBottom: addonServices.length > 0 ? 24 : 0 }}>
+                  <div style={{ fontSize: 12, color: textMuted, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 10 }}>Services</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {primaryServices.map(s => {
+                      const isSelected = selectedServiceIds.includes(s.id)
+                      return (
+                        <div key={s.id} onClick={() => toggleService(s)} style={{
+                          ...card,
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          border: `1.5px solid ${isSelected ? 'rgba(130,150,220,.4)' : t.cardBorder}`,
+                          background: isSelected ? (isLightTheme ? 'rgba(99,102,241,.04)' : 'rgba(130,150,220,.06)') : t.card,
+                          padding: '14px 18px',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                            <div style={{
+                              width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                              border: `1.5px solid ${isSelected ? 'rgba(130,150,220,.5)' : (isLightTheme ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.15)')}`,
+                              background: isSelected ? 'rgba(130,150,220,.15)' : 'transparent',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 13, color: 'rgba(130,150,220,.9)', fontWeight: 600,
+                            }}>{isSelected ? '✓' : ''}</div>
+                            <div>
+                              <div style={{ fontSize: 15, fontWeight: 500, color: textMain }}>{s.name}</div>
+                              <div style={{ fontSize: 12, color: textMuted, marginTop: 2 }}>{s.duration_minutes} min</div>
+                            </div>
+                          </div>
+                          {s.price_cents > 0 && <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(130,220,170,.7)', flexShrink: 0 }}>{fmtPrice(s.price_cents)}</div>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Add-ons */}
+              {addonServices.length > 0 && (
+                <div>
+                  <div style={{ height: 1, background: borderSoft, marginBottom: 16 }} />
+                  <div style={{ fontSize: 12, color: textMuted, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 10 }}>Add-ons</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {addonServices.map(s => {
+                      const isSelected = selectedServiceIds.includes(s.id)
+                      return (
+                        <div key={s.id} onClick={() => toggleService(s)} style={{
+                          ...card,
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          border: `1.5px solid ${isSelected ? 'rgba(130,150,220,.4)' : t.cardBorder}`,
+                          background: isSelected ? (isLightTheme ? 'rgba(99,102,241,.04)' : 'rgba(130,150,220,.06)') : t.card,
+                          padding: '14px 18px',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                            <div style={{
+                              width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                              border: `1.5px solid ${isSelected ? 'rgba(130,150,220,.5)' : (isLightTheme ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.15)')}`,
+                              background: isSelected ? 'rgba(130,150,220,.15)' : 'transparent',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 13, color: 'rgba(130,150,220,.9)', fontWeight: 600,
+                            }}>{isSelected ? '✓' : ''}</div>
+                            <div>
+                              <div style={{ fontSize: 15, fontWeight: 500, color: textMain }}>{s.name}</div>
+                              <div style={{ fontSize: 12, color: textMuted, marginTop: 2 }}>{s.duration_minutes} min</div>
+                            </div>
+                          </div>
+                          {s.price_cents > 0 && <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(130,220,170,.7)', flexShrink: 0 }}>{fmtPrice(s.price_cents)}</div>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {filteredServices.length === 0 && <div style={{ textAlign: 'center', color: textDim, padding: 40 }}>No services available</div>}
+
+              {/* Summary + Continue */}
+              {selectedServiceIds.length > 0 && (
+                <div style={{ marginTop: 20, padding: '14px 18px', borderRadius: 14, border: `1px solid ${borderSoft}`, background: bgSubtle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: 13, color: textMuted }}>{selectedServiceIds.length} service{selectedServiceIds.length > 1 ? 's' : ''} selected</div>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: textSoft, marginTop: 2 }}>
+                      {totalDuration} min{totalPrice > 0 ? ` · ${fmtPrice(totalPrice)}` : ''}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                {!isSolo && (
+                  <button onClick={() => setStep(0)} style={{ padding: '10px 20px', background: 'none', border: `1px solid ${borderSoft}`, borderRadius: 10, color: textMuted, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Back</button>
+                )}
+                <button onClick={confirmServices} disabled={selectedServiceIds.length === 0} style={{
+                  flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit',
+                  cursor: selectedServiceIds.length === 0 ? 'default' : 'pointer',
+                  background: 'rgba(130,220,170,.1)', border: '1px solid rgba(130,220,170,.2)', color: 'rgba(130,220,170,.9)',
+                  opacity: selectedServiceIds.length === 0 ? 0.4 : 1,
+                }}>Continue</button>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Step 2: Date & Time */}
         {step === 2 && (
@@ -678,7 +786,7 @@ export default function PublicBookingPage() {
             )}
 
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setStep(isSolo ? 0 : 1)} style={{ padding: '10px 20px', background: 'none', border: `1px solid ${borderSoft}`, borderRadius: 10, color: textMuted, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Back</button>
+              <button onClick={() => setStep(1)} style={{ padding: '10px 20px', background: 'none', border: `1px solid ${borderSoft}`, borderRadius: 10, color: textMuted, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Back</button>
               {selectedSlot && (
                 <button onClick={() => setStep(3)} style={{
                   padding: '10px 24px', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', cursor: 'pointer',
@@ -698,11 +806,12 @@ export default function PublicBookingPage() {
             <div style={{ ...card, cursor: 'default', marginBottom: 24, padding: '16px 20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 500, color: textMain }}>{selectedService?.name || 'Appointment'}</div>
+                  <div style={{ fontSize: 15, fontWeight: 500, color: textMain }}>{combinedServiceName || 'Appointment'}</div>
                   {!isSolo && <div style={{ fontSize: 13, color: textMuted, marginTop: 3 }}>with {selectedBarber?.name}</div>}
+                  <div style={{ fontSize: 12, color: textDim, marginTop: 2 }}>{totalDuration} min</div>
                 </div>
-                {selectedService && selectedService.price_cents > 0 && (
-                  <div style={{ fontSize: 17, fontWeight: 600, color: 'rgba(130,220,170,.7)' }}>{fmtPrice(selectedService.price_cents)}</div>
+                {totalPrice > 0 && (
+                  <div style={{ fontSize: 17, fontWeight: 600, color: 'rgba(130,220,170,.7)' }}>{fmtPrice(totalPrice)}</div>
                 )}
               </div>
               <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${borderSoft}`, fontSize: 14, fontWeight: 500, color: 'rgba(130,150,220,.7)' }}>
@@ -742,7 +851,7 @@ export default function PublicBookingPage() {
             </div>
 
             {/* Payment option */}
-            {stripeConnected && selectedService && selectedService.price_cents > 0 && !paymentClientSecret && (
+            {stripeConnected && totalPrice > 0 && !paymentClientSecret && (
               <div style={{ marginTop: 20, padding: '16px 20px', borderRadius: 14, border: `1px solid ${borderSoft}`, background: bgSubtle }}>
                 <div style={{ fontSize: 13, color: textMuted, marginBottom: 12, fontWeight: 500 }}>Payment</div>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -757,7 +866,7 @@ export default function PublicBookingPage() {
                     background: payOnline ? 'rgba(130,150,220,.12)' : bgSubtle,
                     border: `1px solid ${payOnline ? 'rgba(130,150,220,.2)' : borderSoft}`,
                     color: payOnline ? 'rgba(130,150,220,.9)' : textMuted,
-                  }}>Pay now ({fmtPrice(selectedService.price_cents)})</button>
+                  }}>Pay now ({fmtPrice(totalPrice)})</button>
                 </div>
               </div>
             )}
@@ -774,7 +883,7 @@ export default function PublicBookingPage() {
                   <InlinePaymentForm
                     onSuccess={onPaymentSuccess}
                     onError={onPaymentError}
-                    amount={selectedService?.price_cents || 0}
+                    amount={totalPrice}
                     isLight={isLightTheme}
                   />
                 </Elements>
@@ -790,7 +899,7 @@ export default function PublicBookingPage() {
                     cursor: !clientName || paymentLoading ? 'default' : 'pointer',
                     background: 'rgba(130,150,220,.12)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
                     opacity: !clientName || paymentLoading ? 0.5 : 1,
-                  }}>{paymentLoading ? 'Setting up payment...' : `Pay ${fmtPrice(selectedService?.price_cents || 0)} & Book`}</button>
+                  }}>{paymentLoading ? 'Setting up payment...' : `Pay ${fmtPrice(totalPrice)} & Book`}</button>
                 ) : (
                   <button onClick={handleBook} disabled={!clientName || bookLoading} style={{
                     flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: !clientName || bookLoading ? 'default' : 'pointer',
@@ -813,7 +922,7 @@ export default function PublicBookingPage() {
             }}>✓</div>
             <h2 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6, color: textMain }}>Booking Confirmed!</h2>
             <p style={{ color: textMuted, fontSize: 14, lineHeight: 1.6 }}>
-              {selectedService?.name}{!isSolo ? ` with ${selectedBarber?.name}` : ''}
+              {combinedServiceName || 'Appointment'}{!isSolo ? ` with ${selectedBarber?.name}` : ''}
             </p>
             <p style={{ color: 'rgba(130,150,220,.7)', fontSize: 16, fontWeight: 500, marginTop: 8, marginBottom: 32 }}>
               {fmtFullDate(selectedDate)} at {fmtTime(selectedSlot)}
