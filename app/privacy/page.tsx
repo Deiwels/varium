@@ -62,8 +62,8 @@ export default function PrivacyPage() {
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Types:</strong> Appointment confirmations, reminders (24 hours and 2 hours before your visit), schedule changes, and cancellation notices.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Frequency:</strong> Up to 5 messages per booking, depending on appointment activity.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message and data rates may apply.</strong> Contact your wireless carrier for details about your plan.</li>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Opt-Out:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>STOP</strong> to any message to stop receiving text messages. You may also email hello@vurium.com.</li>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Help:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>HELP</strong> to any message for assistance, or email hello@vurium.com.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Opt-Out:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>STOP</strong> to any message to stop receiving text messages. You may also email support@vurium.com.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Help:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>HELP</strong> to any message for assistance, or email support@vurium.com.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>No Sharing:</strong> We will not sell, rent, or share your mobile phone number or SMS opt-in data with third parties for their marketing purposes.</li>
             <li>Consent to receive SMS is <strong style={{ color: 'rgba(255,255,255,.55)' }}>not a condition</strong> of purchasing any service or making a booking.</li>
           </ul>
@@ -90,7 +90,7 @@ export default function PrivacyPage() {
         {/* 6. Your Rights */}
         <h2 style={heading}>6. Your Rights</h2>
         <p style={text}>
-          You have the right to access, correct, or request deletion of your personal data. To exercise these rights, contact us at <a href="mailto:hello@vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>hello@vurium.com</a>. We will respond within 30 days.
+          You have the right to access, correct, or request deletion of your personal data. To exercise these rights, contact us at <a href="mailto:support@vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>support@vurium.com</a>. We will respond within 30 days.
         </p>
 
         {/* 7. Security */}
@@ -109,7 +109,7 @@ export default function PrivacyPage() {
         <h2 style={heading}>9. Contact Us</h2>
         <p style={text}>
           If you have questions about this Privacy Policy or our data practices, contact us at:<br />
-          <a href="mailto:hello@vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>hello@vurium.com</a>
+          <a href="mailto:support@vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>support@vurium.com</a>
         </p>
       </main>
 

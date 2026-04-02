@@ -233,7 +233,7 @@ export default function Home() {
         <p style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', fontWeight: 300, color: 'rgba(255,255,255,.35)', maxWidth: 440, margin: '0 auto 36px', lineHeight: 1.6 }}>
           Interested in our products? We&apos;d love to hear from you.
         </p>
-        <a href="mailto:hello@vurium.com" className="btn-primary">hello@vurium.com</a>
+        <a href="mailto:support@vurium.com" className="btn-primary">support@vurium.com</a>
       </section>
 
       {/* ── Footer ── */}

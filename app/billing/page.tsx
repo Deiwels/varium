@@ -383,7 +383,7 @@ export default function BillingPage() {
                         {checkoutLoading === p.id ? 'Loading...' : isCurrent ? 'Current Plan' : 'Subscribe'}
                       </button>
                     ) : (
-                      <a href="mailto:hello@vurium.com?subject=VuriumBook Enterprise" style={{
+                      <a href="mailto:support@vurium.com?subject=VuriumBook Enterprise" style={{
                         display: 'block', width: '100%', padding: '12px', borderRadius: 12, fontSize: 13, textAlign: 'center', textDecoration: 'none',
                         background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)',
                       }}>Contact Sales</a>
