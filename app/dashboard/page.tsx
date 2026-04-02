@@ -757,12 +757,9 @@ export default function DashboardPage() {
         // Build grid items in a 4-col grid
         // Each item knows how many cols it spans
         const COLS = 4
-        const isNative = typeof window !== 'undefined' && (window as any).__VURIUM_IS_NATIVE
-        const nativeSafeTop = isNative ? ((window as any).__VURIUM_SAFE_TOP || 59) : 0
-        const nativeSafeBot = isNative ? ((window as any).__VURIUM_SAFE_BOTTOM || 34) : 0
-        // In native app: top-bar = 52 + safeTop, bottom pill = 46 + safeBot, plus padding
-        const chromeH = isNative ? (52 + nativeSafeTop + 46 + nativeSafeBot + 30) : 140
-        const availH = typeof window !== 'undefined' ? window.innerHeight - chromeH : 600
+        // Use container height if available, otherwise estimate from window
+        const containerEl = typeof document !== 'undefined' ? document.querySelector('.content') as HTMLElement : null
+        const availH = containerEl ? containerEl.clientHeight - 40 : (typeof window !== 'undefined' ? window.innerHeight - 180 : 600)
 
         // Simple flow: place items sequentially, track col position
         // Widgets take 2 or 4 cols, icons take 1 col
@@ -811,7 +808,7 @@ export default function DashboardPage() {
         }
 
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', position: 'fixed', top: 'var(--shell-top, 52px)', left: 0, right: 0, bottom: 'calc(46px + var(--sab, 0px))', touchAction: 'pan-x' }}
+          <div style={{ display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', width: '100%', height: '100%', touchAction: 'pan-x' }}
             onClick={() => { if (jiggleMode) setJiggleMode(false) }}
             onTouchStart={e => {
               homeSwipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY }
