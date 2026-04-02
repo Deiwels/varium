@@ -63,6 +63,14 @@ const stripeAppearance: Appearance = {
   },
 }
 
+// ─── Native iOS detection ───────────────────────────────────────────────────
+declare global {
+  interface Window {
+    __VURIUM_IS_NATIVE?: boolean
+    webkit?: { messageHandlers?: { purchase?: { postMessage: (msg: any) => void } } }
+  }
+}
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface BillingStatus {
   plan: string
@@ -214,7 +222,26 @@ export default function BillingPage() {
 
   useEffect(() => { loadBilling() }, [loadBilling])
 
+  // Listen for Apple IAP purchase success/error from native app
+  useEffect(() => {
+    const onSuccess = () => { setCheckoutLoading(''); setTimeout(loadBilling, 1500) }
+    const onError = () => { setCheckoutLoading('') }
+    window.addEventListener('vuriumPurchaseSuccess', onSuccess)
+    window.addEventListener('vuriumPurchaseError', onError)
+    return () => {
+      window.removeEventListener('vuriumPurchaseSuccess', onSuccess)
+      window.removeEventListener('vuriumPurchaseError', onError)
+    }
+  }, [loadBilling])
+
   async function startCheckout(plan: PlanDef) {
+    // Native iOS → trigger Apple In-App Purchase
+    if (window.__VURIUM_IS_NATIVE && window.webkit?.messageHandlers?.purchase) {
+      setCheckoutLoading(plan.id)
+      window.webkit.messageHandlers.purchase.postMessage({ plan: plan.id })
+      return
+    }
+
     if (!stripePromise) {
       // Fallback to hosted checkout if no publishable key
       setCheckoutLoading(plan.id)

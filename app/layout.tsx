@@ -68,7 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Load fonts — swap shows fallback font immediately, then swaps when ready */}
         <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Julius+Sans+One&display=swap" as="style" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Julius+Sans+One&display=swap" rel="stylesheet" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <style dangerouslySetInnerHTML={{ __html: `
           @keyframes starBreathe {
             0%, 100% { opacity: 0.25; transform: scale(0.8); box-shadow: 0 0 3px 1px rgba(200,220,255,.12); }

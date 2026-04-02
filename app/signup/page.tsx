@@ -5,6 +5,11 @@ import { setAuthCookie } from '@/lib/auth-cookie'
 import { loadStripe, Appearance } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 
+// ─── Native iOS detection ───────────────────────────────────────────────────
+declare global {
+  interface Window { __VURIUM_IS_NATIVE?: boolean; webkit?: any }
+}
+
 // ─── Stripe setup ───────────────────────────────────────────────────────────
 const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''
 const stripePromise = STRIPE_PK ? loadStripe(STRIPE_PK) : null
@@ -392,37 +397,50 @@ export default function SignupPage() {
                 ))}
               </div>
 
-              {/* Load Stripe Elements for selected plan */}
-              {!clientSecret && (
-                <button type="button" disabled={checkoutLoading} onClick={async () => {
-                  setCheckoutLoading(true); setError('')
-                  try {
-                    const data = await apiFetch('/api/billing/create-subscription', {
-                      method: 'POST', body: JSON.stringify({ plan: selectedPlan }),
-                    })
-                    if (data.clientSecret) setClientSecret(data.clientSecret)
-                    else throw new Error('Failed to initialize payment')
-                  } catch (e: any) { setError(e.message || 'Failed to start checkout') }
-                  setCheckoutLoading(false)
-                }} style={{
-                  width: '100%', height: 48, borderRadius: 999, border: '1px solid rgba(255,255,255,.15)',
-                  background: '#000', color: 'rgba(255,255,255,.85)', fontSize: 14, fontWeight: 600,
-                  cursor: checkoutLoading ? 'wait' : 'pointer', fontFamily: 'inherit',
-                  opacity: checkoutLoading ? 0.5 : 1,
+              {/* Native iOS: skip Stripe, use Apple IAP later from /billing */}
+              {typeof window !== 'undefined' && window.__VURIUM_IS_NATIVE ? (
+                <button type="button" onClick={() => setStep(2)} style={{
+                  width: '100%', height: 48, borderRadius: 999, border: '1px solid rgba(130,220,170,.25)',
+                  background: 'rgba(130,220,170,.1)', color: 'rgba(130,220,170,.85)', fontSize: 14, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit',
                 }}>
-                  {checkoutLoading ? 'Loading...' : 'Continue to Payment'}
+                  Start 14-Day Free Trial
                 </button>
-              )}
+              ) : (
+                <>
+                  {/* Load Stripe Elements for selected plan */}
+                  {!clientSecret && (
+                    <button type="button" disabled={checkoutLoading} onClick={async () => {
+                      setCheckoutLoading(true); setError('')
+                      try {
+                        const data = await apiFetch('/api/billing/create-subscription', {
+                          method: 'POST', body: JSON.stringify({ plan: selectedPlan }),
+                        })
+                        if (data.clientSecret) setClientSecret(data.clientSecret)
+                        else throw new Error('Failed to initialize payment')
+                      } catch (e: any) { setError(e.message || 'Failed to start checkout') }
+                      setCheckoutLoading(false)
+                    }} style={{
+                      width: '100%', height: 48, borderRadius: 999, border: '1px solid rgba(255,255,255,.15)',
+                      background: '#000', color: 'rgba(255,255,255,.85)', fontSize: 14, fontWeight: 600,
+                      cursor: checkoutLoading ? 'wait' : 'pointer', fontFamily: 'inherit',
+                      opacity: checkoutLoading ? 0.5 : 1,
+                    }}>
+                      {checkoutLoading ? 'Loading...' : 'Continue to Payment'}
+                    </button>
+                  )}
 
-              {clientSecret && stripePromise && (
-                <Elements stripe={stripePromise} options={{ clientSecret, appearance: stripeAppearance, loader: 'auto' }}>
-                  <SignupCheckoutForm
-                    planId={selectedPlan}
-                    planPrice={SIGNUP_PLANS.find(p => p.id === selectedPlan)?.price || 79}
-                    planName={SIGNUP_PLANS.find(p => p.id === selectedPlan)?.name || 'Salon'}
-                    onSuccess={() => setStep(2)}
-                  />
-                </Elements>
+                  {clientSecret && stripePromise && (
+                    <Elements stripe={stripePromise} options={{ clientSecret, appearance: stripeAppearance, loader: 'auto' }}>
+                      <SignupCheckoutForm
+                        planId={selectedPlan}
+                        planPrice={SIGNUP_PLANS.find(p => p.id === selectedPlan)?.price || 79}
+                        planName={SIGNUP_PLANS.find(p => p.id === selectedPlan)?.name || 'Salon'}
+                        onSuccess={() => setStep(2)}
+                      />
+                    </Elements>
+                  )}
+                </>
               )}
 
               {error && <div style={{ marginTop: 14, padding: '8px 12px', borderRadius: 10, background: 'rgba(220,130,160,.08)', border: '1px solid rgba(220,130,160,.15)', color: 'rgba(220,130,160,.8)', fontSize: 12 }}>{error}</div>}

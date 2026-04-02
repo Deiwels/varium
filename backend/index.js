@@ -3953,6 +3953,48 @@ app.post('/api/billing/portal', requireRole('owner'), async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
+// Apple IAP Verification
+app.post('/api/billing/apple-verify', requireRole('owner'), async (req, res) => {
+  try {
+    const { transactionId, originalTransactionId, productId, plan, environment, expiresDate, purchaseDate } = req.body;
+    if (!transactionId || !productId || !plan) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const validPlans = ['individual', 'salon', 'custom'];
+    if (!validPlans.includes(plan)) {
+      return res.status(400).json({ error: 'Invalid plan' });
+    }
+
+    const wsRef = req.wsDoc();
+    const updateData = {
+      plan_type: plan,
+      billing_status: 'active',
+      billing_source: 'apple',
+      apple_transaction_id: transactionId,
+      apple_original_transaction_id: originalTransactionId || transactionId,
+      apple_product_id: productId,
+      apple_environment: environment || 'production',
+      apple_expires_at: expiresDate ? new Date(expiresDate * 1000).toISOString() : null,
+      apple_purchase_date: purchaseDate ? new Date(purchaseDate * 1000).toISOString() : null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const wsDoc = await wsRef.get();
+    const wsData = wsDoc.exists ? wsDoc.data() : {};
+    if (wsData.trial_active) {
+      updateData.trial_active = false;
+    }
+
+    await wsRef.update(updateData);
+    console.log(`[Apple IAP] Verified purchase for workspace ${req.workspaceId}: ${plan} (txn: ${transactionId})`);
+    res.json({ ok: true, plan });
+  } catch (e) {
+    console.error('[Apple IAP] Verify error:', e);
+    res.status(500).json({ error: e?.message });
+  }
+});
+
 // Stripe Webhook (before auth middleware — already registered before /api middleware)
 // We need a separate raw body endpoint
 app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
