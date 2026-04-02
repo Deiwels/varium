@@ -7,7 +7,7 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 
 // ─── Native iOS detection ───────────────────────────────────────────────────
 declare global {
-  interface Window { __VURIUM_IS_NATIVE?: boolean; webkit?: any }
+  interface Window { __VURIUM_IS_NATIVE?: boolean }
 }
 
 // ─── Stripe setup ───────────────────────────────────────────────────────────
