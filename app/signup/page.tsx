@@ -268,7 +268,7 @@ export default function SignupPage() {
                 </button>
 
                 <p style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: 'rgba(255,255,255,.2)', lineHeight: 1.5 }}>
-                  By creating an account you agree to our Terms of Service.
+                  By creating an account you agree to our <a href="/terms" style={{ color: 'rgba(130,150,220,.5)', textDecoration: 'none' }}>Terms of Service</a> and <a href="/privacy" style={{ color: 'rgba(130,150,220,.5)', textDecoration: 'none' }}>Privacy Policy</a>.
                 </p>
               </div>
             </form>
@@ -325,7 +325,10 @@ export default function SignupPage() {
 
       <footer style={{ borderTop: '1px solid rgba(255,255,255,.05)', padding: '20px clamp(20px, 4vw, 48px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2, flexWrap: 'wrap', gap: 12 }}>
         <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)' }}>&copy; 2026 Vurium. All rights reserved.</span>
-        <a href="https://vurium.com/vuriumbook" target="_blank" rel="noopener" style={{ fontSize: 11, color: 'rgba(255,255,255,.15)', textDecoration: 'none' }}>Powered by VuriumBook</a>
+        <div style={{ display: 'flex', gap: 20 }}>
+          <a href="/privacy" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Privacy</a>
+          <a href="/terms" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Terms</a>
+        </div>
       </footer>
     </>
   )

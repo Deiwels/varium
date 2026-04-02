@@ -550,6 +550,7 @@ const BookingCreateSchema = z.object({
   customer_note: z.string().max(1000).optional(),
   paid: z.boolean().optional(),
   customer_id: z.string().max(80).optional(),
+  sms_consent: z.boolean().optional(),
 });
 
 const BookingPatchSchema = BookingCreateSchema.partial().extend({
@@ -1702,6 +1703,7 @@ app.post('/api/bookings', async (req, res) => {
       source: data.source || 'crm',
       notes: sanitizeHtml(data.notes) || null,
       customer_note: sanitizeHtml(data.customer_note) || null,
+      sms_consent: data.sms_consent || false,
       paid: data.paid || false,
       created_at: toIso(new Date()), updated_at: toIso(new Date()),
     };
@@ -1724,12 +1726,12 @@ app.post('/api/bookings', async (req, res) => {
     // SMS confirmation + push + schedule reminders
     const settingsDoc = await req.ws('settings').doc('config').get();
     const tz = settingsDoc.exists ? (settingsDoc.data()?.timezone || 'America/Chicago') : 'America/Chicago';
-    if (doc.client_phone) {
+    if (doc.client_phone && doc.sms_consent) {
       const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
       const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
       sendSms(doc.client_phone, `Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your barber'}. Reply STOP to unsubscribe.`).catch(() => {});
     }
-    scheduleReminders(req.ws, bookingRef.id, doc, tz).catch(() => {});
+    if (doc.sms_consent) scheduleReminders(req.ws, bookingRef.id, doc, tz).catch(() => {});
     sendCrmPushToStaff(req.ws, doc.barber_id, 'New Booking', `${doc.client_name || 'Client'} booked for ${doc.start_at?.slice(0, 10)}`, { type: 'booking_confirmed' }).catch(() => {});
     res.status(201).json({ id: bookingRef.id, ...doc });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -1799,8 +1801,8 @@ app.delete('/api/bookings/:id', async (req, res) => {
     const bookingData = doc.data();
     await ref.update({ status: 'cancelled', updated_at: toIso(new Date()) });
     writeAuditLog(req.wsId, { action: 'booking.cancelled', resource_id: req.params.id, req }).catch(() => {});
-    // SMS cancellation notification
-    if (bookingData.client_phone) {
+    // SMS cancellation notification (only if consent was given)
+    if (bookingData.client_phone && bookingData.sms_consent) {
       sendSms(bookingData.client_phone, `Your appointment with ${bookingData.barber_name || 'your barber'} has been cancelled. Reply STOP to unsubscribe.`).catch(() => {});
     }
     sendCrmPushToBarber(req.ws, bookingData.barber_id, 'Booking Cancelled', `${bookingData.client_name || 'Client'} cancelled`, { type: 'booking_cancelled' }).catch(() => {});
@@ -3073,6 +3075,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
     const barberId = safeStr(booking.barber_id);
     const clientName = sanitizeHtml(safeStr(booking.client_name));
     const clientPhone = safeStr(booking.client_phone);
+    const smsConsent = !!booking.sms_consent;
     const durMin = Number(booking.duration_minutes || 30);
     if (!startAt || !barberId) return res.status(400).json({ error: 'start_at and barber_id required' });
     const endAt = addMinutes(startAt, durMin);
@@ -3089,6 +3092,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       status: 'booked', paid: false, source: 'website',
       notes: sanitizeHtml(safeStr(booking.notes)) || null,
       customer_note: sanitizeHtml(safeStr(booking.customer_note)) || null,
+      sms_consent: smsConsent,
       created_at: toIso(new Date()), updated_at: toIso(new Date()),
     };
     const bookingsRef = wsCol('bookings');
@@ -3101,6 +3105,15 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
     } catch (e) {
       if (e.code === 'CONFLICT' || String(e.message).includes('CONFLICT')) return res.status(409).json({ error: 'Slot already booked' });
       throw e;
+    }
+    // SMS confirmation + reminders (only if consented)
+    if (smsConsent && clientPhone) {
+      const settingsDoc = await wsCol('settings').doc('config').get();
+      const tz = settingsDoc.exists ? (settingsDoc.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+      const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+      const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
+      sendSms(clientPhone, `Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your barber'}. Reply STOP to unsubscribe.`).catch(() => {});
+      scheduleReminders(wsCol, bookingRef.id, doc, tz).catch(() => {});
     }
     res.status(201).json({ booking_id: bookingRef.id, id: bookingRef.id });
   } catch (e) { res.status(500).json({ error: e?.message }); }

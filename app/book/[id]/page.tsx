@@ -40,6 +40,7 @@ export default function PublicBookingPage() {
   const [clientName, setClientName] = useState('')
   const [clientPhone, setClientPhone] = useState('')
   const [clientNote, setClientNote] = useState('')
+  const [smsConsent, setSmsConsent] = useState(false)
   const [bookLoading, setBookLoading] = useState(false)
   const [booked, setBooked] = useState(false)
   const [error, setError] = useState('')
@@ -193,6 +194,7 @@ export default function PublicBookingPage() {
           start_at: selectedSlot,
           client_name: clientName,
           client_phone: clientPhone || undefined,
+          sms_consent: clientPhone ? smsConsent : undefined,
           service_id: selectedService?.id,
           service_name: selectedService?.name,
           duration_minutes: selectedService?.duration_minutes || 30,
@@ -557,6 +559,21 @@ export default function PublicBookingPage() {
                 <textarea value={clientNote} onChange={e => setClientNote(e.target.value)} placeholder="Any special requests..." rows={3}
                   style={{ ...inp, resize: 'vertical' }} />
               </div>
+
+              {clientPhone && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4 }}>
+                  <input
+                    type="checkbox"
+                    checked={smsConsent}
+                    onChange={e => setSmsConsent(e.target.checked)}
+                    id="sms-consent"
+                    style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }}
+                  />
+                  <label htmlFor="sms-consent" style={{ fontSize: 12, color: textMuted, lineHeight: 1.5, cursor: 'pointer' }}>
+                    I agree to receive appointment-related SMS (confirmations, reminders, changes) at the number provided. Msg frequency varies, up to 5 msgs per booking. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help. <a href="/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy</a> &amp; <a href="/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a>.
+                  </label>
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
