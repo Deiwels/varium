@@ -299,12 +299,13 @@ function sendSms(to, body) {
 
 // ─── Email via Resend ─────────────────────────────────────────────────────────
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
-const EMAIL_FROM = 'VuriumBook <noreply@vurium.com>';
+const EMAIL_FROM_DOMAIN = 'noreply@vurium.com';
 
-function sendEmail(to, subject, html) {
+function sendEmail(to, subject, html, fromName) {
   if (!RESEND_API_KEY) { console.warn('Resend not configured'); return Promise.resolve(null); }
   if (!to) return Promise.resolve(null);
-  const payload = JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html });
+  const from = `${fromName || 'VuriumBook'} <${EMAIL_FROM_DOMAIN}>`;
+  const payload = JSON.stringify({ from, to: [to], subject, html });
   return new Promise((resolve) => {
     const req = https.request({
       hostname: 'api.resend.com',
@@ -322,22 +323,24 @@ function sendEmail(to, subject, html) {
   });
 }
 
-function vuriumEmailTemplate(title, bodyHtml) {
+function vuriumEmailTemplate(title, bodyHtml, shopName) {
+  const displayName = shopName || 'VuriumBook';
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#010101;font-family:'Inter',Helvetica,Arial,sans-serif;color:#e8e8ed;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#010101;padding:40px 20px;">
+<body style="margin:0;padding:0;background:#0a0a0a;font-family:'Inter',Helvetica,Arial,sans-serif;color:#e8e8ed;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;padding:40px 20px;">
 <tr><td align="center">
-<table width="100%" style="max-width:480px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;overflow:hidden;">
-<tr><td style="padding:32px 28px 24px;text-align:center;">
-<div style="width:40px;height:40px;margin:0 auto 16px;border-radius:12px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;">
-<img src="https://vurium.com/logo.jpg" width="28" height="28" style="border-radius:8px;" alt="V">
+<table width="100%" style="max-width:480px;background:#141414;border:1px solid rgba(255,255,255,.1);border-radius:20px;overflow:hidden;">
+<tr><td style="padding:32px 28px 24px;text-align:center;background:#0a0a0a;">
+<div style="width:48px;height:48px;margin:0 auto 16px;border-radius:12px;background:#000;border:1px solid rgba(255,255,255,.12);text-align:center;line-height:48px;">
+<img src="https://vurium.com/logo-white.png" width="32" height="32" style="border-radius:8px;vertical-align:middle;" alt="${displayName}">
 </div>
-<h1 style="margin:0 0 8px;font-size:20px;font-weight:600;color:#e8e8ed;letter-spacing:-.02em;">${title}</h1>
+<div style="font-size:13px;font-weight:500;color:rgba(255,255,255,.4);letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;">${displayName}</div>
+<h1 style="margin:0;font-size:22px;font-weight:600;color:#fff;letter-spacing:-.02em;">${title}</h1>
 </td></tr>
-<tr><td style="padding:0 28px 28px;font-size:14px;line-height:1.7;color:rgba(255,255,255,.6);">
+<tr><td style="padding:24px 28px 28px;font-size:14px;line-height:1.7;color:rgba(255,255,255,.65);">
 ${bodyHtml}
 </td></tr>
-<tr><td style="padding:16px 28px;border-top:1px solid rgba(255,255,255,.06);text-align:center;">
+<tr><td style="padding:16px 28px;border-top:1px solid rgba(255,255,255,.06);text-align:center;background:#0a0a0a;">
 <a href="https://vurium.com" style="font-size:11px;color:rgba(255,255,255,.2);text-decoration:none;">Powered by VuriumBook</a>
 </td></tr>
 </table>
@@ -1896,7 +1899,7 @@ app.post('/api/bookings', async (req, res) => {
           <div style="color:rgba(130,150,220,.7);font-weight:500;margin-top:8px;">${dateStr} at ${timeStr}</div>
         </div>
         <p style="font-size:12px;color:rgba(255,255,255,.3);">Need to reschedule? Contact your salon directly.</p>
-      `)).catch(() => {});
+      `, shopName), shopName).catch(() => {});
     }
     res.status(201).json({ id: bookingRef.id, ...doc });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -1984,7 +1987,7 @@ app.delete('/api/bookings/:id', async (req, res) => {
           <div style="color:rgba(255,255,255,.4);margin-top:4px;">with ${bookingData.barber_name || 'your specialist'}</div>
         </div>
         <p style="font-size:12px;color:rgba(255,255,255,.3);">To book a new appointment, visit our booking page.</p>
-      `)).catch(() => {});
+      `, cancelShopName), cancelShopName).catch(() => {});
     }
     res.json({ ok: true, id: req.params.id, status: 'cancelled' });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -3590,6 +3593,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
         const emailTz = emailSettingsData?.timezone || 'America/Chicago';
         const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: emailTz });
         const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: emailTz });
+        const emailShopName = safeStr(emailSettingsData?.shop_name || '');
         sendEmail(bookingEmail, 'Booking Confirmed', vuriumEmailTemplate('Booking Confirmed', `
           <p>Your appointment has been confirmed:</p>
           <div style="padding:16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin:16px 0;">
@@ -3598,7 +3602,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
             <div style="color:rgba(130,150,220,.7);font-weight:500;margin-top:8px;">${dateStr} at ${timeStr}</div>
           </div>
           <p style="font-size:12px;color:rgba(255,255,255,.3);">Need to reschedule? Contact your salon directly.</p>
-        `)).catch(() => {});
+        `, emailShopName), emailShopName).catch(() => {});
     }
     res.status(201).json({ booking_id: bookingRef.id, id: bookingRef.id });
   } catch (e) { res.status(500).json({ error: e?.message }); }
