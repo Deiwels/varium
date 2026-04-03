@@ -335,28 +335,38 @@ function sendEmail(to, subject, html, fromName) {
   });
 }
 
-function vuriumEmailTemplate(title, bodyHtml, shopName, logoUrl) {
+const EMAIL_THEMES = {
+  modern:       { bg: '#010101', card: '#0d0d0d', border: 'rgba(255,255,255,.08)', text: '#e8e8ed', muted: 'rgba(255,255,255,.5)', accent: 'rgba(130,150,220,.7)', footer: 'rgba(255,255,255,.15)' },
+  classic:      { bg: '#f5f5f5', card: '#ffffff', border: 'rgba(0,0,0,.08)', text: '#1a1a1a', muted: 'rgba(0,0,0,.5)', accent: '#333', footer: 'rgba(0,0,0,.2)' },
+  bold:         { bg: '#080808', card: '#111111', border: 'rgba(255,255,255,.1)', text: '#ffffff', muted: 'rgba(255,255,255,.55)', accent: '#fff', footer: 'rgba(255,255,255,.18)' },
+  'dark-luxury': { bg: '#0c0a08', card: '#12100e', border: 'rgba(200,170,120,.12)', text: '#e8dcc8', muted: 'rgba(200,170,120,.5)', accent: '#c8a87a', footer: 'rgba(200,170,120,.2)' },
+  colorful:     { bg: '#fafafa', card: '#ffffff', border: 'rgba(99,102,241,.12)', text: '#2a2a2a', muted: 'rgba(0,0,0,.45)', accent: '#6366f1', footer: 'rgba(99,102,241,.3)' },
+};
+
+function vuriumEmailTemplate(title, bodyHtml, shopName, logoUrl, template) {
   const displayName = shopName || 'VuriumBook';
+  const t = EMAIL_THEMES[template] || EMAIL_THEMES.modern;
+  const isLight = ['classic', 'colorful'].includes(template);
   const logoHtml = logoUrl
     ? `<img src="${logoUrl}" width="40" height="40" style="border-radius:10px;display:block;margin:0 auto;" alt="${displayName}">`
-    : `<div style="width:48px;height:48px;margin:0 auto;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);text-align:center;line-height:48px;font-size:22px;font-weight:700;color:rgba(255,255,255,.5);">${(displayName || 'V')[0].toUpperCase()}</div>`;
+    : `<div style="width:48px;height:48px;margin:0 auto;border-radius:14px;background:${isLight ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.06)'};border:1px solid ${t.border};text-align:center;line-height:48px;font-size:22px;font-weight:700;color:${t.muted};">${(displayName || 'V')[0].toUpperCase()}</div>`;
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0a0a0a;font-family:'Inter',Helvetica,Arial,sans-serif;color:#e8e8ed;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;padding:40px 20px;">
+<body style="margin:0;padding:0;background:${t.bg};font-family:'Inter',Helvetica,Arial,sans-serif;color:${t.text};">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:${t.bg};padding:40px 20px;">
 <tr><td align="center">
-<table width="100%" style="max-width:480px;background:#141414;border:1px solid rgba(255,255,255,.1);border-radius:20px;overflow:hidden;">
-<tr><td style="padding:32px 28px 24px;text-align:center;background:#0a0a0a;">
+<table width="100%" style="max-width:480px;background:${t.card};border:1px solid ${t.border};border-radius:20px;overflow:hidden;">
+<tr><td style="padding:32px 28px 24px;text-align:center;">
 <div style="margin-bottom:16px;">
 ${logoHtml}
 </div>
-<div style="font-size:13px;font-weight:500;color:rgba(255,255,255,.4);letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;">${displayName}</div>
-<h1 style="margin:0;font-size:22px;font-weight:600;color:#fff;letter-spacing:-.02em;">${title}</h1>
+<div style="font-size:13px;font-weight:500;color:${t.muted};letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;">${displayName}</div>
+<h1 style="margin:0;font-size:22px;font-weight:600;color:${t.text};letter-spacing:-.02em;">${title}</h1>
 </td></tr>
-<tr><td style="padding:24px 28px 28px;font-size:14px;line-height:1.7;color:rgba(255,255,255,.65);">
+<tr><td style="padding:24px 28px 28px;font-size:14px;line-height:1.7;color:${t.muted};">
 ${bodyHtml}
 </td></tr>
-<tr><td style="padding:16px 28px;border-top:1px solid rgba(255,255,255,.06);text-align:center;background:#0a0a0a;">
-<a href="https://vurium.com" style="font-size:11px;color:rgba(255,255,255,.2);text-decoration:none;">Powered by VuriumBook</a>
+<tr><td style="padding:16px 28px;border-top:1px solid ${t.border};text-align:center;">
+<a href="https://vurium.com" style="font-size:11px;color:${t.footer};text-decoration:none;">Powered by VuriumBook</a>
 </td></tr>
 </table>
 </td></tr>
@@ -3672,19 +3682,25 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
         const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: emailTz });
         const emailShopName = safeStr(emailSettingsData?.shop_name || '');
         const emailLogo = emailSettingsData?.logo_url || '';
+        const wsDocData = await db.collection('workspaces').doc(wsId).get();
+        const emailTemplate = wsDocData.exists ? (wsDocData.data()?.site_config?.template || 'modern') : 'modern';
         const manageUrl = `https://vurium.com/manage-booking?token=${doc.client_token}`;
+        const et = EMAIL_THEMES[emailTemplate] || EMAIL_THEMES.modern;
+        const isLt = ['classic','colorful'].includes(emailTemplate);
+        const cardBg = isLt ? 'rgba(0,0,0,.03)' : 'rgba(255,255,255,.04)';
+        const cardBrd = et.border;
         sendEmail(bookingEmail, 'Booking Confirmed', vuriumEmailTemplate('Booking Confirmed', `
           <p>Your appointment has been confirmed:</p>
-          <div style="padding:16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin:16px 0;">
-            <div style="font-size:16px;font-weight:600;color:#e8e8ed;">${doc.service_name || 'Appointment'}</div>
-            <div style="color:rgba(255,255,255,.4);margin-top:4px;">with ${doc.barber_name || 'your specialist'}</div>
-            <div style="color:rgba(130,150,220,.7);font-weight:500;margin-top:8px;">${dateStr} at ${timeStr}</div>
+          <div style="padding:16px;border-radius:14px;background:${cardBg};border:1px solid ${cardBrd};margin:16px 0;">
+            <div style="font-size:16px;font-weight:600;color:${et.text};">${doc.service_name || 'Appointment'}</div>
+            <div style="color:${et.muted};margin-top:4px;">with ${doc.barber_name || 'your specialist'}</div>
+            <div style="color:${et.accent};font-weight:500;margin-top:8px;">${dateStr} at ${timeStr}</div>
           </div>
-          <div style="text-align:center;margin:20px 0;display:flex;gap:10px;justify-content:center;">
-            <a href="${manageUrl}" style="display:inline-block;padding:12px 24px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#e8e8ed;text-decoration:none;font-size:13px;font-weight:500;">Reschedule</a>
-            <a href="${manageUrl}&action=cancel" style="display:inline-block;padding:12px 24px;border-radius:10px;background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.2);color:rgba(255,140,140,.9);text-decoration:none;font-size:13px;font-weight:500;">Cancel</a>
+          <div style="text-align:center;margin:20px 0;">
+            <a href="${manageUrl}" style="display:inline-block;padding:12px 24px;border-radius:10px;background:${isLt ? 'rgba(0,0,0,.05)' : 'rgba(255,255,255,.08)'};border:1px solid ${cardBrd};color:${et.text};text-decoration:none;font-size:13px;font-weight:500;margin-right:8px;">Reschedule</a>
+            <a href="${manageUrl}&action=cancel" style="display:inline-block;padding:12px 24px;border-radius:10px;background:rgba(220,60,60,.08);border:1px solid rgba(220,60,60,.2);color:rgba(220,80,80,.8);text-decoration:none;font-size:13px;font-weight:500;">Cancel</a>
           </div>
-        `, emailShopName, emailLogo), emailShopName).catch(() => {});
+        `, emailShopName, emailLogo, emailTemplate), emailShopName).catch(() => {});
     }
     res.status(201).json({ booking_id: bookingRef.id, id: bookingRef.id });
   } catch (e) { res.status(500).json({ error: e?.message }); }
