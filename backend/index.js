@@ -3554,7 +3554,6 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
           </div>
           <p style="font-size:12px;color:rgba(255,255,255,.3);">Need to reschedule? Contact your salon directly.</p>
         `)).catch(() => {});
-      }
     }
     res.status(201).json({ booking_id: bookingRef.id, id: bookingRef.id });
   } catch (e) { res.status(500).json({ error: e?.message }); }
