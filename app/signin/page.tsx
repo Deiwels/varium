@@ -252,10 +252,23 @@ export default function SignInPage() {
             </div>
           </form>
 
+          {/* Forgot password */}
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <button type="button" onClick={() => {
+              const email = prompt('Enter your email to receive a password reset link:')
+              if (!email) return
+              fetch(`${API}/auth/forgot-password`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
+                .then(() => alert('If an account exists with that email, a reset link has been sent.'))
+                .catch(() => alert('Failed to send reset email.'))
+            }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.35)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
+              Forgot password?
+            </button>
+          </div>
+
           {/* Footer links */}
-          <div style={{ textAlign: 'center', marginTop: 24, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,.25)' }}>
-              Don&apos;t have a workspace? <a href="/signup" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Create one</a>
+              Don&apos;t have a workspace? <a href="/signup" style={{ color: 'rgba(255,255,255,.45)', textDecoration: 'none' }}>Create one</a>
             </p>
             <a href="/" id="back-to-vurium" style={{ fontSize: 12, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>← Back to Vurium</a>
           </div>

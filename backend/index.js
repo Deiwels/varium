@@ -297,6 +297,55 @@ function sendSms(to, body) {
 
 
 
+// ─── Email via Resend ─────────────────────────────────────────────────────────
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const EMAIL_FROM = 'VuriumBook <noreply@vurium.com>';
+
+function sendEmail(to, subject, html) {
+  if (!RESEND_API_KEY) { console.warn('Resend not configured'); return Promise.resolve(null); }
+  if (!to) return Promise.resolve(null);
+  const payload = JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html });
+  return new Promise((resolve) => {
+    const req = https.request({
+      hostname: 'api.resend.com',
+      path: '/emails',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Length': Buffer.byteLength(payload) },
+    }, (resp) => {
+      let data = '';
+      resp.on('data', c => data += c);
+      resp.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve(null); } });
+    });
+    req.on('error', (e) => { console.warn('sendEmail error:', e?.message); resolve(null); });
+    req.write(payload);
+    req.end();
+  });
+}
+
+function vuriumEmailTemplate(title, bodyHtml) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#010101;font-family:'Inter',Helvetica,Arial,sans-serif;color:#e8e8ed;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#010101;padding:40px 20px;">
+<tr><td align="center">
+<table width="100%" style="max-width:480px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;overflow:hidden;">
+<tr><td style="padding:32px 28px 24px;text-align:center;">
+<div style="width:40px;height:40px;margin:0 auto 16px;border-radius:12px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;">
+<img src="https://vurium.com/logo.jpg" width="28" height="28" style="border-radius:8px;" alt="V">
+</div>
+<h1 style="margin:0 0 8px;font-size:20px;font-weight:600;color:#e8e8ed;letter-spacing:-.02em;">${title}</h1>
+</td></tr>
+<tr><td style="padding:0 28px 28px;font-size:14px;line-height:1.7;color:rgba(255,255,255,.6);">
+${bodyHtml}
+</td></tr>
+<tr><td style="padding:16px 28px;border-top:1px solid rgba(255,255,255,.06);text-align:center;">
+<a href="https://vurium.com" style="font-size:11px;color:rgba(255,255,255,.2);text-decoration:none;">Powered by VuriumBook</a>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`;
+}
+
 async function scheduleReminders(wsCol, bookingId, booking, timeZone, shopName) {
   try {
     const startAt = parseIso(booking.start_at);
@@ -739,6 +788,66 @@ app.post('/api/webhooks/square', async (req, res) => {
     }
     res.json({ ok: true });
   } catch (e) { console.error('Square webhook error:', e); res.json({ ok: true }); }
+});
+
+// ─── Password Reset (public — no auth) ────────────────────────────────────────
+app.post('/auth/forgot-password', async (req, res) => {
+  try {
+    const email = safeStr(req.body?.email || '').toLowerCase().trim();
+    if (!email) return res.status(400).json({ error: 'Email required' });
+    // Find user across all workspaces
+    let foundUser = null, foundWsId = null, foundUserId = null;
+    const wsSnap = await db.collection('workspaces').get();
+    for (const ws of wsSnap.docs) {
+      const usersSnap = await ws.ref.collection('users')
+        .where('username', '==', email).where('active', '==', true).limit(1).get();
+      if (!usersSnap.empty) {
+        foundUser = usersSnap.docs[0].data();
+        foundWsId = ws.id;
+        foundUserId = usersSnap.docs[0].id;
+        break;
+      }
+    }
+    // Always return success (don't reveal if email exists)
+    if (!foundUser) return res.json({ ok: true });
+    // Generate reset token (expires in 1 hour)
+    const token = crypto.randomBytes(32).toString('hex');
+    await db.collection('workspaces').doc(foundWsId).collection('users').doc(foundUserId).update({
+      reset_token: token,
+      reset_token_expires: toIso(new Date(Date.now() + 3600000)),
+    });
+    const resetUrl = `https://vurium.com/reset-password?token=${token}&ws=${foundWsId}&uid=${foundUserId}`;
+    sendEmail(email, 'Reset Your Password', vuriumEmailTemplate('Reset Your Password', `
+      <p>We received a request to reset your password.</p>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="${resetUrl}" style="display:inline-block;padding:14px 32px;border-radius:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#e8e8ed;text-decoration:none;font-weight:600;font-size:14px;">Reset Password</a>
+      </div>
+      <p style="font-size:12px;color:rgba(255,255,255,.3);">This link expires in 1 hour. If you didn't request this, ignore this email.</p>
+    `)).catch(() => {});
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/auth/reset-password', async (req, res) => {
+  try {
+    const { token, ws, uid, password } = req.body || {};
+    if (!token || !ws || !uid || !password) return res.status(400).json({ error: 'Missing fields' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) return res.status(400).json({ error: 'Password must contain a letter and a number' });
+    const userRef = db.collection('workspaces').doc(ws).collection('users').doc(uid);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'Invalid reset link' });
+    const data = userDoc.data();
+    if (data.reset_token !== token) return res.status(400).json({ error: 'Invalid or expired token' });
+    if (data.reset_token_expires && new Date(data.reset_token_expires) < new Date()) return res.status(400).json({ error: 'Token expired' });
+    await userRef.update({
+      password_hash: hashPassword(password),
+      reset_token: null,
+      reset_token_expires: null,
+      updated_at: toIso(new Date()),
+    });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
 // Apply auth + workspace for all /api/ routes
@@ -3401,6 +3510,25 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       const pubPrefix = pubShopName ? `${pubShopName}: ` : '';
       sendSms(clientPhone, `${pubPrefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your barber'}. Reply STOP to unsubscribe.`).catch(() => {});
       scheduleReminders(wsCol, bookingRef.id, doc, tz, pubShopName).catch(() => {});
+    }
+    // Email confirmation (if client has email from client record)
+    if (doc.client_id) {
+      const clientDoc = await wsCol('clients').doc(doc.client_id).get();
+      const clientEmail = clientDoc.exists ? clientDoc.data()?.email : null;
+      if (clientEmail) {
+        const tz = 'America/Chicago';
+        const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+        const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz });
+        sendEmail(clientEmail, 'Booking Confirmed', vuriumEmailTemplate('Booking Confirmed', `
+          <p>Your appointment has been confirmed:</p>
+          <div style="padding:16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin:16px 0;">
+            <div style="font-size:16px;font-weight:600;color:#e8e8ed;">${doc.service_name || 'Appointment'}</div>
+            <div style="color:rgba(255,255,255,.4);margin-top:4px;">with ${doc.barber_name || 'your specialist'}</div>
+            <div style="color:rgba(130,150,220,.7);font-weight:500;margin-top:8px;">${dateStr} at ${timeStr}</div>
+          </div>
+          <p style="font-size:12px;color:rgba(255,255,255,.3);">Need to reschedule? Contact your salon directly.</p>
+        `)).catch(() => {});
+      }
     }
     res.status(201).json({ booking_id: bookingRef.id, id: bookingRef.id });
   } catch (e) { res.status(500).json({ error: e?.message }); }
