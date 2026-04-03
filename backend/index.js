@@ -825,6 +825,10 @@ app.post('/api/webhooks/square', async (req, res) => {
                 updated_at: toIso(new Date()),
               };
               if (checkout.payment_ids?.length) bPatch.payment_id = checkout.payment_ids[0];
+              // Preserve service_amount/tax/fees from original payment request for payroll
+              if (prData.service_amount) bPatch.service_amount = prData.service_amount;
+              if (prData.tax_amount) bPatch.tax_amount = prData.tax_amount;
+              if (prData.fee_amount) bPatch.fee_amount = prData.fee_amount;
               await wsCol('bookings').doc(prData.booking_id).update(bPatch).catch(() => {});
             }
           }
@@ -3468,6 +3472,8 @@ app.post('/api/payments/terminal', async (req, res) => {
     const prDoc = {
       checkout_id: checkout.id, booking_id: bookingId, amount_cents: amountCents,
       payment_method: 'card', status: 'pending', device_id: deviceId, location_id: locationId,
+      service_amount: Number(b.service_amount || 0), tax_amount: Number(b.tax_amount || 0),
+      fee_amount: Number(b.fee_amount || 0), client_name: safeStr(b.client_name || ''),
       created_by: req.user.uid, created_at: toIso(new Date()),
     };
     const ref = await req.ws('payment_requests').add(prDoc);
@@ -3501,6 +3507,10 @@ app.get('/api/payments/terminal/status/:checkoutId', async (req, res) => {
             updated_at: toIso(new Date()),
           };
           if (checkout.payment_ids?.length) bPatch.payment_id = checkout.payment_ids[0];
+          // Preserve service_amount/tax/fees from original payment request for payroll
+          if (prData.service_amount) bPatch.service_amount = prData.service_amount;
+          if (prData.tax_amount) bPatch.tax_amount = prData.tax_amount;
+          if (prData.fee_amount) bPatch.fee_amount = prData.fee_amount;
           await req.ws('bookings').doc(prData.booking_id).update(bPatch).catch(() => {});
         }
       }
