@@ -427,7 +427,6 @@ export default function SettingsPage() {
       setTab('square')
       const errMsg = params.get('msg') || 'unknown error'
       showToast('❌ Square connection failed: ' + errMsg)
-      alert('Square connection failed: ' + errMsg)
       window.history.replaceState({}, '', '/settings?tab=square')
     }
     if (params.get('stripe') === 'connected') {

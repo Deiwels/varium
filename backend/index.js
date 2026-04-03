@@ -484,7 +484,6 @@ const SQUARE_BASE = (process.env.SQUARE_ENV || 'production').toLowerCase() === '
 const SQUARE_TIMEOUT_MS = Number(process.env.SQUARE_TIMEOUT_MS || 15000);
 const SQUARE_APP_ID = process.env.SQUARE_APP_ID || '';
 const SQUARE_APP_SECRET = process.env.SQUARE_APP_SECRET || '';
-console.log('Square config:', { hasAppId: !!SQUARE_APP_ID, hasSecret: !!SQUARE_APP_SECRET, base: SQUARE_BASE, appIdPrefix: SQUARE_APP_ID?.substring(0, 8) });
 
 async function getSquareToken(wsCol) {
   try {
@@ -772,10 +771,8 @@ app.get('/api/square/oauth/callback', async (req, res) => {
       body: JSON.stringify({ client_id: SQUARE_APP_ID, client_secret: SQUARE_APP_SECRET, code, grant_type: 'authorization_code', redirect_uri: redirectUri }),
     });
     const data = await r.json();
-    console.error('Square OAuth token exchange:', JSON.stringify({ ok: r.ok, status: r.status, hasToken: !!data.access_token, error: data?.message || data?.type || null, details: data?.errors || null }));
     if (!r.ok || !data.access_token) {
       const errMsg = data?.message || data?.errors?.[0]?.detail || data?.error || 'OAuth failed';
-      console.error('Square OAuth FAILED:', JSON.stringify(data));
       const frontendUrl = process.env.FRONTEND_URL || 'https://vurium.com';
       return res.redirect(`${frontendUrl}/settings?tab=square&square=error&msg=${encodeURIComponent(errMsg)}`);
     }
@@ -2608,30 +2605,62 @@ app.get('/api/payroll', requirePlanFeature('payroll'), requireRole('owner'), asy
   try {
     const from = safeStr(req.query?.from || '');
     const to = safeStr(req.query?.to || '');
-    // Calculate payroll from bookings
+    // Fetch bookings and barber profiles in parallel
     let query = req.ws('bookings');
     if (from) query = query.where('start_at', '>=', from);
     if (to) query = query.where('start_at', '<=', to);
-    const snap = await query.get();
-    const bookings = snap.docs.map(d => d.data());
-    // Group by barber
+    const [snap, barbersSnap] = await Promise.all([
+      query.get(),
+      req.ws('barbers').get(),
+    ]);
+    const barberProfiles = {};
+    barbersSnap.docs.forEach(d => { const data = d.data() || {}; barberProfiles[d.id] = data; });
+    const bookings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Group by barber with full booking details
     const byBarber = {};
     for (const b of bookings) {
       if (b.status === 'cancelled') continue;
       const bid = b.barber_id || 'unknown';
-      if (!byBarber[bid]) byBarber[bid] = { barber_id: bid, barber_name: b.barber_name || b.barber || bid, total_bookings: 0, total_revenue: 0, total_tips: 0 };
-      byBarber[bid].total_bookings++;
-      byBarber[bid].total_revenue += Number(b.amount || b.service_amount || 0);
-      byBarber[bid].total_tips += Number(b.tip || b.tip_amount || 0);
+      const profile = barberProfiles[bid] || {};
+      if (!byBarber[bid]) byBarber[bid] = {
+        barber_id: bid,
+        barber_name: profile.name || b.barber_name || b.barber || bid,
+        barber_photo: profile.photo || profile.avatar || '',
+        barber_level: profile.level || '',
+        bookings_count: 0, client_count: 0,
+        service_total: 0, tips_total: 0,
+        bookings: [],
+      };
+      byBarber[bid].bookings_count++;
+      byBarber[bid].service_total += Number(b.service_amount || b.amount || 0);
+      byBarber[bid].tips_total += Number(b.tip || b.tip_amount || 0);
+      byBarber[bid].bookings.push({
+        id: b.id,
+        date: (b.start_at || b.date || '').slice(0, 10),
+        client: b.client_name || b.client || '',
+        service: b.service_name || b.service || '',
+        service_amount: Number(b.service_amount || b.amount || 0),
+        tip: Number(b.tip || b.tip_amount || 0),
+        status: b.status || '',
+        paid: !!b.paid,
+        payment_method: b.payment_method || '',
+      });
     }
-    res.json({ summary: Object.values(byBarber), period: { from, to } });
+    // client_count = unique clients per barber
+    for (const bid of Object.keys(byBarber)) {
+      const clients = new Set(byBarber[bid].bookings.map(bk => bk.client).filter(Boolean));
+      byBarber[bid].client_count = clients.size || byBarber[bid].bookings_count;
+    }
+    res.json({ barbers: Object.values(byBarber), period: { from, to } });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
 app.get('/api/payroll/rules', requirePlanFeature('payroll'), requireRole('owner'), async (req, res) => {
   try {
     const snap = await req.ws('payroll_rules').get();
-    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    const rules = {};
+    snap.docs.forEach(d => { rules[d.id] = { id: d.id, ...d.data() }; });
+    res.json({ rules });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
@@ -2639,11 +2668,31 @@ app.post('/api/payroll/rules/:id', requireRole('owner'), async (req, res) => {
   try {
     const b = req.body || {};
     const patch = { updated_at: toIso(new Date()) };
-    if (b.barber_id != null) patch.barber_id = safeStr(b.barber_id);
-    if (b.commission_pct != null) patch.commission_pct = Math.max(0, Math.min(100, Number(b.commission_pct) || 0));
+    // Barber commission fields
+    if (b.base_pct != null) patch.base_pct = Math.max(0, Math.min(100, Number(b.base_pct) || 0));
+    if (b.tips_pct != null) patch.tips_pct = Math.max(0, Math.min(100, Number(b.tips_pct) || 0));
+    if (b.tiers != null && Array.isArray(b.tiers)) patch.tiers = b.tiers.map(t => ({
+      type: t.type === 'clients' ? 'clients' : 'revenue',
+      threshold: Math.max(0, Number(t.threshold) || 0),
+      pct: Math.max(0, Math.min(100, Number(t.pct) || 0)),
+    }));
+    if (b.custom_bonuses != null && Array.isArray(b.custom_bonuses)) patch.custom_bonuses = b.custom_bonuses.map(cb => ({
+      label: safeStr(cb.label || ''),
+      type: ['percent_revenue', 'percent_owner', 'fixed'].includes(cb.type) ? cb.type : 'fixed',
+      value: Number(cb.value) || 0,
+    }));
+    if (b.late_penalty_per_min != null) patch.late_penalty_per_min = Math.max(0, Number(b.late_penalty_per_min) || 0);
+    if (b.late_reset_at != null) patch.late_reset_at = safeStr(b.late_reset_at);
+    // Admin payroll fields
     if (b.hourly_rate != null) patch.hourly_rate = Math.max(0, Number(b.hourly_rate) || 0);
+    if (b.owner_profit_pct != null) patch.owner_profit_pct = Math.max(0, Math.min(100, Number(b.owner_profit_pct) || 0));
+    if (b.service_fee_pct != null) patch.service_fee_pct = Math.max(0, Math.min(100, Number(b.service_fee_pct) || 0));
+    if (b.service_fee_days != null && Array.isArray(b.service_fee_days)) patch.service_fee_days = b.service_fee_days.filter(d => typeof d === 'number' && d >= 0 && d <= 6);
+    // Legacy fields
+    if (b.commission_pct != null) patch.commission_pct = Math.max(0, Math.min(100, Number(b.commission_pct) || 0));
     if (b.tip_pct != null) patch.tip_pct = Math.max(0, Math.min(100, Number(b.tip_pct) || 0));
     if (b.type != null) patch.type = safeStr(b.type);
+    if (b.barber_id != null) patch.barber_id = safeStr(b.barber_id);
     const ref = req.ws('payroll_rules').doc(req.params.id);
     await ref.set(patch, { merge: true });
     const saved = await ref.get();
@@ -3213,6 +3262,79 @@ app.post('/api/webhooks/stripe-connect', express.raw({ type: 'application/json' 
 });
 
 // ============================================================
+// SQUARE CUSTOMER SYNC
+// ============================================================
+app.post('/api/square/customers/sync', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const headers = await squareHeaders(req.ws, { hasBody: true });
+    const { client_id, name, phone, email } = req.body || {};
+    if (!client_id) return res.status(400).json({ error: 'client_id required' });
+
+    // Check if local client already has a square_customer_id
+    const clientDoc = await req.ws('clients').doc(client_id).get();
+    if (clientDoc.exists && clientDoc.data()?.square_customer_id) {
+      // Already linked — fetch latest from Square
+      try {
+        const r = await squareFetch(`/v2/customers/${clientDoc.data().square_customer_id}`, { headers });
+        if (r.ok) {
+          const d = await r.json();
+          return res.json({ customer: d.customer, linked: true });
+        }
+      } catch {}
+    }
+
+    // Search Square by phone or reference_id
+    const searchQueries = [];
+    if (phone) {
+      const digits = phone.replace(/\D/g, '');
+      if (digits.length >= 10) {
+        searchQueries.push({ filter: { phone_number: { exact: digits.length === 10 ? '+1' + digits : '+' + digits } } });
+      }
+    }
+    searchQueries.push({ filter: { reference_id: { exact: client_id } } });
+
+    for (const query of searchQueries) {
+      try {
+        const r = await squareFetch('/v2/customers/search', {
+          method: 'POST', headers,
+          body: JSON.stringify({ query, limit: 1 }),
+        });
+        if (r.ok) {
+          const d = await r.json();
+          if (d.customers?.length) {
+            // Found — link to local client
+            await req.ws('clients').doc(client_id).update({ square_customer_id: d.customers[0].id, updated_at: toIso(new Date()) });
+            return res.json({ customer: d.customers[0], linked: true });
+          }
+        }
+      } catch {}
+    }
+
+    // Not found — create in Square
+    const nameParts = (name || '').trim().split(/\s+/);
+    const createBody = {
+      idempotency_key: crypto.randomUUID(),
+      given_name: nameParts[0] || '',
+      family_name: nameParts.slice(1).join(' ') || '',
+      reference_id: client_id,
+    };
+    if (phone) createBody.phone_number = phone.startsWith('+') ? phone : '+1' + phone.replace(/\D/g, '');
+    if (email) createBody.email_address = email;
+
+    const r = await squareFetch('/v2/customers', {
+      method: 'POST', headers,
+      body: JSON.stringify(createBody),
+    });
+    const d = await r.json();
+    if (!r.ok) return res.status(r.status).json({ error: 'Square error', details: d });
+
+    // Link to local client
+    await req.ws('clients').doc(client_id).update({ square_customer_id: d.customer.id, updated_at: toIso(new Date()) });
+    res.json({ customer: d.customer, created: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
 // SQUARE TERMINAL PAYMENTS
 // ============================================================
 app.get('/api/payments/terminal/devices', requireRole('owner', 'admin'), async (req, res) => {
@@ -3260,6 +3382,40 @@ app.post('/api/payments/terminal', async (req, res) => {
     const headers = await squareHeaders(req.ws, { hasBody: true });
     const locationId = safeStr(b.location_id || process.env.SQUARE_LOCATION_ID || '');
     const idempotencyKey = crypto.randomUUID();
+
+    // Auto-sync client to Square if we have client info
+    let squareCustomerId = safeStr(b.square_customer_id || '');
+    if (!squareCustomerId && bookingId) {
+      try {
+        const bookingDoc = await req.ws('bookings').doc(bookingId).get();
+        const bData = bookingDoc.exists ? bookingDoc.data() : {};
+        const clientId = bData?.customer_id || bData?.client_id || '';
+        if (clientId) {
+          const clientDoc = await req.ws('clients').doc(clientId).get();
+          if (clientDoc.exists) {
+            const cData = clientDoc.data();
+            if (cData?.square_customer_id) {
+              squareCustomerId = cData.square_customer_id;
+            } else {
+              // Create/find in Square
+              try {
+                const nameParts = (cData?.name || '').trim().split(/\s+/);
+                const createBody = { idempotency_key: crypto.randomUUID(), given_name: nameParts[0] || '', family_name: nameParts.slice(1).join(' ') || '', reference_id: clientId };
+                if (cData?.phone) createBody.phone_number = cData.phone.startsWith('+') ? cData.phone : '+1' + cData.phone.replace(/\D/g, '');
+                if (cData?.email) createBody.email_address = cData.email;
+                const cr = await squareFetch('/v2/customers', { method: 'POST', headers, body: JSON.stringify(createBody) });
+                if (cr.ok) {
+                  const cd = await cr.json();
+                  squareCustomerId = cd.customer?.id || '';
+                  if (squareCustomerId) await req.ws('clients').doc(clientId).update({ square_customer_id: squareCustomerId, updated_at: toIso(new Date()) }).catch(() => {});
+                }
+              } catch {}
+            }
+          }
+        }
+      } catch {}
+    }
+
     const sqBody = {
       idempotency_key: idempotencyKey,
       checkout: {
@@ -3267,6 +3423,7 @@ app.post('/api/payments/terminal', async (req, res) => {
         device_options: { device_id: deviceId, tip_settings: { allow_tipping: true } },
         payment_type: 'CARD_PRESENT',
         note: b.note || `Booking ${bookingId}`,
+        ...(squareCustomerId ? { customer_id: squareCustomerId } : {}),
       },
     };
     const r = await squareFetch('/v2/terminals/checkouts', { method: 'POST', headers, body: JSON.stringify(sqBody) });
