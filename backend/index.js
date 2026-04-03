@@ -766,9 +766,10 @@ app.get('/api/square/oauth/callback', async (req, res) => {
     const wsDoc = await db.collection('workspaces').doc(wsId).get();
     if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
     const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
+    const redirectUri = `${req.protocol}://${req.get('host')}/api/square/oauth/callback`;
     const r = await fetch(`${SQUARE_BASE}/oauth2/token`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ client_id: SQUARE_APP_ID, client_secret: SQUARE_APP_SECRET, code, grant_type: 'authorization_code' }),
+      body: JSON.stringify({ client_id: SQUARE_APP_ID, client_secret: SQUARE_APP_SECRET, code, grant_type: 'authorization_code', redirect_uri: redirectUri }),
     });
     const data = await r.json();
     console.error('Square OAuth token exchange:', JSON.stringify({ ok: r.ok, status: r.status, hasToken: !!data.access_token, error: data?.message || data?.type || null, details: data?.errors || null }));
