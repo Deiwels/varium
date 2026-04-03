@@ -1059,13 +1059,13 @@ function getScheduleForDate(barberDoc, dateObj, timeZone = 'America/Chicago') {
   const overrides = barberDoc?.schedule_overrides;
   if (overrides && typeof overrides === 'object' && overrides[dateKey]) {
     const ov = overrides[dateKey];
-    return { works: ov.enabled !== false, startMin: Number(ov.startMin || 600), endMin: Number(ov.endMin || 1200), dayKey: dateKey, weekday: dow, isOverride: true };
+    return { works: ov.enabled === true, startMin: Number(ov.startMin ?? 600), endMin: Number(ov.endMin ?? 1200), dayKey: dateKey, weekday: dow, isOverride: true };
   }
   const sch = barberDoc?.schedule || null;
   const use = normalizeSchedule(sch);
   if (use.perDay && use.perDay[dow]) {
     const daySchedule = use.perDay[dow];
-    return { works: daySchedule.enabled !== false, startMin: Number(daySchedule.startMin || use.startMin), endMin: Number(daySchedule.endMin || use.endMin), dayKey: dateKey, weekday: dow };
+    return { works: daySchedule.enabled !== false, startMin: Number(daySchedule.startMin ?? use.startMin), endMin: Number(daySchedule.endMin ?? use.endMin), dayKey: dateKey, weekday: dow };
   }
   return { works: use.days.includes(dow), startMin: use.startMin, endMin: use.endMin, dayKey: dateKey, weekday: dow };
 }
@@ -1152,6 +1152,23 @@ async function ensureNoConflictTx(tx, bookingsRef, { barberId, startAt, endAt, e
       err.code = 'CONFLICT';
       throw err;
     }
+  }
+}
+
+function ensureWithinSchedule(barberData, startAt, endAt, timeZone = 'America/Chicago') {
+  const sch = getScheduleForDate(barberData, startAt, timeZone);
+  if (!sch.works) {
+    const err = new Error('OUTSIDE_SCHEDULE');
+    err.code = 'OUTSIDE_SCHEDULE';
+    throw err;
+  }
+  const parts = getTzParts(startAt, timeZone);
+  const workStart = zonedTimeToUtc({ year: parts.year, month: parts.month, day: parts.day, hour: Math.floor(sch.startMin / 60), minute: sch.startMin % 60 }, timeZone);
+  const workEnd = zonedTimeToUtc({ year: parts.year, month: parts.month, day: parts.day, hour: Math.floor(sch.endMin / 60), minute: sch.endMin % 60 }, timeZone);
+  if (startAt < workStart || endAt > workEnd) {
+    const err = new Error('OUTSIDE_SCHEDULE');
+    err.code = 'OUTSIDE_SCHEDULE';
+    throw err;
   }
 }
 
@@ -2792,6 +2809,7 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
     // Nested objects — stored on settings doc
     if (b.tax !== undefined && typeof b.tax === 'object') patch.tax = b.tax;
     if (b.payroll !== undefined && typeof b.payroll === 'object') patch.payroll = b.payroll;
+    if (b.square !== undefined && typeof b.square === 'object') patch.square = b.square;
     // Site config — stored on workspace doc for custom plan
     if (b.site_config !== undefined && typeof b.site_config === 'object') {
       // Sanitize custom HTML — strip <script>, <iframe>, event handlers, javascript: urls
@@ -3390,7 +3408,15 @@ app.post('/api/payments/terminal', async (req, res) => {
     const b = req.body || {};
     const amountCents = b.amount_cents ? Math.round(Number(b.amount_cents)) : Math.round(Number(b.amount || 0) * 100);
     const bookingId = safeStr(b.booking_id || '');
-    const deviceId = safeStr(b.device_id || process.env.SQUARE_DEVICE_ID || '');
+    // Device ID: from request > workspace settings > env var
+    let deviceId = safeStr(b.device_id || '');
+    if (!deviceId) {
+      try {
+        const settingsDoc = await req.ws('settings').doc('config').get();
+        deviceId = safeStr(settingsDoc.exists ? settingsDoc.data()?.square?.terminal_device_id || '' : '');
+      } catch {}
+    }
+    if (!deviceId) deviceId = safeStr(process.env.SQUARE_DEVICE_ID || '');
     const paymentMethod = safeStr(b.payment_method || 'card');
     if (!amountCents || amountCents <= 0) return res.status(400).json({ error: 'amount required' });
     // For non-card payments (cash, zelle, other), just record locally
@@ -3837,6 +3863,18 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
         updated_at: toIso(new Date()),
       });
       clientId = clientRef.id;
+    }
+
+    // Validate against barber schedule
+    const pubBarberDoc = await wsCol('barbers').doc(barberId).get();
+    if (!pubBarberDoc.exists || pubBarberDoc.data()?.active === false) return res.status(404).json({ error: 'Barber not found' });
+    const pubSettingsDocPre = await wsCol('settings').doc('config').get();
+    const pubTimeZone = pubSettingsDocPre.exists ? (pubSettingsDocPre.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+    try {
+      ensureWithinSchedule(pubBarberDoc.data(), startAt, endAt, pubTimeZone);
+    } catch (e) {
+      if (e.code === 'OUTSIDE_SCHEDULE') return res.status(400).json({ error: 'Selected time is outside barber working hours' });
+      throw e;
     }
 
     const doc = {
@@ -4713,6 +4751,18 @@ app.post('/public/manage-booking/:token/reschedule', async (req, res) => {
     const newEndAt = addMinutes(newStartAt, durMin);
     const wsId = data.workspace_id;
     if (!wsId) return res.status(500).json({ error: 'Booking has no workspace reference' });
+    // Validate against barber schedule
+    const wsColResch = (col) => db.collection('workspaces').doc(wsId).collection(col);
+    const reschBarberDoc = await wsColResch('barbers').doc(data.barber_id).get();
+    if (!reschBarberDoc.exists) return res.status(404).json({ error: 'Barber not found' });
+    const reschSettingsDoc = await wsColResch('settings').doc('config').get();
+    const reschTz = reschSettingsDoc.exists ? (reschSettingsDoc.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+    try {
+      ensureWithinSchedule(reschBarberDoc.data(), newStartAt, newEndAt, reschTz);
+    } catch (e) {
+      if (e.code === 'OUTSIDE_SCHEDULE') return res.status(400).json({ error: 'Selected time is outside barber working hours' });
+      throw e;
+    }
     const bookingsRef = db.collection('workspaces').doc(wsId).collection('bookings');
     try {
       await db.runTransaction(async (tx) => {

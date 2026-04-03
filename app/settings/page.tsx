@@ -382,6 +382,9 @@ export default function SettingsPage() {
   const [squareConnecting, setSquareConnecting] = useState(false)
   const [stripeConnect, setStripeConnect] = useState<{ connected: boolean; account_id?: string; connected_at?: string; charges_enabled?: boolean; payouts_enabled?: boolean }>({ connected: false })
   const [stripeConnecting, setStripeConnecting] = useState(false)
+  const [squareDevices, setSquareDevices] = useState<any[]>([])
+  const [selectedDeviceId, setSelectedDeviceId] = useState('')
+  const [loadingDevices, setLoadingDevices] = useState(false)
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
@@ -413,9 +416,17 @@ export default function SettingsPage() {
     }
   }, [])
 
+  // Load saved terminal device from settings
+  useEffect(() => {
+    if (settings?.square?.terminal_device_id) setSelectedDeviceId(settings.square.terminal_device_id)
+  }, [settings])
+
   // Load Square & Stripe Connect status on mount
   useEffect(() => {
-    apiFetch('/api/square/oauth/status').then(d => setSquareOAuth(d)).catch(() => {})
+    apiFetch('/api/square/oauth/status').then(d => {
+      setSquareOAuth(d)
+      if (d?.connected) loadSquareDevices()
+    }).catch(() => {})
     apiFetch('/api/stripe-connect/status').then(d => setStripeConnect(d)).catch(() => {})
     const params = new URLSearchParams(window.location.search)
     if (params.get('square') === 'connected') {
@@ -494,11 +505,22 @@ export default function SettingsPage() {
     } catch (e: any) { showToast('❌ ' + e.message) }
   }
 
-  async function testSquare() {
+  async function loadSquareDevices() {
+    setLoadingDevices(true)
     try {
       const d = await apiFetch('/api/payments/terminal/devices')
       const devices = d?.devices || []
-      showToast(devices.length ? `✓ ${devices.length} device(s): ${devices.map((x: any) => x.name).join(', ')}` : '⚠ Connected, no devices')
+      setSquareDevices(devices)
+      if (!devices.length) showToast('⚠ No terminal devices found')
+    } catch (e: any) { showToast('❌ ' + e.message) }
+    setLoadingDevices(false)
+  }
+
+  async function saveTerminalDevice(deviceId: string) {
+    setSelectedDeviceId(deviceId)
+    try {
+      await apiFetch('/api/settings', { method: 'POST', body: JSON.stringify({ ...settings, square: { ...settings.square, terminal_device_id: deviceId } }) })
+      showToast('Terminal device saved ✓')
     } catch (e: any) { showToast('❌ ' + e.message) }
   }
 
@@ -811,6 +833,45 @@ export default function SettingsPage() {
                     </div>
                   )}
                 </SectionCard>
+
+                {/* ── TERMINAL DEVICE ── */}
+                {squareOAuth.connected && (
+                  <SectionCard title="Terminal Device">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>Select the Square Terminal device for card payments</div>
+                      {squareDevices.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {squareDevices.map((dev: any) => (
+                            <button key={dev.id} onClick={() => saveTerminalDevice(dev.id)}
+                              style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                padding: '10px 14px', borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit',
+                                border: `1px solid ${selectedDeviceId === dev.id ? 'rgba(143,240,177,.25)' : 'rgba(255,255,255,.08)'}`,
+                                background: selectedDeviceId === dev.id ? 'rgba(143,240,177,.06)' : 'rgba(0,0,0,.14)',
+                                color: '#e8e8ed', transition: 'all .2s',
+                              }}>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 600 }}>{dev.name || 'Square Terminal'}</div>
+                                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 2 }}>{dev.id}</div>
+                              </div>
+                              {selectedDeviceId === dev.id && (
+                                <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(130,220,170,.8)' }}>Active ✓</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', padding: '8px 0' }}>
+                          {loadingDevices ? 'Loading devices…' : 'No terminal devices found. Make sure your Square Terminal is powered on and connected.'}
+                        </div>
+                      )}
+                      <button onClick={loadSquareDevices} disabled={loadingDevices}
+                        style={{ height: 32, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.55)', cursor: 'pointer', fontWeight: 600, fontSize: 11, fontFamily: 'inherit', opacity: loadingDevices ? .5 : 1 }}>
+                        {loadingDevices ? 'Scanning…' : '↻ Refresh devices'}
+                      </button>
+                    </div>
+                  </SectionCard>
+                )}
 
                 {/* ── STRIPE CONNECT ── */}
                 <SectionCard title="Stripe Connect">
