@@ -106,6 +106,44 @@ interface Barber { id: string; name: string; photo_url?: string; level?: string;
 interface Service { id: string; name: string; duration_minutes: number; price_cents: number; barber_ids?: string[]; service_type?: string }
 interface Config { shop_name?: string; hero_media_url?: string; bannerText?: string; bannerEnabled?: boolean }
 
+function escapeHtml(s: string): string {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
+function processCustomHTML(html: string, data: { shopName: string; barbers: Barber[]; reviews: any[] }): string {
+  let result = html
+  // Simple variables
+  result = result.replace(/\{\{shop_name\}\}/gi, escapeHtml(data.shopName))
+  result = result.replace(/\{\{barber_count\}\}/gi, String(data.barbers.length))
+
+  // {{#each barbers}}...{{/each}} loop
+  result = result.replace(/\{\{#each barbers\}\}([\s\S]*?)\{\{\/each\}\}/gi, (_, tpl) => {
+    return data.barbers.map(b => {
+      let card = tpl as string
+      card = card.replace(/\{\{name\}\}/g, escapeHtml(b.name || ''))
+      card = card.replace(/\{\{photo_url\}\}/g, escapeHtml(b.photo_url || ''))
+      card = card.replace(/\{\{level\}\}/g, escapeHtml(b.level || ''))
+      card = card.replace(/\{\{id\}\}/g, escapeHtml(b.id || ''))
+      card = card.replace(/\{\{initials\}\}/g, escapeHtml((b.name || '').split(' ').map(n => n[0]).join('').slice(0, 2)))
+      return card
+    }).join('')
+  })
+
+  // {{#each reviews}}...{{/each}} loop
+  result = result.replace(/\{\{#each reviews\}\}([\s\S]*?)\{\{\/each\}\}/gi, (_, tpl) => {
+    return data.reviews.slice(0, 10).map(r => {
+      let item = tpl as string
+      item = item.replace(/\{\{reviewer_name\}\}/g, escapeHtml(r.name || 'Anonymous'))
+      item = item.replace(/\{\{rating\}\}/g, String(Number(r.rating) || 5))
+      item = item.replace(/\{\{stars\}\}/g, '★'.repeat(Math.min(5, Number(r.rating) || 5)) + '☆'.repeat(5 - Math.min(5, Number(r.rating) || 5)))
+      item = item.replace(/\{\{review_text\}\}/g, escapeHtml(r.text || ''))
+      return item
+    }).join('')
+  })
+
+  return result
+}
+
 async function api(path: string, opts?: RequestInit) {
   const res = await fetch(`${API}${path}`, { ...opts, headers: { 'Content-Type': 'application/json', ...opts?.headers } })
   return res.json()
@@ -449,6 +487,7 @@ export default function PublicBookingPage() {
     bold:         { bg: '#0a0a0a', text: '#ffffff', card: 'rgba(255,255,255,.04)', cardBorder: 'rgba(255,255,255,.08)', accent: '#fff', headerBg: 'rgba(0,0,0,.6)' },
     'dark-luxury': { bg: '#0c0a08', text: '#e8dcc8', card: 'rgba(200,170,120,.04)', cardBorder: 'rgba(200,170,120,.1)', accent: '#c8a87a', headerBg: 'rgba(12,10,8,.7)' },
     colorful:     { bg: '#fafafa', text: '#2a2a2a', card: 'rgba(0,0,0,.03)', cardBorder: 'rgba(0,0,0,.06)', accent: '#6366f1', headerBg: 'rgba(255,255,255,.9)' },
+    custom:       { bg: '#000', text: '#e9e9e9', card: 'rgba(255,255,255,.04)', cardBorder: 'rgba(255,255,255,.08)', accent: '#0a84ff', headerBg: 'rgba(0,0,0,.5)' },
   }
   // Individual: always Vurium (modern). Salon/Custom: use selected template.
   const activeTemplate = (effectivePlan === 'salon' || effectivePlan === 'custom') ? template : 'modern'
@@ -467,6 +506,27 @@ export default function PublicBookingPage() {
   const textHeading = isLightTheme ? 'rgba(0,0,0,.65)' : 'rgba(255,255,255,.7)'
   const borderSoft = isLightTheme ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.06)'
   const bgSubtle = isLightTheme ? 'rgba(0,0,0,.02)' : 'rgba(255,255,255,.02)'
+
+  // Custom code: click handler for data-action attributes
+  const handleCustomBlockClick = (e: React.MouseEvent) => {
+    const target = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null
+    if (!target) return
+    e.preventDefault()
+    const action = target.getAttribute('data-action')
+    if (action === 'book') {
+      const barberId = target.getAttribute('data-barber-id')
+      if (barberId) {
+        const barber = barbers.find(b => b.id === barberId)
+        if (barber) { setSelectedBarber(barber); setStep(1) }
+      }
+      setShowBooking(true)
+    }
+  }
+
+  // Process custom HTML with template variables
+  const processedCustomHTML = effectivePlan === 'custom' && siteConfig?.custom_html
+    ? processCustomHTML(siteConfig.custom_html, { shopName: shopName || config.shop_name || '', barbers, reviews })
+    : ''
 
   return (
     <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter, -apple-system, sans-serif', color: t.text, position: 'relative' }}>
@@ -501,7 +561,10 @@ export default function PublicBookingPage() {
 
       {/* ── SALON/CUSTOM LANDING PAGE ── */}
       {(effectivePlan === 'salon' || effectivePlan === 'custom') && !showBooking && (
-        <main style={{ maxWidth: 700, margin: '0 auto', padding: '40px 20px 80px', position: 'relative', zIndex: 2 }}>
+        <main style={{ maxWidth: activeTemplate === 'custom' ? 1200 : 700, margin: '0 auto', padding: activeTemplate === 'custom' ? '20px 16px 80px' : '40px 20px 80px', position: 'relative', zIndex: 2 }}>
+
+          {/* Default sections — hidden when "custom" template is active */}
+          {activeTemplate !== 'custom' && (<>
           {/* Hero */}
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             {config.hero_media_url && (
@@ -560,20 +623,24 @@ export default function PublicBookingPage() {
               </div>
             </div>
           )}
+          </>)}
+          {/* END default sections */}
 
-          {/* Custom HTML/CSS — custom plan only */}
-          {effectivePlan === 'custom' && siteConfig?.custom_html && (
+          {/* Custom HTML/CSS — custom plan only, with template variables & interactive data-actions */}
+          {effectivePlan === 'custom' && processedCustomHTML && (
             <>
               {siteConfig.custom_css && <style dangerouslySetInnerHTML={{ __html: siteConfig.custom_css }} />}
               <div
                 className="custom-site-block"
                 style={{ marginBottom: 40, position: 'relative', zIndex: 1 }}
-                dangerouslySetInnerHTML={{ __html: siteConfig.custom_html }}
+                onClick={handleCustomBlockClick}
+                dangerouslySetInnerHTML={{ __html: processedCustomHTML }}
               />
             </>
           )}
 
-          {/* Book Now CTA */}
+          {/* Book Now CTA — hidden for custom template since buttons are in custom HTML */}
+          {activeTemplate !== 'custom' && (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
             <button onClick={() => setShowBooking(true)} style={{
               padding: '16px 48px', borderRadius: 14, fontSize: 16, fontWeight: 600, fontFamily: 'inherit',
@@ -582,6 +649,7 @@ export default function PublicBookingPage() {
               color: isLightTheme ? '#fff' : t.text, cursor: 'pointer', transition: 'all .2s',
             }}>Book Now</button>
           </div>
+          )}
         </main>
       )}
 

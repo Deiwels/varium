@@ -879,6 +879,7 @@ export default function SettingsPage() {
                       { id: 'bold', label: 'Bold', color: 'rgba(255,255,255,.12)' },
                       { id: 'dark-luxury', label: 'Dark Luxury', color: 'rgba(255,255,255,.12)' },
                       { id: 'colorful', label: 'Colorful', color: 'rgba(255,255,255,.12)' },
+                      ...(currentPlan === 'custom' ? [{ id: 'custom', label: 'Custom', color: 'rgba(255,255,255,.12)' }] : []),
                     ].map(t => {
                       const sc = s.site_config || {}
                       const selected = (sc.template || 'modern') === t.id
@@ -987,13 +988,13 @@ export default function SettingsPage() {
                 {/* Custom Code — custom plan only */}
                 {currentPlan === 'custom' ? (
                 <SectionCard title="Custom Code">
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginBottom: 14 }}>Add custom HTML and CSS to your booking page. Code is injected into the landing section.</p>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginBottom: 14 }}>Add custom HTML and CSS to your booking page. Use template variables to inject dynamic data.</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <Field label="Custom CSS">
                       <textarea
                         value={(s.site_config || {}).custom_css || ''}
                         onChange={e => set('site_config', { ...(s.site_config || {}), custom_css: e.target.value })}
-                        placeholder={`.my-banner { background: #1a1a2e; padding: 20px; border-radius: 12px; }`}
+                        placeholder={`.my-card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 18px; padding: 20px; }`}
                         rows={6}
                         spellCheck={false}
                         style={{ ...inp, height: 'auto', padding: '10px 12px', resize: 'vertical' as const, fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace', fontSize: 12, lineHeight: 1.5, whiteSpace: 'pre', overflowWrap: 'normal', overflowX: 'auto' }}
@@ -1003,13 +1004,27 @@ export default function SettingsPage() {
                       <textarea
                         value={(s.site_config || {}).custom_html || ''}
                         onChange={e => set('site_config', { ...(s.site_config || {}), custom_html: e.target.value })}
-                        placeholder={`<div class="my-banner">\n  <h2>Special Offer</h2>\n  <p>50% off first visit!</p>\n</div>`}
-                        rows={8}
+                        placeholder={`<div class="my-grid">\n  {{#each barbers}}\n  <div class="my-card">\n    <img src="{{photo_url}}" alt="{{name}}">\n    <h2>{{name}}</h2>\n    <span>{{level}}</span>\n    <button data-action="book" data-barber-id="{{id}}">Book Now</button>\n  </div>\n  {{/each}}\n</div>`}
+                        rows={10}
                         spellCheck={false}
                         style={{ ...inp, height: 'auto', padding: '10px 12px', resize: 'vertical' as const, fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace', fontSize: 12, lineHeight: 1.5, whiteSpace: 'pre', overflowWrap: 'normal', overflowX: 'auto' }}
                       />
                     </Field>
-                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)' }}>Tip: Use classes in your CSS and reference them in HTML. Scripts are not allowed for security.</p>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', lineHeight: 1.7 }}>
+                      <div style={{ color: 'rgba(255,255,255,.4)', marginBottom: 4 }}>Template Variables</div>
+                      <div><code style={{ color: 'rgba(255,255,255,.35)' }}>{'{{shop_name}}'}</code> &mdash; business name &nbsp; <code style={{ color: 'rgba(255,255,255,.35)' }}>{'{{barber_count}}'}</code> &mdash; number of team members</div>
+                      <div style={{ marginTop: 4 }}><code style={{ color: 'rgba(255,255,255,.35)' }}>{'{{#each barbers}}...{{/each}}'}</code> &mdash; loop over team members</div>
+                      <div style={{ paddingLeft: 12 }}>
+                        <code style={{ color: 'rgba(255,255,255,.35)' }}>{'{{name}}'}</code>, <code style={{ color: 'rgba(255,255,255,.35)' }}>{'{{photo_url}}'}</code>, <code style={{ color: 'rgba(255,255,255,.35)' }}>{'{{level}}'}</code>, <code style={{ color: 'rgba(255,255,255,.35)' }}>{'{{id}}'}</code>, <code style={{ color: 'rgba(255,255,255,.35)' }}>{'{{initials}}'}</code>
+                      </div>
+                      <div style={{ marginTop: 4 }}><code style={{ color: 'rgba(255,255,255,.35)' }}>{'{{#each reviews}}...{{/each}}'}</code> &mdash; loop over reviews</div>
+                      <div style={{ paddingLeft: 12 }}>
+                        <code style={{ color: 'rgba(255,255,255,.35)' }}>{'{{reviewer_name}}'}</code>, <code style={{ color: 'rgba(255,255,255,.35)' }}>{'{{rating}}'}</code>, <code style={{ color: 'rgba(255,255,255,.35)' }}>{'{{stars}}'}</code>, <code style={{ color: 'rgba(255,255,255,.35)' }}>{'{{review_text}}'}</code>
+                      </div>
+                      <div style={{ marginTop: 6 }}><code style={{ color: 'rgba(255,255,255,.35)' }}>data-action=&quot;book&quot;</code> on a button opens booking flow</div>
+                      <div><code style={{ color: 'rgba(255,255,255,.35)' }}>data-barber-id=&quot;{'{{id}}'}&quot;</code> pre-selects a specific team member</div>
+                      <div style={{ marginTop: 6, color: 'rgba(255,255,255,.18)' }}>Scripts are not allowed for security. Use data-action attributes for interactivity.</div>
+                    </div>
                   </div>
                 </SectionCard>
                 ) : currentPlan === 'salon' ? (
