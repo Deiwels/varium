@@ -40,6 +40,7 @@ const stripeAppearance: Appearance = {
 const SIGNUP_PLANS = [
   { id: 'individual', name: 'Individual', price: 29, desc: 'For solo professionals' },
   { id: 'salon', name: 'Salon', price: 79, desc: 'For teams up to 10', featured: true },
+  { id: 'custom', name: 'Custom', price: 99, desc: 'Unlimited team + payroll' },
 ]
 
 // ─── Inline Checkout Form ───────────────────────────────────────────────────
@@ -471,28 +472,12 @@ export default function SignupPage() {
               }}>&#10003;</div>
 
               <h2 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8, color: '#e8e8ed' }}>Welcome to VuriumBook!</h2>
-              <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
+              <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 14, lineHeight: 1.7, marginBottom: 32 }}>
                 Your workspace <strong style={{ color: 'rgba(255,255,255,.7)' }}>{businessName}</strong> is ready.
               </p>
 
-              {/* Workspace ID card */}
-              <div style={{ padding: '16px 20px', borderRadius: 14, background: 'rgba(130,150,220,.06)', border: '1px solid rgba(130,150,220,.15)', marginBottom: 28, textAlign: 'left' }}>
-                <div style={{ fontSize: 11, color: 'rgba(130,150,220,.6)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Your Workspace ID</div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(130,150,220,.9)', fontFamily: 'monospace', wordBreak: 'break-all' }}>{wsId}</div>
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', marginTop: 8, lineHeight: 1.4 }}>
-                  Save this! Your team members will need it to sign in.
-                </p>
-                <button type="button" onClick={() => { navigator.clipboard.writeText(wsId); }} style={{
-                  marginTop: 10, padding: '8px 16px', borderRadius: 8, fontSize: 12, fontFamily: 'inherit',
-                  background: 'rgba(130,150,220,.1)', border: '1px solid rgba(130,150,220,.2)',
-                  color: 'rgba(130,150,220,.8)', cursor: 'pointer',
-                }}>Copy to Clipboard</button>
-              </div>
-
-              {/* Login info */}
               <div style={{ padding: '14px 20px', borderRadius: 14, background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.06)', marginBottom: 28, textAlign: 'left', fontSize: 13 }}>
-                <div style={{ color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>Login: <strong style={{ color: 'rgba(255,255,255,.6)' }}>{email}</strong></div>
-                <div style={{ color: 'rgba(255,255,255,.35)' }}>Role: <strong style={{ color: 'rgba(130,220,170,.7)' }}>Owner</strong></div>
+                <div style={{ color: 'rgba(255,255,255,.35)' }}>Signed in as <strong style={{ color: 'rgba(255,255,255,.6)' }}>{email}</strong></div>
               </div>
 
               <a href="/dashboard" className="btn-primary" style={{ width: '100%', fontSize: 15, justifyContent: 'center' }}>
