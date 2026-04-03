@@ -473,6 +473,7 @@ const SQUARE_BASE = (process.env.SQUARE_ENV || 'production').toLowerCase() === '
 const SQUARE_TIMEOUT_MS = Number(process.env.SQUARE_TIMEOUT_MS || 15000);
 const SQUARE_APP_ID = process.env.SQUARE_APP_ID || '';
 const SQUARE_APP_SECRET = process.env.SQUARE_APP_SECRET || '';
+console.log('Square config:', { hasAppId: !!SQUARE_APP_ID, hasSecret: !!SQUARE_APP_SECRET, base: SQUARE_BASE, appIdPrefix: SQUARE_APP_ID?.substring(0, 8) });
 
 async function getSquareToken(wsCol) {
   try {
@@ -759,9 +760,12 @@ app.get('/api/square/oauth/callback', async (req, res) => {
       body: JSON.stringify({ client_id: SQUARE_APP_ID, client_secret: SQUARE_APP_SECRET, code, grant_type: 'authorization_code' }),
     });
     const data = await r.json();
+    console.error('Square OAuth token exchange:', JSON.stringify({ ok: r.ok, status: r.status, hasToken: !!data.access_token, error: data?.message || data?.type || null, details: data?.errors || null }));
     if (!r.ok || !data.access_token) {
+      const errMsg = data?.message || data?.errors?.[0]?.detail || data?.error || 'OAuth failed';
+      console.error('Square OAuth FAILED:', JSON.stringify(data));
       const frontendUrl = process.env.FRONTEND_URL || 'https://vurium.com';
-      return res.redirect(`${frontendUrl}/settings?tab=square&square=error&msg=${encodeURIComponent(data?.message || 'OAuth failed')}`);
+      return res.redirect(`${frontendUrl}/settings?tab=square&square=error&msg=${encodeURIComponent(errMsg)}`);
     }
     await wsCol('settings').doc('square_oauth').set({
       access_token: data.access_token, refresh_token: data.refresh_token || null,
