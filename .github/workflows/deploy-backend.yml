@@ -64,7 +64,8 @@ jobs:
             --set-env-vars "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
             --set-env-vars "STRIPE_PRICE_INDIVIDUAL=${{ secrets.STRIPE_PRICE_INDIVIDUAL }}" \
             --set-env-vars "STRIPE_PRICE_SALON=${{ secrets.STRIPE_PRICE_SALON }}" \
-            --set-env-vars "STRIPE_PRICE_CUSTOM=${{ secrets.STRIPE_PRICE_CUSTOM }}"
+            --set-env-vars "STRIPE_PRICE_CUSTOM=${{ secrets.STRIPE_PRICE_CUSTOM }}" \
+            --set-env-vars "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}"
 
       - name: Show URL
         run: |
