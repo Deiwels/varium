@@ -568,7 +568,7 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
 
   // Find blocking event — same barber, same day, earlier start, not resolved
   const RESOLVED = ['paid', 'done', 'cancelled', 'noshow', 'no_show', 'refunded', 'partially_refunded']
-  const evDate = ev?._raw?.start_at ? ev._raw.start_at.slice(0, 10) : date
+  const evDate = ev?._raw?.start_at ? ev._raw.start_at.slice(0, 10) : ''
   const blockingEvent = ev && allEvents && barberId
     ? allEvents.find(e =>
         e.id !== ev.id &&
