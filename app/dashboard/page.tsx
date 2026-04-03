@@ -214,14 +214,7 @@ export default function DashboardPage() {
   const [clockError, setClockError] = useState('')
   const [clockSuccess, setClockSuccess] = useState<'in'|'out'|null>(null)
   const [clockErrorAnim, setClockErrorAnim] = useState(false)
-  const [clockOutSummary, setClockOutSummary] = useState<{ hours: string; earnings: string; tips: string; clients: number; services: string } | null>(() => {
-    // Restore clock-out summary from localStorage if same day
-    try {
-      const saved = JSON.parse(localStorage.getItem('VB_CLOCKOUT_SUMMARY') || 'null')
-      if (saved && saved.date === isoToday()) return saved.data
-    } catch {}
-    return null
-  })
+  const [clockOutSummary, setClockOutSummary] = useState<{ hours: string; earnings: string; tips: string; clients: number; services: string } | null>(null)
   const [elapsedStr, setElapsedStr] = useState('')
   const [staffOnClock, setStaffOnClock] = useState<any[]>([])
   const [attHistory, setAttHistory] = useState<any[]>([])
@@ -234,10 +227,13 @@ export default function DashboardPage() {
   const [earningsPeriod, setEarningsPeriod] = useState<EarningsPeriod>('today')
   const [earningsOffset, setEarningsOffset] = useState(0)
 
-  // Get current user from localStorage
-  const [user] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || 'null') } catch { return null }
-  })
+  // Get current user from localStorage (deferred to avoid hydration mismatch)
+  const [user, setUser] = useState<any>(null)
+  useEffect(() => {
+    try { setUser(JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || 'null')) } catch {}
+    // Restore clock-out summary
+    try { const saved = JSON.parse(localStorage.getItem('VB_CLOCKOUT_SUMMARY') || 'null'); if (saved && saved.date === isoToday()) setClockOutSummary(saved.data) } catch {}
+  }, [])
   const role: string = user?.role || 'owner'
   const isBarber = role === 'barber'
   const isStudent = role === 'student'
