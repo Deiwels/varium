@@ -644,6 +644,7 @@ const UserCreateSchema = z.object({
   password: z.string().min(8).max(200),
   role: z.enum(['owner', 'admin', 'barber', 'student']).optional().default('barber'),
   name: z.string().max(120).optional(),
+  email: z.string().email().max(254).optional(),
   barber_id: z.string().max(80).optional(),
   mentor_barber_ids: z.array(z.string().max(80)).optional(),
   phone: z.string().max(30).optional(),
@@ -796,16 +797,26 @@ app.post('/auth/forgot-password', async (req, res) => {
   try {
     const email = safeStr(req.body?.email || '').toLowerCase().trim();
     if (!email) return res.status(400).json({ error: 'Email required' });
-    // Find user across all workspaces
+    // Find user across all workspaces by username (owners) or email field (staff)
     let foundUser = null, foundWsId = null, foundUserId = null;
     const wsSnap = await db.collection('workspaces').get();
     for (const ws of wsSnap.docs) {
-      const usersSnap = await ws.ref.collection('users')
+      // First try username == email (owner accounts)
+      const byUsername = await ws.ref.collection('users')
         .where('username', '==', email).where('active', '==', true).limit(1).get();
-      if (!usersSnap.empty) {
-        foundUser = usersSnap.docs[0].data();
+      if (!byUsername.empty) {
+        foundUser = byUsername.docs[0].data();
         foundWsId = ws.id;
-        foundUserId = usersSnap.docs[0].id;
+        foundUserId = byUsername.docs[0].id;
+        break;
+      }
+      // Then try email field (staff accounts)
+      const byEmail = await ws.ref.collection('users')
+        .where('email', '==', email).where('active', '==', true).limit(1).get();
+      if (!byEmail.empty) {
+        foundUser = byEmail.docs[0].data();
+        foundWsId = ws.id;
+        foundUserId = byEmail.docs[0].id;
         break;
       }
     }
@@ -2034,7 +2045,7 @@ app.post('/api/users', requireRole('owner'), async (req, res) => {
   try {
     const v = validate(UserCreateSchema, req.body || {});
     if (!v.ok) return res.status(400).json({ error: v.error });
-    const { username, password, role, name, barber_id, mentor_barber_ids, phone } = v.data;
+    const { username, password, role, name, email, barber_id, mentor_barber_ids, phone } = v.data;
     // Check plan member limit
     const wsDoc = await req.wsDoc().get();
     const planType = wsDoc.exists ? (wsDoc.data()?.plan_type || 'individual') : 'individual';
@@ -2052,6 +2063,7 @@ app.post('/api/users', requireRole('owner'), async (req, res) => {
     const doc = {
       username: usernameLC,
       name: sanitizeHtml(name || username),
+      email: email ? email.toLowerCase() : null,
       role: role || 'barber',
       password_hash: hashPassword(password),
       barber_id: barber_id || null,
