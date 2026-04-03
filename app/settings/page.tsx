@@ -563,6 +563,50 @@ export default function SettingsPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 600 }}>
                 <SectionCard title="Business">
                   <Field label="Shop name"><input value={s.shop_name || ''} onChange={e => set('shop_name', e.target.value)} placeholder="Your Business Name" style={inp} /></Field>
+                  <Field label="Logo">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      {s.logo_url ? (
+                        <img src={s.logo_url} alt="" style={{ width: 48, height: 48, borderRadius: 12, objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)' }} />
+                      ) : (
+                        <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: 'rgba(255,255,255,.3)' }}>{(s.shop_name || 'V')[0]?.toUpperCase()}</div>
+                      )}
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 36, borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                          {s.logo_url ? 'Change logo' : 'Upload logo'}
+                          <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            if (file.size > 5 * 1024 * 1024) { showToast('Max 5MB'); return }
+                            const dataUrl: string = await new Promise((resolve, reject) => {
+                              const reader = new FileReader()
+                              reader.onload = () => {
+                                const img = new Image()
+                                img.onload = () => {
+                                  const MAX = 256
+                                  let w = img.width, h = img.height
+                                  if (w > MAX || h > MAX) { if (w > h) { h = Math.round(h * MAX / w); w = MAX } else { w = Math.round(w * MAX / h); h = MAX } }
+                                  const canvas = document.createElement('canvas')
+                                  canvas.width = w; canvas.height = h
+                                  canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+                                  resolve(canvas.toDataURL('image/png', 0.9))
+                                }
+                                img.onerror = reject
+                                img.src = reader.result as string
+                              }
+                              reader.onerror = reject
+                              reader.readAsDataURL(file)
+                            })
+                            set('logo_url', dataUrl)
+                            e.target.value = ''
+                          }} />
+                        </label>
+                        {s.logo_url && (
+                          <button onClick={() => set('logo_url', '')} style={{ height: 28, borderRadius: 8, border: '1px solid rgba(255,107,107,.2)', background: 'rgba(255,107,107,.04)', color: 'rgba(255,107,107,.6)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>Remove</button>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 6 }}>Used in emails and booking page. Max 5MB.</div>
+                  </Field>
                   <Field label="Timezone">
                     <select value={s.timezone || 'America/Chicago'} onChange={e => set('timezone', e.target.value)} style={inp}>
                       {['America/Chicago','America/New_York','America/Los_Angeles','America/Denver','America/Phoenix'].map(tz => <option key={tz} value={tz}>{tz}</option>)}

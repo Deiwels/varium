@@ -323,16 +323,19 @@ function sendEmail(to, subject, html, fromName) {
   });
 }
 
-function vuriumEmailTemplate(title, bodyHtml, shopName) {
+function vuriumEmailTemplate(title, bodyHtml, shopName, logoUrl) {
   const displayName = shopName || 'VuriumBook';
+  const logoHtml = logoUrl
+    ? `<img src="${logoUrl}" width="40" height="40" style="border-radius:10px;display:block;margin:0 auto;" alt="${displayName}">`
+    : `<div style="width:48px;height:48px;margin:0 auto;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);text-align:center;line-height:48px;font-size:22px;font-weight:700;color:rgba(255,255,255,.5);">${(displayName || 'V')[0].toUpperCase()}</div>`;
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#0a0a0a;font-family:'Inter',Helvetica,Arial,sans-serif;color:#e8e8ed;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;padding:40px 20px;">
 <tr><td align="center">
 <table width="100%" style="max-width:480px;background:#141414;border:1px solid rgba(255,255,255,.1);border-radius:20px;overflow:hidden;">
 <tr><td style="padding:32px 28px 24px;text-align:center;background:#0a0a0a;">
-<div style="width:48px;height:48px;margin:0 auto 16px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);text-align:center;line-height:48px;font-size:22px;font-weight:700;color:rgba(255,255,255,.5);">
-${(displayName || 'V')[0].toUpperCase()}
+<div style="margin-bottom:16px;">
+${logoHtml}
 </div>
 <div style="font-size:13px;font-weight:500;color:rgba(255,255,255,.4);letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;">${displayName}</div>
 <h1 style="margin:0;font-size:22px;font-weight:600;color:#fff;letter-spacing:-.02em;">${title}</h1>
@@ -3602,6 +3605,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
         const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: emailTz });
         const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: emailTz });
         const emailShopName = safeStr(emailSettingsData?.shop_name || '');
+        const emailLogo = emailSettingsData?.logo_url || '';
         const manageUrl = `https://vurium.com/manage-booking?token=${doc.client_token}`;
         sendEmail(bookingEmail, 'Booking Confirmed', vuriumEmailTemplate('Booking Confirmed', `
           <p>Your appointment has been confirmed:</p>
@@ -3612,9 +3616,9 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
           </div>
           <div style="text-align:center;margin:20px 0;display:flex;gap:10px;justify-content:center;">
             <a href="${manageUrl}" style="display:inline-block;padding:12px 24px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#e8e8ed;text-decoration:none;font-size:13px;font-weight:500;">Reschedule</a>
-            <a href="${manageUrl}?action=cancel" style="display:inline-block;padding:12px 24px;border-radius:10px;background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.2);color:rgba(255,140,140,.9);text-decoration:none;font-size:13px;font-weight:500;">Cancel</a>
+            <a href="${manageUrl}&action=cancel" style="display:inline-block;padding:12px 24px;border-radius:10px;background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.2);color:rgba(255,140,140,.9);text-decoration:none;font-size:13px;font-weight:500;">Cancel</a>
           </div>
-        `, emailShopName), emailShopName).catch(() => {});
+        `, emailShopName, emailLogo), emailShopName).catch(() => {});
     }
     res.status(201).json({ booking_id: bookingRef.id, id: bookingRef.id });
   } catch (e) { res.status(500).json({ error: e?.message }); }
