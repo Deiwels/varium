@@ -150,9 +150,9 @@ function UsersTab() {
               </select>
             </Field>
             {role === 'barber' && barbers.length > 0 && (
-              <Field label="Link to barber profile">
+              <Field label="Link to master profile">
                 <select value={barberId} onChange={e => setBarberId(e.target.value)} style={inp}>
-                  <option value="">— No barber profile —</option>
+                  <option value="">— No master profile —</option>
                   {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </Field>
