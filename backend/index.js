@@ -1210,7 +1210,7 @@ app.post('/auth/signup', async (req, res) => {
     // Create workspace with slug
     const wsRef = db.collection('workspaces').doc();
     const slug = await generateUniqueSlug(workspace_name);
-    const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30-day trial
+    const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14-day trial
     const wsData = {
       name: sanitizeHtml(workspace_name),
       slug,
@@ -4076,10 +4076,13 @@ app.post('/api/billing/checkout', async (req, res) => {
         'success_url': `${FRONTEND_URL}/dashboard?billing=success`,
         'cancel_url': `${FRONTEND_URL}/dashboard?billing=cancelled`,
         'subscription_data[trial_period_days]': wsData.trial_used ? '0' : '14',
+        'subscription_data[metadata][workspace_id]': req.wsId,
         'metadata[workspace_id]': req.wsId,
         'allow_promotion_codes': 'true',
       }).toString(),
     });
+    // Immediately update plan type (don't rely solely on webhook)
+    await req.wsDoc().update({ plan_type: plan, stripe_customer_id: customerId, updated_at: toIso(new Date()) });
     res.json({ url: session.url, session_id: session.id });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -4132,6 +4135,18 @@ app.post('/api/billing/create-subscription', async (req, res) => {
       clientSecret = subscription.latest_invoice.payment_intent.client_secret;
     }
     if (!clientSecret) return res.status(400).json({ error: 'Could not create payment intent' });
+    // Immediately update plan in Firestore (don't rely solely on webhook)
+    const planPatch = {
+      plan_type: plan,
+      stripe_subscription_id: subscription.id,
+      stripe_customer_id: customerId,
+      billing_status: subscription.status || 'active',
+      subscription_status: subscription.status || 'active',
+      trial_used: true,
+      updated_at: toIso(new Date()),
+    };
+    if (subscription.trial_end) planPatch.trial_ends_at = toIso(new Date(subscription.trial_end * 1000));
+    await req.wsDoc().update(planPatch);
     res.json({
       subscriptionId: subscription.id,
       clientSecret,
@@ -4180,6 +4195,16 @@ app.post('/api/billing/cancel', requireRole('owner'), async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
+// Force-set plan type (owner only — for fixing plan after purchase)
+app.post('/api/billing/set-plan', requireRole('owner'), async (req, res) => {
+  try {
+    const plan = safeStr(req.body?.plan);
+    if (!['individual', 'salon', 'custom'].includes(plan)) return res.status(400).json({ error: 'Invalid plan. Use: individual, salon, custom' });
+    await req.wsDoc().update({ plan_type: plan, updated_at: toIso(new Date()) });
+    res.json({ ok: true, plan_type: plan });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
 // Account limits — returns plan info, features, limits
 
 
@@ -4191,7 +4216,7 @@ app.post('/api/account/activate-trial', requireRole('owner'), async (req, res) =
     if (wsData.billing_status === 'trialing' && wsData.trial_ends_at) {
       return res.json({ ok: true, already: true, message: 'Trial already active' });
     }
-    const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
     const slug = wsData.slug || await generateUniqueSlug(wsData.name || 'business');
     const patch = {
       plan_type: wsData.plan_type || 'individual',
@@ -4214,7 +4239,7 @@ app.get('/api/account/limits', async (req, res) => {
 
     // Auto-migrate old accounts: if no plan_type, set defaults + activate trial
     if (!wsData.plan_type && wsDoc.exists) {
-      const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
       const slug = wsData.slug || await generateUniqueSlug(wsData.name || 'business');
       const migratePatch = {
         plan_type: 'individual',
