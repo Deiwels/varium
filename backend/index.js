@@ -663,6 +663,7 @@ const NotificationPrefsSchema = z.object({
 
 const UserPatchSchema = z.object({
   name: z.string().max(120).optional(),
+  email: z.string().email().max(254).optional().or(z.literal('')),
   role: z.enum(['owner', 'admin', 'barber', 'student']).optional(),
   active: z.boolean().optional(),
   barber_id: z.string().max(80).optional(),
@@ -2106,13 +2107,15 @@ app.patch('/api/users/:id', async (req, res) => {
     const b = v.data;
     const patch = { updated_at: toIso(new Date()) };
     if (isSelf) {
-      // Self-update: only notification_prefs, photo_url, schedule
+      // Self-update: notification_prefs, photo_url, schedule, email
       if (b.notification_prefs) patch.notification_prefs = b.notification_prefs;
       if (b.photo_url != null) patch.photo_url = b.photo_url || null;
       if (b.schedule) patch.schedule = b.schedule;
+      if (b.email != null) patch.email = b.email ? b.email.toLowerCase() : null;
     }
     if (req.user.role === 'owner') {
       if (b.name != null) patch.name = sanitizeHtml(b.name);
+      if (b.email != null) patch.email = b.email ? b.email.toLowerCase() : null;
       if (b.role != null) patch.role = b.role;
       if (b.active != null) patch.active = b.active;
       if (b.barber_id != null) patch.barber_id = b.barber_id;
