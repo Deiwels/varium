@@ -331,8 +331,8 @@ function vuriumEmailTemplate(title, bodyHtml, shopName) {
 <tr><td align="center">
 <table width="100%" style="max-width:480px;background:#141414;border:1px solid rgba(255,255,255,.1);border-radius:20px;overflow:hidden;">
 <tr><td style="padding:32px 28px 24px;text-align:center;background:#0a0a0a;">
-<div style="width:48px;height:48px;margin:0 auto 16px;border-radius:12px;background:#000;border:1px solid rgba(255,255,255,.12);text-align:center;line-height:48px;">
-<img src="https://vurium.com/logo-white.png" width="32" height="32" style="border-radius:8px;vertical-align:middle;" alt="${displayName}">
+<div style="width:48px;height:48px;margin:0 auto 16px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);text-align:center;line-height:48px;font-size:22px;font-weight:700;color:rgba(255,255,255,.5);">
+${(displayName || 'V')[0].toUpperCase()}
 </div>
 <div style="font-size:13px;font-weight:500;color:rgba(255,255,255,.4);letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;">${displayName}</div>
 <h1 style="margin:0;font-size:22px;font-weight:600;color:#fff;letter-spacing:-.02em;">${title}</h1>
