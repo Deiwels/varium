@@ -58,6 +58,8 @@ function SmBtn({ onClick, children, danger, disabled }: { onClick: () => void; c
 
 // ─── Users Tab — Clean VuriumBook style ──────────────────────────────────────
 function UsersTab() {
+  const { effective_plan } = usePlan()
+  const canAddMembers = effective_plan === 'salon' || effective_plan === 'custom'
   const [users, setUsers] = useState<UserAccount[]>([])
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
@@ -115,11 +117,15 @@ function UsersTab() {
       {/* Header + Add button */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,.4)' }}>{users.length} team member{users.length !== 1 ? 's' : ''}</div>
-        <button onClick={() => setShowForm(!showForm)} style={{
-          padding: '8px 18px', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer',
-          background: showForm ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.06)',
-          border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.7)',
-        }}>{showForm ? 'Cancel' : '+ Add member'}</button>
+        {canAddMembers ? (
+          <button onClick={() => setShowForm(!showForm)} style={{
+            padding: '8px 18px', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer',
+            background: showForm ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.06)',
+            border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.7)',
+          }}>{showForm ? 'Cancel' : '+ Add member'}</button>
+        ) : (
+          <a href="/billing" style={{ padding: '8px 18px', borderRadius: 10, fontSize: 12, textDecoration: 'none', border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.4)' }}>Upgrade to add team</a>
+        )}
       </div>
 
       {msg && <div style={{ fontSize: 12, padding: '8px 14px', borderRadius: 10, color: msg.includes('Error') ? 'rgba(255,160,160,.8)' : 'rgba(130,220,170,.7)', background: msg.includes('Error') ? 'rgba(220,80,80,.06)' : 'rgba(130,220,170,.06)', border: `1px solid ${msg.includes('Error') ? 'rgba(220,80,80,.12)' : 'rgba(130,220,170,.12)'}` }}>{msg}</div>}
