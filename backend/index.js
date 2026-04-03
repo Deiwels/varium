@@ -156,10 +156,14 @@ const PLAN_FEATURES = {
 function getEffectivePlan(wsData) {
   const planType = wsData?.plan_type || wsData?.plan || 'individual';
   const billingStatus = wsData?.billing_status || wsData?.subscription_status || 'inactive';
-  // During trial → full salon access
+  // During trial → give access to purchased plan (minimum salon)
   if (billingStatus === 'trialing') {
     const trialEnd = wsData?.trial_ends_at ? new Date(wsData.trial_ends_at) : null;
-    if (trialEnd && trialEnd > new Date()) return 'salon';
+    if (trialEnd && trialEnd > new Date()) {
+      // If they bought a higher plan, give them that; otherwise default to salon during trial
+      const planRank = { individual: 1, salon: 2, custom: 3 };
+      return (planRank[planType] || 0) >= (planRank.salon || 2) ? planType : 'salon';
+    }
   }
   // Map legacy plan names
   if (planType === 'starter' || planType === 'free' || planType === 'trial') return 'individual';
