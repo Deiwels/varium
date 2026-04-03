@@ -1901,6 +1901,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
     const patch = { updated_at: toIso(new Date()) };
     if (b.client_name != null) patch.client_name = sanitizeHtml(b.client_name);
     if (b.client_phone != null) patch.client_phone = b.client_phone;
+    if (b.client_email != null) patch.client_email = b.client_email.toLowerCase();
     if (b.barber_id != null) patch.barber_id = b.barber_id;
     if (b.barber_name != null) patch.barber_name = sanitizeHtml(b.barber_name);
     if (b.service_id != null) patch.service_id = b.service_id;
@@ -1962,6 +1963,17 @@ app.delete('/api/bookings/:id', async (req, res) => {
       sendSms(bookingData.client_phone, `${cancelPrefix}Your appointment with ${bookingData.barber_name || 'your barber'} has been cancelled. Reply STOP to unsubscribe.`).catch(() => {});
     }
     sendCrmPushToBarber(req.ws, bookingData.barber_id, 'Booking Cancelled', `${bookingData.client_name || 'Client'} cancelled`, { type: 'booking_cancelled' }).catch(() => {});
+    // Email cancellation notification
+    if (bookingData.client_email) {
+      sendEmail(bookingData.client_email, 'Booking Cancelled', vuriumEmailTemplate('Booking Cancelled', `
+        <p>Your appointment has been cancelled:</p>
+        <div style="padding:16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin:16px 0;">
+          <div style="font-size:16px;font-weight:600;color:#e8e8ed;">${bookingData.service_name || 'Appointment'}</div>
+          <div style="color:rgba(255,255,255,.4);margin-top:4px;">with ${bookingData.barber_name || 'your specialist'}</div>
+        </div>
+        <p style="font-size:12px;color:rgba(255,255,255,.3);">To book a new appointment, visit our booking page.</p>
+      `)).catch(() => {});
+    }
     res.json({ ok: true, id: req.params.id, status: 'cancelled' });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -3558,9 +3570,11 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
     // Email confirmation
     const bookingEmail = doc.client_email;
     if (bookingEmail) {
-        const tz = 'America/Chicago';
-        const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
-        const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz });
+        const emailSettingsDoc = await wsCol('settings').doc('config').get();
+        const emailSettingsData = emailSettingsDoc.exists ? emailSettingsDoc.data() : {};
+        const emailTz = emailSettingsData?.timezone || 'America/Chicago';
+        const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: emailTz });
+        const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: emailTz });
         sendEmail(bookingEmail, 'Booking Confirmed', vuriumEmailTemplate('Booking Confirmed', `
           <p>Your appointment has been confirmed:</p>
           <div style="padding:16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin:16px 0;">
