@@ -1726,6 +1726,35 @@ app.get('/api/clients', async (req, res) => {
       String(c.phone_norm || '').includes(q) ||
       String(c.email || '').toLowerCase().includes(q)
     );
+    // If no local results and searching by phone, try Square customers
+    if (list.length === 0 && q) {
+      try {
+        const digits = q.replace(/\D/g, '');
+        if (digits.length >= 10) {
+          const headers = await squareHeaders(req.ws, { hasBody: true });
+          const phone = digits.length === 10 ? '+1' + digits : '+' + digits;
+          const sr = await squareFetch('/v2/customers/search', {
+            method: 'POST', headers,
+            body: JSON.stringify({ query: { filter: { phone_number: { exact: phone } } }, limit: 10 }),
+          });
+          if (sr.ok) {
+            const sd = await sr.json();
+            for (const sc of (sd.customers || [])) {
+              // Import Square customer to local DB
+              const newClient = {
+                name: [sc.given_name, sc.family_name].filter(Boolean).join(' ') || 'Square Customer',
+                phone: sc.phone_number || '', phone_norm: (sc.phone_number || '').replace(/\D/g, ''),
+                email: sc.email_address || '', square_customer_id: sc.id,
+                source: 'square', created_at: toIso(new Date()), updated_at: toIso(new Date()),
+              };
+              const ref = await req.ws('clients').add(newClient);
+              list.push({ id: ref.id, ...newClient });
+            }
+          }
+        }
+      } catch {}
+    }
+
     // Auto-classify
     try {
       const clientNames = list.map(c => String(c.name || '')).filter(Boolean);
