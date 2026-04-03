@@ -15,6 +15,8 @@ interface WaitlistEntry {
   date: string
   service_names?: string[]
   duration_minutes: number
+  preferred_start_min?: number
+  preferred_end_min?: number
   notified: boolean
   confirmed?: boolean
   removed?: boolean
@@ -462,9 +464,9 @@ export default function WaitlistPage() {
                       <span>{barber?.name || entry.barber_name || '—'}</span>
                       <span>{entry.date}</span>
                       <span>{entry.duration_minutes}min</span>
-                      {(entry as any).preferred_start_min != null && (entry as any).preferred_end_min != null && (entry as any).preferred_end_min < 1440 && (
+                      {entry.preferred_start_min != null && entry.preferred_end_min != null && entry.preferred_end_min < 1440 && (
                         <span style={{ color: 'rgba(255,255,255,.5)' }}>
-                          {(() => { const s = (entry as any).preferred_start_min, e = (entry as any).preferred_end_min; const fmt = (m: number) => { const h = Math.floor(m/60), mm = m%60; return `${h===0?12:h>12?h-12:h}:${String(mm).padStart(2,'0')}${h>=12?'PM':'AM'}` }; return `${fmt(s)}–${fmt(e)}` })()}
+                          {(() => { const s = entry.preferred_start_min!, e = entry.preferred_end_min!; const fmt = (m: number) => { const h = Math.floor(m/60), mm = m%60; return `${h===0?12:h>12?h-12:h}:${String(mm).padStart(2,'0')}${h>=12?'PM':'AM'}` }; return `${fmt(s)}–${fmt(e)}` })()}
                         </span>
                       )}
                       {entry.phone_raw && <span>{entry.phone_raw}</span>}

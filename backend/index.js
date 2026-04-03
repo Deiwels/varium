@@ -3750,6 +3750,7 @@ app.get('/public/resolve/:slugOrId', async (req, res) => {
       plan_type: data.plan_type || 'individual',
       effective_plan: effectivePlan,
       site_config: data.site_config || null,
+      waitlist_enabled: !!data.waitlist_enabled,
     });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
