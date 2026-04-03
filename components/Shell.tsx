@@ -629,7 +629,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
     }
   }, [pathname])
 
-  if (status === 'loading' || status === 'noauth') {
+  if (status === 'noauth') {
     return <div style={{ background: 'transparent', minHeight: '100vh' }} />
   }
 

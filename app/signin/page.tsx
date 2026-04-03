@@ -18,6 +18,9 @@ export default function SignInPage() {
   const [pinError, setPinError] = useState('')
 
   useEffect(() => {
+    // Hide "Back to Vurium" in native iOS app
+    const isNative = (navigator as any).standalone || (window as any).webkit?.messageHandlers?.purchase
+    if (isNative) { const el = document.getElementById('back-to-vurium'); if (el) el.style.display = 'none' }
     const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window
     let tx = 0, ty = 0, cx = 0, cy = 0, raf: number
     function tick() {
@@ -254,7 +257,7 @@ export default function SignInPage() {
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,.25)' }}>
               Don&apos;t have a workspace? <a href="/signup" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Create one</a>
             </p>
-            <a href="/" style={{ fontSize: 12, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>← Back to Vurium</a>
+            <a href="/" id="back-to-vurium" style={{ fontSize: 12, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>← Back to Vurium</a>
           </div>
         </div>
       </main>
