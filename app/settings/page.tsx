@@ -68,11 +68,17 @@ function UsersTab() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<'admin'|'barber'>('barber')
+  const [barberId, setBarberId] = useState('')
+  const [barbers, setBarbers] = useState<Barber[]>([])
   const [creating, setCreating] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
-    try { const ud = await apiFetch('/api/users'); setUsers(ud?.users || []) }
+    try {
+      const [ud, bd] = await Promise.all([apiFetch('/api/users'), apiFetch('/api/barbers')])
+      setUsers(ud?.users || [])
+      setBarbers(bd?.barbers || [])
+    }
     catch (e: any) { setMsg('Error: ' + e.message) }
     setLoading(false)
   }, [])
@@ -85,8 +91,8 @@ function UsersTab() {
     if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) { setMsg('Password must contain a letter and a number'); return }
     setCreating(true); setMsg('')
     try {
-      await apiFetch('/api/users', { method: 'POST', body: JSON.stringify({ name: name.trim(), username: email.trim().toLowerCase(), password, role }) })
-      setName(''); setEmail(''); setPassword(''); setShowForm(false)
+      await apiFetch('/api/users', { method: 'POST', body: JSON.stringify({ name: name.trim(), username: email.trim().toLowerCase(), password, role, ...(role === 'barber' && barberId ? { barber_id: barberId } : {}) }) })
+      setName(''); setEmail(''); setPassword(''); setBarberId(''); setShowForm(false)
       setMsg('Team member added'); load()
     } catch (e: any) { setMsg('Error: ' + e.message) }
     setCreating(false)
@@ -138,11 +144,19 @@ function UsersTab() {
             <Field label="Email (login)"><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@business.com" style={inp} /></Field>
             <Field label="Password"><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 8 chars, letter + number" style={inp} /></Field>
             <Field label="Role">
-              <select value={role} onChange={e => setRole(e.target.value as any)} style={inp}>
+              <select value={role} onChange={e => { setRole(e.target.value as any); if (e.target.value === 'admin') setBarberId('') }} style={inp}>
                 <option value="admin">Admin — manage everything</option>
                 <option value="barber">Team member — own bookings</option>
               </select>
             </Field>
+            {role === 'barber' && barbers.length > 0 && (
+              <Field label="Link to barber profile">
+                <select value={barberId} onChange={e => setBarberId(e.target.value)} style={inp}>
+                  <option value="">— No barber profile —</option>
+                  {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              </Field>
+            )}
           </div>
           <button onClick={createUser} disabled={creating} style={{
             marginTop: 14, width: '100%', padding: '12px', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', cursor: 'pointer',
@@ -171,7 +185,12 @@ function UsersTab() {
                   {u.name || u.username}
                   {!u.active && <span style={{ fontSize: 10, color: 'rgba(255,100,100,.6)', marginLeft: 8 }}>inactive</span>}
                 </div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>{u.username}</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>
+                  {u.username}
+                  {u.barber_id && barbers.find(b => b.id === u.barber_id) && (
+                    <span style={{ marginLeft: 6, color: 'rgba(130,150,220,.6)' }}>· {barbers.find(b => b.id === u.barber_id)!.name}</span>
+                  )}
+                </div>
               </div>
               {/* Role badge */}
               <span style={{
