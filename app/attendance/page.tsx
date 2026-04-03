@@ -93,6 +93,7 @@ export default function AttendancePage() {
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filterUser, setFilterUser] = useState('')
+  const [clockInEnabled, setClockInEnabled] = useState<boolean | null>(null)
 
   const [user] = useState(() => { try { return JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || 'null') } catch { return null } })
   const isOwner = user?.role === 'owner'
@@ -123,8 +124,9 @@ export default function AttendancePage() {
         apiFetch('/api/users'),
         apiFetch('/api/settings').catch(() => ({})),
       ])
-      // Update workspace timezone
+      // Update workspace timezone and clock-in enabled state
       if (settingsData?.timezone) _workspaceTz = settingsData.timezone
+      setClockInEnabled(!!settingsData?.clock_in_enabled)
       setRecords(attData?.attendance || [])
       const barberList = Array.isArray(brData) ? brData : (brData?.barbers || [])
       setBarbers(barberList)
@@ -179,6 +181,19 @@ export default function AttendancePage() {
   return (
     <Shell page="attendance"><FeatureGate feature="attendance" label="Attendance" requiredPlan="salon">
 
+      {clockInEnabled === false && !loading && (
+        <div style={{ padding: '60px 20px', textAlign: 'center', color: 'rgba(255,255,255,.5)', fontFamily: 'Inter, system-ui, sans-serif' }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Attendance is not enabled</div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.35)' }}>
+            {isOwner ? 'Go to Settings → General to enable clock-in / clock-out for your team.' : 'Ask the salon owner to enable the attendance feature.'}
+          </div>
+        </div>
+      )}
+
+      {clockInEnabled !== false && (
       <div style={{ padding: '18px 18px 40px', maxWidth: 1400, margin: '0 auto', overflowY: 'auto', height: '100vh', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif' }}>
         <style>{`
           @keyframes latePulse { 0%,100%{opacity:.7} 50%{opacity:1} }
@@ -328,6 +343,7 @@ export default function AttendancePage() {
           </div>
         </div>
       </div>
+      )}
     </FeatureGate></Shell>
   )
 }
