@@ -536,11 +536,12 @@ function PhotoUpload({ value, onChange }: { value: string; onChange: (url: strin
 }
 
 // ─── PaymentPanel ─────────────────────────────────────────────────────────────
-function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
+function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEnabled }: {
   ev: BookingModalProps['existingEvent']
   services: Service[]
   onPayment: (method: string, tip: number) => void
   allEvents?: BookingModalProps['allEvents']
+  terminalEnabled?: boolean
   barberId?: string
 }) {
   const [method, setMethod] = useState('terminal')
@@ -1099,7 +1100,7 @@ export function BookingModal({
 
             {/* Payment — owner/admin only */}
             {isOwnerOrAdmin && existingEvent && (
-              <PaymentPanel ev={existingEvent} services={services} onPayment={onPayment} allEvents={allEvents} barberId={barberId} />
+              <PaymentPanel ev={existingEvent} services={services} onPayment={onPayment} allEvents={allEvents} barberId={barberId} terminalEnabled={terminalEnabled} />
             )}
 
             {/* Footer */}
