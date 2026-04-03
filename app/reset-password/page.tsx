@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
 
@@ -12,12 +12,41 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
+  const spaceRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     setToken(params.get('token') || '')
     setWs(params.get('ws') || '')
     setUid(params.get('uid') || '')
+  }, [])
+
+  // Parallax stars
+  useEffect(() => {
+    const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window
+    let tx = 0, ty = 0, cx = 0, cy = 0, raf: number
+    function tick() {
+      cx += (tx - cx) * 0.02; cy += (ty - cy) * 0.02
+      const f = document.getElementById('v-stars-far')
+      const m = document.getElementById('v-stars-mid')
+      const n = document.getElementById('v-stars-near')
+      if (f) f.style.transform = `translate(${cx * 8}px, ${cy * 8}px)`
+      if (m) m.style.transform = `translate(${cx * 20}px, ${cy * 20}px)`
+      if (n) n.style.transform = `translate(${cx * 35}px, ${cy * 35}px)`
+      raf = requestAnimationFrame(tick)
+    }
+    if (isMobile) {
+      function onO(e: DeviceOrientationEvent) { const g = Math.max(-15, Math.min(15, e.gamma || 0)); const b = Math.max(-15, Math.min(15, (e.beta || 0) - 45)); tx = g / 15 * 4; ty = b / 15 * 4 }
+      const doe = DeviceOrientationEvent as any
+      if (typeof doe.requestPermission === 'function') { const r = () => { doe.requestPermission().then((s: string) => { if (s === 'granted') window.addEventListener('deviceorientation', onO, { passive: true }) }).catch(() => {}); document.removeEventListener('click', r) }; document.addEventListener('click', r, { once: true }) }
+      else { window.addEventListener('deviceorientation', onO, { passive: true }) }
+      raf = requestAnimationFrame(tick)
+      return () => { window.removeEventListener('deviceorientation', onO); cancelAnimationFrame(raf) }
+    }
+    function onMouse(e: MouseEvent) { tx = (e.clientX / window.innerWidth - 0.5) * 2; ty = (e.clientY / window.innerHeight - 0.5) * 2 }
+    window.addEventListener('mousemove', onMouse, { passive: true })
+    raf = requestAnimationFrame(tick)
+    return () => { window.removeEventListener('mousemove', onMouse); cancelAnimationFrame(raf) }
   }, [])
 
   async function handleReset(e: React.FormEvent) {
@@ -40,32 +69,137 @@ export default function ResetPasswordPage() {
     setLoading(false)
   }
 
-  const inp: React.CSSProperties = { width: '100%', padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)', color: '#fff', fontSize: 15, outline: 'none', fontFamily: 'inherit' }
+  // Password strength
+  const checks = [
+    { ok: password.length >= 8, label: '8+ characters' },
+    { ok: /[a-zA-Z]/.test(password), label: 'Contains a letter' },
+    { ok: /[0-9]/.test(password), label: 'Contains a number' },
+    { ok: password.length > 0 && password === confirm, label: 'Passwords match' },
+  ]
+
+  const inp: React.CSSProperties = {
+    width: '100%', padding: '14px 18px', borderRadius: 14,
+    border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)',
+    color: '#e8e8ed', fontSize: 15, outline: 'none', fontFamily: 'inherit',
+    backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+    transition: 'border-color .2s',
+  }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: 'Inter, system-ui, sans-serif', color: '#e8e8ed' }}>
-      <div style={{ width: '100%', maxWidth: 400, padding: '40px 32px', borderRadius: 24, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)' }}>
+    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: 'Inter, -apple-system, sans-serif', color: '#e8e8ed', position: 'relative' }}>
+
+      <style>{`
+        .rp-input:focus { border-color: rgba(255,255,255,.18) !important; }
+        @keyframes rpFadeIn {
+          from { opacity: 0; transform: translateY(12px) scale(.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes rpCheckIn {
+          0% { opacity: 0; transform: scale(.5); }
+          60% { transform: scale(1.1); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        .rp-card { animation: rpFadeIn .5s cubic-bezier(.16,1,.3,1) both; }
+        .rp-success { animation: rpCheckIn .5s cubic-bezier(.16,1.2,.3,1) both; }
+      `}</style>
+
+      <div className="rp-card" style={{
+        width: '100%', maxWidth: 420, padding: '44px 36px',
+        borderRadius: 28, border: '1px solid rgba(255,255,255,.06)',
+        background: 'rgba(255,255,255,.025)',
+        backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+        boxShadow: '0 32px 80px rgba(0,0,0,.4), inset 0 0 0 .5px rgba(255,255,255,.04)',
+        position: 'relative', zIndex: 2,
+      }}>
+
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{ width: 48, height: 48, margin: '0 auto 16px', borderRadius: 14, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img src="/logo.jpg" alt="" style={{ width: 32, height: 32, borderRadius: 8, filter: 'invert(1)', opacity: 0.6 }} />
+          </div>
+        </div>
+
         {success ? (
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>✓</div>
-            <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Password Reset</h2>
-            <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 14, marginBottom: 24 }}>Your password has been updated successfully.</p>
-            <a href="/signin" style={{ display: 'inline-block', padding: '12px 28px', borderRadius: 12, background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)', color: '#e8e8ed', textDecoration: 'none', fontSize: 14, fontWeight: 600 }}>Sign In →</a>
+            <div className="rp-success" style={{
+              width: 64, height: 64, borderRadius: 999, margin: '0 auto 20px',
+              background: 'rgba(130,220,170,.08)', border: '2px solid rgba(130,220,170,.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 28, color: 'rgba(130,220,170,.8)',
+            }}>✓</div>
+            <h2 style={{ fontSize: 22, fontWeight: 600, marginBottom: 8 }}>Password Updated</h2>
+            <p style={{ color: 'rgba(255,255,255,.35)', fontSize: 14, lineHeight: 1.6, marginBottom: 28 }}>
+              Your password has been reset successfully. You can now sign in with your new password.
+            </p>
+            <a href="/signin" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '14px 32px', borderRadius: 14,
+              background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)',
+              color: '#e8e8ed', textDecoration: 'none', fontSize: 14, fontWeight: 600,
+              transition: 'all .2s',
+            }}>
+              Sign In →
+            </a>
           </div>
         ) : (
           <>
-            <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8, textAlign: 'center' }}>New Password</h2>
-            <p style={{ color: 'rgba(255,255,255,.35)', fontSize: 13, textAlign: 'center', marginBottom: 24 }}>Min 8 characters, letter + number</p>
-            {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(255,107,107,.08)', border: '1px solid rgba(255,107,107,.15)', color: 'rgba(255,160,160,.8)', fontSize: 13, marginBottom: 16 }}>{error}</div>}
-            <form onSubmit={handleReset} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="New password" required style={inp} />
-              <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Confirm password" required style={inp} />
-              <button type="submit" disabled={loading} style={{ height: 48, borderRadius: 12, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.08)', color: '#e8e8ed', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: loading ? 0.5 : 1 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 600, marginBottom: 4, textAlign: 'center', letterSpacing: '-.02em' }}>Reset Password</h2>
+            <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 13, textAlign: 'center', marginBottom: 28 }}>
+              Create a new secure password for your account
+            </p>
+
+            {error && (
+              <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(255,107,107,.06)', border: '1px solid rgba(255,107,107,.12)', color: 'rgba(255,160,160,.8)', fontSize: 13, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 14 }}>!</span> {error}
+              </div>
+            )}
+
+            <form onSubmit={handleReset} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>New Password</label>
+                <input className="rp-input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter new password" required style={inp} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Confirm Password</label>
+                <input className="rp-input" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Confirm new password" required style={inp} />
+              </div>
+
+              {/* Password strength indicators */}
+              {password && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+                  {checks.map((c, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
+                      <div style={{ width: 14, height: 14, borderRadius: 999, border: `1px solid ${c.ok ? 'rgba(130,220,170,.3)' : 'rgba(255,255,255,.08)'}`, background: c.ok ? 'rgba(130,220,170,.1)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: 'rgba(130,220,170,.7)', transition: 'all .2s' }}>
+                        {c.ok && '✓'}
+                      </div>
+                      <span style={{ color: c.ok ? 'rgba(130,220,170,.6)' : 'rgba(255,255,255,.25)', transition: 'color .2s' }}>{c.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button type="submit" disabled={loading || !checks.every(c => c.ok)} style={{
+                height: 50, borderRadius: 14, border: '1px solid rgba(255,255,255,.12)',
+                background: checks.every(c => c.ok) ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.02)',
+                color: checks.every(c => c.ok) ? '#e8e8ed' : 'rgba(255,255,255,.25)',
+                fontSize: 15, fontWeight: 600, cursor: checks.every(c => c.ok) ? 'pointer' : 'default',
+                fontFamily: 'inherit', marginTop: 8, transition: 'all .2s',
+                opacity: loading ? 0.5 : 1,
+              }}>
                 {loading ? 'Resetting...' : 'Reset Password'}
               </button>
             </form>
+
+            <div style={{ textAlign: 'center', marginTop: 20 }}>
+              <a href="/signin" style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', textDecoration: 'none' }}>← Back to Sign In</a>
+            </div>
           </>
         )}
+      </div>
+
+      {/* Footer */}
+      <div style={{ position: 'fixed', bottom: 16, left: 0, right: 0, textAlign: 'center', zIndex: 1 }}>
+        <span style={{ fontSize: 10, color: 'rgba(255,255,255,.12)' }}>© 2026 Vurium. All rights reserved.</span>
       </div>
     </div>
   )
