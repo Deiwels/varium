@@ -136,7 +136,7 @@ async function resolveSlug(slugOrId) {
 // PLAN FEATURES — single source of truth
 // plan_type: individual | salon | custom
 // billing_status: trialing | active | past_due | canceled | inactive
-// effective_plan: during trial → salon (full access 30 days)
+// effective_plan: during trial → purchased plan (minimum salon, 14-day trial)
 // ============================================================
 const PLAN_FEATURES = {
   individual: {
@@ -156,20 +156,27 @@ const PLAN_FEATURES = {
 function getEffectivePlan(wsData) {
   const planType = wsData?.plan_type || wsData?.plan || 'individual';
   const billingStatus = wsData?.billing_status || wsData?.subscription_status || 'inactive';
-  // During trial → give access to purchased plan (minimum salon)
+
+  // During active trial → give access to purchased plan (minimum salon)
   if (billingStatus === 'trialing') {
     const trialEnd = wsData?.trial_ends_at ? new Date(wsData.trial_ends_at) : null;
     if (trialEnd && trialEnd > new Date()) {
-      // If they bought a higher plan, give them that; otherwise default to salon during trial
       const planRank = { individual: 1, salon: 2, custom: 3 };
       return (planRank[planType] || 0) >= (planRank.salon || 2) ? planType : 'salon';
     }
   }
-  // Map legacy plan names
-  if (planType === 'starter' || planType === 'free' || planType === 'trial') return 'individual';
-  if (planType === 'pro') return 'salon';
-  if (planType === 'enterprise') return 'custom';
-  if (['individual', 'salon', 'custom'].includes(planType)) return planType;
+
+  // Active subscription → give the plan they paid for
+  if (billingStatus === 'active') {
+    // Map legacy plan names
+    if (planType === 'starter' || planType === 'free' || planType === 'trial') return 'individual';
+    if (planType === 'pro') return 'salon';
+    if (planType === 'enterprise') return 'custom';
+    if (['individual', 'salon', 'custom'].includes(planType)) return planType;
+    return 'individual';
+  }
+
+  // No active subscription / payment failed / canceled / expired → individual (free tier)
   return 'individual';
 }
 
@@ -4050,7 +4057,7 @@ async function stripeFetch(path, options = {}) {
 app.post('/api/billing/checkout', async (req, res) => {
   try {
     if (!STRIPE_SECRET) return res.status(400).json({ error: 'Stripe not configured' });
-    const plan = safeStr(req.body?.plan || 'pro');
+    const plan = safeStr(req.body?.plan || 'salon');
     const priceId = STRIPE_PRICES[plan];
     if (!priceId) return res.status(400).json({ error: 'Invalid plan' });
     const wsDoc = await req.wsDoc().get();
