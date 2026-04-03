@@ -1878,6 +1878,16 @@ app.post('/api/users', requireRole('owner'), async (req, res) => {
     const v = validate(UserCreateSchema, req.body || {});
     if (!v.ok) return res.status(400).json({ error: v.error });
     const { username, password, role, name, barber_id, mentor_barber_ids, phone } = v.data;
+    // Check plan member limit
+    const wsDoc = await req.wsDoc().get();
+    const planType = wsDoc.exists ? (wsDoc.data()?.plan_type || 'individual') : 'individual';
+    const planConfig = PLAN_FEATURES[planType] || PLAN_FEATURES.individual;
+    if (planConfig.member_limit !== null) {
+      const usersSnap = await req.ws('users').where('active', '==', true).get();
+      if (usersSnap.size >= planConfig.member_limit) {
+        return res.status(403).json({ error: `Your ${planType} plan allows ${planConfig.member_limit} user(s). Upgrade to add more team members.` });
+      }
+    }
     const usernameLC = username.toLowerCase();
     // Check uniqueness within workspace
     const existing = await req.ws('users').where('username', '==', usernameLC).limit(1).get();
