@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
@@ -42,7 +42,7 @@ function formatDay(iso: string, tz?: string) {
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz })
 }
 
-export default function ManageBookingPage() {
+function ManageBookingContent() {
   const params = useSearchParams()
   const token = params.get('token')
   const initialAction = params.get('action') // 'cancel' if clicked Cancel in email
@@ -290,5 +290,17 @@ export default function ManageBookingPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ManageBookingPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.4)', fontFamily: 'Inter,Helvetica,Arial,sans-serif' }}>
+        Loading…
+      </div>
+    }>
+      <ManageBookingContent />
+    </Suspense>
   )
 }
