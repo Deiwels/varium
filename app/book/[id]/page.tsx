@@ -561,6 +561,18 @@ export default function PublicBookingPage() {
             </div>
           )}
 
+          {/* Custom HTML/CSS — custom plan only */}
+          {effectivePlan === 'custom' && siteConfig?.custom_html && (
+            <>
+              {siteConfig.custom_css && <style dangerouslySetInnerHTML={{ __html: siteConfig.custom_css }} />}
+              <div
+                className="custom-site-block"
+                style={{ marginBottom: 40, position: 'relative', zIndex: 1 }}
+                dangerouslySetInnerHTML={{ __html: siteConfig.custom_html }}
+              />
+            </>
+          )}
+
           {/* Book Now CTA */}
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
             <button onClick={() => setShowBooking(true)} style={{

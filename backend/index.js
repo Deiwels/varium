@@ -1166,6 +1166,15 @@ function clearAuthCookie(res) {
 // ============================================================
 app.get('/health', (req, res) => res.json({ ok: true, service: 'vuriumbook-api', version: '3.0.0' }));
 
+app.get('/health/db', async (req, res) => {
+  try {
+    const snap = await db.collection('workspaces').limit(1).get();
+    res.json({ ok: true, firestore: 'connected', docs: snap.size });
+  } catch (e) {
+    res.status(500).json({ ok: false, firestore: 'error', code: e.code || null, message: e.message || String(e) });
+  }
+});
+
 // ============================================================
 // AUTH ROUTES (no workspace middleware — pre /api)
 // ============================================================
@@ -2650,6 +2659,28 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
     if (b.payroll !== undefined && typeof b.payroll === 'object') patch.payroll = b.payroll;
     // Site config — stored on workspace doc for custom plan
     if (b.site_config !== undefined && typeof b.site_config === 'object') {
+      // Sanitize custom HTML — strip <script>, <iframe>, event handlers, javascript: urls
+      if (b.site_config.custom_html) {
+        b.site_config.custom_html = b.site_config.custom_html
+          .replace(/<script[\s\S]*?<\/script>/gi, '')
+          .replace(/<script[^>]*>/gi, '')
+          .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+          .replace(/<iframe[^>]*>/gi, '')
+          .replace(/<object[\s\S]*?<\/object>/gi, '')
+          .replace(/<embed[^>]*>/gi, '')
+          .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '')
+          .replace(/\bon\w+\s*=\s*\S+/gi, '')
+          .replace(/javascript\s*:/gi, '')
+          .replace(/data\s*:\s*text\/html/gi, '');
+      }
+      // Sanitize custom CSS — strip expressions and imports
+      if (b.site_config.custom_css) {
+        b.site_config.custom_css = b.site_config.custom_css
+          .replace(/@import\b[^;]*/gi, '')
+          .replace(/expression\s*\(/gi, '')
+          .replace(/javascript\s*:/gi, '')
+          .replace(/url\s*\(\s*["']?\s*javascript:/gi, 'url(');
+      }
       await req.wsDoc().update({ site_config: b.site_config, updated_at: toIso(new Date()) });
     }
     const ref = req.ws('settings').doc('config');
@@ -4451,7 +4482,7 @@ app.use((req, res) => {
 // ERROR HANDLER
 // ============================================================
 app.use((err, req, res, _next) => {
-  console.error('Unhandled error:', err);
+  console.error('Unhandled error:', err.message, err.code || '', err.stack || '');
   res.status(500).json({ error: 'Internal server error' });
 });
 

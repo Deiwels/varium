@@ -984,6 +984,41 @@ export default function SettingsPage() {
                   })}
                 </SectionCard>
 
+                {/* Custom Code — custom plan only */}
+                {currentPlan === 'custom' ? (
+                <SectionCard title="Custom Code">
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginBottom: 14 }}>Add custom HTML and CSS to your booking page. Code is injected into the landing section.</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <Field label="Custom CSS">
+                      <textarea
+                        value={(s.site_config || {}).custom_css || ''}
+                        onChange={e => set('site_config', { ...(s.site_config || {}), custom_css: e.target.value })}
+                        placeholder={`.my-banner { background: #1a1a2e; padding: 20px; border-radius: 12px; }`}
+                        rows={6}
+                        spellCheck={false}
+                        style={{ ...inp, height: 'auto', padding: '10px 12px', resize: 'vertical' as const, fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace', fontSize: 12, lineHeight: 1.5, whiteSpace: 'pre', overflowWrap: 'normal', overflowX: 'auto' }}
+                      />
+                    </Field>
+                    <Field label="Custom HTML">
+                      <textarea
+                        value={(s.site_config || {}).custom_html || ''}
+                        onChange={e => set('site_config', { ...(s.site_config || {}), custom_html: e.target.value })}
+                        placeholder={`<div class="my-banner">\n  <h2>Special Offer</h2>\n  <p>50% off first visit!</p>\n</div>`}
+                        rows={8}
+                        spellCheck={false}
+                        style={{ ...inp, height: 'auto', padding: '10px 12px', resize: 'vertical' as const, fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace', fontSize: 12, lineHeight: 1.5, whiteSpace: 'pre', overflowWrap: 'normal', overflowX: 'auto' }}
+                      />
+                    </Field>
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)' }}>Tip: Use classes in your CSS and reference them in HTML. Scripts are not allowed for security.</p>
+                  </div>
+                </SectionCard>
+                ) : currentPlan === 'salon' ? (
+                <div style={{ padding: '16px 20px', borderRadius: 14, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)' }}>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', marginBottom: 4 }}>Custom HTML & CSS available on Custom plan</div>
+                  <a href="/billing" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Upgrade →</a>
+                </div>
+                ) : null}
+
                 {/* Preview */}
                 <div style={{ textAlign: 'center' }}>
                   <a href={`/book/${s.slug || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}').workspace_id || '' : '')}`} target="_blank" rel="noopener" style={{
