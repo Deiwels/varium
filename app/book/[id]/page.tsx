@@ -137,6 +137,7 @@ export default function PublicBookingPage() {
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [clientName, setClientName] = useState('')
   const [clientPhone, setClientPhone] = useState('')
+  const [clientEmail, setClientEmail] = useState('')
   const [clientNote, setClientNote] = useState('')
   const [smsConsent, setSmsConsent] = useState(false)
   const [bookLoading, setBookLoading] = useState(false)
@@ -321,6 +322,7 @@ export default function PublicBookingPage() {
           start_at: selectedSlot,
           client_name: clientName,
           client_phone: clientPhone || undefined,
+          client_email: clientEmail || undefined,
           sms_consent: clientPhone ? smsConsent : undefined,
           service_id: selectedService?.id,
           service_ids: selectedServiceIds,
@@ -349,6 +351,7 @@ export default function PublicBookingPage() {
           start_at: selectedSlot,
           client_name: clientName,
           client_phone: clientPhone || undefined,
+          client_email: clientEmail || undefined,
           sms_consent: clientPhone ? smsConsent : undefined,
           service_id: selectedService?.id,
           service_ids: selectedServiceIds,
@@ -823,6 +826,10 @@ export default function PublicBookingPage() {
               <div>
                 <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Name *</label>
                 <input type="text" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Your full name" required style={inp} />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Email *</label>
+                <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="your@email.com" required style={inp} />
               </div>
               <div>
                 <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Phone</label>

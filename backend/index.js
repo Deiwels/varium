@@ -3441,14 +3441,27 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
     const barberId = safeStr(booking.barber_id);
     const clientName = sanitizeHtml(safeStr(booking.client_name));
     const clientPhone = safeStr(booking.client_phone);
+    const clientEmail = sanitizeHtml(safeStr(booking.client_email || '')).toLowerCase() || null;
     const smsConsent = !!booking.sms_consent;
     const durMin = Number(booking.duration_minutes || 30);
     if (!startAt || !barberId) return res.status(400).json({ error: 'start_at and barber_id required' });
     const endAt = addMinutes(startAt, durMin);
-    // Deduplicate client by phone — link to existing or create new
+    // Deduplicate client by phone or email — link to existing or create new
     const phoneNorm = normPhone(clientPhone) || null;
     let clientId = null;
-    if (phoneNorm) {
+    // Try email dedup first
+    if (clientEmail && !clientId) {
+      const existingByEmail = await wsCol('clients').where('email', '==', clientEmail).limit(1).get();
+      if (!existingByEmail.empty) {
+        clientId = existingByEmail.docs[0].id;
+        const existingData = existingByEmail.docs[0].data();
+        // Update phone if not set
+        if (phoneNorm && !existingData.phone_norm) {
+          await existingByEmail.docs[0].ref.update({ phone: clientPhone, phone_norm: phoneNorm, updated_at: toIso(new Date()) });
+        }
+      }
+    }
+    if (phoneNorm && !clientId) {
       const existingClient = await wsCol('clients').where('phone_norm', '==', phoneNorm).limit(1).get();
       if (!existingClient.empty) {
         clientId = existingClient.docs[0].id;
@@ -3463,6 +3476,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
           name: clientName || 'Walk-in',
           phone: clientPhone || null,
           phone_norm: phoneNorm,
+          email: clientEmail,
           client_status: 'new',
           created_at: toIso(new Date()),
           updated_at: toIso(new Date()),
@@ -3470,10 +3484,24 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
         clientId = clientRef.id;
       }
     }
+    // If still no client found but has email — create from email
+    if (!clientId && clientEmail) {
+      const clientRef = await wsCol('clients').add({
+        name: clientName || 'Walk-in',
+        phone: clientPhone || null,
+        phone_norm: phoneNorm,
+        email: clientEmail,
+        client_status: 'new',
+        created_at: toIso(new Date()),
+        updated_at: toIso(new Date()),
+      });
+      clientId = clientRef.id;
+    }
 
     const doc = {
       client_name: clientName || 'Walk-in',
       client_phone: clientPhone || null,
+      client_email: clientEmail,
       phone_norm: phoneNorm,
       client_id: clientId,
       barber_id: barberId,
@@ -3511,15 +3539,13 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       sendSms(clientPhone, `${pubPrefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your barber'}. Reply STOP to unsubscribe.`).catch(() => {});
       scheduleReminders(wsCol, bookingRef.id, doc, tz, pubShopName).catch(() => {});
     }
-    // Email confirmation (if client has email from client record)
-    if (doc.client_id) {
-      const clientDoc = await wsCol('clients').doc(doc.client_id).get();
-      const clientEmail = clientDoc.exists ? clientDoc.data()?.email : null;
-      if (clientEmail) {
+    // Email confirmation
+    const bookingEmail = doc.client_email;
+    if (bookingEmail) {
         const tz = 'America/Chicago';
         const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
         const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz });
-        sendEmail(clientEmail, 'Booking Confirmed', vuriumEmailTemplate('Booking Confirmed', `
+        sendEmail(bookingEmail, 'Booking Confirmed', vuriumEmailTemplate('Booking Confirmed', `
           <p>Your appointment has been confirmed:</p>
           <div style="padding:16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin:16px 0;">
             <div style="font-size:16px;font-weight:600;color:#e8e8ed;">${doc.service_name || 'Appointment'}</div>
