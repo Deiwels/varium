@@ -587,6 +587,7 @@ const LoginSchema = z.object({
 const BookingCreateSchema = z.object({
   client_name: z.string().min(1).max(120).trim().optional(),
   client_phone: z.string().max(30).optional(),
+  client_email: z.string().email().max(254).optional(),
   barber_id: z.string().min(1, 'barber_id required').max(80),
   barber_name: z.string().max(120).optional(),
   service_id: z.string().max(500).optional(),
@@ -1825,6 +1826,7 @@ app.post('/api/bookings', async (req, res) => {
     const doc = {
       client_name: sanitizeHtml(data.client_name) || null,
       client_phone: data.client_phone || null,
+      client_email: data.client_email ? data.client_email.toLowerCase() : null,
       customer_id: data.customer_id || null,
       barber_id: data.barber_id,
       barber_name: sanitizeHtml(data.barber_name) || null,
@@ -1870,6 +1872,20 @@ app.post('/api/bookings', async (req, res) => {
       scheduleReminders(req.ws, bookingRef.id, doc, tz, shopName).catch(() => {});
     }
     sendCrmPushToStaff(req.ws, doc.barber_id, 'New Booking', `${doc.client_name || 'Client'} booked for ${doc.start_at?.slice(0, 10)}`, { type: 'booking_confirmed' }).catch(() => {});
+    // Email confirmation
+    if (doc.client_email) {
+      const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+      const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz });
+      sendEmail(doc.client_email, 'Booking Confirmed', vuriumEmailTemplate('Booking Confirmed', `
+        <p>Your appointment has been confirmed:</p>
+        <div style="padding:16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin:16px 0;">
+          <div style="font-size:16px;font-weight:600;color:#e8e8ed;">${doc.service_name || 'Appointment'}</div>
+          <div style="color:rgba(255,255,255,.4);margin-top:4px;">with ${doc.barber_name || 'your specialist'}</div>
+          <div style="color:rgba(130,150,220,.7);font-weight:500;margin-top:8px;">${dateStr} at ${timeStr}</div>
+        </div>
+        <p style="font-size:12px;color:rgba(255,255,255,.3);">Need to reschedule? Contact your salon directly.</p>
+      `)).catch(() => {});
+    }
     res.status(201).json({ id: bookingRef.id, ...doc });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
