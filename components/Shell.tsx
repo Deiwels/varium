@@ -390,12 +390,7 @@ function ProfileModal({ user, onClose, onUpdated }: {
 export default function Shell({ children, page }: { children: React.ReactNode; page: string }) {
   // Read auth state synchronously from localStorage to avoid blank screen flash
   const [user, setUser] = useState<User | null>(null)
-  const [status, setStatus] = useState<'loading' | 'ok' | 'noauth'>(() => {
-    if (typeof window === 'undefined') return 'loading'
-    const token = localStorage.getItem('VURIUMBOOK_TOKEN')
-    if (!token) return 'noauth'
-    return 'ok'
-  })
+  const [status, setStatus] = useState<'loading' | 'ok' | 'noauth'>('loading')
   const [showProfile, setShowProfile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [unreadChat, setUnreadChat] = useState<string | null>(null)
@@ -495,6 +490,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
     try { const stored = JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || 'null'); if (stored) setUser(stored) } catch {}
     const token = localStorage.getItem('VURIUMBOOK_TOKEN')
     if (!token) { setStatus('noauth'); return }
+    setStatus('ok') // optimistic — will revert to noauth if /me fails
     fetch(`${API}/api/auth/me`, { credentials: 'include', headers: { Authorization: `Bearer ${token}` } })
       .then(r => {
         if (r.status === 401) {
