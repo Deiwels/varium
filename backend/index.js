@@ -4206,15 +4206,6 @@ app.post('/api/billing/cancel', requireRole('owner'), async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-// Force-set plan type (owner only — for fixing plan after purchase)
-app.post('/api/billing/set-plan', requireRole('owner'), async (req, res) => {
-  try {
-    const plan = safeStr(req.body?.plan);
-    if (!['individual', 'salon', 'custom'].includes(plan)) return res.status(400).json({ error: 'Invalid plan. Use: individual, salon, custom' });
-    await req.wsDoc().update({ plan_type: plan, updated_at: toIso(new Date()) });
-    res.json({ ok: true, plan_type: plan });
-  } catch (e) { res.status(500).json({ error: e?.message }); }
-});
 
 // Account limits — returns plan info, features, limits
 
