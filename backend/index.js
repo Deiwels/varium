@@ -1049,6 +1049,14 @@ app.post('/auth/signup', async (req, res) => {
 
     // Check if username already used in any workspace
     const usernameLC = username.toLowerCase();
+    const allWs = await db.collection('workspaces').get();
+    for (const ws of allWs.docs) {
+      const dup = await ws.ref.collection('users')
+        .where('username', '==', usernameLC).where('active', '==', true).limit(1).get();
+      if (!dup.empty) {
+        return res.status(409).json({ error: 'email_exists', message: 'An account with this email already exists. Please sign in.' });
+      }
+    }
 
     // Create workspace with slug
     const wsRef = db.collection('workspaces').doc();
@@ -1559,11 +1567,23 @@ app.post('/api/clients', async (req, res) => {
     const v = validate(ClientCreateSchema, req.body || {});
     if (!v.ok) return res.status(400).json({ error: v.error });
     const { name, phone, email } = v.data;
+    // Check for duplicate phone
+    const pn = normPhone(phone);
+    if (pn) {
+      const dupPhone = await req.ws('clients').where('phone_norm', '==', pn).limit(1).get();
+      if (!dupPhone.empty) return res.status(409).json({ error: 'Client with this phone already exists', existing_id: dupPhone.docs[0].id, existing_name: dupPhone.docs[0].data().name });
+    }
+    // Check for duplicate email
+    if (email) {
+      const emailLC = email.toLowerCase().trim();
+      const dupEmail = await req.ws('clients').where('email', '==', emailLC).limit(1).get();
+      if (!dupEmail.empty) return res.status(409).json({ error: 'Client with this email already exists', existing_id: dupEmail.docs[0].id, existing_name: dupEmail.docs[0].data().name });
+    }
     const doc = {
       name: sanitizeHtml(name),
       phone: phone || null,
-      phone_norm: normPhone(phone) || null,
-      email: sanitizeHtml(email) || null,
+      phone_norm: pn || null,
+      email: sanitizeHtml(email)?.toLowerCase() || null,
       created_at: toIso(new Date()), updated_at: toIso(new Date()),
     };
     const ref = await req.ws('clients').add(doc);
@@ -3316,10 +3336,37 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
     const durMin = Number(booking.duration_minutes || 30);
     if (!startAt || !barberId) return res.status(400).json({ error: 'start_at and barber_id required' });
     const endAt = addMinutes(startAt, durMin);
+    // Deduplicate client by phone — link to existing or create new
+    const phoneNorm = normPhone(clientPhone) || null;
+    let clientId = null;
+    if (phoneNorm) {
+      const existingClient = await wsCol('clients').where('phone_norm', '==', phoneNorm).limit(1).get();
+      if (!existingClient.empty) {
+        clientId = existingClient.docs[0].id;
+        // Update name if provided and different
+        const existingName = existingClient.docs[0].data().name;
+        if (clientName && clientName !== existingName && clientName !== 'Walk-in') {
+          await existingClient.docs[0].ref.update({ name: clientName, updated_at: toIso(new Date()) });
+        }
+      } else {
+        // Create new client record
+        const clientRef = await wsCol('clients').add({
+          name: clientName || 'Walk-in',
+          phone: clientPhone || null,
+          phone_norm: phoneNorm,
+          client_status: 'new',
+          created_at: toIso(new Date()),
+          updated_at: toIso(new Date()),
+        });
+        clientId = clientRef.id;
+      }
+    }
+
     const doc = {
       client_name: clientName || 'Walk-in',
       client_phone: clientPhone || null,
-      phone_norm: normPhone(clientPhone) || null,
+      phone_norm: phoneNorm,
+      client_id: clientId,
       barber_id: barberId,
       barber_name: sanitizeHtml(safeStr(booking.barber_name)) || null,
       service_id: safeStr(booking.service_id) || null,

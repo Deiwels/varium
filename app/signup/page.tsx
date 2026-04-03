@@ -181,7 +181,14 @@ export default function SignupPage() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Registration failed')
+      if (!res.ok) {
+        if (data.error === 'email_exists') {
+          setError('email_exists')
+          setLoading(false)
+          return
+        }
+        throw new Error(data.message || data.error || 'Registration failed')
+      }
 
       localStorage.setItem('VURIUMBOOK_TOKEN', data.token)
       localStorage.setItem('VURIUMBOOK_USER', JSON.stringify({
@@ -274,8 +281,13 @@ export default function SignupPage() {
             <form onSubmit={handleSignup}>
               <div className="glass-card" style={{ padding: '32px 28px' }}>
                 {error && (
-                  <div style={{ padding: '10px 16px', borderRadius: 10, background: 'rgba(220,80,80,.1)', border: '1px solid rgba(220,80,80,.2)', color: 'rgba(255,160,160,.9)', fontSize: 13, marginBottom: 20 }}>
-                    {error}
+                  <div style={{ padding: '12px 16px', borderRadius: 12, background: error === 'email_exists' ? 'rgba(255,255,255,.06)' : 'rgba(220,80,80,.1)', border: `1px solid ${error === 'email_exists' ? 'rgba(255,255,255,.12)' : 'rgba(220,80,80,.2)'}`, color: error === 'email_exists' ? '#e8e8ed' : 'rgba(255,160,160,.9)', fontSize: 13, marginBottom: 20 }}>
+                    {error === 'email_exists' ? (
+                      <div>
+                        <div style={{ marginBottom: 8 }}>An account with this email already exists.</div>
+                        <a href="/signin" style={{ display: 'inline-block', padding: '8px 20px', borderRadius: 10, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.08)', color: '#fff', textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>Sign In →</a>
+                      </div>
+                    ) : error}
                   </div>
                 )}
 
