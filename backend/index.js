@@ -812,13 +812,19 @@ app.post('/api/webhooks/square', async (req, res) => {
           if (checkout.payment_ids?.length) patch.payment_id = checkout.payment_ids[0];
           if (status === 'COMPLETED') {
             patch.completed_at = toIso(new Date());
-            const tipMoney = checkout.tip_money?.amount || 0;
-            if (tipMoney > 0) patch.tip_cents = tipMoney;
+            const tipCents = checkout.tip_money?.amount || 0;
+            patch.tip_cents = tipCents;
+            const totalCents = checkout.amount_money?.amount || 0;
             // Update booking
             const prData = prDoc.data();
             if (prData.booking_id) {
-              const bPatch = { payment_status: 'paid', paid: true, updated_at: toIso(new Date()) };
-              if (tipMoney > 0) { bPatch.tip = tipMoney / 100; bPatch.tip_amount = tipMoney / 100; }
+              const bPatch = {
+                payment_status: 'paid', paid: true, payment_method: 'terminal',
+                tip: tipCents / 100, tip_amount: tipCents / 100,
+                amount: totalCents / 100,
+                updated_at: toIso(new Date()),
+              };
+              if (checkout.payment_ids?.length) bPatch.payment_id = checkout.payment_ids[0];
               await wsCol('bookings').doc(prData.booking_id).update(bPatch).catch(() => {});
             }
           }
@@ -3378,7 +3384,7 @@ app.get('/api/payments/terminal/devices', requireRole('owner', 'admin'), async (
 app.post('/api/payments/terminal', async (req, res) => {
   try {
     const b = req.body || {};
-    const amountCents = Math.round(Number(b.amount_cents || b.amount || 0));
+    const amountCents = b.amount_cents ? Math.round(Number(b.amount_cents)) : Math.round(Number(b.amount || 0) * 100);
     const bookingId = safeStr(b.booking_id || '');
     const deviceId = safeStr(b.device_id || process.env.SQUARE_DEVICE_ID || '');
     const paymentMethod = safeStr(b.payment_method || 'card');
@@ -3484,11 +3490,17 @@ app.get('/api/payments/terminal/status/:checkoutId', async (req, res) => {
       if (checkout.status === 'COMPLETED') {
         patch.completed_at = toIso(new Date());
         const tipCents = checkout.tip_money?.amount || 0;
-        if (tipCents > 0) patch.tip_cents = tipCents;
+        patch.tip_cents = tipCents;
+        const totalCents = checkout.amount_money?.amount || 0;
         const prData = prSnap.docs[0].data();
         if (prData.booking_id) {
-          const bPatch = { payment_status: 'paid', paid: true, updated_at: toIso(new Date()) };
-          if (tipCents > 0) { bPatch.tip = tipCents / 100; bPatch.tip_amount = tipCents / 100; }
+          const bPatch = {
+            payment_status: 'paid', paid: true, payment_method: 'terminal',
+            tip: tipCents / 100, tip_amount: tipCents / 100,
+            amount: totalCents / 100,
+            updated_at: toIso(new Date()),
+          };
+          if (checkout.payment_ids?.length) bPatch.payment_id = checkout.payment_ids[0];
           await req.ws('bookings').doc(prData.booking_id).update(bPatch).catch(() => {});
         }
       }

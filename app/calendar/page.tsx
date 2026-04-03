@@ -1487,8 +1487,7 @@ export default function CalendarPage() {
   function openCreate(barberId: string, startMin: number) {
     const id = uid()
     const barber = barbers.find(b => b.id === barberId)
-    const defaultSvc = services.find(s => !s.barberIds.length || s.barberIds.includes(barberId))
-    setEvents(prev => [...prev, { id, barberId, barberName: barber?.name || '', clientName: '', clientPhone: '', serviceId: defaultSvc?.id || '', serviceName: defaultSvc?.name || '', date: todayStr, startMin: clamp(startMin), durMin: defaultSvc?.durationMin || 30, status: 'booked', paid: false, notes: '', _raw: null }])
+    setEvents(prev => [...prev, { id, barberId, barberName: barber?.name || '', clientName: '', clientPhone: '', serviceId: '', serviceName: '', date: todayStr, startMin: clamp(startMin), durMin: 30, status: 'booked', paid: false, notes: '', _raw: null }])
     setModal({ open: true, eventId: id, isNew: true })
   }
 
