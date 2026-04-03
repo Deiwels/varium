@@ -939,6 +939,18 @@ export default function CalendarPage() {
   const isOwnerOrAdmin = currentUser?.role === 'owner' || currentUser?.role === 'admin'
   const myBarberId = currentUser?.barber_id || ''
   const mentorBarberIds: string[] = currentUser?.mentor_barber_ids || []
+  const [terminalEnabled, setTerminalEnabled] = useState(false)
+
+  // Check if Square or Stripe is connected (for showing Terminal button)
+  useEffect(() => {
+    if (!isOwnerOrAdmin) return
+    Promise.all([
+      apiFetch('/api/square/oauth/status').catch(() => ({ connected: false })),
+      apiFetch('/api/stripe-connect/status').catch(() => ({ connected: false })),
+    ]).then(([sq, st]) => {
+      setTerminalEnabled(sq?.connected || st?.connected || false)
+    })
+  }, [isOwnerOrAdmin])
 
   // Load student schedule from API on mount
   useEffect(() => {
@@ -2741,6 +2753,7 @@ export default function CalendarPage() {
             })(), _raw: { ...selectedEvent._raw, start_min: selectedEvent.startMin, date: selectedEvent.date } } : null}
           allEvents={events.map((e: any) => ({ id: e.id, barberId: e.barberId, startMin: e.startMin, durMin: e.durMin, status: e.status, paid: e.paid, clientName: e.clientName, date: e.date, paymentStatus: (e._raw as any)?.payment_status || '' }))}
           onClose={() => { if (modal.isNew) setEvents(prev => prev.filter(e => e.id !== modal.eventId)); setModal({ open: false, eventId: null, isNew: false }) }}
+          terminalEnabled={terminalEnabled}
           onSave={handleSave} onDelete={handleDelete} onPayment={handlePayment}
           onOpenEvent={(eventId) => { setModal({ open: false, eventId: null, isNew: false }); setTimeout(() => setModal({ open: true, eventId, isNew: false }), 100) }}
         />

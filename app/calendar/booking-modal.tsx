@@ -99,6 +99,7 @@ interface BookingModalProps {
   onDelete: () => void
   onPayment: (method: string, tip: number) => void
   onOpenEvent?: (eventId: string) => void
+  terminalEnabled?: boolean
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -786,7 +787,7 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
 
           {/* Payment methods */}
           <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-            {(['terminal','cash','zelle','other'] as const).map(m => (
+            {(['terminal','cash','zelle','other'] as const).filter(m => m !== 'terminal' || terminalEnabled).map(m => (
               <button key={m} onClick={() => { setMethod(m); setHint(''); if (m === 'terminal') handleTerminal() }} disabled={polling} style={methodStyle(m)}>
                 {m === 'terminal' && polling ? 'Waiting…' : m.charAt(0).toUpperCase() + m.slice(1)}
               </button>
@@ -835,7 +836,7 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
 export function BookingModal({
   isOpen, onClose, barberId, barberName, date, startMin,
   barbers, services, isOwnerOrAdmin, myBarberId,
-  existingEvent, onSave, onDelete, onPayment, allEvents
+  existingEvent, onSave, onDelete, onPayment, allEvents, terminalEnabled
 }: BookingModalProps) {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [clientName, setClientName] = useState('')

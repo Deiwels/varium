@@ -2978,7 +2978,7 @@ app.patch('/api/requests/:id', requireRole('owner', 'admin'), async (req, res) =
 app.get('/api/square/oauth/url', requireRole('owner'), async (req, res) => {
   try {
     if (!SQUARE_APP_ID) return res.status(400).json({ error: 'Square App ID not configured' });
-    const scopes = 'PAYMENTS_READ PAYMENTS_WRITE ORDERS_READ MERCHANT_PROFILE_READ DEVICES_READ';
+    const scopes = 'PAYMENTS_READ PAYMENTS_WRITE ORDERS_READ MERCHANT_PROFILE_READ DEVICES_READ CUSTOMERS_READ CUSTOMERS_WRITE';
     const redirectUri = `${req.protocol}://${req.get('host')}/api/square/oauth/callback`;
     const state = req.wsId;
     const url = `${SQUARE_BASE}/oauth2/authorize?client_id=${SQUARE_APP_ID}&scope=${encodeURIComponent(scopes)}&session=false&state=${state}&redirect_uri=${encodeURIComponent(redirectUri)}`;
