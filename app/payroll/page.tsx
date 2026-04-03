@@ -24,6 +24,7 @@ interface Totals { service_total: number; tips_total: number; barber_service_sha
 const pad2 = (n: number) => String(n).padStart(2, '0')
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}` }
 const daysAgo = (n: number) => { const d = new Date(); d.setDate(d.getDate()-n); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}` }
+const thisWeekMonday = () => { const d = new Date(); const day = d.getDay(); d.setDate(d.getDate() - (day === 0 ? 6 : day - 1)); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}` }
 const fmtDate = (iso: string) => { try { const d = new Date(iso+'T00:00:00'); return d.toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' }) } catch { return iso } }
 const fmtMoney = (n: number) => '$' + (Math.round((n||0)*100)/100).toFixed(2)
 const initials = (name: string) => { const p = (name||'').split(' '); return (p[0]?.[0]||'')+(p[1]?.[0]||'') }
@@ -58,7 +59,7 @@ function DatePicker({ from, to, onChange, onClose }: {
 
   const presets = [
     { label: 'Today', f: today(), t: today() },
-    { label: 'This week', f: daysAgo(new Date().getDay() || 7), t: today() },
+    { label: 'This week', f: thisWeekMonday(), t: today() },
     { label: 'Last 7 days', f: daysAgo(7), t: today() },
     { label: 'Last 14 days', f: daysAgo(14), t: today() },
     { label: 'Last 30 days', f: daysAgo(30), t: today() },
@@ -347,7 +348,7 @@ function AdminPayrollEditor({ userId, userName, rule, onSaved, extraDays }: { us
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function PayrollPage() {
-  const [from, setFrom] = useState(daysAgo(14))
+  const [from, setFrom] = useState(thisWeekMonday())
   const [to, setTo] = useState(today())
   const [barbers, setBarbers] = useState<BarberPayroll[]>([])
   const [totals, setTotals] = useState<Totals | null>(null)

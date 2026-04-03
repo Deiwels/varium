@@ -529,12 +529,33 @@ export default function SettingsPage() {
     catch (e: any) { showToast('Error: ' + e.message) }
   }
 
+  const [userRole] = useState<string>(() => { try { return JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}').role || 'owner' } catch { return 'owner' } })
+  const [geocoding, setGeocoding] = useState(false)
+
   const s = settings
   const tax = s.tax || {}
   const booking = s.booking || {}
   const display = s.display || {}
   const payroll = s.payroll || {}
   const square = s.square || {}
+
+  async function geocodeAddress() {
+    const addr = s.shop_address
+    if (!addr) { showToast('Enter a shop address first'); return }
+    setGeocoding(true)
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=1`, { headers: { 'User-Agent': 'VuriumBook/1.0' } })
+      const data = await res.json()
+      if (!data.length) { showToast('Address not found — try a more specific address'); setGeocoding(false); return }
+      const lat = parseFloat(data[0].lat)
+      const lng = parseFloat(data[0].lon)
+      set('geofence_lat', lat)
+      set('geofence_lng', lng)
+      if (!s.geofence_radius_m) set('geofence_radius_m', 500)
+      showToast(`Location set: ${lat.toFixed(5)}, ${lng.toFixed(5)}`)
+    } catch { showToast('Geocoding failed — check internet connection') }
+    setGeocoding(false)
+  }
 
   const TABS = [
     { id: 'shop', label: 'General' },
@@ -654,6 +675,33 @@ export default function SettingsPage() {
                     </select>
                   </Field>
                 </SectionCard>
+
+                {/* Attendance & Clock-In — owner only */}
+                {userRole === 'owner' && (
+                  <SectionCard title="Attendance & Clock-In">
+                    <Toggle checked={!!s.clock_in_enabled} onChange={v => set('clock_in_enabled', v)} label="Enable clock-in / clock-out" sub="Staff and admins will see a clock-in widget on their dashboard" />
+                    {s.clock_in_enabled && (<>
+                      <Field label="Shop address">
+                        <input value={s.shop_address || ''} onChange={e => set('shop_address', e.target.value)} placeholder="123 Main St, City, State" style={inp} />
+                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Used to verify employee location when clocking in</div>
+                      </Field>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <button onClick={geocodeAddress} disabled={geocoding || !s.shop_address} style={{ height: 36, padding: '0 16px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: geocoding || !s.shop_address ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'inherit', opacity: geocoding || !s.shop_address ? .5 : 1 }}>
+                          {geocoding ? 'Finding location…' : 'Set location from address'}
+                        </button>
+                        {s.geofence_lat && s.geofence_lng && (
+                          <span style={{ fontSize: 11, color: 'rgba(130,220,170,.6)' }}>
+                            {Number(s.geofence_lat).toFixed(4)}, {Number(s.geofence_lng).toFixed(4)}
+                          </span>
+                        )}
+                      </div>
+                      <Field label="Allowed radius (meters)">
+                        <input type="number" min={50} max={5000} step={50} value={s.geofence_radius_m || 500} onChange={e => set('geofence_radius_m', Number(e.target.value))} style={inp} />
+                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>How far from the shop employees can be to clock in (default: 500m)</div>
+                      </Field>
+                    </>)}
+                  </SectionCard>
+                )}
               </div>
             )}
 

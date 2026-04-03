@@ -1026,8 +1026,9 @@ export default function DashboardPage() {
             .dash-container { padding: 12px 10px 40px !important; }
           }
         `}</style>
-        {/* Clock in/out — hidden via CSS, moved to Settings > Features */}
-        <div className="clock-section-hidden" style={{ display: 'none' }}>
+        {/* Clock in/out — shown only for admin/barber when clock_in_enabled */}
+        {dashSettings.clock_in_enabled && role !== 'owner' && (
+        <div className="clock-section">
         {clockOutSummary && !clockedIn ? (
           <div className={clockSuccess === 'out' ? 'clock-out-success-card' : ''} style={{ borderRadius: 18, border: '1px solid rgba(143,240,177,.20)', background: 'linear-gradient(180deg,rgba(143,240,177,.06),rgba(0,0,0,.30))', boxShadow: '0 10px 40px rgba(0,0,0,.35)', padding: '18px 16px', marginBottom: 14 }}>
             {/* Header */}
@@ -1109,7 +1110,8 @@ export default function DashboardPage() {
         </div>
         )}
 
-        </div>{/* end clock-section-hidden */}
+        </div>
+        )}
 
         {/* Radar error overlay */}
         {clockErrorAnim && (

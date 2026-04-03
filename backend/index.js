@@ -2707,6 +2707,21 @@ app.get('/api/payroll', requirePlanFeature('payroll'), requireRole('owner'), asy
       const clients = new Set(byBarber[bid].bookings.map(bk => bk.client).filter(Boolean));
       byBarber[bid].client_count = clients.size || byBarber[bid].bookings_count;
     }
+    // Include all active barbers even if they have no bookings in the period
+    for (const [bid, profile] of Object.entries(barberProfiles)) {
+      if (profile.active === false) continue;
+      if (!byBarber[bid]) {
+        byBarber[bid] = {
+          barber_id: bid,
+          barber_name: profile.name || bid,
+          barber_photo: profile.photo || profile.avatar || '',
+          barber_level: profile.level || '',
+          bookings_count: 0, client_count: 0,
+          service_total: 0, tips_total: 0,
+          bookings: [],
+        };
+      }
+    }
     res.json({ barbers: Object.values(byBarber), period: { from, to } });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });

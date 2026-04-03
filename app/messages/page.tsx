@@ -515,13 +515,27 @@ export default function MessagesPage() {
     return () => clearTimeout(t)
   }, [])
 
-  // Load staff list on mount
+  // Load staff list on mount — prefer /api/users (has user IDs matching chat system), fallback to /api/barbers
   useEffect(() => {
-    apiFetch('/api/barbers').then(r => {
-      if (Array.isArray(r)) setStaffList(r)
-      else if (r && Array.isArray(r.barbers)) setStaffList(r.barbers)
-      else setStaffList([])
-    }).catch(() => setStaffList([]))
+    async function loadStaff() {
+      // Try /api/users first (owner/admin have access)
+      try {
+        const res = await apiFetch('/api/users')
+        const list = Array.isArray(res) ? res : Array.isArray(res?.users) ? res.users : []
+        if (list.length > 0) {
+          setStaffList(list.filter((u: any) => u.active !== false).map((u: any) => ({ id: u.id, name: u.name || u.username, photo_url: u.photo_url, role: u.role || 'barber' })))
+          return
+        }
+      } catch { /* barber/student can't access /api/users — fallback */ }
+
+      // Fallback: /api/barbers (available to all roles)
+      try {
+        const res = await apiFetch('/api/barbers')
+        const list = Array.isArray(res) ? res : Array.isArray(res?.barbers) ? res.barbers : []
+        setStaffList(list.map((b: any) => ({ id: b.id, name: b.name, photo_url: b.photo_url || b.photo, role: 'barber' })))
+      } catch { setStaffList([]) }
+    }
+    loadStaff()
   }, [])
 
   const role = user?.role || 'barber'
@@ -608,7 +622,7 @@ export default function MessagesPage() {
         document.documentElement.scrollTop = 0
         document.body.scrollTop = 0
         const container = document.querySelector('.msg-container') as HTMLElement
-        if (container) container.style.height = '100dvh'
+        if (container) container.style.height = 'calc(100dvh - 52px - 56px)'
       }, 100)
     }
     document.addEventListener('focusout', onBlur)
@@ -836,8 +850,9 @@ export default function MessagesPage() {
   const hasContent = input.trim() || imagePreview || filePreview
   const fmtDur = (s: number) => { const m = Math.floor(s / 60); const sec = s % 60; return `${m}:${sec.toString().padStart(2, '0')}` }
 
-  // Staff list excluding current user
-  const otherStaff = staffList.filter(s => s.id !== uid)
+  // Staff list excluding current user (check both uid and barber_id)
+  const myBarberId = user?.barber_id || ''
+  const otherStaff = staffList.filter(s => s.id !== uid && s.id !== myBarberId)
 
   return (
     <Shell page="Messages"><FeatureGate feature="messages" label="Messages" requiredPlan="salon">
@@ -888,7 +903,7 @@ export default function MessagesPage() {
         .chat-list-item:active { background: rgba(255,255,255,.08) !important; }
       `}</style>
 
-      <div className="msg-container" style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Inter,sans-serif', color: '#e8e8ed' }}>
+      <div className="msg-container" style={{ height: 'calc(100dvh - 52px - 56px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Inter,sans-serif', color: '#e8e8ed' }}>
         {/* Top tab bar — only show when NOT in conversation view */}
         {!(topTab === 'chat' && chatView === 'conversation') && (
           <div className="msg-tabs msg-tabs-scroll" style={{ display: 'flex', gap: 6, padding: '10px 18px', borderBottom: '1px solid rgba(255,255,255,.06)', overflowX: 'auto', flexShrink: 0 }}>
