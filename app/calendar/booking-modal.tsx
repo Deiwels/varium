@@ -566,15 +566,17 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
   const priceCalc = calcTotal(basePrice, shopSettings)
   const price = priceCalc.total  // total with tax + fees
 
-  // Find blocking event — same barber, earlier start, not resolved
+  // Find blocking event — same barber, same day, earlier start, not resolved
   const RESOLVED = ['paid', 'done', 'cancelled', 'noshow', 'no_show', 'refunded', 'partially_refunded']
+  const evDate = ev?._raw?.start_at ? ev._raw.start_at.slice(0, 10) : date
   const blockingEvent = ev && allEvents && barberId
     ? allEvents.find(e =>
         e.id !== ev.id &&
         e.barberId === barberId &&
+        e.date === evDate && // same day only
         e.startMin < (ev._raw?.start_min ?? 0) &&
         !e.paid &&
-        e.paymentStatus !== 'refunded' && // refunded = resolved even if paid=false
+        e.paymentStatus !== 'refunded' &&
         !RESOLVED.includes(e.status)
       )
     : null
