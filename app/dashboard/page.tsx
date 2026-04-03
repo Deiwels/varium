@@ -249,6 +249,7 @@ export default function DashboardPage() {
   const [dashWidgets, setDashWidgets] = useState<string[]>(['clock', 'todays-earnings', 'mini-calendar', 'weekly-chart', 'new-clients', 'expenses-month', 'site-analytics'])
   const [editingWidgets, setEditingWidgets] = useState(false)
   const [widgetData, setWidgetData] = useState<Record<string, any>>({})
+  const [widgetLoading, setWidgetLoading] = useState(true)
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const editJustActivated = useRef(false)
 
@@ -333,6 +334,8 @@ export default function DashboardPage() {
         if (d && !d.error) setWidgetData(prev => ({ ...prev, analytics: d }))
       }).catch(() => {})
     }
+    // Mark loading done after a short delay for all fetches to complete
+    setTimeout(() => setWidgetLoading(false), 1500)
   }, [dashWidgets])
 
   function toggleShortcut(href: string) {
@@ -1242,7 +1245,7 @@ export default function DashboardPage() {
                 <div key={wId} {...longPress} style={wBox}>
                   {removeBtn}
                   <div style={wTitle}>Earnings</div>
-                  <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(130,220,170,.8)', letterSpacing: '-.02em' }}>{money(widgetData.todaysEarnings || 0)}</div>
+                  <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(130,220,170,.8)', letterSpacing: '-.02em' }}>{widgetLoading ? '—' : money(widgetData.todaysEarnings || 0)}</div>
                   <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>{total} bookings · {paid} paid</div>
                 </div>
               )

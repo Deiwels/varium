@@ -554,9 +554,10 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
     try { const u = JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}'); return u.role === 'owner' || u.role === 'admin' } catch { return false }
   })
   const pollRef = useRef<any>(null)
+  const mountedRef = useRef(true)
 
-  useEffect(() => { getShopSettings().then(setShopSettings) }, [])
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
+  useEffect(() => { getShopSettings().then(s => { if (mountedRef.current) setShopSettings(s) }) }, [])
+  useEffect(() => () => { mountedRef.current = false; if (pollRef.current) clearInterval(pollRef.current) }, [])
 
   const evServiceIds = ev?.serviceIds?.length ? ev.serviceIds : ev?.serviceId ? [ev.serviceId] : []
   const evSvcs = services.filter(s => evServiceIds.includes(s.id))
@@ -683,6 +684,7 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId }: {
       setHint(`Waiting for payment… Tip options: ${tipOptStr} / No tip`); setHintType('info')
       let count = 0
       pollRef.current = setInterval(async () => {
+        if (!mountedRef.current) { clearInterval(pollRef.current); return }
         count++
         if (count > 45) { clearInterval(pollRef.current); setHint('Timed out — check Terminal'); setHintType('warning'); setPolling(false); setActiveCheckoutId(null); return }
         try {
@@ -887,22 +889,24 @@ export function BookingModal({
     setSaving(true)
     const selSvcs = services.filter(s => serviceIds.includes(s.id))
     const totalDur = selSvcs.reduce((sum, s) => sum + (s.durationMin || 30), 0) || 30
-    onSave({
-      clientName: clientName.trim(),
-      clientPhone: selectedClient?.phone || '',
-      clientId: selectedClient?.id,
-      barberId: selBarberId,
-      serviceId: serviceIds[0] || '',
-      service_ids: serviceIds,
-      service_name: selSvcs.map(s => s.name).join(' + '),
-      date,
-      startMin: selStartMin,
-      durMin: totalDur,
-      duration_minutes: totalDur,
-      status,
-      notes,
-      photoUrl,
-    } as any)
+    try {
+      await onSave({
+        clientName: clientName.trim(),
+        clientPhone: selectedClient?.phone || '',
+        clientId: selectedClient?.id,
+        barberId: selBarberId,
+        serviceId: serviceIds[0] || '',
+        service_ids: serviceIds,
+        service_name: selSvcs.map(s => s.name).join(' + '),
+        date,
+        startMin: selStartMin,
+        durMin: totalDur,
+        duration_minutes: totalDur,
+        status,
+        notes,
+        photoUrl,
+      } as any)
+    } catch {}
     setSaving(false)
   }
 

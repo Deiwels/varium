@@ -271,7 +271,7 @@ export default function PublicBookingPage() {
           : !ref ? 'direct' : 'other'
         api(`/public/analytics/${realWsId}`, { method: 'POST', body: JSON.stringify({ source, referrer: ref.slice(0, 200) }) }).catch(() => {})
       } catch {}
-    }).catch(() => { setNotFound(true) }).finally(() => setLoading(false))
+    }).catch(() => { setError('Unable to connect. Check your internet and try again.') }).finally(() => setLoading(false))
   }, [wsId])
 
   // Load slots when barber + date selected
@@ -289,7 +289,7 @@ export default function PublicBookingPage() {
         duration_minutes: totalDuration,
       }),
     }).then(d => setSlots(d.slots || []))
-      .catch(() => {})
+      .catch(() => setError('Could not load available times. Please try again.'))
       .finally(() => setSlotsLoading(false))
   }, [selectedBarber, selectedDate, totalDuration, resolvedWsId])
 

@@ -435,11 +435,18 @@ export default function SettingsPage() {
       try {
         await apiFetch('/api/settings', { method: 'POST', body: JSON.stringify({ ...settings, fees, charges }) })
         setDirty(false)
-      } catch {}
+      } catch { showToast('Failed to save — check connection') }
       setSaving(false)
     }, 1500)
     return () => { if (autoSaveRef.current) clearTimeout(autoSaveRef.current) }
   }, [dirty, settings, fees, charges])
+
+  // Warn before closing tab with unsaved changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => { if (dirty) { e.preventDefault(); e.returnValue = '' } }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [dirty])
 
   async function save() {
     setSaving(true)
