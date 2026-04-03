@@ -14,6 +14,7 @@ const { z } = require('zod');
 const { Firestore } = require('@google-cloud/firestore');
 
 const app = express();
+app.set('trust proxy', true);
 const db = new Firestore();
 const PORT = process.env.PORT || 8080;
 
@@ -758,14 +759,21 @@ app.get('/api/square/oauth/callback', async (req, res) => {
       body: JSON.stringify({ client_id: SQUARE_APP_ID, client_secret: SQUARE_APP_SECRET, code, grant_type: 'authorization_code' }),
     });
     const data = await r.json();
-    if (!r.ok || !data.access_token) return res.status(400).json({ error: 'OAuth failed', details: data });
+    if (!r.ok || !data.access_token) {
+      const frontendUrl = process.env.FRONTEND_URL || 'https://vurium.com';
+      return res.redirect(`${frontendUrl}/settings?tab=square&square=error&msg=${encodeURIComponent(data?.message || 'OAuth failed')}`);
+    }
     await wsCol('settings').doc('square_oauth').set({
       access_token: data.access_token, refresh_token: data.refresh_token || null,
       expires_at: data.expires_at || null, merchant_id: data.merchant_id || null,
       token_type: data.token_type || 'bearer', connected_at: toIso(new Date()), updated_at: toIso(new Date()),
     });
-    res.send('<html><body><h2>Square connected successfully!</h2><p>You can close this window.</p><script>window.close()</script></body></html>');
-  } catch (e) { res.status(500).json({ error: e?.message }); }
+    const frontendUrl = process.env.FRONTEND_URL || 'https://vurium.com';
+    res.redirect(`${frontendUrl}/settings?tab=square&square=connected`);
+  } catch (e) {
+    const frontendUrl = process.env.FRONTEND_URL || 'https://vurium.com';
+    res.redirect(`${frontendUrl}/settings?tab=square&square=error&msg=${encodeURIComponent(e?.message || 'Unknown error')}`);
+  }
 });
 
 // ============================================================

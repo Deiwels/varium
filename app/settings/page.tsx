@@ -404,18 +404,29 @@ export default function SettingsPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Read tab from URL params on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const urlTab = params.get('tab')
+    if (urlTab && ['shop','site','fees','booking','payroll','square','users','billing'].includes(urlTab)) {
+      setTab(urlTab as any)
+    }
+  }, [])
+
   // Load Square & Stripe Connect status on mount
   useEffect(() => {
     apiFetch('/api/square/oauth/status').then(d => setSquareOAuth(d)).catch(() => {})
     apiFetch('/api/stripe-connect/status').then(d => setStripeConnect(d)).catch(() => {})
     const params = new URLSearchParams(window.location.search)
     if (params.get('square') === 'connected') {
+      setTab('square')
       showToast('Square connected successfully ✓')
       apiFetch('/api/square/oauth/status').then(d => setSquareOAuth(d)).catch(() => {})
-      window.history.replaceState({}, '', '/settings')
+      window.history.replaceState({}, '', '/settings?tab=square')
     } else if (params.get('square') === 'error') {
+      setTab('square')
       showToast('❌ Square connection failed: ' + (params.get('msg') || 'unknown error'))
-      window.history.replaceState({}, '', '/settings')
+      window.history.replaceState({}, '', '/settings?tab=square')
     }
     if (params.get('stripe') === 'connected') {
       showToast('Stripe connected successfully ✓')
