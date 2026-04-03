@@ -1167,11 +1167,23 @@ function clearAuthCookie(res) {
 app.get('/health', (req, res) => res.json({ ok: true, service: 'vuriumbook-api', version: '3.0.0' }));
 
 app.get('/health/db', async (req, res) => {
+  const results = {};
   try {
     const snap = await db.collection('workspaces').limit(1).get();
-    res.json({ ok: true, firestore: 'connected', docs: snap.size });
+    results.workspaces = { ok: true, count: snap.size };
+    // Test the same operations signup does
+    if (!snap.empty) {
+      const ws = snap.docs[0];
+      results.workspace_id = ws.id;
+      const users = await ws.ref.collection('users').limit(1).get();
+      results.users_query = { ok: true, count: users.size };
+    }
+    // Test slug collection
+    const slugs = await db.collection('slugs').limit(1).get();
+    results.slugs = { ok: true, count: slugs.size };
+    res.json({ ok: true, firestore: 'connected', ...results });
   } catch (e) {
-    res.status(500).json({ ok: false, firestore: 'error', code: e.code || null, message: e.message || String(e) });
+    res.status(500).json({ ok: false, firestore: 'error', code: e.code || null, message: e.message || String(e), step: results });
   }
 });
 
@@ -1255,8 +1267,8 @@ app.post('/auth/signup', async (req, res) => {
       token,
     });
   } catch (e) {
-    console.error('signup error:', e);
-    res.status(500).json({ error: e?.message || 'Internal error' });
+    console.error('signup error:', e?.code, e?.message, e?.stack);
+    res.status(500).json({ error: 'signup_failed', detail: e?.message || 'Internal error', code: e?.code || null });
   }
 });
 
