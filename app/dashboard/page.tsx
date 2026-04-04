@@ -731,7 +731,7 @@ export default function DashboardPage() {
                 const startM = sched?.startMin ?? 600, endM = sched?.endMin ?? 1200
                 const bkgs = bookings.filter(bk => String(bk.barber_id || '') === String(b.id))
                 const busy = new Set<number>()
-                bkgs.forEach(bk => { const s = bk.startMin ?? 0; const d = bk.durMin ?? 30; for (let m = s; m < s + d; m += 5) busy.add(m) })
+                bkgs.forEach(bk => { if (!bk.start_at) return; const dt = new Date(bk.start_at); const s = dt.getHours() * 60 + dt.getMinutes(); const d = (bk as any).duration ?? (bk as any).durMin ?? 30; for (let m = s; m < s + d; m += 5) busy.add(m) })
                 const free: string[] = []
                 for (let m = Math.max(startM, nowMin); m <= endM - 30; m += 30) {
                   let ok = true; for (let c = m; c < m + 30; c += 5) if (busy.has(c)) { ok = false; break }
@@ -933,9 +933,9 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Page dots — below content, above pill bar */}
+            {/* Page dots — fixed above pill bar */}
             {totalPages > 1 && (
-              <div style={{ flex: '0 0 auto', display: 'flex', justifyContent: 'center', gap: 6, padding: '10px 0 6px', pointerEvents: 'none' }}>
+              <div style={{ position: 'fixed', bottom: 56, left: 0, right: 0, zIndex: 10000, display: 'flex', justifyContent: 'center', gap: 6, padding: '4px 0', pointerEvents: 'none' }}>
                 {Array.from({ length: totalPages }, (_, i) => (
                   <div key={i} style={{ width: homePage === i ? 7 : 5, height: homePage === i ? 7 : 5, borderRadius: 999, background: homePage === i ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.15)', transition: 'all .25s ease' }} />
                 ))}
