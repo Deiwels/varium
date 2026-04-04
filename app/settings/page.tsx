@@ -3,6 +3,7 @@ import Shell from '@/components/Shell'
 import { useEffect, useState, useCallback, useRef } from 'react'
 
 import { apiFetch } from '@/lib/api'
+import { getTimezoneList } from '@/lib/timezones'
 import { usePlan } from '@/components/PlanProvider'
 import { hasPinSetup, clearPin } from '@/lib/pin'
 
@@ -696,7 +697,7 @@ export default function SettingsPage() {
                   </Field>
                   <Field label="Timezone">
                     <select value={s.timezone || 'America/Chicago'} onChange={e => set('timezone', e.target.value)} style={inp}>
-                      {['America/Chicago','America/New_York','America/Los_Angeles','America/Denver','America/Phoenix'].map(tz => <option key={tz} value={tz}>{tz}</option>)}
+                      {getTimezoneList().map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
                     </select>
                   </Field>
                   <Field label="Currency">

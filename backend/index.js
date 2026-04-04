@@ -625,7 +625,7 @@ const SignupSchema = z.object({
   name: z.string().max(120).optional(),
   email: z.string().email().optional(),
   phone: z.string().max(30).optional(),
-  timezone: z.string().max(60).optional(),
+  timezone: z.string().max(60),
 });
 
 const LoginSchema = z.object({

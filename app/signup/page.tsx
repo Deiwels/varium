@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { API, apiFetch } from '@/lib/api'
+import { getTimezoneList, detectUserTimezone } from '@/lib/timezones'
 import { setAuthCookie } from '@/lib/auth-cookie'
 import { loadStripe, Appearance } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
@@ -100,6 +101,7 @@ export default function SignupPage() {
   const [ownerName, setOwnerName] = useState('')
   const [phone, setPhone] = useState('')
   const [businessType, setBusinessType] = useState('')
+  const [timezone, setTimezone] = useState('')
   const [plan, setPlan] = useState('free')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -112,6 +114,7 @@ export default function SignupPage() {
     const params = new URLSearchParams(window.location.search)
     const p = params.get('plan')
     if (p) setPlan(p)
+    setTimezone(detectUserTimezone())
   }, [])
 
   useEffect(() => {
@@ -144,7 +147,7 @@ export default function SignupPage() {
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (!businessName || !email || !password || !ownerName) {
+    if (!businessName || !email || !password || !ownerName || !timezone) {
       setError('Please fill in all required fields.'); return
     }
     if (password.length < 8) {
@@ -179,6 +182,7 @@ export default function SignupPage() {
           name: ownerName,
           email: email.toLowerCase().trim(),
           phone: phone || undefined,
+          timezone,
         }),
       })
       const data = await res.json()
@@ -313,6 +317,15 @@ export default function SignupPage() {
                         }}>{t}</button>
                       ))}
                     </div>
+                  </div>
+                  <div>
+                    <label style={lbl}>Timezone *</label>
+                    <select value={timezone} onChange={e => setTimezone(e.target.value)} required style={inp}>
+                      <option value="" disabled>Select your timezone</option>
+                      {getTimezoneList().map(tz => (
+                        <option key={tz.value} value={tz.value}>{tz.label}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
