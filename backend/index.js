@@ -1006,6 +1006,51 @@ app.post('/auth/reset-password', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
+// ============================================================
+// TELNYX INBOUND SMS WEBHOOK (STOP / HELP) — before auth middleware
+// ============================================================
+app.post('/api/webhooks/telnyx', async (req, res) => {
+  try {
+    const payload = req.body?.data?.payload || req.body?.data || {};
+    const direction = payload.direction || '';
+    if (direction !== 'inbound') return res.status(200).json({ ok: true });
+    const from = payload.from?.phone_number || '';
+    const body = String(payload.text || '').trim().toUpperCase();
+    const digits = from.replace(/\D/g, '');
+    const phoneNorm = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+    if (!phoneNorm) return res.status(200).json({ ok: true });
+
+    if (body === 'STOP' || body === 'UNSUBSCRIBE' || body === 'CANCEL' || body === 'END' || body === 'QUIT') {
+      const wsSnap = await db.collection('workspaces').limit(100).get();
+      for (const ws of wsSnap.docs) {
+        const wsCol = (col) => db.collection('workspaces').doc(ws.id).collection(col);
+        const clientSnap = await wsCol('clients').where('phone_norm', '==', phoneNorm).limit(1).get();
+        if (!clientSnap.empty) {
+          await clientSnap.docs[0].ref.update({ sms_opt_out: true, sms_opt_out_at: toIso(new Date()) });
+        }
+        const reminderSnap = await wsCol('sms_reminders').where('sent', '==', false).limit(50).get();
+        for (const r of reminderSnap.docs) {
+          const rPhone = String(r.data().phone || '').replace(/\D/g, '');
+          const rNorm = rPhone.length === 11 && rPhone.startsWith('1') ? rPhone.slice(1) : rPhone;
+          if (rNorm === phoneNorm) {
+            await r.ref.update({ sent: true, cancelled: true, cancelled_at: toIso(new Date()) });
+          }
+        }
+      }
+      const settingsDoc = await db.collection('workspaces').limit(1).get();
+      const shopName = settingsDoc.empty ? 'Vurium' : safeStr(settingsDoc.docs[0].data()?.name || 'Vurium');
+      sendSms(from, `${shopName}: You have been unsubscribed and will not receive further messages. Reply HELP for help.`).catch(() => {});
+    } else if (body === 'HELP' || body === 'INFO') {
+      sendSms(from, `Vurium: For help, email support@vurium.com or visit https://vurium.com/privacy. Reply STOP to opt out of messages.`).catch(() => {});
+    }
+
+    res.status(200).json({ ok: true });
+  } catch (e) {
+    console.warn('Telnyx inbound webhook error:', e?.message);
+    res.status(200).json({ ok: true });
+  }
+});
+
 // Apply auth + workspace for all /api/ routes
 app.use('/api', authenticate, requireAuth, resolveWorkspace);
 
@@ -5211,55 +5256,6 @@ app.post('/public/manage-booking/reschedule', async (req, res) => {
     }
     res.json({ ok: true, start_at: toIso(newStartAt), end_at: toIso(newEndAt) });
   } catch (e) { res.status(500).json({ error: e?.message }); }
-});
-
-// ============================================================
-// TELNYX INBOUND SMS WEBHOOK (STOP / HELP)
-// ============================================================
-app.post('/api/webhooks/telnyx', async (req, res) => {
-  try {
-    const payload = req.body?.data?.payload || req.body?.data || {};
-    const direction = payload.direction || '';
-    if (direction !== 'inbound') return res.status(200).json({ ok: true });
-    const from = payload.from?.phone_number || '';
-    const body = String(payload.text || '').trim().toUpperCase();
-    const digits = from.replace(/\D/g, '');
-    const phoneNorm = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
-    if (!phoneNorm) return res.status(200).json({ ok: true });
-
-    if (body === 'STOP' || body === 'UNSUBSCRIBE' || body === 'CANCEL' || body === 'END' || body === 'QUIT') {
-      // Find workspace(s) where this phone has bookings and mark opted out
-      const wsSnap = await db.collection('workspaces').limit(100).get();
-      for (const ws of wsSnap.docs) {
-        const wsCol = (col) => db.collection('workspaces').doc(ws.id).collection(col);
-        // Mark sms_opt_out in clients collection
-        const clientSnap = await wsCol('clients').where('phone_norm', '==', phoneNorm).limit(1).get();
-        if (!clientSnap.empty) {
-          await clientSnap.docs[0].ref.update({ sms_opt_out: true, sms_opt_out_at: toIso(new Date()) });
-        }
-        // Cancel pending reminders
-        const reminderSnap = await wsCol('sms_reminders').where('sent', '==', false).limit(50).get();
-        for (const r of reminderSnap.docs) {
-          const rPhone = String(r.data().phone || '').replace(/\D/g, '');
-          const rNorm = rPhone.length === 11 && rPhone.startsWith('1') ? rPhone.slice(1) : rPhone;
-          if (rNorm === phoneNorm) {
-            await r.ref.update({ sent: true, cancelled: true, cancelled_at: toIso(new Date()) });
-          }
-        }
-      }
-      // Telnyx auto-handles STOP replies on long codes, but we also confirm
-      const settingsDoc = await db.collection('workspaces').limit(1).get();
-      const shopName = settingsDoc.empty ? 'Vurium' : safeStr(settingsDoc.docs[0].data()?.name || 'Vurium');
-      sendSms(from, `${shopName}: You have been unsubscribed and will not receive further messages. Reply HELP for help.`).catch(() => {});
-    } else if (body === 'HELP' || body === 'INFO') {
-      sendSms(from, `Vurium: For help, email support@vurium.com or visit https://vurium.com/privacy. Reply STOP to opt out of messages.`).catch(() => {});
-    }
-
-    res.status(200).json({ ok: true });
-  } catch (e) {
-    console.warn('Telnyx inbound webhook error:', e?.message);
-    res.status(200).json({ ok: true }); // always 200 to Telnyx
-  }
 });
 
 // ============================================================
