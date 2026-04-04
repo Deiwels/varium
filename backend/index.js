@@ -262,6 +262,80 @@ function phoneForRole(encryptedPhone, role) {
   return '****' + plain.slice(-4);
 }
 
+function encryptPII(text) {
+  const key = getPhoneEncryptionKey();
+  if (!key || !text) return text;
+  try {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const encrypted = Buffer.concat([cipher.update(String(text), 'utf8'), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return 'enc:' + iv.toString('hex') + ':' + encrypted.toString('hex') + ':' + tag.toString('hex');
+  } catch { return text; }
+}
+
+function decryptPII(value) {
+  if (!value || !String(value).startsWith('enc:')) return value;
+  const key = getPhoneEncryptionKey();
+  if (!key) return value;
+  try {
+    const parts = value.split(':');
+    const iv = Buffer.from(parts[1], 'hex');
+    const encrypted = Buffer.from(parts[2], 'hex');
+    const tag = Buffer.from(parts[3], 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+  } catch { return value; }
+}
+
+// ============================================================
+// TOTP (RFC 6238) — MFA for admin/owner accounts
+// ============================================================
+function generateTOTPSecret() {
+  return crypto.randomBytes(20).toString('hex');
+}
+
+function toBase32(hex) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const bytes = Buffer.from(hex, 'hex');
+  let bits = '';
+  for (const b of bytes) bits += b.toString(2).padStart(8, '0');
+  let result = '';
+  for (let i = 0; i < bits.length; i += 5) {
+    const chunk = bits.slice(i, i + 5).padEnd(5, '0');
+    result += alphabet[parseInt(chunk, 2)];
+  }
+  return result;
+}
+
+function generateTOTP(secretHex, timeStep = 30, digits = 6) {
+  const epoch = Math.floor(Date.now() / 1000);
+  const counter = Math.floor(epoch / timeStep);
+  const counterBuf = Buffer.alloc(8);
+  counterBuf.writeUInt32BE(Math.floor(counter / 0x100000000), 0);
+  counterBuf.writeUInt32BE(counter & 0xffffffff, 4);
+  const hmac = crypto.createHmac('sha1', Buffer.from(secretHex, 'hex')).update(counterBuf).digest();
+  const offset = hmac[hmac.length - 1] & 0xf;
+  const code = ((hmac[offset] & 0x7f) << 24 | hmac[offset + 1] << 16 | hmac[offset + 2] << 8 | hmac[offset + 3]) % (10 ** digits);
+  return String(code).padStart(digits, '0');
+}
+
+function verifyTOTP(secretHex, token, window = 1) {
+  for (let i = -window; i <= window; i++) {
+    const epoch = Math.floor(Date.now() / 1000) + i * 30;
+    const counter = Math.floor(epoch / 30);
+    const counterBuf = Buffer.alloc(8);
+    counterBuf.writeUInt32BE(Math.floor(counter / 0x100000000), 0);
+    counterBuf.writeUInt32BE(counter & 0xffffffff, 4);
+    const hmac = crypto.createHmac('sha1', Buffer.from(secretHex, 'hex')).update(counterBuf).digest();
+    const offset = hmac[hmac.length - 1] & 0xf;
+    const code = ((hmac[offset] & 0x7f) << 24 | hmac[offset + 1] << 16 | hmac[offset + 2] << 8 | hmac[offset + 3]) % 1000000;
+    if (String(code).padStart(6, '0') === String(token).trim()) return true;
+  }
+  return false;
+}
+
 // ============================================================
 // TELNYX SMS
 // ============================================================
@@ -1408,6 +1482,17 @@ app.post('/auth/login-email', async (req, res) => {
     }
     if (!foundUser || !foundWsId) { trackFailedLogin(ip, email); return res.status(401).json({ error: 'Invalid email or password' }); }
     if (!checkPassword(password, foundUser.password_hash)) { trackFailedLogin(ip, email); return res.status(401).json({ error: 'Invalid email or password' }); }
+    // MFA check — if user has MFA enabled, require TOTP code
+    if (foundUser.mfa_enabled && foundUser.mfa_secret) {
+      const mfaCode = safeStr(req.body?.mfa_code || '');
+      if (!mfaCode) {
+        return res.status(403).json({ error: 'MFA code required', mfa_required: true });
+      }
+      if (!verifyTOTP(foundUser.mfa_secret, mfaCode)) {
+        trackFailedLogin(ip, email);
+        return res.status(401).json({ error: 'Invalid MFA code', mfa_required: true });
+      }
+    }
     await resetRateLimit(ip);
     const token = jwt.sign({
       uid: foundUser.uid, username: foundUser.username, role: foundUser.role,
@@ -1417,13 +1502,14 @@ app.post('/auth/login-email', async (req, res) => {
       permissions: PERMISSIONS[foundUser.role] || {},
     }, JWT_SECRET, { expiresIn: TOKEN_TTL });
     setAuthCookie(res, token);
-    writeAuditLog(foundWsId, { action: 'user.login', resource_id: foundUser.uid, data: { username: foundUser.username }, req }).catch(() => {});
+    writeAuditLog(foundWsId, { action: 'user.login', resource_id: foundUser.uid, data: { username: foundUser.username, mfa: !!foundUser.mfa_enabled }, req }).catch(() => {});
     res.json({
       ok: true, token,
       user: {
         id: foundUser.uid, uid: foundUser.uid, username: foundUser.username, name: foundUser.name,
         role: foundUser.role, workspace_id: foundWsId, barber_id: foundUser.barber_id || null,
         permissions: PERMISSIONS[foundUser.role] || {},
+        mfa_enabled: !!foundUser.mfa_enabled,
       },
     });
   } catch (e) {
@@ -1540,6 +1626,61 @@ app.post('/api/auth/change-password', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e?.message || 'Internal error' });
   }
+});
+
+// MFA setup — generate TOTP secret
+app.post('/api/auth/mfa/setup', requireAuth, requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const userRef = req.ws('users').doc(req.user.uid);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'User not found' });
+    const secret = generateTOTPSecret();
+    await userRef.update({ mfa_secret_pending: secret, updated_at: toIso(new Date()) });
+    const base32Secret = toBase32(secret);
+    const otpauthUrl = `otpauth://totp/Vurium:${encodeURIComponent(userDoc.data().username || userDoc.data().email || 'user')}?secret=${base32Secret}&issuer=Vurium&digits=6&period=30`;
+    res.json({ ok: true, secret: base32Secret, otpauth_url: otpauthUrl });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// MFA verify — confirm setup with a valid TOTP code
+app.post('/api/auth/mfa/verify', requireAuth, requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const code = safeStr(req.body?.code || '');
+    if (!code || code.length !== 6) return res.status(400).json({ error: '6-digit code required' });
+    const userRef = req.ws('users').doc(req.user.uid);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'User not found' });
+    const pendingSecret = userDoc.data().mfa_secret_pending;
+    if (!pendingSecret) return res.status(400).json({ error: 'No MFA setup in progress. Call /api/auth/mfa/setup first.' });
+    if (!verifyTOTP(pendingSecret, code)) return res.status(401).json({ error: 'Invalid code. Try again.' });
+    // Activate MFA
+    await userRef.update({ mfa_secret: pendingSecret, mfa_enabled: true, mfa_secret_pending: null, mfa_enabled_at: toIso(new Date()), updated_at: toIso(new Date()) });
+    writeAuditLog(req.wsId, { action: 'user.mfa_enabled', resource_id: req.user.uid, req }).catch(() => {});
+    res.json({ ok: true, mfa_enabled: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// MFA disable
+app.post('/api/auth/mfa/disable', requireAuth, requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const password = safeStr(req.body?.password || '');
+    if (!password) return res.status(400).json({ error: 'Password required' });
+    const userRef = req.ws('users').doc(req.user.uid);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'User not found' });
+    if (!checkPassword(password, userDoc.data().password_hash)) return res.status(401).json({ error: 'Incorrect password' });
+    await userRef.update({ mfa_secret: null, mfa_enabled: false, mfa_secret_pending: null, updated_at: toIso(new Date()) });
+    writeAuditLog(req.wsId, { action: 'user.mfa_disabled', resource_id: req.user.uid, req }).catch(() => {});
+    res.json({ ok: true, mfa_enabled: false });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// MFA status
+app.get('/api/auth/mfa/status', requireAuth, async (req, res) => {
+  try {
+    const userDoc = await req.ws('users').doc(req.user.uid).get();
+    res.json({ mfa_enabled: !!(userDoc.exists && userDoc.data().mfa_enabled) });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
 app.delete('/api/auth/delete-account', async (req, res) => {
@@ -1773,7 +1914,10 @@ app.get('/api/clients', async (req, res) => {
   try {
     const q = safeStr(req.query?.q || '').toLowerCase();
     const snap = await req.ws('clients').orderBy('created_at', 'desc').limit(500).get();
-    let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    let list = snap.docs.map(d => {
+      const data = d.data();
+      return { id: d.id, ...data, name: decryptPII(data.name), email: decryptPII(data.email), phone: data.phone ? decryptPhone(data.phone) : data.phone };
+    });
     if (q) list = list.filter(c =>
       String(c.name || '').toLowerCase().includes(q) ||
       String(c.phone_norm || '').includes(q) ||
@@ -1842,16 +1986,18 @@ app.post('/api/clients', async (req, res) => {
       const dupEmail = await req.ws('clients').where('email', '==', emailLC).limit(1).get();
       if (!dupEmail.empty) return res.status(409).json({ error: 'Client with this email already exists', existing_id: dupEmail.docs[0].id, existing_name: dupEmail.docs[0].data().name });
     }
+    const plainName = sanitizeHtml(name);
+    const plainEmail = sanitizeHtml(email)?.toLowerCase() || null;
     const doc = {
-      name: sanitizeHtml(name),
-      phone: phone || null,
+      name: encryptPII(plainName),
+      phone: phone ? encryptPhone(phone) : null,
       phone_norm: pn || null,
-      email: sanitizeHtml(email)?.toLowerCase() || null,
+      email: encryptPII(plainEmail),
       created_at: toIso(new Date()), updated_at: toIso(new Date()),
     };
     const ref = await req.ws('clients').add(doc);
-    writeAuditLog(req.wsId, { action: 'client.create', resource_id: ref.id, data: { name }, req }).catch(() => {});
-    res.status(201).json({ id: ref.id, ...doc, client_status: 'new' });
+    writeAuditLog(req.wsId, { action: 'client.create', resource_id: ref.id, data: { name: plainName }, req }).catch(() => {});
+    res.status(201).json({ id: ref.id, ...doc, name: plainName, email: plainEmail, phone: phone || null, client_status: 'new' });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
@@ -1900,9 +2046,12 @@ app.get('/api/clients/:id', async (req, res) => {
     const doc = await req.ws('clients').doc(req.params.id).get();
     if (!doc.exists) return res.status(404).json({ error: 'Client not found' });
     const data = doc.data();
-    const bSnap = await req.ws('bookings').where('client_name', '==', String(data.name || '')).orderBy('start_at', 'desc').limit(20).get();
+    const decName = decryptPII(data.name);
+    const decEmail = decryptPII(data.email);
+    const decPhone = data.phone ? decryptPhone(data.phone) : data.phone;
+    const bSnap = await req.ws('bookings').where('client_name', '==', decName).orderBy('start_at', 'desc').limit(20).get();
     const bookings = bSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    res.json({ id: doc.id, ...data, bookings });
+    res.json({ id: doc.id, ...data, name: decName, email: decEmail, phone: decPhone, bookings });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
@@ -3988,10 +4137,10 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       } else {
         // Create new client record
         const clientRef = await wsCol('clients').add({
-          name: clientName || 'Walk-in',
-          phone: clientPhone || null,
+          name: encryptPII(clientName || 'Walk-in'),
+          phone: clientPhone ? encryptPhone(clientPhone) : null,
           phone_norm: phoneNorm,
-          email: clientEmail,
+          email: encryptPII(clientEmail),
           client_status: 'new',
           created_at: toIso(new Date()),
           updated_at: toIso(new Date()),
@@ -4002,10 +4151,10 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
     // If still no client found but has email — create from email
     if (!clientId && clientEmail) {
       const clientRef = await wsCol('clients').add({
-        name: clientName || 'Walk-in',
-        phone: clientPhone || null,
+        name: encryptPII(clientName || 'Walk-in'),
+        phone: clientPhone ? encryptPhone(clientPhone) : null,
         phone_norm: phoneNorm,
-        email: clientEmail,
+        email: encryptPII(clientEmail),
         client_status: 'new',
         created_at: toIso(new Date()),
         updated_at: toIso(new Date()),

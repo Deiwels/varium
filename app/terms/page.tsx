@@ -163,32 +163,59 @@ export default function TermsPage() {
           <li>Sections that by their nature should survive termination (Limitation of Liability, Indemnification, Dispute Resolution) will survive.</li>
         </ul>
 
-        {/* 15. Governing Law */}
-        <h2 style={heading}>15. Governing Law</h2>
+        {/* 15. Force Majeure */}
+        <h2 style={heading}>15. Force Majeure</h2>
+        <p style={text}>
+          Neither party shall be liable for any failure or delay in performing its obligations under these Terms where such failure or delay arises from causes beyond the reasonable control of the affected party, including but not limited to: natural disasters, pandemics, war, terrorism, government action, power or telecommunications failure, cyberattacks, or acts of third-party service providers. The affected party must notify the other party within 5 business days and use commercially reasonable efforts to resume performance as soon as practicable.
+        </p>
+
+        {/* 16. Product Safety (EU Directive 2024/2853) */}
+        <h2 style={heading}>16. Product Safety (EU)</h2>
+        <p style={text}>
+          For customers in the European Union: pursuant to Directive (EU) 2024/2853 (Product Liability Directive), which extends strict liability to digital products effective December 9, 2026, Vurium acknowledges that the VuriumBook software constitutes a &quot;product&quot; within the meaning of the Directive. Vurium maintains a product safety process to identify, assess, and remediate software defects that could cause harm. If you believe you have experienced harm caused by a defect in the Service, please contact us at <a href="mailto:support@vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>support@vurium.com</a>. Nothing in these Terms limits or excludes liability that cannot be excluded under EU product liability law.
+        </p>
+
+        {/* 17. Digital Content Conformity (EU Directive 2019/770) */}
+        <h2 style={heading}>17. Digital Content Conformity (EU)</h2>
+        <p style={text}>
+          For consumers in the European Union: under Directive (EU) 2019/770 (Digital Content Directive), Vurium guarantees that the Service shall:
+        </p>
+        <ul style={list}>
+          <li>Conform to the description, quantity, and quality specified in these Terms and our documentation.</li>
+          <li>Be fit for the purposes for which digital content of the same type would normally be used.</li>
+          <li>Be supplied with all accessories, instructions, and updates as reasonably expected.</li>
+          <li>Be updated as necessary to maintain conformity during the subscription period, including security updates.</li>
+        </ul>
+        <p style={text}>
+          If the Service does not conform, you are entitled to have the non-conformity remedied free of charge within a reasonable time. If the non-conformity cannot be remedied, you may be entitled to a proportionate price reduction or termination of the contract. These rights apply for a minimum of 2 years from initial supply of the Service and do not affect any other statutory rights you may have.
+        </p>
+
+        {/* 18. Governing Law */}
+        <h2 style={heading}>18. Governing Law</h2>
         <p style={text}>
           These Terms shall be governed by and construed in accordance with the laws of the State of Illinois, United States, without regard to conflict of law principles. For EEA/UK residents, mandatory consumer protection laws of your country of residence shall also apply where required.
         </p>
 
-        {/* 16. Severability */}
-        <h2 style={heading}>16. Severability</h2>
+        {/* 19. Severability */}
+        <h2 style={heading}>19. Severability</h2>
         <p style={text}>
           If any provision of these Terms is held to be invalid or unenforceable, the remaining provisions shall continue in full force and effect. The invalid provision shall be modified to the minimum extent necessary to make it valid and enforceable.
         </p>
 
-        {/* 17. Entire Agreement */}
-        <h2 style={heading}>17. Entire Agreement</h2>
+        {/* 20. Entire Agreement */}
+        <h2 style={heading}>20. Entire Agreement</h2>
         <p style={text}>
           These Terms, together with the <a href="/privacy" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Privacy Policy</a>, <a href="/cookies" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Cookie Policy</a>, and <a href="/dpa" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Data Processing Agreement</a> (where applicable), constitute the entire agreement between you and Vurium regarding the use of the Service.
         </p>
 
-        {/* 18. Changes */}
-        <h2 style={heading}>18. Changes to These Terms</h2>
+        {/* 21. Changes */}
+        <h2 style={heading}>21. Changes to These Terms</h2>
         <p style={text}>
           We may update these Terms from time to time. We will notify you of material changes by posting the updated Terms on this page and, where required, by email with at least 30 days&apos; notice. Continued use of the Service after changes constitutes acceptance.
         </p>
 
-        {/* 19. Contact */}
-        <h2 style={heading}>19. Contact Us</h2>
+        {/* 22. Contact */}
+        <h2 style={heading}>22. Contact Us</h2>
         <p style={text}>
           Questions about these Terms? Contact us at:<br />
           <a href="mailto:support@vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>support@vurium.com</a> &middot; <a href="/support" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>vurium.com/support</a>
