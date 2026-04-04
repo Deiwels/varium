@@ -2010,10 +2010,11 @@ app.post('/api/bookings', async (req, res) => {
     }
     writeAuditLog(req.wsId, { action: 'booking.create', resource_id: bookingRef.id, data: { client_name: doc.client_name, barber_id: doc.barber_id }, req }).catch(() => {});
     // SMS confirmation + push + schedule reminders
-    const settingsDoc = await req.ws('settings').doc('config').get();
-    const settingsData = settingsDoc.exists ? settingsDoc.data() : {};
-    const tz = settingsData?.timezone || 'America/Chicago';
-    const shopName = safeStr(settingsData?.shop_name || '');
+    const cfg = await getWorkspaceEmailConfig(req.wsId);
+    const { shopName, logoUrl, tz, template } = cfg;
+    const et = EMAIL_THEMES[template] || EMAIL_THEMES.modern;
+    const isLt = ['classic', 'colorful'].includes(template);
+    const cardBg = isLt ? 'rgba(0,0,0,.03)' : 'rgba(255,255,255,.04)';
     if (doc.client_phone) {
       // Check SMS opt-out before sending
       const adminPhoneNorm = normPhone(doc.client_phone);
@@ -2038,16 +2039,16 @@ app.post('/api/bookings', async (req, res) => {
       const manageUrl = `https://vurium.com/manage-booking?ws=${req.wsId}&bid=${bookingRef.id}&token=${doc.client_token}`;
       sendEmail(doc.client_email, 'Booking Confirmed', vuriumEmailTemplate('Booking Confirmed', `
         <p>Your appointment has been confirmed:</p>
-        <div style="padding:16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin:16px 0;">
-          <div style="font-size:16px;font-weight:600;color:#e8e8ed;">${doc.service_name || 'Appointment'}</div>
-          <div style="color:rgba(255,255,255,.4);margin-top:4px;">with ${doc.barber_name || 'your specialist'}</div>
-          <div style="color:rgba(130,150,220,.7);font-weight:500;margin-top:8px;">${dateStr} at ${timeStr}</div>
+        <div style="padding:16px;border-radius:14px;background:${cardBg};border:1px solid ${et.border};margin:16px 0;">
+          <div style="font-size:16px;font-weight:600;color:${et.text};">${doc.service_name || 'Appointment'}</div>
+          <div style="color:${et.muted};margin-top:4px;">with ${doc.barber_name || 'your specialist'}</div>
+          <div style="color:${et.accent};font-weight:500;margin-top:8px;">${dateStr} at ${timeStr}</div>
         </div>
         <div style="text-align:center;margin:20px 0;display:flex;gap:10px;justify-content:center;">
-          <a href="${manageUrl}" style="display:inline-block;padding:12px 24px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#e8e8ed;text-decoration:none;font-size:13px;font-weight:500;">Reschedule</a>
+          <a href="${manageUrl}" style="display:inline-block;padding:12px 24px;border-radius:10px;background:${cardBg};border:1px solid ${et.border};color:${et.text};text-decoration:none;font-size:13px;font-weight:500;">Reschedule</a>
           <a href="${manageUrl}&action=cancel" style="display:inline-block;padding:12px 24px;border-radius:10px;background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.2);color:rgba(255,140,140,.9);text-decoration:none;font-size:13px;font-weight:500;">Cancel</a>
         </div>
-      `, shopName), shopName).catch(() => {});
+      `, shopName, logoUrl, template), shopName).catch(() => {});
     }
     res.status(201).json({ id: bookingRef.id, ...doc });
   } catch (e) { res.status(500).json({ error: e?.message }); }
