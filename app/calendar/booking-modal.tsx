@@ -946,7 +946,8 @@ export function BookingModal({
       }
       // Pre-fill client card if we have client info from existing event
       if (existingEvent.clientName) {
-        setSelectedClient({ id: '', name: existingEvent.clientName, phone: existingEvent.clientPhone || '', visitCount: 0 })
+        const cid = existingEvent._raw?.customer_id || ''
+        setSelectedClient({ id: cid, name: existingEvent.clientName, phone: existingEvent.clientPhone || '', visitCount: 0 })
       } else {
         setSelectedClient(null)
       }
