@@ -937,9 +937,9 @@ export default function DashboardPage() {
 
             {/* Page dots — fixed above pill bar */}
             {totalPages > 1 && (
-              <div style={{ position: 'fixed', bottom: 70, left: 0, right: 0, zIndex: 10001, display: 'flex', justifyContent: 'center', gap: 7, padding: '4px 0', pointerEvents: 'none' }}>
+              <div style={{ position: 'fixed', bottom: 80, left: 0, right: 0, zIndex: 10001, display: 'flex', justifyContent: 'center', gap: 6, padding: '4px 0', pointerEvents: 'none' }}>
                 {Array.from({ length: totalPages }, (_, i) => (
-                  <div key={i} style={{ width: homePage === i ? 8 : 6, height: homePage === i ? 8 : 6, borderRadius: 999, background: homePage === i ? 'rgba(255,255,255,.8)' : 'rgba(255,255,255,.25)', transition: 'all .25s ease' }} />
+                  <div key={i} style={{ width: homePage === i ? 7 : 5, height: homePage === i ? 7 : 5, borderRadius: 999, background: homePage === i ? 'rgba(255,255,255,.45)' : 'rgba(255,255,255,.15)', transition: 'all .25s ease' }} />
                 ))}
               </div>
             )}
