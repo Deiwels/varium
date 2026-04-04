@@ -4009,12 +4009,11 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
     }
 
     // Reference photo — store data URL directly (compressed JPEG from frontend)
-    let referencePhoto = null;
+    let referencePhotoUrl = null;
     if (booking.reference_photo && typeof booking.reference_photo === 'object') {
       const dataUrl = safeStr(booking.reference_photo.data_url || '');
-      const fileName = sanitizeHtml(safeStr(booking.reference_photo.file_name || 'reference-photo'));
       if (dataUrl && dataUrl.startsWith('data:image/') && dataUrl.length < 800000) {
-        referencePhoto = { data_url: dataUrl, file_name: fileName, uploaded_at: toIso(new Date()) };
+        referencePhotoUrl = dataUrl;
       }
     }
 
@@ -4032,10 +4031,9 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       start_at: toIso(startAt), end_at: toIso(endAt),
       duration_minutes: durMin,
       status: 'booked', paid: false, source: 'website',
-      notes: sanitizeHtml(safeStr(booking.notes)) || null,
+      notes: sanitizeHtml(safeStr(booking.customer_note || booking.notes)) || null,
       customer_note: sanitizeHtml(safeStr(booking.customer_note)) || null,
-      reference_photo: referencePhoto,
-      reference_photo_url: referencePhoto ? referencePhoto.data_url : null,
+      reference_photo_url: referencePhotoUrl,
       sms_consent: smsConsent,
       workspace_id: wsId,
       client_token: crypto.randomBytes(24).toString('hex'),
