@@ -1662,24 +1662,101 @@ export default function CalendarPage() {
           0%, 80% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
         }
-        @keyframes atRiskPulse {
-          0%, 100% { box-shadow: 0 0 6px rgba(255,107,107,.08), inset 0 0 8px rgba(255,107,107,.03); border-color: rgba(255,107,107,.18); }
-          50% { box-shadow: 0 0 16px rgba(255,107,107,.25), inset 0 0 16px rgba(255,107,107,.08); border-color: rgba(255,107,107,.40); }
-        }
+        /* ── VIP: golden nebula glow ── */
         @keyframes vipPulse {
-          0%, 100% { box-shadow: 0 0 6px rgba(255,215,0,.08), inset 0 0 8px rgba(255,215,0,.03); border-color: rgba(255,215,0,.18); }
-          50% { box-shadow: 0 0 16px rgba(255,215,0,.25), inset 0 0 16px rgba(255,215,0,.08); border-color: rgba(255,215,0,.40); }
+          0%, 100% {
+            box-shadow: 0 0 8px rgba(255,215,0,.06), 0 0 20px rgba(255,180,0,.03), inset 0 0 12px rgba(255,215,0,.02);
+            border-color: rgba(255,215,0,.15);
+          }
+          50% {
+            box-shadow: 0 0 14px rgba(255,215,0,.20), 0 0 35px rgba(255,180,0,.08), inset 0 0 20px rgba(255,215,0,.06);
+            border-color: rgba(255,215,0,.38);
+          }
+        }
+        @keyframes vipStarTrail {
+          0% { background-position: 200% 50%; }
+          100% { background-position: -200% 50%; }
         }
         .vip-pulse {
-          border: 1px solid rgba(255,215,0,.20);
-          animation: vipPulse 2.8s ease-in-out infinite;
+          border: 1px solid rgba(255,215,0,.18);
+          animation: vipPulse 3.2s ease-in-out infinite;
+          position: relative;
+          overflow: hidden;
+        }
+        .vip-pulse::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(105deg, transparent 20%, rgba(255,215,0,.04) 35%, rgba(255,230,100,.10) 50%, rgba(255,215,0,.04) 65%, transparent 80%);
+          background-size: 300% 100%;
+          animation: vipStarTrail 6s ease-in-out infinite;
+          pointer-events: none;
+          border-radius: inherit;
+        }
+
+        /* ── AT RISK / NO-SHOW: red warning pulse ── */
+        @keyframes atRiskPulse {
+          0%, 100% {
+            box-shadow: 0 0 6px rgba(255,80,80,.06), 0 0 18px rgba(255,60,60,.02), inset 0 0 10px rgba(255,80,80,.02);
+            border-color: rgba(255,80,80,.14);
+          }
+          40% {
+            box-shadow: 0 0 12px rgba(255,80,80,.22), 0 0 30px rgba(255,60,60,.06), inset 0 0 18px rgba(255,80,80,.06);
+            border-color: rgba(255,80,80,.38);
+          }
+          55% {
+            box-shadow: 0 0 8px rgba(255,80,80,.12), 0 0 22px rgba(255,60,60,.04);
+            border-color: rgba(255,80,80,.25);
+          }
+          70% {
+            box-shadow: 0 0 14px rgba(255,80,80,.18), 0 0 28px rgba(255,60,60,.05), inset 0 0 14px rgba(255,80,80,.04);
+            border-color: rgba(255,80,80,.32);
+          }
+        }
+        @keyframes riskScanline {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(200%); }
         }
         .at-risk-pulse {
-          border: 1px solid rgba(255,107,107,.20);
-          animation: atRiskPulse 2.8s ease-in-out infinite;
+          border: 1px solid rgba(255,80,80,.16);
+          animation: atRiskPulse 3s ease-in-out infinite;
+          position: relative;
+          overflow: hidden;
+        }
+        .at-risk-pulse::after {
+          content: '';
+          position: absolute;
+          top: 0; bottom: 0; left: 0;
+          width: 50%;
+          background: linear-gradient(90deg, transparent, rgba(255,80,80,.06), transparent);
+          animation: riskScanline 4s ease-in-out infinite;
+          pointer-events: none;
+        }
+
+        /* ── ARRIVED: cosmic aurora ── */
+        @keyframes arrivedAurora {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes arrivedGlow {
+          0%, 100% { box-shadow: 0 0 8px rgba(130,180,255,.04), 0 0 20px rgba(130,180,255,.02); border-color: rgba(255,255,255,.08); }
+          50% { box-shadow: 0 0 14px rgba(130,180,255,.10), 0 0 30px rgba(130,180,255,.04); border-color: rgba(255,255,255,.16); }
+        }
+        .arrived-pulse {
+          border: 1px solid rgba(255,255,255,.10);
+          background: linear-gradient(135deg, rgba(90,120,200,.04) 0%, rgba(130,180,255,.06) 25%, rgba(200,160,255,.05) 50%, rgba(130,180,255,.06) 75%, rgba(90,120,200,.04) 100%);
+          background-size: 300% 300%;
+          animation: arrivedAurora 8s ease-in-out infinite, arrivedGlow 3s ease-in-out infinite;
+        }
+
+        /* ── PAID: subtle stellar fade ── */
+        @keyframes paidDrift {
+          0%, 80% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
         }
         .cal-event-paid {
-          opacity: .55;
+          opacity: .50;
           position: relative;
           overflow: hidden;
         }
@@ -1687,22 +1764,21 @@ export default function CalendarPage() {
           content: '';
           position: absolute;
           inset: 0;
-          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.06) 40%, rgba(255,255,255,.12) 50%, rgba(255,255,255,.06) 60%, transparent 100%);
+          background: linear-gradient(90deg, transparent 0%, rgba(130,220,170,.04) 35%, rgba(130,220,170,.10) 50%, rgba(130,220,170,.04) 65%, transparent 100%);
           background-size: 200% 100%;
-          animation: paidShimmer 5s ease-in-out infinite;
+          animation: paidDrift 8s ease-in-out infinite;
           pointer-events: none;
           border-radius: inherit;
         }
-        @keyframes arrivedShimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
+
+        /* ── NEW CLIENT: soft blue introduction glow ── */
+        @keyframes newClientGlow {
+          0%, 100% { box-shadow: 0 0 6px rgba(122,186,255,.05), inset 0 0 8px rgba(122,186,255,.02); border-color: rgba(122,186,255,.10); }
+          50% { box-shadow: 0 0 14px rgba(122,186,255,.12), inset 0 0 14px rgba(122,186,255,.04); border-color: rgba(122,186,255,.22); }
         }
-        .arrived-pulse {
-          border: 1px solid rgba(255,255,255,.08);
-          background: linear-gradient(90deg, rgba(255,255,255,.02) 0%, rgba(255,255,255,.05) 25%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.05) 75%, rgba(255,255,255,.02) 100%);
-          background-size: 200% 100%;
-          animation: arrivedShimmer 2.4s ease-in-out infinite;
-          box-shadow: 0 0 10px rgba(255,255,255,.04), inset 0 0 8px rgba(255,255,255,.02);
+        .new-client-pulse {
+          border: 1px solid rgba(122,186,255,.12);
+          animation: newClientGlow 4s ease-in-out infinite;
         }
         /* Gravity lens day transition */
         @keyframes gravityOut {
@@ -2243,14 +2319,15 @@ export default function CalendarPage() {
                       const isNoshow = ev.status === 'noshow'
                       const isAtRisk = ev._raw?.client_status === 'at_risk' && ev.status === 'booked' && !isPaid
                       const isVip = ev._raw?.client_status === 'vip' && ev.status === 'booked' && !isPaid
+                      const isNewClient = ev._raw?.client_status === 'new' && ev.status === 'booked' && !isPaid && !isArrived
                       // Hide no-show if another booking overlaps the same slot for this barber
                       if (isNoshow) {
                         const hasReplacement = colEvents.some(other => other.id !== ev.id && other.status !== 'noshow' && other.status !== 'cancelled' && other.startMin < ev.startMin + ev.durMin && other.startMin + other.durMin > ev.startMin)
                         if (hasReplacement) return null
                       }
                       return (
-                        <div key={ev.id} className={`cal-event${isArrived ? ' arrived-pulse' : ''}${isPaid ? ' cal-event-paid' : ''}${isAtRisk ? ' at-risk-pulse' : ''}${isVip ? ' vip-pulse' : ''}${drag?.eventId===ev.id ? ' cal-event-dragging' : ''}`}
-                          style={{ position: 'absolute', left: tinyCol ? 2 : 6, right: tinyCol ? 2 : 6, top, height: height-2, borderRadius: tinyCol ? 14 : 20, ...(isArrived || isAtRisk || isVip ? {} : drag?.eventId===ev.id ? {} : { border: `1px solid ${isPaid ? 'rgba(130,220,170,.10)' : isNoshow ? 'rgba(255,107,107,.08)' : 'rgba(255,255,255,.08)'}`, background: isNoshow ? 'rgba(255,107,107,.03)' : isPaid ? 'rgba(130,220,170,.04)' : 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px) saturate(140%)', WebkitBackdropFilter: 'blur(20px) saturate(140%)', boxShadow: '0 2px 12px rgba(0,0,0,.25)' }), ...(isNoshow ? { opacity: 0.3 } : {}), padding: tinyCol ? '3px 4px 3px 8px' : '7px 12px 7px 14px', cursor: canDrag ? (drag ? 'grabbing' : 'grab') : 'pointer', userSelect: 'none', overflow: 'hidden', zIndex: drag?.eventId===ev.id ? 50 : isNoshow ? 2 : 5, transition: 'all .2s ease' }}
+                        <div key={ev.id} className={`cal-event${isArrived ? ' arrived-pulse' : ''}${isPaid ? ' cal-event-paid' : ''}${isAtRisk ? ' at-risk-pulse' : ''}${isVip ? ' vip-pulse' : ''}${isNewClient ? ' new-client-pulse' : ''}${drag?.eventId===ev.id ? ' cal-event-dragging' : ''}`}
+                          style={{ position: 'absolute', left: tinyCol ? 2 : 6, right: tinyCol ? 2 : 6, top, height: height-2, borderRadius: tinyCol ? 14 : 20, ...(isArrived || isAtRisk || isVip || isNewClient ? {} : drag?.eventId===ev.id ? {} : { border: `1px solid ${isPaid ? 'rgba(130,220,170,.10)' : isNoshow ? 'rgba(255,107,107,.08)' : 'rgba(255,255,255,.08)'}`, background: isNoshow ? 'rgba(255,107,107,.03)' : isPaid ? 'rgba(130,220,170,.04)' : 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px) saturate(140%)', WebkitBackdropFilter: 'blur(20px) saturate(140%)', boxShadow: '0 2px 12px rgba(0,0,0,.25)' }), ...(isNoshow ? { opacity: 0.3 } : {}), padding: tinyCol ? '3px 4px 3px 8px' : '7px 12px 7px 14px', cursor: canDrag ? (drag ? 'grabbing' : 'grab') : 'pointer', userSelect: 'none', overflow: 'hidden', zIndex: drag?.eventId===ev.id ? 50 : isNoshow ? 2 : 5, transition: 'all .2s ease' }}
                           onMouseDown={e => { if (!canDrag || e.button!==0) return; startDrag(e, ev, bi) }}
                           onTouchStart={e => { if (!canDrag) return; e.stopPropagation(); clearTimeout(eventLongPressTimer.current); const touch = e.touches[0]; const evCopy = ev; const biCopy = bi; eventLongPressTimer.current = setTimeout(() => { const fakeEvt = { preventDefault(){}, stopPropagation(){}, touches: [touch] } as any; startDrag(fakeEvt, evCopy, biCopy) }, 400) }}
                           onTouchEnd={() => clearTimeout(eventLongPressTimer.current)}
