@@ -2548,11 +2548,11 @@ export default function CalendarPage() {
           }
           return (
             <>
-            {/* Date dots with numbers — centered above pill nav */}
+            {/* Date dots + Gear/Plus — all portaled to body so they escape .content stacking context */}
+            {typeof document !== 'undefined' && createPortal(
             <div className="date-dot-wrap" style={{ position: 'fixed', bottom: 50, left: 0, right: 0, zIndex: 10001, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 5, padding: '3px 0', pointerEvents: 'auto' }}>
               {dots.slice(1, -1).map((dot, i, arr) => {
                 const distFromCenter = Math.abs(i - Math.floor(arr.length / 2))
-                // Center neighbors = biggest, edges = smallest
                 const dotSize = dot.isCurrent ? 0 : distFromCenter <= 0 ? 22 : distFromCenter === 1 ? 18 : 15
                 const fontSize = dot.isCurrent ? 9 : distFromCenter <= 0 ? 9 : distFromCenter === 1 ? 8 : 7
                 return (
@@ -2585,8 +2585,8 @@ export default function CalendarPage() {
                   {dot.isCurrent ? <span>{dot.dayName} {dot.day}</span> : <span>{dot.day}</span>}
                 </button>
               )})}
-            </div>
-            {/* Gear left + Plus right — portaled to body so they render above pill nav */}
+            </div>, document.body)}
+            {/* Gear left + Plus right — portaled to body */}
             {typeof document !== 'undefined' && createPortal(
             <div style={{ position: 'fixed', bottom: 46, left: 0, right: 0, zIndex: 10002, padding: '0 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none' }}>
               <button onClick={() => setSettingsOpen(true)} style={{ width: 32, height: 32, borderRadius: 10, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.35)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto' }}>
