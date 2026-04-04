@@ -257,11 +257,38 @@ function ClientSearch({ onSelect, isOwnerOrAdmin, initialClient, initialName }: 
   const [editingNotes, setEditingNotes] = useState(false)
   const [clientNotes, setClientNotes] = useState(selected?.notes || '')
   const [savingNotes, setSavingNotes] = useState(false)
+  const [editingInfo, setEditingInfo] = useState(false)
+  const [editName, setEditName] = useState(selected?.name || '')
+  const [editPhone, setEditPhone] = useState(selected?.phone || '')
+  const [editEmail, setEditEmail] = useState(selected?.email || '')
+  const [savingInfo, setSavingInfo] = useState(false)
 
   useEffect(() => {
     setClientNotes(selected?.notes || '')
     setEditingNotes(false)
+    setEditingInfo(false)
+    setEditName(selected?.name || '')
+    setEditPhone(selected?.phone || '')
+    setEditEmail(selected?.email || '')
   }, [selected?.id])
+
+  async function saveClientInfo() {
+    if (!selected?.id || selected.id.startsWith('local_') || !editName.trim()) return
+    setSavingInfo(true)
+    try {
+      const patch: any = { name: editName.trim() }
+      if (editPhone) patch.phone = editPhone
+      if (editEmail) patch.email = editEmail
+      await apiFetch(`/api/clients/${encodeURIComponent(selected.id)}`, {
+        method: 'PATCH', body: JSON.stringify(patch)
+      })
+      const updated = { ...selected, name: editName.trim(), phone: editPhone, email: editEmail }
+      setSelected(updated)
+      onSelect(updated, updated.name)
+    } catch {}
+    setSavingInfo(false)
+    setEditingInfo(false)
+  }
 
   async function saveClientNotes() {
     if (!selected?.id || selected.id.startsWith('local_')) { setEditingNotes(false); return }
@@ -279,21 +306,54 @@ function ClientSearch({ onSelect, isOwnerOrAdmin, initialClient, initialName }: 
     return (
       <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.05)', overflow: 'hidden' }}>
         {/* Client header */}
-        <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(130,150,220,.6)" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        {editingInfo ? (
+          <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div>
+              <label style={{ fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 5 }}>Name <span style={{ color: '#ff6b6b' }}>*</span></label>
+              <input value={editName} onChange={e => setEditName(e.target.value)} autoFocus
+                style={{ width: '100%', height: 40, borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', padding: '0 12px', outline: 'none', fontSize: 14, fontFamily: 'inherit' }} />
             </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 900, fontSize: 15 }}>{selected.name}</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.50)', marginTop: 2 }}>
-                {isOwnerOrAdmin ? (selected.phone || 'No phone') : maskPhone(selected.phone || '')}
-                {selected.visitCount ? ` · ${selected.visitCount} visit${selected.visitCount !== 1 ? 's' : ''}` : ' · New client'}
-              </div>
+            <div>
+              <label style={{ fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 5 }}>Phone</label>
+              <input value={editPhone} onChange={e => setEditPhone(e.target.value)}
+                style={{ width: '100%', height: 40, borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', padding: '0 12px', outline: 'none', fontSize: 14, fontFamily: 'inherit' }} type="tel" />
+            </div>
+            <div>
+              <label style={{ fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 5 }}>Email</label>
+              <input value={editEmail} onChange={e => setEditEmail(e.target.value)}
+                style={{ width: '100%', height: 40, borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', padding: '0 12px', outline: 'none', fontSize: 14, fontFamily: 'inherit' }} type="email" />
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+              <button onClick={() => { setEditingInfo(false); setEditName(selected.name); setEditPhone(selected.phone || ''); setEditEmail(selected.email || '') }}
+                style={{ height: 32, padding: '0 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'transparent', color: 'rgba(255,255,255,.55)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancel</button>
+              <button onClick={saveClientInfo} disabled={savingInfo || !editName.trim()}
+                style={{ height: 32, padding: '0 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,.20)', background: 'rgba(255,255,255,.08)', color: editName.trim() ? '#fff' : 'rgba(255,255,255,.30)', cursor: editName.trim() ? 'pointer' : 'default', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
+                {savingInfo ? 'Saving…' : 'Save'}
+              </button>
             </div>
           </div>
-          <button onClick={clear} style={{ height: 30, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', flexShrink: 0 }}>Change</button>
-        </div>
+        ) : (
+          <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(130,150,220,.6)" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 900, fontSize: 15 }}>{selected.name}</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.50)', marginTop: 2 }}>
+                  {isOwnerOrAdmin ? (selected.phone || 'No phone') : maskPhone(selected.phone || '')}
+                  {selected.visitCount ? ` · ${selected.visitCount} visit${selected.visitCount !== 1 ? 's' : ''}` : ' · New client'}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              {isOwnerOrAdmin && selected.id && !selected.id.startsWith('local_') && (
+                <button onClick={() => setEditingInfo(true)} style={{ height: 30, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' }}>Edit</button>
+              )}
+              <button onClick={clear} style={{ height: 30, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' }}>Change</button>
+            </div>
+          </div>
+        )}
 
         {/* Client notes */}
         <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', padding: '10px 14px', background: 'rgba(0,0,0,.12)' }}>
