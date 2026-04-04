@@ -357,7 +357,7 @@ export default function PublicBookingPage() {
   }
 
   async function handleBook() {
-    if (!clientName || !selectedBarber || !selectedSlot) return
+    if (!clientName || !clientEmail || !selectedBarber || !selectedSlot) return
     setBookLoading(true); setError('')
     try {
       const noteWithPhoto = referencePhoto
@@ -1144,17 +1144,17 @@ export default function PublicBookingPage() {
               <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
                 <button onClick={() => setStep(2)} style={{ padding: '12px 20px', background: 'none', border: `1px solid ${borderSoft}`, borderRadius: 12, color: textMuted, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Back</button>
                 {payOnline ? (
-                  <button onClick={handlePayOnlineFlow} disabled={!clientName || paymentLoading} style={{
+                  <button onClick={handlePayOnlineFlow} disabled={!clientName || !clientEmail || paymentLoading} style={{
                     flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit',
-                    cursor: !clientName || paymentLoading ? 'default' : 'pointer',
+                    cursor: !clientName || !clientEmail || paymentLoading ? 'default' : 'pointer',
                     background: 'rgba(130,150,220,.12)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
-                    opacity: !clientName || paymentLoading ? 0.5 : 1,
+                    opacity: !clientName || !clientEmail || paymentLoading ? 0.5 : 1,
                   }}>{paymentLoading ? 'Setting up payment...' : `Pay ${fmtPrice(totalPrice)} & Book`}</button>
                 ) : (
-                  <button onClick={handleBook} disabled={!clientName || bookLoading} style={{
-                    flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: !clientName || bookLoading ? 'default' : 'pointer',
+                  <button onClick={handleBook} disabled={!clientName || !clientEmail || bookLoading} style={{
+                    flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: !clientName || !clientEmail || bookLoading ? 'default' : 'pointer',
                     background: 'rgba(130,220,170,.1)', border: '1px solid rgba(130,220,170,.2)', color: 'rgba(130,220,170,.9)',
-                    opacity: !clientName || bookLoading ? 0.5 : 1,
+                    opacity: !clientName || !clientEmail || bookLoading ? 0.5 : 1,
                   }}>{bookLoading ? 'Booking...' : 'Confirm Booking'}</button>
                 )}
               </div>
