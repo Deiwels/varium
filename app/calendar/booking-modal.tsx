@@ -273,16 +273,18 @@ function ClientSearch({ onSelect, isOwnerOrAdmin, initialClient, initialName }: 
   }, [selected?.id])
 
   async function saveClientInfo() {
-    if (!selected?.id || selected.id.startsWith('local_') || !editName.trim()) return
+    if (!editName.trim()) return
     setSavingInfo(true)
     try {
       const patch: any = { name: editName.trim() }
       if (editPhone) patch.phone = editPhone
       if (editEmail) patch.email = editEmail
-      await apiFetch(`/api/clients/${encodeURIComponent(selected.id)}`, {
-        method: 'PATCH', body: JSON.stringify(patch)
-      })
-      const updated = { ...selected, name: editName.trim(), phone: editPhone, email: editEmail }
+      if (selected?.id && !selected.id.startsWith('local_')) {
+        await apiFetch(`/api/clients/${encodeURIComponent(selected.id)}`, {
+          method: 'PATCH', body: JSON.stringify(patch)
+        })
+      }
+      const updated = { ...selected!, name: editName.trim(), phone: editPhone, email: editEmail }
       setSelected(updated)
       onSelect(updated, updated.name)
     } catch {}
@@ -347,9 +349,7 @@ function ClientSearch({ onSelect, isOwnerOrAdmin, initialClient, initialName }: 
               </div>
             </div>
             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-              {isOwnerOrAdmin && selected.id && !selected.id.startsWith('local_') && (
-                <button onClick={() => setEditingInfo(true)} style={{ height: 30, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' }}>Edit</button>
-              )}
+              <button onClick={() => setEditingInfo(true)} style={{ height: 30, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' }}>Edit</button>
               <button onClick={clear} style={{ height: 30, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' }}>Change</button>
             </div>
           </div>
