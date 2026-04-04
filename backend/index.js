@@ -4794,9 +4794,13 @@ app.get('/public/manage-booking', async (req, res) => {
     const booking = await getBookingByToken(ws, bid, token);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
     const { id, data } = booking;
+    const wsId = data.workspace_id || ws;
+    const cfg = await getWorkspaceEmailConfig(wsId);
     res.json({
       id,
-      workspace_id: data.workspace_id,
+      workspace_id: wsId,
+      shop_name: cfg.shopName,
+      logo_url: cfg.logoUrl,
       status: data.status,
       client_name: data.client_name,
       service_name: data.service_name,

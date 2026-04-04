@@ -7,6 +7,8 @@ const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-4319
 type Booking = {
   id: string
   workspace_id: string
+  shop_name?: string
+  logo_url?: string
   status: string
   client_name: string | null
   service_name: string | null
@@ -167,9 +169,18 @@ function ManageBookingContent() {
 
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ width: 48, height: 48, borderRadius: 12, background: '#000', border: '1px solid rgba(255,255,255,.12)', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="https://vurium.com/logo-white.jpg" width={30} height={30} style={{ borderRadius: 8 }} alt="Logo" />
-          </div>
+          {booking.logo_url ? (
+            <div style={{ width: 56, height: 56, borderRadius: 14, background: '#111', border: '1px solid rgba(255,255,255,.12)', margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              <img src={booking.logo_url} width={40} height={40} style={{ objectFit: 'contain', borderRadius: 8 }} alt="Logo" />
+            </div>
+          ) : (
+            <div style={{ width: 56, height: 56, borderRadius: 14, background: '#111', border: '1px solid rgba(255,255,255,.12)', margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img src="https://vurium.com/logo-white.jpg" width={34} height={34} style={{ borderRadius: 8 }} alt="Logo" />
+            </div>
+          )}
+          {booking.shop_name && (
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,.4)', marginBottom: 6 }}>{booking.shop_name}</div>
+          )}
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>Manage Booking</h1>
         </div>
 
