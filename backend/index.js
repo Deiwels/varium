@@ -2021,7 +2021,7 @@ app.post('/api/bookings', async (req, res) => {
     if (doc.client_email) {
       const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
       const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz });
-      const manageUrl = `https://vurium.com/manage-booking?token=${doc.client_token}`;
+      const manageUrl = `https://vurium.com/manage-booking?ws=${req.wsId}&bid=${bookingRef.id}&token=${doc.client_token}`;
       sendEmail(doc.client_email, 'Booking Confirmed', vuriumEmailTemplate('Booking Confirmed', `
         <p>Your appointment has been confirmed:</p>
         <div style="padding:16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin:16px 0;">
@@ -2031,7 +2031,7 @@ app.post('/api/bookings', async (req, res) => {
         </div>
         <div style="text-align:center;margin:20px 0;display:flex;gap:10px;justify-content:center;">
           <a href="${manageUrl}" style="display:inline-block;padding:12px 24px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#e8e8ed;text-decoration:none;font-size:13px;font-weight:500;">Reschedule</a>
-          <a href="${manageUrl}?action=cancel" style="display:inline-block;padding:12px 24px;border-radius:10px;background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.2);color:rgba(255,140,140,.9);text-decoration:none;font-size:13px;font-weight:500;">Cancel</a>
+          <a href="${manageUrl}&action=cancel" style="display:inline-block;padding:12px 24px;border-radius:10px;background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.2);color:rgba(255,140,140,.9);text-decoration:none;font-size:13px;font-weight:500;">Cancel</a>
         </div>
       `, shopName), shopName).catch(() => {});
     }
@@ -2077,7 +2077,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
       if (!clientEmail) return;
       const cfg = await getWorkspaceEmailConfig(req.wsId);
       const { shopName, logoUrl, tz, template } = cfg;
-      const manageUrl = `https://vurium.com/manage-booking?token=${savedData.client_token || existingData.client_token}`;
+      const manageUrl = `https://vurium.com/manage-booking?ws=${req.wsId}&bid=${req.params.id}&token=${savedData.client_token || existingData.client_token}`;
       const serviceName = savedData.service_name || existingData.service_name || 'Appointment';
       const barberName = savedData.barber_name || existingData.barber_name || 'your specialist';
       const et = EMAIL_THEMES[template] || EMAIL_THEMES.modern;
@@ -4028,7 +4028,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
         const emailLogo = emailSettingsData?.logo_url || '';
         const wsDocData = await db.collection('workspaces').doc(wsId).get();
         const emailTemplate = wsDocData.exists ? (wsDocData.data()?.site_config?.template || 'modern') : 'modern';
-        const manageUrl = `https://vurium.com/manage-booking?token=${doc.client_token}`;
+        const manageUrl = `https://vurium.com/manage-booking?ws=${wsId}&bid=${bookingRef.id}&token=${doc.client_token}`;
         const et = EMAIL_THEMES[emailTemplate] || EMAIL_THEMES.modern;
         const isLt = ['classic','colorful'].includes(emailTemplate);
         const cardBg = isLt ? 'rgba(0,0,0,.03)' : 'rgba(255,255,255,.04)';
@@ -4774,16 +4774,19 @@ async function handleStripeEvent(wsId, type, obj) {
 // MANAGE BOOKING (client-facing: cancel / reschedule via email link)
 // ============================================================
 
-async function getBookingByToken(token) {
-  const snap = await db.collectionGroup('bookings').where('client_token', '==', token).limit(1).get();
-  if (snap.empty) return null;
-  const doc = snap.docs[0];
-  return { ref: doc.ref, id: doc.id, data: doc.data() };
+async function getBookingByToken(wsId, bookingId, token) {
+  const ref = db.collection('workspaces').doc(wsId).collection('bookings').doc(bookingId);
+  const doc = await ref.get();
+  if (!doc.exists) return null;
+  if (doc.data().client_token !== token) return null; // security check
+  return { ref, id: doc.id, data: doc.data() };
 }
 
-app.get('/public/manage-booking/:token', async (req, res) => {
+app.get('/public/manage-booking', async (req, res) => {
   try {
-    const booking = await getBookingByToken(req.params.token);
+    const { ws, bid, token } = req.query;
+    if (!ws || !bid || !token) return res.status(400).json({ error: 'ws, bid, and token query params required' });
+    const booking = await getBookingByToken(ws, bid, token);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
     const { id, data } = booking;
     res.json({
@@ -4801,9 +4804,11 @@ app.get('/public/manage-booking/:token', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.post('/public/manage-booking/:token/cancel', async (req, res) => {
+app.post('/public/manage-booking/cancel', async (req, res) => {
   try {
-    const booking = await getBookingByToken(req.params.token);
+    const { ws, bid, token } = req.body || {};
+    if (!ws || !bid || !token) return res.status(400).json({ error: 'ws, bid, and token required in request body' });
+    const booking = await getBookingByToken(ws, bid, token);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
     const { ref, data } = booking;
     if (['cancelled', 'completed', 'done'].includes(data.status)) {
@@ -4833,9 +4838,11 @@ app.post('/public/manage-booking/:token/cancel', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.post('/public/manage-booking/:token/reschedule', async (req, res) => {
+app.post('/public/manage-booking/reschedule', async (req, res) => {
   try {
-    const booking = await getBookingByToken(req.params.token);
+    const { ws, bid, token } = req.body || {};
+    if (!ws || !bid || !token) return res.status(400).json({ error: 'ws, bid, and token required in request body' });
+    const booking = await getBookingByToken(ws, bid, token);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
     const { ref, data } = booking;
     if (['cancelled', 'completed', 'done'].includes(data.status)) {
@@ -4881,7 +4888,7 @@ app.post('/public/manage-booking/:token/reschedule', async (req, res) => {
       const cardBg = isLt ? 'rgba(0,0,0,.03)' : 'rgba(255,255,255,.04)';
       const timeStr = newStartAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
       const dateStr = newStartAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz });
-      const manageUrl = `https://vurium.com/manage-booking?token=${req.params.token}`;
+      const manageUrl = `https://vurium.com/manage-booking?ws=${wsId}&bid=${ref.id}&token=${data.client_token}`;
       sendEmail(data.client_email, 'Booking Rescheduled', vuriumEmailTemplate('Booking Rescheduled', `
         <p>Your appointment has been rescheduled:</p>
         <div style="padding:16px;border-radius:14px;background:${cardBg};border:1px solid ${et.border};margin:16px 0;">

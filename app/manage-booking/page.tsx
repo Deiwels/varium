@@ -45,7 +45,9 @@ function formatDay(iso: string, tz?: string) {
 function ManageBookingContent() {
   const params = useSearchParams()
   const token = params.get('token')
-  const initialAction = params.get('action') // 'cancel' if clicked Cancel in email
+  const ws = params.get('ws')
+  const bid = params.get('bid')
+  const initialAction = params.get('action')
 
   const [booking, setBooking] = useState<Booking | null>(null)
   const [loading, setLoading] = useState(true)
@@ -61,9 +63,9 @@ function ManageBookingContent() {
   const [actionError, setActionError] = useState('')
 
   const fetchBooking = useCallback(async () => {
-    if (!token) { setError('Invalid link — no token found.'); setLoading(false); return }
+    if (!token || !ws || !bid) { setError('Invalid link — missing parameters.'); setLoading(false); return }
     try {
-      const res = await fetch(`${API}/public/manage-booking/${token}`)
+      const res = await fetch(`${API}/public/manage-booking?ws=${ws}&bid=${bid}&token=${token}`)
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Booking not found.'); setLoading(false); return }
       setBooking(data)
@@ -73,7 +75,7 @@ function ManageBookingContent() {
     } finally {
       setLoading(false)
     }
-  }, [token, initialAction])
+  }, [token, ws, bid, initialAction])
 
   useEffect(() => { fetchBooking() }, [fetchBooking])
 
@@ -99,10 +101,14 @@ function ManageBookingContent() {
   }, [selectedDate, booking])
 
   async function handleCancel() {
-    if (!token) return
+    if (!token || !ws || !bid) return
     setSubmitting(true); setActionError('')
     try {
-      const res = await fetch(`${API}/public/manage-booking/${token}/cancel`, { method: 'POST' })
+      const res = await fetch(`${API}/public/manage-booking/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ws, bid, token }),
+      })
       const data = await res.json()
       if (!res.ok) { setActionError(data.error || 'Failed to cancel.'); return }
       setView('done-cancel')
@@ -111,13 +117,13 @@ function ManageBookingContent() {
   }
 
   async function handleReschedule() {
-    if (!token || !selectedSlot) return
+    if (!token || !ws || !bid || !selectedSlot) return
     setSubmitting(true); setActionError('')
     try {
-      const res = await fetch(`${API}/public/manage-booking/${token}/reschedule`, {
+      const res = await fetch(`${API}/public/manage-booking/reschedule`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ start_at: selectedSlot }),
+        body: JSON.stringify({ ws, bid, token, start_at: selectedSlot }),
       })
       const data = await res.json()
       if (!res.ok) { setActionError(data.error || 'Failed to reschedule.'); return }
