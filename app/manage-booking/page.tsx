@@ -21,10 +21,6 @@ type Booking = {
 
 type Slot = { start_at: string }
 
-const inp: React.CSSProperties = {
-  width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.1)',
-  background: 'rgba(255,255,255,.04)', color: '#e8e8ed', fontSize: 14, outline: 'none', boxSizing: 'border-box',
-}
 
 const btn = (variant: 'primary' | 'danger' | 'ghost'): React.CSSProperties => ({
   padding: '13px 24px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600,
@@ -139,10 +135,20 @@ function ManageBookingContent() {
   const isCancelled = booking?.status === 'cancelled'
   const isCompleted = ['completed', 'done'].includes(booking?.status || '')
 
-  // Min date = today
-  const today = new Date().toISOString().split('T')[0]
-  // Max date = 3 months
-  const maxDate = new Date(Date.now() + 90 * 24 * 3600000).toISOString().split('T')[0]
+  // Date chips for next 30 days
+  function getDates() {
+    const dates: { key: string; label: string; sub: string }[] = []
+    const now = new Date()
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(now)
+      d.setDate(now.getDate() + i)
+      const key = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
+      const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      const sub = i <= 1 ? '' : d.toLocaleDateString('en-US', { weekday: 'short' })
+      dates.push({ key, label, sub })
+    }
+    return dates
+  }
 
   const card: React.CSSProperties = {
     background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)',
@@ -234,42 +240,56 @@ function ManageBookingContent() {
         {/* === RESCHEDULE === */}
         {view === 'reschedule' && (
           <div>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,.4)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>Select a new date</label>
-              <input type="date" min={today} max={maxDate} value={selectedDate}
-                onChange={e => setSelectedDate(e.target.value)}
-                style={{ ...inp, colorScheme: 'dark' }} />
+            <h2 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 600 }}>Pick a new date & time</h2>
+
+            {/* Date chips */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 10 }}>Date</div>
+              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
+                {getDates().map(d => (
+                  <div key={d.key} onClick={() => setSelectedDate(d.key)} style={{
+                    padding: '10px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'center',
+                    flexShrink: 0, minWidth: 60,
+                    background: selectedDate === d.key ? 'rgba(130,150,220,.12)' : 'rgba(255,255,255,.03)',
+                    border: `1px solid ${selectedDate === d.key ? 'rgba(130,150,220,.25)' : 'rgba(255,255,255,.08)'}`,
+                  }}>
+                    {d.sub && <div style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', marginBottom: 2 }}>{d.sub}</div>}
+                    <div style={{ fontSize: 13, fontWeight: 500, color: selectedDate === d.key ? 'rgba(130,150,220,.9)' : 'rgba(255,255,255,.6)' }}>{d.label}</div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {slotsLoading && <div style={{ color: 'rgba(255,255,255,.35)', fontSize: 13, marginBottom: 16 }}>Loading available times…</div>}
-
-            {!slotsLoading && selectedDate && slots.length === 0 && (
-              <div style={{ color: 'rgba(255,255,255,.35)', fontSize: 13, marginBottom: 16 }}>No available times on this day. Try another date.</div>
-            )}
-
-            {slots.length > 0 && (
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,.4)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.04em' }}>Available times</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {slots.map(slot => (
-                    <button key={slot} onClick={() => setSelectedSlot(slot)} style={{
-                      padding: '9px 16px', borderRadius: 8, border: '1px solid',
-                      borderColor: selectedSlot === slot ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.1)',
-                      background: selectedSlot === slot ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.03)',
-                      color: selectedSlot === slot ? '#fff' : 'rgba(255,255,255,.65)',
-                      fontSize: 13, fontWeight: selectedSlot === slot ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit',
-                    }}>
-                      {formatTime(slot)}
-                    </button>
-                  ))}
-                </div>
+            {/* Time slots */}
+            {selectedDate && (
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 10 }}>Available times</div>
+                {slotsLoading ? (
+                  <div style={{ color: 'rgba(255,255,255,.3)', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>Loading…</div>
+                ) : slots.length === 0 ? (
+                  <div style={{ color: 'rgba(255,255,255,.3)', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>No available times on this day. Try another date.</div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))', gap: 8 }}>
+                    {slots.map(slot => (
+                      <div key={slot} onClick={() => setSelectedSlot(slot)} style={{
+                        padding: '11px 6px', borderRadius: 10, cursor: 'pointer', fontSize: 13, textAlign: 'center',
+                        background: selectedSlot === slot ? 'rgba(130,220,170,.1)' : 'rgba(255,255,255,.03)',
+                        border: `1px solid ${selectedSlot === slot ? 'rgba(130,220,170,.25)' : 'rgba(255,255,255,.08)'}`,
+                        color: selectedSlot === slot ? 'rgba(130,220,170,.9)' : 'rgba(255,255,255,.6)',
+                        fontWeight: selectedSlot === slot ? 600 : 400,
+                      }}>
+                        {formatTime(slot)}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
             {actionError && <div style={{ color: 'rgba(255,130,130,.9)', fontSize: 13, marginBottom: 12 }}>{actionError}</div>}
 
             <div style={{ display: 'flex', gap: 10 }}>
-              <button style={{ ...btn('ghost'), flex: 1 }} onClick={() => setView('main')} disabled={submitting}>Back</button>
+              <button style={{ ...btn('ghost'), flex: 1 }} onClick={() => { setView('main'); setSelectedDate(''); setSelectedSlot('') }} disabled={submitting}>Back</button>
               <button style={{ ...btn('primary'), flex: 1, opacity: (!selectedSlot || submitting) ? 0.4 : 1 }}
                 onClick={handleReschedule} disabled={!selectedSlot || submitting}>
                 {submitting ? 'Saving…' : 'Confirm'}
