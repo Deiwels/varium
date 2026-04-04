@@ -1384,6 +1384,7 @@ app.post('/auth/login-email', async (req, res) => {
     const ip = getClientIp(req);
     const rl = await checkRateLimit(ip);
     if (!rl.allowed) {
+      alertSecurityBreach('Brute Force Attempt (Rate Limited)', { ip, email: emailLC, window: '15 minutes' });
       res.set('Retry-After', String(rl.retryAfter));
       return res.status(429).json({ error: 'Too many login attempts. Try again later.', retry_after: rl.retryAfter });
     }
@@ -1435,6 +1436,7 @@ app.post('/auth/login', async (req, res) => {
     // Rate limit
     const rl = await checkRateLimit(ip);
     if (!rl.allowed) {
+      alertSecurityBreach('Brute Force Attempt (Rate Limited)', { ip, email: safeStr(req.body?.email || ''), window: '15 minutes' });
       res.set('Retry-After', String(rl.retryAfter));
       return res.status(429).json({ error: 'Too many login attempts. Try again later.', retry_after: rl.retryAfter });
     }
