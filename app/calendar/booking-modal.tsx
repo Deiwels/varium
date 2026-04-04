@@ -645,17 +645,34 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
       )
     : null
 
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
+
   if (blockingEvent) {
+    if (!checkoutOpen) {
+      return (
+        <button onClick={() => setCheckoutOpen(true)}
+          style={{ width: '100%', height: 44, borderRadius: 12, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.55)', cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth="2" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          Checkout
+        </button>
+      )
+    }
     return (
-      <div style={{ padding: '12px 14px', borderRadius: 14, border: '1px solid rgba(255,207,63,.30)', background: 'rgba(255,207,63,.06)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(220,190,100,.8)" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(220,190,100,.8)' }}>Cannot charge yet</span>
+      <div>
+        <div style={{ padding: '12px 14px', borderRadius: 14, border: '1px solid rgba(255,207,63,.30)', background: 'rgba(255,207,63,.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(220,190,100,.8)" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(220,190,100,.8)' }}>Cannot charge yet</span>
+          </div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', lineHeight: 1.5 }}>
+            <strong style={{ color: '#fff' }}>{blockingEvent.clientName || 'Previous client'}</strong> has not been charged, cancelled, or marked as no-show yet.
+            <br />Please resolve them first.
+          </div>
         </div>
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', lineHeight: 1.5 }}>
-          <strong style={{ color: '#fff' }}>{blockingEvent.clientName || 'Previous client'}</strong> has not been charged, cancelled, or marked as no-show yet.
-          <br />Please resolve them first.
-        </div>
+        <button onClick={() => setCheckoutOpen(false)}
+          style={{ width: '100%', height: 32, borderRadius: 8, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.35)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit', marginTop: 6 }}>
+          Hide
+        </button>
       </div>
     )
   }
