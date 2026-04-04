@@ -717,8 +717,6 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
     </div>
   ) : null
 
-  const [checkoutOpen, setCheckoutOpen] = useState(false)
-
   const methodStyle = (m: string): React.CSSProperties => ({
     flex: 1, height: 34, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 11, fontFamily: 'inherit',
     border: method === m ? {
