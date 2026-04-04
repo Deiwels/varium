@@ -58,6 +58,26 @@ app.use(cors({
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 
+// CSRF protection — verify Origin/Referer for state-changing requests
+app.use((req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
+  // Skip for webhooks (Stripe, Telnyx, Square) — they don't send Origin
+  if (req.path.includes('/webhooks/')) return next();
+  const origin = req.headers.origin || '';
+  const referer = req.headers.referer || '';
+  // Allow if no origin (server-to-server, curl, mobile apps)
+  if (!origin && !referer) return next();
+  // Check origin against allowed list
+  if (origin && ALLOWED_ORIGINS.includes(origin)) return next();
+  // Check referer starts with allowed origin
+  if (referer && ALLOWED_ORIGINS.some(ao => referer.startsWith(ao))) return next();
+  // In development, allow localhost
+  if (NODE_ENV !== 'production') return next();
+  // Reject
+  console.warn('CSRF blocked:', { method: req.method, path: req.path, origin, referer: referer.slice(0, 60) });
+  return res.status(403).json({ error: 'Forbidden: invalid origin' });
+});
+
 // Security headers
 app.use((req, res, next) => {
   res.set('X-Frame-Options', 'DENY');
@@ -65,6 +85,18 @@ app.use((req, res, next) => {
   res.set('X-XSS-Protection', '1; mode=block');
   res.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  res.set('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self' https://js.stripe.com https://connect.facebook.net https://*.googleapis.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https: http:",
+    "connect-src 'self' https://*.stripe.com https://*.googleapis.com https://api.telnyx.com https://api.resend.com https://*.run.app",
+    "frame-src https://js.stripe.com https://hooks.stripe.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; '));
   if (NODE_ENV === 'production') {
     res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
@@ -1053,9 +1085,28 @@ app.post('/api/webhooks/telnyx', async (req, res) => {
 });
 
 // Apply auth + workspace for all /api/ routes
+// API rate limiting middleware (120 req/min per IP)
+app.use('/api', (req, res, next) => {
+  const rl = checkApiRateLimit(getClientIp(req));
+  res.set('X-RateLimit-Limit', String(API_RATE_LIMIT));
+  res.set('X-RateLimit-Remaining', String(rl.remaining));
+  if (!rl.allowed) {
+    res.set('Retry-After', String(rl.retryAfter));
+    return res.status(429).json({ error: 'Too many requests. Please slow down.', retry_after: rl.retryAfter });
+  }
+  next();
+});
 app.use('/api', authenticate, requireAuth, resolveWorkspace);
 
 // Apply only authenticate for /public/ routes (no auth required)
+app.use('/public', (req, res, next) => {
+  const rl = checkApiRateLimit(getClientIp(req));
+  if (!rl.allowed) {
+    res.set('Retry-After', String(rl.retryAfter));
+    return res.status(429).json({ error: 'Too many requests.', retry_after: rl.retryAfter });
+  }
+  next();
+});
 app.use('/public', authenticate);
 
 // ============================================================
@@ -1093,6 +1144,36 @@ async function resetRateLimit(ip) {
   const key = `ratelimit_login_${String(ip || 'unknown').replace(/[^a-zA-Z0-9._:-]/g, '_')}`;
   await db.collection('rate_limits').doc(key).delete().catch(() => {});
 }
+
+// ============================================================
+// GENERAL API RATE LIMITING (in-memory, per IP)
+// ============================================================
+const _apiRateBuckets = new Map();
+const API_RATE_LIMIT = 120;       // max requests per window
+const API_RATE_WINDOW = 60 * 1000; // 1 minute window
+
+function checkApiRateLimit(ip) {
+  const now = Date.now();
+  const key = String(ip || 'unknown');
+  const bucket = _apiRateBuckets.get(key);
+  if (!bucket || now - bucket.start > API_RATE_WINDOW) {
+    _apiRateBuckets.set(key, { start: now, count: 1 });
+    return { allowed: true, remaining: API_RATE_LIMIT - 1 };
+  }
+  bucket.count++;
+  if (bucket.count > API_RATE_LIMIT) {
+    return { allowed: false, remaining: 0, retryAfter: Math.ceil((bucket.start + API_RATE_WINDOW - now) / 1000) };
+  }
+  return { allowed: true, remaining: API_RATE_LIMIT - bucket.count };
+}
+
+// Cleanup stale buckets every 5 minutes
+setInterval(() => {
+  const cutoff = Date.now() - API_RATE_WINDOW * 2;
+  for (const [key, bucket] of _apiRateBuckets) {
+    if (bucket.start < cutoff) _apiRateBuckets.delete(key);
+  }
+}, 5 * 60 * 1000);
 
 // ============================================================
 // AUDIT LOG
@@ -2170,6 +2251,9 @@ app.get('/api/bookings', async (req, res) => {
       // Strip large data URL from list response, send flag instead
       const hasPhoto = !!(data.reference_photo_url || data.reference_photo?.data_url);
       const { reference_photo, reference_photo_url, ...rest } = data;
+      // Decrypt encrypted notes
+      if (rest.notes) rest.notes = decryptPII(rest.notes);
+      if (rest.customer_note) rest.customer_note = decryptPII(rest.customer_note);
       return { id: d.id, ...rest, has_reference_photo: hasPhoto };
     });
     if (statusFilter) list = list.filter(b => String(b.status || '') === statusFilter);
@@ -2221,8 +2305,8 @@ app.post('/api/bookings', async (req, res) => {
       duration_minutes: durMin,
       status: data.status || 'booked',
       source: data.source || 'crm',
-      notes: sanitizeHtml(data.notes) || null,
-      customer_note: sanitizeHtml(data.customer_note) || null,
+      notes: encryptPII(sanitizeHtml(data.notes)) || null,
+      customer_note: encryptPII(sanitizeHtml(data.customer_note)) || null,
       sms_consent: data.sms_consent || false,
       paid: data.paid || false,
       workspace_id: req.wsId,
@@ -2312,8 +2396,8 @@ app.patch('/api/bookings/:id', async (req, res) => {
     if (b.end_at != null) patch.end_at = b.end_at;
     if (b.duration_minutes != null) patch.duration_minutes = b.duration_minutes;
     if (b.status != null) patch.status = b.status;
-    if (b.notes != null) patch.notes = sanitizeHtml(b.notes);
-    if (b.customer_note != null) patch.customer_note = sanitizeHtml(b.customer_note);
+    if (b.notes != null) patch.notes = encryptPII(sanitizeHtml(b.notes));
+    if (b.customer_note != null) patch.customer_note = encryptPII(sanitizeHtml(b.customer_note));
     if (b.paid != null) patch.paid = b.paid;
     if (b.payment_status != null) patch.payment_status = b.payment_status;
     if (b.payment_method != null) patch.payment_method = b.payment_method;
@@ -4278,8 +4362,8 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       start_at: toIso(startAt), end_at: toIso(endAt),
       duration_minutes: durMin,
       status: 'booked', paid: false, source: 'website',
-      notes: sanitizeHtml(safeStr(booking.customer_note || booking.notes)) || null,
-      customer_note: sanitizeHtml(safeStr(booking.customer_note)) || null,
+      notes: encryptPII(sanitizeHtml(safeStr(booking.customer_note || booking.notes))) || null,
+      customer_note: encryptPII(sanitizeHtml(safeStr(booking.customer_note))) || null,
       reference_photo_url: referencePhotoUrl,
       sms_consent: smsConsent,
       sms_consent_ip: smsConsent ? getClientIp(req) : null,
