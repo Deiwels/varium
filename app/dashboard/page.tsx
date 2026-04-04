@@ -721,14 +721,29 @@ export default function DashboardPage() {
             case 'w_clock': return <div style={{...ws, display: 'flex', alignItems: 'center', justifyContent: 'center'}}><ClockWidget /></div>
             case 'w_earnings': return <div style={ws}><div style={wl}>Earnings</div><div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(130,220,170,.8)' }}>{money(widgetData.todaysEarnings || 0)}</div><div style={{ fontSize: 9, color: 'rgba(255,255,255,.3)', marginTop: 3 }}>{total} bookings</div></div>
             case 'w_schedule': {
-              const byB: Record<string, Booking[]> = {}
-              bookings.forEach(b => { const n = b.barber_name || b.barber || '?'; if (!byB[n]) byB[n] = []; byB[n].push(b) })
-              const entries = Object.entries(byB).slice(0, 6)
-              const half = Math.ceil(entries.length / 2)
-              const leftCol = entries.slice(0, half)
-              const rightCol = entries.slice(half)
-              const schedCol = (items: [string, Booking[]][]) => <div style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>{items.map(([n, bs]) => <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 3 }}><div style={{ fontSize: 7, fontWeight: 600, color: 'rgba(255,255,255,.3)', width: 22, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n}</div><span style={{ fontSize: 7, color: 'rgba(255,255,255,.25)' }}>{bs.length}</span></div>)}</div>
-              return <div style={{...ws, minHeight: 50, padding: '6px 8px'}}><div style={wl}>{new Date().toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</div>{entries.length === 0 ? <div style={{ fontSize: 10, color: 'rgba(255,255,255,.2)' }}>No appointments</div> : <div style={{ display: 'flex', gap: 6 }}>{schedCol(leftCol)}{rightCol.length > 0 && schedCol(rightCol)}</div>}</div>
+              const fm = (m: number) => `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`
+              const today = new Date().getDay()
+              const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
+              const barberSlots = barbers.map((b: any) => {
+                const sched = b.schedule
+                const wd: number[] = Array.isArray(sched?.days) ? sched.days : [1,2,3,4,5,6]
+                if (!wd.includes(today)) return { name: b.name, slots: [] as string[] }
+                const startM = sched?.startMin ?? 600, endM = sched?.endMin ?? 1200
+                const bkgs = bookings.filter(bk => String(bk.barber_id || '') === String(b.id))
+                const busy = new Set<number>()
+                bkgs.forEach(bk => { const s = bk.startMin ?? 0; const d = bk.durMin ?? 30; for (let m = s; m < s + d; m += 5) busy.add(m) })
+                const free: string[] = []
+                for (let m = Math.max(startM, nowMin); m <= endM - 30; m += 30) {
+                  let ok = true; for (let c = m; c < m + 30; c += 5) if (busy.has(c)) { ok = false; break }
+                  if (ok && free.length < 3) free.push(fm(m))
+                }
+                return { name: b.name, slots: free }
+              }).filter(b => b.slots.length > 0).slice(0, 6)
+              const half = Math.ceil(barberSlots.length / 2)
+              const leftCol = barberSlots.slice(0, half)
+              const rightCol = barberSlots.slice(half)
+              const col = (items: typeof barberSlots) => <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>{items.map(b => <div key={b.name}><div style={{ fontSize: 7, fontWeight: 600, color: 'rgba(255,255,255,.35)', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</div><div style={{ display: 'flex', gap: 2 }}>{b.slots.map((s,i) => <span key={i} style={{ fontSize: 7, padding: '0 3px', borderRadius: 3, border: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.3)' }}>{s}</span>)}</div></div>)}</div>
+              return <div style={{...ws, minHeight: 55, padding: '6px 8px'}}><div style={wl}>Free Slots</div>{barberSlots.length === 0 ? <div style={{ fontSize: 9, color: 'rgba(255,255,255,.2)' }}>No free slots</div> : <div style={{ display: 'flex', gap: 8 }}>{col(leftCol)}{rightCol.length > 0 && col(rightCol)}</div>}</div>
             }
             case 'w_revenue': {
               const days = widgetData.weeklyRevenue || []
