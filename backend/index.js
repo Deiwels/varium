@@ -1958,6 +1958,7 @@ app.post('/api/bookings', async (req, res) => {
       barber_id: data.barber_id,
       barber_name: sanitizeHtml(data.barber_name) || null,
       service_id: data.service_id || null,
+      service_ids: Array.isArray(data.service_ids) ? data.service_ids.filter(Boolean) : [],
       service_name: sanitizeHtml(data.service_name) || null,
       start_at: toIso(startAt),
       end_at: toIso(endAt),
@@ -2038,6 +2039,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
     if (b.barber_id != null) patch.barber_id = b.barber_id;
     if (b.barber_name != null) patch.barber_name = sanitizeHtml(b.barber_name);
     if (b.service_id != null) patch.service_id = b.service_id;
+    if (b.service_ids != null) patch.service_ids = Array.isArray(b.service_ids) ? b.service_ids.filter(Boolean) : [];
     if (b.service_name != null) patch.service_name = sanitizeHtml(b.service_name);
     if (b.start_at != null) patch.start_at = b.start_at;
     if (b.end_at != null) patch.end_at = b.end_at;
@@ -3912,6 +3914,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       barber_id: barberId,
       barber_name: sanitizeHtml(safeStr(booking.barber_name)) || null,
       service_id: safeStr(booking.service_id) || null,
+      service_ids: Array.isArray(booking.service_ids) ? booking.service_ids.map(s => safeStr(s)).filter(Boolean) : [],
       service_name: sanitizeHtml(safeStr(booking.service_name)) || null,
       start_at: toIso(startAt), end_at: toIso(endAt),
       duration_minutes: durMin,
