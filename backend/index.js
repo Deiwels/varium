@@ -1019,8 +1019,8 @@ function startOfDayInTz(date, timeZone = 'America/Chicago') {
 function eachTzDay(start, end, timeZone = 'America/Chicago') {
   const days = [];
   let cur = startOfDayInTz(start, timeZone);
-  const last = startOfDayInTz(end, timeZone);
-  while (cur.getTime() <= last.getTime()) { days.push(new Date(cur)); cur = addMinutes(cur, 24 * 60); }
+  // Use < instead of <= to avoid including an extra day when end falls exactly on midnight
+  while (cur.getTime() < end.getTime()) { days.push(new Date(cur)); cur = addMinutes(cur, 24 * 60); }
   return days;
 }
 
@@ -3790,16 +3790,26 @@ app.post('/public/availability/:workspace_id', async (req, res) => {
     const b = req.body || {};
     const barberId = safeStr(b.barber_id);
     const durationMin = Math.max(1, Number(b.duration_minutes || 30));
-    const start = parseIso(b.start_at);
-    const end = parseIso(b.end_at);
-    if (!barberId || !start || !end) return res.status(400).json({ error: 'barber_id, start_at, end_at required' });
-    const range = clampDateRange(start, end);
-    if (!range) return res.status(400).json({ error: 'Invalid date range' });
+    if (!barberId) return res.status(400).json({ error: 'barber_id required' });
     const barberDoc = await wsCol('barbers').doc(barberId).get();
     if (!barberDoc.exists || barberDoc.data()?.active === false) return res.status(404).json({ error: 'Barber not found' });
     const barber = barberDoc.data();
     const settingsDoc = await wsCol('settings').doc('config').get();
     const timeZone = settingsDoc.exists ? (settingsDoc.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+    // Support date param (YYYY-MM-DD in workspace timezone) or start_at/end_at
+    let start, end;
+    const dateParam = safeStr(b.date);
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+      const [y, m, d] = dateParam.split('-').map(Number);
+      start = zonedTimeToUtc({ year: y, month: m, day: d, hour: 0, minute: 0 }, timeZone);
+      end = addMinutes(start, 24 * 60);
+    } else {
+      start = parseIso(b.start_at);
+      end = parseIso(b.end_at);
+    }
+    if (!start || !end) return res.status(400).json({ error: 'date or start_at/end_at required' });
+    const range = clampDateRange(start, end);
+    if (!range) return res.status(400).json({ error: 'Invalid date range' });
     const busy = await getBusyIntervalsForBarber(wsCol, barberId, toIso(range.start), toIso(range.end));
     const avail = [];
     for (const cur of eachTzDay(range.start, range.end, timeZone)) {
@@ -3988,6 +3998,7 @@ app.get('/public/config/:workspace_id', async (req, res) => {
       hero_media_url: safeStr(data.hero_media_url || data.hero_url || ''),
       hero_media_type: safeStr(data.hero_media_type || 'video'),
       shop_name: safeStr(data.shop_name || ''),
+      timezone: safeStr(data.timezone || 'America/Chicago'),
     });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });

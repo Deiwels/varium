@@ -83,15 +83,12 @@ function ManageBookingContent() {
     setSlotsLoading(true)
     setSlots([])
     setSelectedSlot('')
-    const dayStart = new Date(selectedDate + 'T00:00:00')
-    const dayEnd = new Date(selectedDate + 'T23:59:59')
     fetch(`${API}/public/availability/${booking.workspace_id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         barber_id: booking.barber_id,
-        start_at: dayStart.toISOString(),
-        end_at: dayEnd.toISOString(),
+        date: selectedDate,
         duration_minutes: booking.duration_minutes,
       }),
     })

@@ -104,7 +104,7 @@ function InlinePaymentForm({ onSuccess, onError, amount, isLight }: {
 
 interface Barber { id: string; name: string; photo_url?: string; level?: string; schedule?: any }
 interface Service { id: string; name: string; duration_minutes: number; price_cents: number; barber_ids?: string[]; service_type?: string }
-interface Config { shop_name?: string; hero_media_url?: string; bannerText?: string; bannerEnabled?: boolean }
+interface Config { shop_name?: string; hero_media_url?: string; bannerText?: string; bannerEnabled?: boolean; timezone?: string }
 
 function escapeHtml(s: string): string {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
@@ -326,14 +326,12 @@ export default function PublicBookingPage() {
   useEffect(() => {
     if (!selectedBarber || !selectedDate || !resolvedWsId) return
     setSlotsLoading(true); setSlots([]); setSelectedSlot(''); setShowWaitlistForm(false); setWaitlistDone(false)
-    const start = new Date(selectedDate + 'T00:00:00')
-    const end = new Date(start.getTime() + 86400000)
+    // Send date as YYYY-MM-DD (already in workspace timezone from getDates) — backend handles timezone conversion
     api(`/public/availability/${resolvedWsId}`, {
       method: 'POST',
       body: JSON.stringify({
         barber_id: selectedBarber.id,
-        start_at: start.toISOString(),
-        end_at: end.toISOString(),
+        date: selectedDate,
         duration_minutes: totalDuration,
       }),
     }).then(d => setSlots(d.slots || []))
@@ -480,20 +478,24 @@ export default function PublicBookingPage() {
   }
 
   function getDates() {
+    const tz = config.timezone || 'America/Chicago'
     const dates: { key: string; label: string; sub: string }[] = []
     const now = new Date()
     for (let i = 0; i < 14; i++) {
       const d = new Date(now.getTime() + i * 86400000)
-      const key = d.toISOString().slice(0, 10)
-      const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      const sub = i <= 1 ? '' : d.toLocaleDateString('en-US', { weekday: 'short' })
+      // Use workspace timezone for date key to avoid UTC date mismatch
+      const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
+      const key = parts // en-CA formats as YYYY-MM-DD
+      const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { timeZone: tz, month: 'short', day: 'numeric' })
+      const sub = i <= 1 ? '' : d.toLocaleDateString('en-US', { timeZone: tz, weekday: 'short' })
       dates.push({ key, label, sub })
     }
     return dates
   }
 
   function fmtTime(iso: string) {
-    return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    const tz = config.timezone || 'America/Chicago'
+    return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz })
   }
 
   function fmtPrice(cents: number) { return '$' + (cents / 100).toFixed(cents % 100 === 0 ? 0 : 2) }
