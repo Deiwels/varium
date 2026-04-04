@@ -2031,6 +2031,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
     const ref = req.ws('bookings').doc(req.params.id);
     const existing = await ref.get();
     if (!existing.exists) return res.status(404).json({ error: 'Booking not found' });
+    const existingData = existing.data();
     const b = v.data;
     const patch = { updated_at: toIso(new Date()) };
     if (b.client_name != null) patch.client_name = sanitizeHtml(b.client_name);
@@ -2055,10 +2056,53 @@ app.patch('/api/bookings/:id', async (req, res) => {
     if (b.amount != null) patch.amount = b.amount;
     if (b.service_amount != null) patch.service_amount = b.service_amount;
 
+    // Helper: send client email after update
+    const notifyClient = async (savedData) => {
+      const clientEmail = savedData.client_email || existingData.client_email;
+      if (!clientEmail) return;
+      const settingsDoc = await req.ws('settings').doc('config').get();
+      const settingsData = settingsDoc.exists ? settingsDoc.data() : {};
+      const shopName = safeStr(settingsData?.shop_name || '');
+      const tz = settingsData?.timezone || 'America/Chicago';
+      const manageUrl = `https://vurium.com/manage-booking?token=${savedData.client_token || existingData.client_token}`;
+      const serviceName = savedData.service_name || existingData.service_name || 'Appointment';
+      const barberName = savedData.barber_name || existingData.barber_name || 'your specialist';
+
+      // Rescheduled
+      if (patch.start_at && patch.start_at !== existingData.start_at) {
+        const newStart = parseIso(patch.start_at);
+        const timeStr = newStart.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+        const dateStr = newStart.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz });
+        sendEmail(clientEmail, 'Appointment Rescheduled', vuriumEmailTemplate('Appointment Rescheduled', `
+          <p>Your appointment has been rescheduled:</p>
+          <div style="padding:16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin:16px 0;">
+            <div style="font-size:16px;font-weight:600;color:#e8e8ed;">${serviceName}</div>
+            <div style="color:rgba(255,255,255,.4);margin-top:4px;">with ${barberName}</div>
+            <div style="color:rgba(130,150,220,.7);font-weight:500;margin-top:8px;">${dateStr} at ${timeStr}</div>
+          </div>
+          <div style="text-align:center;margin:20px 0;">
+            <a href="${manageUrl}" style="display:inline-block;padding:12px 28px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#e8e8ed;text-decoration:none;font-size:13px;font-weight:500;">Manage Booking</a>
+          </div>
+        `, shopName), shopName).catch(() => {});
+      }
+
+      // Cancelled via status change
+      if (patch.status === 'cancelled' && existingData.status !== 'cancelled') {
+        sendEmail(clientEmail, 'Appointment Cancelled', vuriumEmailTemplate('Appointment Cancelled', `
+          <p>Your appointment has been cancelled:</p>
+          <div style="padding:16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin:16px 0;">
+            <div style="font-size:16px;font-weight:600;color:#e8e8ed;">${serviceName}</div>
+            <div style="color:rgba(255,255,255,.4);margin-top:4px;">with ${barberName}</div>
+          </div>
+          <p style="font-size:12px;color:rgba(255,255,255,.3);">To book a new appointment, visit our booking page.</p>
+        `, shopName), shopName).catch(() => {});
+      }
+    };
+
     // If rescheduling, check conflicts
     if (b.start_at && b.barber_id) {
       const startAt = parseIso(b.start_at);
-      const endAt = b.end_at ? parseIso(b.end_at) : (startAt ? addMinutes(startAt, b.duration_minutes || existing.data().duration_minutes || 30) : null);
+      const endAt = b.end_at ? parseIso(b.end_at) : (startAt ? addMinutes(startAt, b.duration_minutes || existingData.duration_minutes || 30) : null);
       if (startAt && endAt) {
         try {
           await db.runTransaction(async (tx) => {
@@ -2067,6 +2111,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
           });
           const saved = await ref.get();
           writeAuditLog(req.wsId, { action: 'booking.update', resource_id: req.params.id, data: patch, req }).catch(() => {});
+          notifyClient(saved.data()).catch(() => {});
           return res.json({ id: saved.id, ...saved.data() });
         } catch (e) {
           if (e.code === 'CONFLICT' || String(e.message).includes('CONFLICT')) return res.status(409).json({ error: 'Slot already booked' });
@@ -2078,6 +2123,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
     await ref.update(patch);
     const saved = await ref.get();
     writeAuditLog(req.wsId, { action: 'booking.update', resource_id: req.params.id, data: patch, req }).catch(() => {});
+    notifyClient(saved.data()).catch(() => {});
     res.json({ id: saved.id, ...saved.data() });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
