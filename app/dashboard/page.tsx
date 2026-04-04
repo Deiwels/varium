@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import Shell from '@/components/Shell'
 import { apiFetch } from '@/lib/api'
 
@@ -906,13 +907,12 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            {/* Done + Add buttons in jiggle mode */}
-            {jiggleMode && (
+            {/* Done + Add buttons in jiggle mode — portaled to body to escape .content stacking context */}
+            {jiggleMode && typeof document !== 'undefined' && createPortal(
               <div style={{ position: 'fixed', top: 14, left: 16, right: 16, zIndex: 10003, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <button onClick={e => { e.stopPropagation(); setJiggleMode(false); setShowAddSheet(false) }} style={{ padding: '6px 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Done</button>
                 {hiddenItems.length > 0 && <button onClick={e => { e.stopPropagation(); setShowAddSheet(true) }} style={{ width: 32, height: 32, borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 18, fontWeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>+</button>}
-              </div>
-            )}
+              </div>, document.body)}
 
             {/* Add widget sheet */}
             {showAddSheet && hiddenItems.length > 0 && (
