@@ -1174,9 +1174,20 @@ export default function PublicBookingPage() {
             <p style={{ color: textMuted, fontSize: 14, lineHeight: 1.6 }}>
               {combinedServiceName || 'Appointment'}{!isSolo ? ` with ${selectedBarber?.name}` : ''}
             </p>
-            <p style={{ color: 'rgba(130,150,220,.7)', fontSize: 16, fontWeight: 500, marginTop: 8, marginBottom: 32 }}>
+            <p style={{ color: 'rgba(130,150,220,.7)', fontSize: 16, fontWeight: 500, marginTop: 8, marginBottom: 20 }}>
               {fmtFullDate(selectedDate)} at {fmtTime(selectedSlot)}
             </p>
+            {clientEmail && (
+              <div style={{
+                margin: '0 auto 28px', maxWidth: 340, padding: '12px 16px',
+                borderRadius: 12, background: isLightTheme ? 'rgba(0,0,0,.04)' : 'rgba(255,255,255,.04)',
+                border: `1px solid ${isLightTheme ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.07)'}`,
+                fontSize: 13, color: textMuted, lineHeight: 1.55, textAlign: 'center',
+              }}>
+                A confirmation was sent to <span style={{ color: textSoft, fontWeight: 500 }}>{clientEmail}</span>.
+                <br />To reschedule or cancel, use the link in the email.
+              </div>
+            )}
             <button onClick={resetBooking} style={{
               padding: '12px 28px', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', cursor: 'pointer',
               background: bgSubtle, border: `1px solid ${isLightTheme ? 'rgba(0,0,0,.1)' : 'rgba(255,255,255,.1)'}`, color: textSoft,
