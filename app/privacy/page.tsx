@@ -124,7 +124,7 @@ export default function PrivacyPage() {
         <ul style={list}>
           <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Restriction:</strong> Request restriction of processing of your personal data.</li>
           <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Objection:</strong> Object to processing based on legitimate interest.</li>
-          <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Supervisory Authority:</strong> You have the right to lodge a complaint with your local data protection authority.</li>
+          <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Supervisory Authority:</strong> You have the right to lodge a complaint with your local data protection authority. For example: the Information Commissioner&apos;s Office (ICO) in the UK, the CNIL in France, the BfDI in Germany, or the relevant DPA in your EU/EEA member state. A full list is available at <a href="https://edpb.europa.eu/about-edpb/about-edpb/members_en" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>edpb.europa.eu</a>.</li>
           <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Data Processing Agreement:</strong> Business customers can request a <a href="/dpa" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Data Processing Agreement (DPA)</a>.</li>
         </ul>
 
@@ -179,12 +179,17 @@ export default function PrivacyPage() {
         <div style={highlight}>
           <p style={{ ...text, marginBottom: 0 }}>
             Vurium Inc.<br />
-            Chicago, IL, United States<br />
+            1603 Orchard Rd, 60506<br />
+            Aurora, IL, United States<br />
             Email: <a href="mailto:support@vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>support@vurium.com</a><br />
             Phone: <a href="tel:+18476301884" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>(847) 630-1884</a><br />
+            Privacy inquiries: <a href="mailto:support@vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>support@vurium.com</a><br />
             Support: <a href="/support" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>vurium.com/support</a>
           </p>
         </div>
+        <p style={text}>
+          Vurium has not appointed a formal Data Protection Officer (DPO) as the nature and scale of our processing does not require one under GDPR Article 37. For all privacy-related inquiries, please contact us using the details above.
+        </p>
       </main>
 
       <footer style={{ borderTop: '1px solid rgba(255,255,255,.05)', padding: '20px clamp(20px, 4vw, 48px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2, flexWrap: 'wrap', gap: 12 }}>
