@@ -1176,7 +1176,7 @@ export default function CalendarPage() {
       const localDate = startAt ? isoDate(startAt) : todayStr
       const isBlock = b.status === 'block' || b.type === 'block' || b.booking_type === 'block' || b.client_name === 'BLOCKED'
       const isModelOrTraining = b.booking_type === 'model' || b.booking_type === 'training'
-      const rawServiceIds: string[] = Array.isArray(b.service_ids) ? b.service_ids.map(String) : b.service_id ? String(b.service_id).split(',').map((s: string) => s.trim()).filter(Boolean) : []
+      const rawServiceIds: string[] = (Array.isArray(b.service_ids) && b.service_ids.length > 0) ? b.service_ids.map(String) : b.service_id ? String(b.service_id).split(',').map((s: string) => s.trim()).filter(Boolean) : []
       const svcs = servicesArg.filter(s => rawServiceIds.includes(s.id))
       const svc = svcs[0] || servicesArg.find(s => s.id === String(b.service_id || ''))
       const barber = barbersArg.find(br => br.id === String(b.barber_id || ''))
@@ -1374,7 +1374,7 @@ export default function CalendarPage() {
         const startAt = new Date(updated.date + 'T' + minToHHMM(updated.startMin) + ':00')
         await apiFetch('/api/bookings/' + encodeURIComponent(String(ev._raw.id)), {
           method: 'PATCH',
-          body: JSON.stringify({ barber_id: updated.barberId, service_id: remappedSvcIds.join(',') || updated.serviceId || '', service_name: newSvcNames, start_at: startAt.toISOString(), end_at: new Date(startAt.getTime() + newDurMin*60000).toISOString() })
+          body: JSON.stringify({ barber_id: updated.barberId, service_id: remappedSvcIds[0] || updated.serviceId || '', service_ids: remappedSvcIds, service_name: newSvcNames, start_at: startAt.toISOString(), end_at: new Date(startAt.getTime() + newDurMin*60000).toISOString() })
         })
       } catch(e: any) {
         // Rollback optimistic update on failure
@@ -1531,7 +1531,7 @@ export default function CalendarPage() {
       if (!ev._raw?.id) {
         const startAt = new Date(updated.date + 'T' + minToHHMM(updated.startMin) + ':00')
         const endAt = new Date(startAt.getTime() + (updated.durMin || 30) * 60000)
-        const postBody: any = { barber_id: updated.barberId, service_id: svcIds.join(',') || updated.serviceId || '', service_name: svcNames || updated.serviceName || '', client_name: updated.clientName, client_phone: updated.clientPhone || '', start_at: startAt.toISOString(), end_at: endAt.toISOString(), notes: updated.notes || '', status: 'booked' }
+        const postBody: any = { barber_id: updated.barberId, service_id: svcIds[0] || updated.serviceId || '', service_ids: svcIds, service_name: svcNames || updated.serviceName || '', client_name: updated.clientName, client_phone: updated.clientPhone || '', start_at: startAt.toISOString(), end_at: endAt.toISOString(), notes: updated.notes || '', status: 'booked' }
         if (updated.photoUrl) postBody.reference_photo_url = updated.photoUrl
         if (isStudent) { postBody.booking_type = 'model'; postBody.student_id = currentUser?.uid || '' }
         const res = await apiFetch('/api/bookings', { method: 'POST', body: JSON.stringify(postBody) })
@@ -1540,7 +1540,7 @@ export default function CalendarPage() {
       } else {
         const patchStart = new Date(updated.date + 'T' + minToHHMM(updated.startMin) + ':00')
         const patchEnd = new Date(patchStart.getTime() + (updated.durMin || 30) * 60000)
-        const patchBody: any = { barber_id: updated.barberId, service_id: svcIds.join(',') || updated.serviceId || '', service_name: svcNames || updated.serviceName || '', client_name: updated.clientName, status: updated.status, end_at: patchEnd.toISOString(), start_at: patchStart.toISOString() }
+        const patchBody: any = { barber_id: updated.barberId, service_id: svcIds[0] || updated.serviceId || '', service_ids: svcIds, service_name: svcNames || updated.serviceName || '', client_name: updated.clientName, status: updated.status, end_at: patchEnd.toISOString(), start_at: patchStart.toISOString() }
         if (updated.clientPhone) patchBody.client_phone = updated.clientPhone
         if (updated.notes != null) patchBody.notes = updated.notes || ''
         if (updated.photoUrl) patchBody.reference_photo_url = updated.photoUrl
