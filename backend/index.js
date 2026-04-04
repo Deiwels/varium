@@ -386,7 +386,8 @@ async function getWorkspaceEmailConfig(wsId) {
     shopName: safeStr(s?.shop_name || ''),
     logoUrl: s?.logo_url || '',
     tz: s?.timezone || 'America/Chicago',
-    template: w?.site_config?.template || 'modern',
+    // 'custom' is a website-only template (custom HTML/CSS) — fall back to 'modern' for emails
+    template: (['modern','classic','bold','dark-luxury','colorful'].includes(w?.site_config?.template) ? w.site_config.template : 'modern'),
   };
 }
 
@@ -4067,7 +4068,8 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
         const emailShopName = safeStr(emailSettingsData?.shop_name || '');
         const emailLogo = emailSettingsData?.logo_url || '';
         const wsDocData = await db.collection('workspaces').doc(wsId).get();
-        const emailTemplate = wsDocData.exists ? (wsDocData.data()?.site_config?.template || 'modern') : 'modern';
+        const rawTemplate = wsDocData.exists ? wsDocData.data()?.site_config?.template : null;
+        const emailTemplate = ['modern','classic','bold','dark-luxury','colorful'].includes(rawTemplate) ? rawTemplate : 'modern';
         const manageUrl = `https://vurium.com/manage-booking?ws=${wsId}&bid=${bookingRef.id}&token=${doc.client_token}`;
         const et = EMAIL_THEMES[emailTemplate] || EMAIL_THEMES.modern;
         const isLt = ['classic','colorful'].includes(emailTemplate);
