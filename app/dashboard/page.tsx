@@ -786,7 +786,9 @@ export default function DashboardPage() {
         const COLS = 4
         // Use container height if available, otherwise estimate from window
         const containerEl = typeof document !== 'undefined' ? document.querySelector('.content') as HTMLElement : null
-        const availH = containerEl ? containerEl.clientHeight - 40 : (typeof window !== 'undefined' ? window.innerHeight - 180 : 600)
+        const safeBot = (typeof window !== 'undefined' && (window as any).__VURIUM_SAFE_BOTTOM) || 34
+        const pillBarH = 56 + safeBot
+        const availH = containerEl ? containerEl.clientHeight - pillBarH - 20 : (typeof window !== 'undefined' ? window.innerHeight - pillBarH - 140 : 600)
 
         // Simple flow: place items sequentially, track col position
         // Widgets take 2 or 4 cols, icons take 1 col
