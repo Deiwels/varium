@@ -3,6 +3,7 @@ import './globals.css'
 import { DialogWrapper } from './DialogWrapper'
 import CosmosParallax from '@/components/CosmosParallax'
 import { PlanProvider } from '@/components/PlanProvider'
+import CookieBanner from '@/components/CookieBanner'
 
 export const metadata: Metadata = {
   title: 'Vurium — Software That Works',
@@ -139,6 +140,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <PlanProvider>
           <DialogWrapper>{children}</DialogWrapper>
         </PlanProvider>
+        <CookieBanner />
       </body>
     </html>
   )

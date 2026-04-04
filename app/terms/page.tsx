@@ -106,20 +106,35 @@ export default function TermsPage() {
           The VuriumBook platform, including its design, code, trademarks, and branding, is owned by Vurium Inc. and protected by intellectual property laws. You retain ownership of all data you enter into the Service. By using the Service, you grant us a limited, non-exclusive license to process your data solely as necessary to provide the Service.
         </p>
 
-        {/* 9. Limitation of Liability */}
+        {/* 9. Right of Withdrawal (EU/UK Consumers) */}
+        <h2 style={heading}>9. Right of Withdrawal (EU/UK Consumers)</h2>
+        <div style={highlight}>
+          <p style={{ ...text, marginBottom: 14 }}>
+            If you are a consumer in the European Economic Area (EEA) or the United Kingdom, you have the right to withdraw from a distance contract within <strong style={{ color: 'rgba(255,255,255,.55)' }}>14 days</strong> without giving any reason, in accordance with the Consumer Rights Directive (2011/83/EU).
+          </p>
+          <ul style={{ ...list, marginBottom: 0 }}>
+            <li>The withdrawal period expires 14 days after the day the contract is concluded (i.e., when you complete a booking or subscription).</li>
+            <li>To exercise the right of withdrawal, you must inform us by a clear statement (e.g., email to <a href="mailto:support@vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>support@vurium.com</a>) of your decision to withdraw.</li>
+            <li>If you request that the service begins during the withdrawal period (e.g., an appointment is performed), you acknowledge that you will lose the right of withdrawal once the service has been fully performed.</li>
+            <li>For subscriptions, you may withdraw within 14 days of the initial purchase. After the withdrawal period, you may cancel at any time as described in Section 6.</li>
+            <li>Refunds will be issued within 14 days of receiving your withdrawal notice, using the same payment method as the original transaction.</li>
+          </ul>
+        </div>
+
+        {/* 10. Limitation of Liability */}
         <h2 style={heading}>9. Limitation of Liability</h2>
         <p style={text}>
           To the fullest extent permitted by applicable law, Vurium shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits, revenue, data, or business opportunities, arising out of or related to your use of the Service. Our total aggregate liability for any claims arising under these Terms shall not exceed the amount you paid to Vurium in the 12 months preceding the claim. Nothing in these Terms excludes or limits liability that cannot be excluded under applicable law (including liability for death, personal injury, or fraud).
         </p>
 
-        {/* 10. Indemnification */}
-        <h2 style={heading}>10. Indemnification</h2>
+        {/* 11. Indemnification */}
+        <h2 style={heading}>11. Indemnification</h2>
         <p style={text}>
           You agree to indemnify, defend, and hold harmless Vurium Inc., its officers, directors, employees, and agents from and against any claims, liabilities, damages, losses, and expenses (including reasonable legal fees) arising out of or related to: (a) your use of the Service; (b) your violation of these Terms; (c) your violation of any third-party rights; or (d) any content or data you submit through the Service. This indemnification obligation will survive termination of these Terms and your use of the Service.
         </p>
 
-        {/* 11. Dispute Resolution */}
-        <h2 style={heading}>11. Dispute Resolution</h2>
+        {/* 12. Dispute Resolution */}
+        <h2 style={heading}>12. Dispute Resolution</h2>
         <p style={text}>
           <strong style={{ color: 'rgba(255,255,255,.55)' }}>Informal Resolution:</strong> Before filing any formal proceeding, you agree to contact us at <a href="mailto:support@vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>support@vurium.com</a> and attempt to resolve the dispute informally for at least 30 days.
         </p>
@@ -133,14 +148,14 @@ export default function TermsPage() {
           <strong style={{ color: 'rgba(255,255,255,.55)' }}>Exceptions:</strong> Either party may seek injunctive relief in any court of competent jurisdiction. EU/EEA residents retain the right to bring claims before their local courts and are not bound by the arbitration clause.
         </p>
 
-        {/* 12. Service Modifications */}
-        <h2 style={heading}>12. Service Modifications</h2>
+        {/* 13. Service Modifications */}
+        <h2 style={heading}>13. Service Modifications</h2>
         <p style={text}>
           We reserve the right to modify, suspend, or discontinue any part of the Service at any time. We will provide at least 30 days&apos; notice for material changes that significantly affect your use of the Service.
         </p>
 
-        {/* 13. Termination */}
-        <h2 style={heading}>13. Termination</h2>
+        {/* 14. Termination */}
+        <h2 style={heading}>14. Termination</h2>
         <ul style={list}>
           <li>Either party may terminate the agreement at any time with written notice.</li>
           <li>Upon termination, your data will be available for export for 30 days, after which it may be deleted.</li>
@@ -148,32 +163,32 @@ export default function TermsPage() {
           <li>Sections that by their nature should survive termination (Limitation of Liability, Indemnification, Dispute Resolution) will survive.</li>
         </ul>
 
-        {/* 14. Governing Law */}
-        <h2 style={heading}>14. Governing Law</h2>
+        {/* 15. Governing Law */}
+        <h2 style={heading}>15. Governing Law</h2>
         <p style={text}>
           These Terms shall be governed by and construed in accordance with the laws of the State of Illinois, United States, without regard to conflict of law principles. For EEA/UK residents, mandatory consumer protection laws of your country of residence shall also apply where required.
         </p>
 
-        {/* 15. Severability */}
-        <h2 style={heading}>15. Severability</h2>
+        {/* 16. Severability */}
+        <h2 style={heading}>16. Severability</h2>
         <p style={text}>
           If any provision of these Terms is held to be invalid or unenforceable, the remaining provisions shall continue in full force and effect. The invalid provision shall be modified to the minimum extent necessary to make it valid and enforceable.
         </p>
 
-        {/* 16. Entire Agreement */}
-        <h2 style={heading}>16. Entire Agreement</h2>
+        {/* 17. Entire Agreement */}
+        <h2 style={heading}>17. Entire Agreement</h2>
         <p style={text}>
           These Terms, together with the <a href="/privacy" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Privacy Policy</a>, <a href="/cookies" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Cookie Policy</a>, and <a href="/dpa" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Data Processing Agreement</a> (where applicable), constitute the entire agreement between you and Vurium regarding the use of the Service.
         </p>
 
-        {/* 17. Changes */}
-        <h2 style={heading}>17. Changes to These Terms</h2>
+        {/* 18. Changes */}
+        <h2 style={heading}>18. Changes to These Terms</h2>
         <p style={text}>
           We may update these Terms from time to time. We will notify you of material changes by posting the updated Terms on this page and, where required, by email with at least 30 days&apos; notice. Continued use of the Service after changes constitutes acceptance.
         </p>
 
-        {/* 18. Contact */}
-        <h2 style={heading}>18. Contact Us</h2>
+        {/* 19. Contact */}
+        <h2 style={heading}>19. Contact Us</h2>
         <p style={text}>
           Questions about these Terms? Contact us at:<br />
           <a href="mailto:support@vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>support@vurium.com</a> &middot; <a href="/support" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>vurium.com/support</a>

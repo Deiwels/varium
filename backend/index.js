@@ -694,7 +694,7 @@ const UserCreateSchema = z.object({
   password: z.string().min(8).max(200),
   role: z.enum(['owner', 'admin', 'barber', 'student']).optional().default('barber'),
   name: z.string().max(120).optional(),
-  email: z.string().email().max(254).optional(),
+  email: z.string().email().max(254),
   barber_id: z.string().max(80).optional(),
   mentor_barber_ids: z.array(z.string().max(80)).optional(),
   phone: z.string().max(30).optional(),
@@ -2294,6 +2294,23 @@ app.post('/api/users', requireRole('owner'), async (req, res) => {
     };
     const ref = await req.ws('users').add(doc);
     writeAuditLog(req.wsId, { action: 'user.create', resource_id: ref.id, data: { username: usernameLC, role }, req }).catch(() => {});
+    // Send welcome email with login details
+    if (doc.email) {
+      getWorkspaceEmailConfig(req.wsId).then(cfg => {
+        const roleLabel = (role === 'admin') ? 'Admin' : 'Team Member';
+        const bodyHtml = `
+          <p style="margin:0 0 16px;">Welcome to <strong>${cfg.shopName || 'VuriumBook'}</strong>! An account has been created for you.</p>
+          <div style="padding:16px 20px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin:0 0 20px;">
+            <div style="margin:0 0 8px;"><strong>Role:</strong> ${roleLabel}</div>
+            <div style="margin:0 0 8px;"><strong>Login email:</strong> ${doc.email}</div>
+            <div style="margin:0;"><strong>Password:</strong> the one set by your manager</div>
+          </div>
+          <p style="margin:0 0 16px;">Sign in at:</p>
+          <a href="https://vurium.com/signin" style="display:inline-block;padding:12px 28px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;text-decoration:none;font-weight:600;font-size:14px;">Sign In to VuriumBook</a>
+          <p style="margin:20px 0 0;font-size:12px;opacity:.5;">If you didn't expect this email, you can safely ignore it. Use "Forgot password" on the sign-in page if you need to reset your password.</p>`;
+        sendEmail(doc.email, `Your ${cfg.shopName || 'VuriumBook'} Account`, vuriumEmailTemplate('Welcome to the Team!', bodyHtml, cfg.shopName, cfg.logoUrl, cfg.template), cfg.shopName);
+      }).catch(() => {});
+    }
     res.status(201).json({ id: ref.id, username: doc.username, name: doc.name, role: doc.role, active: true });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -4035,6 +4052,9 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       customer_note: sanitizeHtml(safeStr(booking.customer_note)) || null,
       reference_photo_url: referencePhotoUrl,
       sms_consent: smsConsent,
+      sms_consent_ip: smsConsent ? getClientIp(req) : null,
+      sms_consent_ua: smsConsent ? safeStr(req.headers['user-agent'] || '').slice(0, 500) : null,
+      sms_consent_at: smsConsent ? toIso(new Date()) : null,
       workspace_id: wsId,
       client_token: crypto.randomBytes(24).toString('hex'),
       created_at: toIso(new Date()), updated_at: toIso(new Date()),
