@@ -921,7 +921,7 @@ export default function DashboardPage() {
             {showAddSheet && hiddenItems.length > 0 && (
               <div style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }} onClick={() => setShowAddSheet(false)}>
                 <div style={{ background: 'rgba(0,0,0,.7)', position: 'absolute', inset: 0 }} />
-                <div onClick={e => e.stopPropagation()} style={{ position: 'relative', background: 'rgba(20,20,20,.95)', borderRadius: '20px 20px 0 0', border: '1px solid rgba(255,255,255,.08)', borderBottom: 'none', padding: '16px 20px 24px', maxHeight: '50%', overflowY: 'auto' }}>
+                <div onClick={e => e.stopPropagation()} style={{ position: 'relative', background: 'rgba(20,20,20,.95)', borderRadius: '20px 20px 0 0', border: '1px solid rgba(255,255,255,.08)', borderBottom: 'none', padding: '16px 20px 80px', maxHeight: '70%', overflowY: 'auto' }}>
                   <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,.15)', margin: '0 auto 16px' }} />
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.55)', marginBottom: 14, letterSpacing: '.06em', textTransform: 'uppercase' }}>Add Widget</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
