@@ -2424,7 +2424,7 @@ export default function CalendarPage() {
                             {height > 36 && ev.serviceName && ev.serviceName !== 'Service' && <div style={{ fontSize: 7, color: 'rgba(255,255,255,.35)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.serviceName.split(' + ')[0]}</div>}
                             {height > 36 && <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginTop: 1 }}>
                               {ev.paid && <span style={{ fontSize: 6, color: 'rgba(143,240,177,.70)', fontWeight: 700 }}>✓</span>}
-                              {(ev._raw?.reference_photo_url || ev._raw?.client_photo || ev._raw?.haircut_photo || ev._raw?.photo_url || ev._raw?.attachment_url) && <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="#7abaff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>}
+                              {(ev._raw?.has_reference_photo || ev._raw?.reference_photo_url || ev._raw?.client_photo || ev._raw?.haircut_photo || ev._raw?.photo_url || ev._raw?.attachment_url) && <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="#7abaff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>}
                               {ev.notes && ev.notes.replace(/Reference photo attached on website:\s*\S+/gi, '').trim() && <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="#ffd18a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
                             </div>}
                           </>) : (<>
@@ -2448,9 +2448,9 @@ export default function CalendarPage() {
                             {ev.serviceName && ev.serviceName !== 'Service' && <span style={{ color: 'rgba(255,255,255,.40)' }}> · {ev.serviceName}</span>}
                           </div>
                           {/* Photo & notes indicators — below service */}
-                          {height > 50 && ((ev._raw?.reference_photo_url || ev._raw?.client_photo || ev._raw?.haircut_photo || ev._raw?.photo_url || ev._raw?.attachment_url) || (ev.notes && ev.notes.replace(/Reference photo attached on website:\s*\S+/gi, '').trim())) && (
+                          {height > 50 && ((ev._raw?.has_reference_photo || ev._raw?.reference_photo_url || ev._raw?.client_photo || ev._raw?.haircut_photo || ev._raw?.photo_url || ev._raw?.attachment_url) || (ev.notes && ev.notes.replace(/Reference photo attached on website:\s*\S+/gi, '').trim())) && (
                             <div style={{ marginTop: 3, display: 'flex', alignItems: 'center', gap: 3 }}>
-                              {(ev._raw?.reference_photo_url || ev._raw?.client_photo || ev._raw?.haircut_photo || ev._raw?.photo_url || ev._raw?.attachment_url) && (
+                              {(ev._raw?.has_reference_photo || ev._raw?.reference_photo_url || ev._raw?.client_photo || ev._raw?.haircut_photo || ev._raw?.photo_url || ev._raw?.attachment_url) && (
                                 <span title="Has reference photo" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: 5, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', flexShrink: 0 }}>
                                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#7abaff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
                                 </span>
@@ -2903,7 +2903,7 @@ export default function CalendarPage() {
           barbers={barbers} services={services}
           isOwnerOrAdmin={isOwnerOrAdmin} myBarberId={myBarberId}
           isStudent={isStudent} mentorBarberIds={mentorBarberIds}
-          existingEvent={selectedEvent ? { id: selectedEvent.id, clientName: selectedEvent.clientName, clientPhone: selectedEvent.clientPhone, serviceId: selectedEvent.serviceId, serviceIds: selectedEvent.serviceIds, status: selectedEvent.status, notes: selectedEvent.notes, paid: selectedEvent.paid, paymentMethod: selectedEvent.paymentMethod, isModelEvent: selectedEvent._raw?.booking_type === 'model' || selectedEvent._raw?.booking_type === 'training', photoUrl: (() => {
+          existingEvent={selectedEvent ? { id: selectedEvent.id, clientName: selectedEvent.clientName, clientPhone: selectedEvent.clientPhone, serviceId: selectedEvent.serviceId, serviceIds: selectedEvent.serviceIds, status: selectedEvent.status, notes: selectedEvent.notes, paid: selectedEvent.paid, paymentMethod: selectedEvent.paymentMethod, isModelEvent: selectedEvent._raw?.booking_type === 'model' || selectedEvent._raw?.booking_type === 'training', hasReferencePhoto: !!(selectedEvent._raw?.has_reference_photo), backendId: selectedEvent._raw?.id ? String(selectedEvent._raw.id) : '', photoUrl: (() => {
               const r = selectedEvent._raw
               return r?.reference_photo_url || r?.photo_url || r?.client_photo || r?.client_photo_url || r?.attachment_url || r?.image_url || r?.photo || r?.haircut_photo || r?.style_photo || ''
             })(), _raw: { ...selectedEvent._raw, start_min: selectedEvent.startMin, date: selectedEvent.date } } : null}

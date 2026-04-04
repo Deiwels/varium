@@ -89,6 +89,8 @@ interface BookingModalProps {
     paymentMethod?: string
     isModelEvent?: boolean
     photoUrl?: string
+    hasReferencePhoto?: boolean
+    backendId?: string
     _raw: any
   } | null
   onSave: (data: {
@@ -849,6 +851,7 @@ export function BookingModal({
   const [status, setStatus] = useState('booked')
   const [notes, setNotes] = useState('')
   const [photoUrl, setPhotoUrl] = useState('')
+  const [fetchedPhotoUrl, setFetchedPhotoUrl] = useState('')
   const [lightbox, setLightbox] = useState(false)
   const [shopSettings, setShopSettings] = useState<any>(null)
   useEffect(() => { getShopSettings().then(setShopSettings) }, [])
@@ -870,6 +873,17 @@ export function BookingModal({
       setStatus(existingEvent.status || 'booked')
       setNotes(existingEvent.notes || '')
       setPhotoUrl('')
+      setFetchedPhotoUrl('')
+      // Fetch reference photo on demand if booking has one
+      if ((existingEvent.hasReferencePhoto || existingEvent.photoUrl) && existingEvent.backendId) {
+        if (existingEvent.photoUrl) {
+          setFetchedPhotoUrl(existingEvent.photoUrl)
+        } else {
+          apiFetch(`/api/bookings/${encodeURIComponent(existingEvent.backendId)}/photo`)
+            .then((r: any) => { if (r?.photo_url) setFetchedPhotoUrl(r.photo_url) })
+            .catch(() => {})
+        }
+      }
       // Pre-fill client card if we have client info from existing event
       if (existingEvent.clientName) {
         setSelectedClient({ id: '', name: existingEvent.clientName, phone: existingEvent.clientPhone || '', visitCount: 0 })
@@ -1104,11 +1118,11 @@ export function BookingModal({
             })()}
 
             {/* Client photo — clean, no decoration */}
-            {existingEvent?.photoUrl && (
+            {(fetchedPhotoUrl || existingEvent?.photoUrl) && (
               <>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                   <img
-                    src={existingEvent.photoUrl}
+                    src={fetchedPhotoUrl || existingEvent?.photoUrl || ''}
                     alt="reference"
                     style={{ width: 110, height: 110, borderRadius: 12, objectFit: 'cover', cursor: 'zoom-in', border: '1px solid rgba(255,255,255,.12)', display: 'block' }}
                     onClick={() => setLightbox(true)}
@@ -1118,7 +1132,7 @@ export function BookingModal({
                 {lightbox && (
                   <div onClick={() => setLightbox(false)}
                     style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, cursor: 'zoom-out', backdropFilter: 'blur(8px)' }}>
-                    <img src={existingEvent.photoUrl} alt="reference"
+                    <img src={fetchedPhotoUrl || existingEvent?.photoUrl || ''} alt="reference"
                       style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 16, objectFit: 'contain', boxShadow: '0 20px 60px rgba(0,0,0,.6)' }} />
                     <button onClick={() => setLightbox(false)}
                       style={{ position: 'absolute', top: 20, right: 20, width: 40, height: 40, borderRadius: 999, border: '1px solid rgba(255,255,255,.20)', background: 'rgba(0,0,0,.50)', color: '#fff', cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>

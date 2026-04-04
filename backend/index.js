@@ -2187,6 +2187,16 @@ app.get('/api/bookings', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
+app.get('/api/bookings/:id/photo', async (req, res) => {
+  try {
+    const doc = await req.ws('bookings').doc(req.params.id).get();
+    if (!doc.exists) return res.status(404).json({ error: 'Booking not found' });
+    const data = doc.data();
+    const photoUrl = data.reference_photo_url || data.reference_photo?.data_url || null;
+    res.json({ photo_url: photoUrl });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
 app.post('/api/bookings', async (req, res) => {
   try {
     const v = validate(BookingCreateSchema, req.body || {});
