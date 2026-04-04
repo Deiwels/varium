@@ -148,6 +148,7 @@ export default function Home() {
           <li><a href="/vuriumbook">VuriumBook</a></li>
           <li><a href="#products">Products</a></li>
           <li><a href="#about">About</a></li>
+          <li><a href="https://vurium.com/support">Support</a></li>
         </ul>
       </nav>
 
@@ -242,6 +243,7 @@ export default function Home() {
         <div style={{ display: 'flex', gap: 20 }}>
           <a href="/privacy" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Privacy</a>
           <a href="/terms" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Terms</a>
+          <a href="https://vurium.com/support" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Support</a>
         </div>
       </footer>
     </>
