@@ -921,24 +921,26 @@ export default function SettingsPage() {
                       <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>Select the Square Terminal device for card payments</div>
                       {squareDevices.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {squareDevices.map((dev: any) => (
-                            <button key={dev.id} onClick={() => saveTerminalDevice(dev.id)}
+                          {squareDevices.map((dev: any) => {
+                            const codeId = dev.device_code_id || dev.id
+                            return (
+                            <button key={dev.id} onClick={() => saveTerminalDevice(codeId)}
                               style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                 padding: '10px 14px', borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit',
-                                border: `1px solid ${selectedDeviceId === dev.id ? 'rgba(143,240,177,.25)' : 'rgba(255,255,255,.08)'}`,
-                                background: selectedDeviceId === dev.id ? 'rgba(143,240,177,.06)' : 'rgba(0,0,0,.14)',
+                                border: `1px solid ${selectedDeviceId === codeId ? 'rgba(143,240,177,.25)' : 'rgba(255,255,255,.08)'}`,
+                                background: selectedDeviceId === codeId ? 'rgba(143,240,177,.06)' : 'rgba(0,0,0,.14)',
                                 color: '#e8e8ed', transition: 'all .2s',
                               }}>
                               <div>
                                 <div style={{ fontSize: 13, fontWeight: 600 }}>{dev.name || 'Square Terminal'}</div>
                                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 2 }}>{dev.id}</div>
                               </div>
-                              {selectedDeviceId === dev.id && (
+                              {selectedDeviceId === codeId && (
                                 <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(130,220,170,.8)' }}>Active ✓</span>
                               )}
                             </button>
-                          ))}
+                          )})}
                         </div>
                       ) : (
                         <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', padding: '8px 0' }}>
