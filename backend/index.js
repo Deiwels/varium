@@ -3846,6 +3846,8 @@ app.get('/public/resolve/:slugOrId', async (req, res) => {
     if (!wsDoc.exists) return res.status(404).json({ error: 'Not found' });
     const data = wsDoc.data();
     const effectivePlan = getEffectivePlan(data);
+    const settingsDoc = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
+    const settings = settingsDoc.exists ? settingsDoc.data() : {};
     res.json({
       workspace_id: wsId,
       slug: data.slug || null,
@@ -3853,7 +3855,7 @@ app.get('/public/resolve/:slugOrId', async (req, res) => {
       plan_type: data.plan_type || 'individual',
       effective_plan: effectivePlan,
       site_config: data.site_config || null,
-      waitlist_enabled: !!data.waitlist_enabled,
+      waitlist_enabled: !!(settings.waitlist_enabled || data.waitlist_enabled),
     });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
