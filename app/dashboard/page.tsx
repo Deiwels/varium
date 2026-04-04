@@ -909,7 +909,7 @@ export default function DashboardPage() {
 
             {/* Done + Add buttons in jiggle mode — portaled to body to escape .content stacking context */}
             {jiggleMode && typeof document !== 'undefined' && createPortal(
-              <div style={{ position: 'fixed', top: 14, left: 16, right: 16, zIndex: 10003, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ position: 'fixed', top: 'max(env(safe-area-inset-top, 14px), 14px)', left: 16, right: 16, zIndex: 10003, display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 }}>
                 <button onClick={e => { e.stopPropagation(); setJiggleMode(false); setShowAddSheet(false) }} style={{ padding: '6px 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Done</button>
                 <button onClick={e => { e.stopPropagation(); if (hiddenItems.length > 0) setShowAddSheet(true) }} style={{ width: 32, height: 32, borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 18, fontWeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1, opacity: hiddenItems.length > 0 ? 1 : 0.3 }}>+</button>
               </div>, document.body)}
