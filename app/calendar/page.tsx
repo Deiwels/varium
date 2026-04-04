@@ -1637,27 +1637,101 @@ export default function CalendarPage() {
         }
         .wl-ghost-pulse { animation: wlGhostPulse 2.6s ease-in-out infinite; transition: filter .2s; }
         .wl-ghost-pulse:hover { filter: brightness(1.25); }
+        /* ── BLOCK PENDING: red nebula warning ── */
         @keyframes blockPendingPulse {
-          0%, 100% { box-shadow: 0 0 6px rgba(255,107,107,.15), inset 0 0 0 1px rgba(255,107,107,.12); border-color: rgba(255,107,107,.25); background: rgba(255,107,107,.04); }
-          50% { box-shadow: 0 0 18px rgba(255,107,107,.45), inset 0 0 0 1px rgba(255,107,107,.30); border-color: rgba(255,107,107,.55); background: rgba(255,107,107,.10); }
+          0%, 100% {
+            box-shadow: 0 0 6px rgba(255,60,60,.08), 0 0 16px rgba(255,40,40,.03), inset 0 0 10px rgba(255,60,60,.03);
+            border-color: rgba(255,60,60,.20);
+            background: rgba(255,40,40,.03);
+          }
+          35% {
+            box-shadow: 0 0 14px rgba(255,60,60,.25), 0 0 30px rgba(255,40,40,.08), inset 0 0 18px rgba(255,60,60,.06);
+            border-color: rgba(255,60,60,.45);
+            background: rgba(255,40,40,.06);
+          }
+          55% {
+            box-shadow: 0 0 8px rgba(255,60,60,.12), 0 0 20px rgba(255,40,40,.04);
+            border-color: rgba(255,60,60,.28);
+            background: rgba(255,40,40,.04);
+          }
+          80% {
+            box-shadow: 0 0 12px rgba(255,60,60,.18), 0 0 26px rgba(255,40,40,.06), inset 0 0 14px rgba(255,60,60,.04);
+            border-color: rgba(255,60,60,.35);
+            background: rgba(255,40,40,.05);
+          }
         }
-        .block-pending-pulse { animation: blockPendingPulse 2.6s ease-in-out infinite; }
-        @keyframes blockPendingPulse {
-          0%, 100% { box-shadow: 0 0 6px rgba(255,107,107,.10); border-color: rgba(255,107,107,.25); background: rgba(255,107,107,.04); }
-          50% { box-shadow: 0 0 18px rgba(255,107,107,.40); border-color: rgba(255,107,107,.55); background: rgba(255,107,107,.10); }
+        @keyframes blockPendingSweep {
+          0% { transform: translateX(-100%); opacity: 0; }
+          20% { opacity: 1; }
+          80% { opacity: 1; }
+          100% { transform: translateX(200%); opacity: 0; }
         }
-        .block-pending-pulse { animation: blockPendingPulse 2.4s ease-in-out infinite; }
-        @keyframes cosmicVoidBreathe {
-          0%, 100% { box-shadow: 0 0 6px 1px rgba(255,255,255,.08), 0 0 15px 3px rgba(255,255,255,.03); }
-          50% { box-shadow: 0 0 10px 2px rgba(255,255,255,.14), 0 0 22px 5px rgba(255,255,255,.05); }
-        }
-        .block-approved-stripes {
-          background: rgba(0,0,0,.95) !important;
-          animation: cosmicVoidBreathe 4s ease-in-out infinite;
+        .block-pending-pulse {
+          animation: blockPendingPulse 3s ease-in-out infinite;
+          position: relative;
           overflow: hidden;
         }
-        .block-approved-stripes::before { display: none; }
-        .block-approved-stripes::after { display: none; }
+        .block-pending-pulse::after {
+          content: '';
+          position: absolute;
+          top: 0; bottom: 0; left: 0;
+          width: 40%;
+          background: linear-gradient(90deg, transparent, rgba(255,60,60,.06), rgba(255,80,80,.10), rgba(255,60,60,.06), transparent);
+          animation: blockPendingSweep 4.5s ease-in-out infinite;
+          pointer-events: none;
+        }
+
+        /* ── BLOCK APPROVED: cosmic void ── */
+        @keyframes cosmicVoidBreathe {
+          0%, 100% {
+            box-shadow: 0 0 8px 1px rgba(120,100,180,.06), 0 0 20px 4px rgba(80,60,140,.02), inset 0 0 15px rgba(120,100,180,.03);
+            border-color: rgba(120,100,180,.10);
+          }
+          50% {
+            box-shadow: 0 0 14px 2px rgba(120,100,180,.12), 0 0 30px 6px rgba(80,60,140,.04), inset 0 0 25px rgba(120,100,180,.05);
+            border-color: rgba(120,100,180,.18);
+          }
+        }
+        @keyframes voidNebula {
+          0% { background-position: 0% 0%; }
+          50% { background-position: 100% 100%; }
+          100% { background-position: 0% 0%; }
+        }
+        @keyframes voidStardust {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(300%); }
+        }
+        .block-approved-stripes {
+          background: radial-gradient(ellipse at 20% 50%, rgba(60,40,100,.12) 0%, transparent 50%),
+                      radial-gradient(ellipse at 80% 50%, rgba(40,30,80,.10) 0%, transparent 50%),
+                      rgba(8,6,16,.95) !important;
+          background-size: 200% 200%;
+          animation: cosmicVoidBreathe 5s ease-in-out infinite, voidNebula 12s ease-in-out infinite;
+          overflow: hidden;
+        }
+        .block-approved-stripes::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: repeating-linear-gradient(
+            135deg,
+            transparent 0px,
+            transparent 8px,
+            rgba(120,100,180,.03) 8px,
+            rgba(120,100,180,.03) 9px
+          );
+          pointer-events: none;
+          border-radius: inherit;
+        }
+        .block-approved-stripes::after {
+          content: '';
+          position: absolute;
+          top: 0; bottom: 0; left: 0;
+          width: 30%;
+          background: linear-gradient(90deg, transparent, rgba(120,100,180,.04), rgba(160,140,220,.07), rgba(120,100,180,.04), transparent);
+          animation: voidStardust 10s ease-in-out infinite;
+          pointer-events: none;
+        }
         @keyframes paidShimmer {
           0%, 80% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
@@ -2226,10 +2300,10 @@ export default function CalendarPage() {
                     {/* Block drag ghost */}
                     {blockDrag?.barberIdx === bi && (() => {
                       const h = minToY(blockDrag.endMin) - minToY(blockDrag.startMin)
-                      return <div className="block-approved-stripes" style={{ position: 'absolute', left: 4, right: 4, top: minToY(blockDrag.startMin), height: Math.max(slotH * 2, h), borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', pointerEvents: 'none', zIndex: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.40)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                        <span style={{ fontSize: 10, fontWeight: 300, color: 'rgba(255,255,255,.40)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{minToAMPM(blockDrag.startMin)}–{minToAMPM(blockDrag.endMin)}</span>
-                        <span style={{ fontSize: 9, color: 'rgba(255,255,255,.25)' }}>{blockDrag.endMin - blockDrag.startMin}min</span>
+                      return <div className="block-approved-stripes" style={{ position: 'absolute', left: 4, right: 4, top: minToY(blockDrag.startMin), height: Math.max(slotH * 2, h), borderRadius: 10, border: '1px solid rgba(120,100,180,.18)', pointerEvents: 'none', zIndex: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(120,100,180,.50)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                        <span style={{ fontSize: 10, fontWeight: 400, color: 'rgba(160,140,220,.45)', textTransform: 'uppercase', letterSpacing: '.08em' }}>{minToAMPM(blockDrag.startMin)}–{minToAMPM(blockDrag.endMin)}</span>
+                        <span style={{ fontSize: 9, color: 'rgba(120,100,180,.30)' }}>{blockDrag.endMin - blockDrag.startMin}min</span>
                       </div>
                     })()}
                     {/* Events */}
@@ -2262,8 +2336,8 @@ export default function CalendarPage() {
                           {/* Content */}
                           <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                              <span style={{ fontSize: 10, textTransform: 'uppercase', color: isPending ? 'rgba(255,255,255,.45)' : 'rgba(255,255,255,.30)', fontWeight: 300, letterSpacing: '.06em' }}>{isPending ? 'Pending approval' : hasPendingExtension ? 'Blocked + Pending' : 'Blocked'} {minToAMPM(ev.startMin)}–{minToAMPM(ev.startMin+ev.durMin)}</span>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={isPending ? 'rgba(255,80,80,.50)' : 'rgba(120,100,180,.45)'} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                              <span style={{ fontSize: 10, textTransform: 'uppercase', color: isPending ? 'rgba(255,120,120,.50)' : 'rgba(160,140,220,.40)', fontWeight: 400, letterSpacing: '.08em' }}>{isPending ? 'Pending' : hasPendingExtension ? 'Blocked + Pending' : 'Blocked'} {minToAMPM(ev.startMin)}–{minToAMPM(ev.startMin+ev.durMin)}</span>
                             </div>
                             {/* ✕ button removed — tap block to delete */}
                           </div>
