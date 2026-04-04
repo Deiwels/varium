@@ -909,9 +909,9 @@ export default function DashboardPage() {
 
             {/* Done + Add buttons in jiggle mode — portaled to body to escape .content stacking context */}
             {jiggleMode && typeof document !== 'undefined' && createPortal(
-              <div style={{ position: 'fixed', top: 'calc(var(--shell-top, 52px) + 16px)', left: 16, right: 16, zIndex: 10003, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button onClick={e => { e.stopPropagation(); setJiggleMode(false); setShowAddSheet(false) }} style={{ padding: '6px 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Done</button>
-                <button onClick={e => { e.stopPropagation(); if (hiddenItems.length > 0) setShowAddSheet(true) }} style={{ width: 32, height: 32, borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 18, fontWeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1, opacity: hiddenItems.length > 0 ? 1 : 0.3 }}>+</button>
+              <div style={{ position: 'fixed', top: 'calc(var(--shell-top, 52px) + 12px)', left: 16, right: 16, zIndex: 99999, display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none' }}>
+                <button onClick={e => { e.stopPropagation(); setJiggleMode(false); setShowAddSheet(false) }} style={{ padding: '6px 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.20)', background: 'rgba(10,10,10,.95)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', pointerEvents: 'auto', boxShadow: '0 2px 12px rgba(0,0,0,.5)' }}>Done</button>
+                <button onClick={e => { e.stopPropagation(); if (hiddenItems.length > 0) setShowAddSheet(true) }} style={{ width: 34, height: 34, borderRadius: 999, border: '1px solid rgba(255,255,255,.20)', background: 'rgba(10,10,10,.95)', color: '#fff', fontSize: 18, fontWeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1, pointerEvents: 'auto', boxShadow: '0 2px 12px rgba(0,0,0,.5)', opacity: hiddenItems.length > 0 ? 1 : 0.3 }}>+</button>
               </div>, document.body)}
 
             {/* Add widget sheet */}
