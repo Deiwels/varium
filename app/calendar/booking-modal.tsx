@@ -844,6 +844,7 @@ export function BookingModal({
   const [modalKey, setModalKey] = useState(0)  // force remount ClientSearch on open
   const [selBarberId, setSelBarberId] = useState(barberId)
   const [serviceIds, setServiceIds] = useState<string[]>([])
+  const [servicesOpen, setServicesOpen] = useState(false)
   const [selStartMin, setSelStartMin] = useState(startMin)
   const [status, setStatus] = useState('booked')
   const [notes, setNotes] = useState('')
@@ -863,7 +864,9 @@ export function BookingModal({
     setModalKey(k => k + 1)  // remount ClientSearch
     if (existingEvent) {
       setClientName(existingEvent.clientName || '')
-      setServiceIds(existingEvent.serviceIds?.length ? existingEvent.serviceIds : existingEvent.serviceId ? [existingEvent.serviceId] : [])
+      const initSvcIds = existingEvent.serviceIds?.length ? existingEvent.serviceIds : existingEvent.serviceId ? [existingEvent.serviceId] : []
+      setServiceIds(initSvcIds)
+      setServicesOpen(initSvcIds.length === 0)
       setStatus(existingEvent.status || 'booked')
       setNotes(existingEvent.notes || '')
       setPhotoUrl('')
@@ -874,7 +877,7 @@ export function BookingModal({
         setSelectedClient(null)
       }
     } else {
-      setClientName(''); setServiceIds([]); setStatus('booked'); setNotes(''); setPhotoUrl('')
+      setClientName(''); setServiceIds([]); setServicesOpen(true); setStatus('booked'); setNotes(''); setPhotoUrl('')
       setSelectedClient(null)
     }
   }, [isOpen, existingEvent?.id, barberId, startMin])
@@ -994,7 +997,7 @@ export function BookingModal({
               </div>
             </div>
 
-            {/* Services — checkbox list grouped by type */}
+            {/* Services — collapsible checkbox list grouped by type */}
             {(() => {
               const mainSvcs = barberServices.filter(s => s.service_type !== 'addon')
               const addonSvcs = barberServices.filter(s => s.service_type === 'addon')
@@ -1043,24 +1046,53 @@ export function BookingModal({
 
               return (
                 <div>
-                  <label style={lbl}>Services</label>
-                  <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', overflow: 'hidden', padding: '4px 0' }}>
-                    {mainSvcs.length > 0 && (
-                      <>
-                        {addonSvcs.length > 0 && <div style={dividerStyle}><span style={lineStyle} /><span>Main</span><span style={lineStyle} /></div>}
-                        {mainSvcs.map(s => <ServiceRow key={s.id} s={s} />)}
-                      </>
-                    )}
-                    {addonSvcs.length > 0 && (
-                      <>
-                        <div style={dividerStyle}><span style={lineStyle} /><span>Add-ons</span><span style={lineStyle} /></div>
-                        {addonSvcs.map(s => <ServiceRow key={s.id} s={s} />)}
-                      </>
-                    )}
-                    {barberServices.length === 0 && (
-                      <div style={{ padding: '12px 14px', fontSize: 12, color: 'rgba(255,255,255,.35)' }}>No services available for this team member</div>
-                    )}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <label style={lbl}>Services</label>
+                    <button type="button" onClick={() => setServicesOpen(!servicesOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'rgba(130,150,220,.7)', fontWeight: 600, padding: '2px 6px' }}>
+                      {servicesOpen ? 'Hide' : 'Edit'}
+                    </button>
                   </div>
+                  {/* Collapsed: show selected services summary */}
+                  {!servicesOpen && serviceIds.length > 0 && (
+                    <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', padding: '8px 12px' }}>
+                      {selectedSvcs.map(s => {
+                        const bp = s.price ? Number(String(s.price).replace(/[^\d.]/g, '')) : 0
+                        return (
+                          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0', fontSize: 13 }}>
+                            <span style={{ color: 'rgba(130,150,220,.7)', fontSize: 10 }}>{'\u2713'}</span>
+                            <span style={{ flex: 1, fontWeight: 600, color: '#e8e8ed' }}>{s.name}</span>
+                            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>{s.durationMin || 30}min</span>
+                            {bp > 0 && <span style={{ fontSize: 11, color: 'rgba(130,220,170,.55)', fontWeight: 600 }}>${bp.toFixed(2)}</span>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {!servicesOpen && serviceIds.length === 0 && (
+                    <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', padding: '10px 12px', fontSize: 12, color: 'rgba(255,255,255,.35)', cursor: 'pointer' }} onClick={() => setServicesOpen(true)}>
+                      No services selected — tap Edit to add
+                    </div>
+                  )}
+                  {/* Expanded: full checkbox list */}
+                  {servicesOpen && (
+                    <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', overflow: 'hidden', padding: '4px 0' }}>
+                      {mainSvcs.length > 0 && (
+                        <>
+                          {addonSvcs.length > 0 && <div style={dividerStyle}><span style={lineStyle} /><span>Main</span><span style={lineStyle} /></div>}
+                          {mainSvcs.map(s => <ServiceRow key={s.id} s={s} />)}
+                        </>
+                      )}
+                      {addonSvcs.length > 0 && (
+                        <>
+                          <div style={dividerStyle}><span style={lineStyle} /><span>Add-ons</span><span style={lineStyle} /></div>
+                          {addonSvcs.map(s => <ServiceRow key={s.id} s={s} />)}
+                        </>
+                      )}
+                      {barberServices.length === 0 && (
+                        <div style={{ padding: '12px 14px', fontSize: 12, color: 'rgba(255,255,255,.35)' }}>No services available for this team member</div>
+                      )}
+                    </div>
+                  )}
                   {serviceIds.length > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 6, fontSize: 12, color: 'rgba(255,255,255,.50)' }}>
                       <span>{totalDur}min {'\u2192'} {minToHHMM(selStartMin + totalDur)}</span>
