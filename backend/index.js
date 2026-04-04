@@ -476,6 +476,7 @@ async function scheduleReminders(wsCol, bookingId, booking, timeZone, shopName) 
     if (!startAt) return;
     const phone = booking.client_phone || booking.phone_norm;
     if (!phone) return;
+    const reminderPhoneNorm = normPhone(phone);
     const clientName = booking.client_name || 'Client';
     const barberName = booking.barber_name || 'your barber';
     const prefix = shopName ? `${shopName}: ` : '';
@@ -484,12 +485,12 @@ async function scheduleReminders(wsCol, bookingId, booking, timeZone, shopName) 
     // 24h reminder
     const remind24 = new Date(startAt.getTime() - 24 * 60 * 60 * 1000);
     if (remind24 > new Date()) {
-      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, type: '24h', send_at: toIso(remind24), sent: false, message: `${prefix}Reminder: Your appointment with ${barberName} is tomorrow ${dateStr} at ${timeStr}. Reply STOP to opt out, HELP for help.`, created_at: toIso(new Date()) });
+      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, phone_norm: reminderPhoneNorm, type: '24h', send_at: toIso(remind24), sent: false, message: `${prefix}Reminder: Your appointment with ${barberName} is tomorrow ${dateStr} at ${timeStr}. Reply STOP to opt out, HELP for help.`, created_at: toIso(new Date()) });
     }
     // 2h reminder
     const remind2 = new Date(startAt.getTime() - 2 * 60 * 60 * 1000);
     if (remind2 > new Date()) {
-      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, type: '2h', send_at: toIso(remind2), sent: false, message: `${prefix}Reminder: Your appointment with ${barberName} is in 2 hours at ${timeStr}. Reply STOP to opt out, HELP for help.`, created_at: toIso(new Date()) });
+      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, phone_norm: reminderPhoneNorm, type: '2h', send_at: toIso(remind2), sent: false, message: `${prefix}Reminder: Your appointment with ${barberName} is in 2 hours at ${timeStr}. Reply STOP to opt out, HELP for help.`, created_at: toIso(new Date()) });
     }
   } catch (e) { console.warn('scheduleReminders error:', e?.message); }
 }
@@ -1597,6 +1598,18 @@ app.post('/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // MFA check
+    if (user.mfa_enabled && user.mfa_secret) {
+      const mfaCode = safeStr(req.body?.mfa_code || '');
+      if (!mfaCode) {
+        return res.status(403).json({ error: 'MFA code required', mfa_required: true });
+      }
+      if (!verifyTOTP(user.mfa_secret, mfaCode)) {
+        trackFailedLogin(ip, username);
+        return res.status(401).json({ error: 'Invalid MFA code', mfa_required: true });
+      }
+    }
+
     await resetRateLimit(ip);
 
     const token = jwt.sign({
@@ -1983,14 +1996,17 @@ app.get('/api/clients', async (req, res) => {
             const sd = await sr.json();
             for (const sc of (sd.customers || [])) {
               // Import Square customer to local DB
+              const sqName = [sc.given_name, sc.family_name].filter(Boolean).join(' ') || 'Square Customer';
+              const sqEmail = sc.email_address || '';
+              const sqPhoneNorm = (sc.phone_number || '').replace(/\D/g, '');
               const newClient = {
-                name: [sc.given_name, sc.family_name].filter(Boolean).join(' ') || 'Square Customer',
-                phone: sc.phone_number || '', phone_norm: (sc.phone_number || '').replace(/\D/g, ''),
-                email: sc.email_address || '', square_customer_id: sc.id,
+                name: encryptPII(sqName),
+                phone: sc.phone_number ? encryptPhone(sc.phone_number) : '', phone_norm: sqPhoneNorm,
+                email: encryptPII(sqEmail), square_customer_id: sc.id,
                 source: 'square', created_at: toIso(new Date()), updated_at: toIso(new Date()),
               };
               const ref = await req.ws('clients').add(newClient);
-              list.push({ id: ref.id, ...newClient });
+              list.push({ id: ref.id, ...newClient, name: sqName, email: sqEmail, phone: sc.phone_number || '' });
             }
           }
         }
@@ -2019,17 +2035,21 @@ app.post('/api/clients', async (req, res) => {
     const v = validate(ClientCreateSchema, req.body || {});
     if (!v.ok) return res.status(400).json({ error: v.error });
     const { name, phone, email } = v.data;
-    // Check for duplicate phone
+    // Check for duplicate phone (phone_norm is stored unencrypted for lookups)
     const pn = normPhone(phone);
     if (pn) {
       const dupPhone = await req.ws('clients').where('phone_norm', '==', pn).limit(1).get();
-      if (!dupPhone.empty) return res.status(409).json({ error: 'Client with this phone already exists', existing_id: dupPhone.docs[0].id, existing_name: dupPhone.docs[0].data().name });
+      if (!dupPhone.empty) return res.status(409).json({ error: 'Client with this phone already exists', existing_id: dupPhone.docs[0].id, existing_name: decryptPII(dupPhone.docs[0].data().name) });
     }
-    // Check for duplicate email
+    // Check for duplicate email — scan and decrypt since emails are encrypted
     if (email) {
       const emailLC = email.toLowerCase().trim();
-      const dupEmail = await req.ws('clients').where('email', '==', emailLC).limit(1).get();
-      if (!dupEmail.empty) return res.status(409).json({ error: 'Client with this email already exists', existing_id: dupEmail.docs[0].id, existing_name: dupEmail.docs[0].data().name });
+      const allClients = await req.ws('clients').limit(500).get();
+      const dupEmail = allClients.docs.find(d => {
+        const stored = decryptPII(d.data().email);
+        return stored && stored.toLowerCase() === emailLC;
+      });
+      if (dupEmail) return res.status(409).json({ error: 'Client with this email already exists', existing_id: dupEmail.id, existing_name: decryptPII(dupEmail.data().name) });
     }
     const plainName = sanitizeHtml(name);
     const plainEmail = sanitizeHtml(email)?.toLowerCase() || null;
@@ -2109,9 +2129,9 @@ app.patch('/api/clients/:id', async (req, res) => {
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).json({ error: 'Client not found' });
     const patch = { updated_at: toIso(new Date()) };
-    if (b.name != null) patch.name = sanitizeHtml(safeStr(b.name));
-    if (b.phone != null) { patch.phone = safeStr(b.phone) || null; patch.phone_norm = normPhone(b.phone) || null; }
-    if (b.email != null) patch.email = sanitizeHtml(safeStr(b.email));
+    if (b.name != null) patch.name = encryptPII(sanitizeHtml(safeStr(b.name)));
+    if (b.phone != null) { patch.phone = b.phone ? encryptPhone(safeStr(b.phone)) : null; patch.phone_norm = normPhone(b.phone) || null; }
+    if (b.email != null) patch.email = encryptPII(sanitizeHtml(safeStr(b.email)));
     if (b.notes != null) patch.notes = sanitizeHtml(safeStr(b.notes));
     if (b.status != null) patch.status = safeStr(b.status);
     if (b.preferred_barber != null) patch.preferred_barber = safeStr(b.preferred_barber);
@@ -2145,7 +2165,13 @@ app.get('/api/bookings', async (req, res) => {
     let query = req.ws('bookings').orderBy('start_at', 'desc').limit(500);
     if (barberId) query = req.ws('bookings').where('barber_id', '==', barberId).orderBy('start_at', 'desc').limit(500);
     const snap = await query.get();
-    let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    let list = snap.docs.map(d => {
+      const data = d.data();
+      // Strip large data URL from list response, send flag instead
+      const hasPhoto = !!(data.reference_photo_url || data.reference_photo?.data_url);
+      const { reference_photo, reference_photo_url, ...rest } = data;
+      return { id: d.id, ...rest, has_reference_photo: hasPhoto };
+    });
     if (statusFilter) list = list.filter(b => String(b.status || '') === statusFilter);
     if (startFrom) list = list.filter(b => String(b.start_at || '') >= startFrom);
     if (startTo) list = list.filter(b => String(b.start_at || '') <= startTo);
@@ -4594,9 +4620,8 @@ async function runAutoReminders() {
         for (const d of snap.docs) {
           const r = d.data();
           if (!r.send_at || new Date(r.send_at) > new Date()) continue;
-          // Check SMS opt-out before sending
-          const phoneDigits = String(r.phone || '').replace(/\D/g, '');
-          const phoneNorm = phoneDigits.length === 11 && phoneDigits.startsWith('1') ? phoneDigits.slice(1) : phoneDigits;
+          // Check SMS opt-out before sending (use stored phone_norm if available)
+          const phoneNorm = r.phone_norm || normPhone(r.phone);
           if (phoneNorm) {
             const optOutSnap = await wsCol('clients').where('phone_norm', '==', phoneNorm).where('sms_opt_out', '==', true).limit(1).get();
             if (!optOutSnap.empty) {
@@ -5282,7 +5307,7 @@ app.get('/api/data-export', requireAuth, async (req, res) => {
       const clientSnap = await wsCol('clients').where('phone_norm', '==', phoneNorm).limit(10).get();
       clientRecords = clientSnap.docs.map(d => {
         const cd = d.data();
-        return { id: d.id, name: cd.name, phone_last4: cd.phone_norm ? '****' + cd.phone_norm.slice(-4) : '', email: cd.email, sms_consent: cd.sms_consent, sms_opt_out: cd.sms_opt_out || false, created_at: cd.created_at };
+        return { id: d.id, name: decryptPII(cd.name), phone_last4: cd.phone_norm ? '****' + cd.phone_norm.slice(-4) : '', email: decryptPII(cd.email), sms_consent: cd.sms_consent, sms_opt_out: cd.sms_opt_out || false, created_at: cd.created_at };
       });
     }
 

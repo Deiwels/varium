@@ -30,9 +30,13 @@ function parseRoleCookie(value: string): { role: string; uid: string } | null {
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // HTTPS redirect in production
+  // HTTPS redirect in production (skip on Vercel/Cloud Run which handle TLS at proxy level)
+  const proto = req.headers.get('x-forwarded-proto')
+  const isVercel = !!req.headers.get('x-vercel-id')
+  const isCloudRun = !!req.headers.get('x-cloud-trace-context')
   if (
-    req.headers.get('x-forwarded-proto') === 'http' &&
+    proto === 'http' &&
+    !isVercel && !isCloudRun &&
     !req.nextUrl.hostname.includes('localhost')
   ) {
     const url = req.nextUrl.clone()
