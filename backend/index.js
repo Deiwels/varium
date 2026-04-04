@@ -549,10 +549,10 @@ function getApnsJwt() {
   } catch (e) { console.warn('getApnsJwt error:', e?.message); return null; }
 }
 
-function sendApnsPush(deviceToken, title, body, data = {}, bundleId = 'com.vuriumbook.app') {
+function sendApnsPush(deviceToken, title, body, data = {}, bundleId = 'com.vurium.VuriumBook') {
   const apnsJwt = getApnsJwt();
-  if (!apnsJwt || !deviceToken) return Promise.resolve(null);
-  const host = (process.env.APNS_ENV || 'production') === 'sandbox' ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
+  if (!apnsJwt || !deviceToken) { console.warn('🔔 [APNs] Skip push: jwt=' + !!apnsJwt + ' token=' + !!deviceToken); return Promise.resolve(null); }
+  const host = (process.env.APNS_ENV || 'sandbox') === 'sandbox' ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
   return new Promise((resolve) => {
     try {
       const client = http2.connect(`https://${host}`);
@@ -560,13 +560,15 @@ function sendApnsPush(deviceToken, title, body, data = {}, bundleId = 'com.vuriu
       const headers = { ':method': 'POST', ':path': `/3/device/${deviceToken}`, 'authorization': `bearer ${apnsJwt}`, 'apns-topic': bundleId, 'apns-push-type': 'alert', 'apns-priority': '10' };
       const req = client.request(headers);
       let respData = '';
+      let status = 0;
+      req.on('response', (h) => { status = h[':status']; });
       req.on('data', c => respData += c);
-      req.on('end', () => { client.close(); resolve(respData); });
-      req.on('error', () => { client.close(); resolve(null); });
+      req.on('end', () => { client.close(); if (status !== 200) console.error('🔔 [APNs] Push failed status=' + status + ' body=' + respData + ' token=' + deviceToken.slice(0,8) + '...'); resolve(respData); });
+      req.on('error', (e) => { client.close(); console.error('🔔 [APNs] Push error:', e?.message); resolve(null); });
       req.write(payload);
       req.end();
       setTimeout(() => { try { client.close(); } catch {} resolve(null); }, 10000);
-    } catch { resolve(null); }
+    } catch (e) { console.error('🔔 [APNs] Push exception:', e?.message); resolve(null); }
   });
 }
 
@@ -574,35 +576,53 @@ async function getCrmDeviceTokens(wsCol, userId) {
   try {
     const snap = await wsCol('crm_push_tokens').where('user_id', '==', userId).get();
     return snap.docs.map(d => d.data().device_token).filter(Boolean);
-  } catch { return []; }
+  } catch (e) { console.error('🔔 [APNs] getCrmDeviceTokens error:', e?.message); return []; }
 }
 
 async function sendCrmPush(wsCol, userId, title, body, data = {}) {
   const tokens = await getCrmDeviceTokens(wsCol, userId);
-  for (const t of tokens) sendApnsPush(t, title, body, data).catch(() => {});
+  console.log('🔔 [APNs] sendCrmPush to user=' + userId + ' tokens=' + tokens.length + ' title=' + title);
+  for (const t of tokens) sendApnsPush(t, title, body, data).catch(e => console.error('🔔 [APNs] sendCrmPush error:', e?.message));
 }
 
 async function sendCrmPushToRoles(wsCol, roles, title, body, data = {}) {
   try {
     const snap = await wsCol('crm_push_tokens').get();
+    let count = 0;
     for (const d of snap.docs) {
       const td = d.data();
-      if (roles.includes(td.role)) sendApnsPush(td.device_token, title, body, data).catch(() => {});
+      if (roles.includes(td.role)) { count++; sendApnsPush(td.device_token, title, body, data).catch(e => console.error('🔔 [APNs] role push error:', e?.message)); }
     }
-  } catch {}
+    console.log('🔔 [APNs] sendCrmPushToRoles roles=' + roles.join(',') + ' sent=' + count + ' title=' + title);
+  } catch (e) { console.error('🔔 [APNs] sendCrmPushToRoles error:', e?.message); }
 }
 
 async function sendCrmPushToBarber(wsCol, barberId, title, body, data = {}) {
   try {
     const snap = await wsCol('crm_push_tokens').where('barber_id', '==', barberId).get();
-    for (const d of snap.docs) sendApnsPush(d.data().device_token, title, body, data).catch(() => {});
-  } catch {}
+    console.log('🔔 [APNs] sendCrmPushToBarber barber=' + barberId + ' tokens=' + snap.size + ' title=' + title);
+    for (const d of snap.docs) sendApnsPush(d.data().device_token, title, body, data).catch(e => console.error('🔔 [APNs] barber push error:', e?.message));
+  } catch (e) { console.error('🔔 [APNs] sendCrmPushToBarber error:', e?.message); }
 }
 
 async function sendCrmPushToStaff(wsCol, barberId, title, body, data = {}) {
-  sendCrmPushToRoles(wsCol, ['owner', 'admin'], title, body, data).catch(() => {});
-  if (barberId) sendCrmPushToBarber(wsCol, barberId, title, body, data).catch(() => {});
+  sendCrmPushToRoles(wsCol, ['owner', 'admin'], title, body, data).catch(e => console.error('🔔 [APNs] staff roles error:', e?.message));
+  if (barberId) sendCrmPushToBarber(wsCol, barberId, title, body, data).catch(e => console.error('🔔 [APNs] staff barber error:', e?.message));
 }
+
+// Startup APNs check
+(function checkApnsConfig() {
+  const keyId = process.env.APNS_KEY_ID || '';
+  const teamId = process.env.APNS_TEAM_ID || '';
+  const keyPath = process.env.APNS_KEY_PATH || '';
+  const env = process.env.APNS_ENV || 'sandbox';
+  if (!keyId || !teamId || !keyPath) {
+    console.warn('⚠️  [APNs] Push notifications DISABLED — missing env vars: ' +
+      (!keyId ? 'APNS_KEY_ID ' : '') + (!teamId ? 'APNS_TEAM_ID ' : '') + (!keyPath ? 'APNS_KEY_PATH' : ''));
+  } else {
+    console.log('🔔 [APNs] Push enabled — env=' + env + ' keyId=' + keyId + ' teamId=' + teamId);
+  }
+})();
 
 // ============================================================
 // SQUARE PAYMENT HELPERS
