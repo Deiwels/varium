@@ -348,25 +348,30 @@ function vuriumEmailTemplate(title, bodyHtml, shopName, logoUrl, template) {
   const displayName = shopName || 'VuriumBook';
   const t = EMAIL_THEMES[template] || EMAIL_THEMES.modern;
   const isLight = ['classic', 'colorful'].includes(template);
+  const colorScheme = isLight ? 'light' : 'dark';
   const logoHtml = logoUrl
     ? `<img src="${logoUrl}" width="40" height="40" style="border-radius:10px;display:block;margin:0 auto;" alt="${displayName}">`
     : `<div style="width:48px;height:48px;margin:0 auto;border-radius:14px;background:${isLight ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.06)'};border:1px solid ${t.border};text-align:center;line-height:48px;font-size:22px;font-weight:700;color:${t.muted};">${(displayName || 'V')[0].toUpperCase()}</div>`;
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="${colorScheme}">
+<meta name="supported-color-schemes" content="${colorScheme}">
+<style>:root{color-scheme:${colorScheme};}body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}img{-ms-interpolation-mode:bicubic;border:0;}</style>
+</head>
 <body style="margin:0;padding:0;background:${t.bg};font-family:'Inter',Helvetica,Arial,sans-serif;color:${t.text};">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:${t.bg};padding:40px 20px;">
 <tr><td align="center">
 <table width="100%" style="max-width:480px;background:${t.card};border:1px solid ${t.border};border-radius:20px;overflow:hidden;">
-<tr><td style="padding:32px 28px 24px;text-align:center;">
+<tr><td style="padding:32px 28px 24px;text-align:center;background:${t.card};">
 <div style="margin-bottom:16px;">
 ${logoHtml}
 </div>
 <div style="font-size:13px;font-weight:500;color:${t.muted};letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;">${displayName}</div>
 <h1 style="margin:0;font-size:22px;font-weight:600;color:${t.text};letter-spacing:-.02em;">${title}</h1>
 </td></tr>
-<tr><td style="padding:24px 28px 28px;font-size:14px;line-height:1.7;color:${t.muted};">
+<tr><td style="padding:24px 28px 28px;font-size:14px;line-height:1.7;color:${t.muted};background:${t.card};">
 ${bodyHtml}
 </td></tr>
-<tr><td style="padding:16px 28px;border-top:1px solid ${t.border};text-align:center;">
+<tr><td style="padding:16px 28px;border-top:1px solid ${t.border};text-align:center;background:${t.card};">
 <a href="https://vurium.com" style="font-size:11px;color:${t.footer};text-decoration:none;">Powered by VuriumBook</a>
 </td></tr>
 </table>
