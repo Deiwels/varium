@@ -162,7 +162,7 @@ function ManageBookingContent() {
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: '#000', border: '1px solid rgba(255,255,255,.12)', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="https://vurium.com/logo-white.png" width={30} height={30} style={{ borderRadius: 8 }} alt="Logo" />
+            <img src="https://vurium.com/logo-white.jpg" width={30} height={30} style={{ borderRadius: 8 }} alt="Logo" />
           </div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>Manage Booking</h1>
         </div>
