@@ -76,8 +76,8 @@ function UsersTab() {
     setLoading(true)
     try {
       const [ud, bd] = await Promise.all([apiFetch('/api/users'), apiFetch('/api/barbers')])
-      setUsers(ud?.users || [])
-      setBarbers(bd?.barbers || [])
+      setUsers(Array.isArray(ud) ? ud : ud?.users || [])
+      setBarbers(Array.isArray(bd) ? bd : bd?.barbers || [])
     }
     catch (e: any) { setMsg('Error: ' + e.message) }
     setLoading(false)
