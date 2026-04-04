@@ -6,6 +6,7 @@ export default function CookieBanner() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
+    if ((window as any).__VURIUM_IS_NATIVE) return
     if (!localStorage.getItem('cookie_notice_seen')) {
       setVisible(true)
     }

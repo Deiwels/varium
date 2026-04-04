@@ -2540,7 +2540,7 @@ export default function CalendarPage() {
           return (
             <>
             {/* Date dots with numbers — centered above pill nav */}
-            <div style={{ position: 'fixed', bottom: 50, left: 0, right: 0, zIndex: 61, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 5, padding: '3px 0', pointerEvents: 'auto' }}>
+            <div className="date-dot-wrap" style={{ position: 'fixed', bottom: 50, left: 0, right: 0, zIndex: 61, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 5, padding: '3px 0', pointerEvents: 'auto' }}>
               {dots.slice(1, -1).map((dot, i, arr) => {
                 const distFromCenter = Math.abs(i - Math.floor(arr.length / 2))
                 // Center neighbors = biggest, edges = smallest

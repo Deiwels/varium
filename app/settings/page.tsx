@@ -92,7 +92,7 @@ function UsersTab() {
     if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) { setMsg('Password must contain a letter and a number'); return }
     setCreating(true); setMsg('')
     try {
-      await apiFetch('/api/users', { method: 'POST', body: JSON.stringify({ name: name.trim(), username: email.trim().toLowerCase(), password, role, ...(role === 'barber' && barberId ? { barber_id: barberId } : {}) }) })
+      await apiFetch('/api/users', { method: 'POST', body: JSON.stringify({ name: name.trim(), username: email.trim().toLowerCase(), email: email.trim().toLowerCase(), password, role, ...(role === 'barber' && barberId ? { barber_id: barberId } : {}) }) })
       setName(''); setEmail(''); setPassword(''); setBarberId(''); setShowForm(false)
       setMsg('Team member added'); load()
     } catch (e: any) { setMsg('Error: ' + e.message) }

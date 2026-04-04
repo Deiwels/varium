@@ -723,8 +723,12 @@ export default function DashboardPage() {
             case 'w_schedule': {
               const byB: Record<string, Booking[]> = {}
               bookings.forEach(b => { const n = b.barber_name || b.barber || '?'; if (!byB[n]) byB[n] = []; byB[n].push(b) })
-              const fmt = (iso?: string) => { try { return new Date(iso!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) } catch { return '' } }
-              return <div style={{...ws, minHeight: 90}}><div style={wl}>{new Date().toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</div>{Object.keys(byB).length === 0 ? <div style={{ fontSize: 10, color: 'rgba(255,255,255,.2)' }}>No appointments</div> : <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{Object.entries(byB).slice(0,3).map(([n,bs])=><div key={n}><div style={{ fontSize: 8, fontWeight: 600, color: 'rgba(255,255,255,.3)' }}>{n}</div><div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>{bs.slice(0,4).map((b,i)=><span key={i} style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, border: '1px solid rgba(255,255,255,.05)', color: 'rgba(255,255,255,.35)' }}>{fmt(b.start_at)}</span>)}</div></div>)}</div>}</div>
+              const entries = Object.entries(byB).slice(0, 6)
+              const half = Math.ceil(entries.length / 2)
+              const leftCol = entries.slice(0, half)
+              const rightCol = entries.slice(half)
+              const schedCol = (items: [string, Booking[]][]) => <div style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>{items.map(([n, bs]) => <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 3 }}><div style={{ fontSize: 7, fontWeight: 600, color: 'rgba(255,255,255,.3)', width: 22, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n}</div><span style={{ fontSize: 7, color: 'rgba(255,255,255,.25)' }}>{bs.length}</span></div>)}</div>
+              return <div style={{...ws, minHeight: 50, padding: '6px 8px'}}><div style={wl}>{new Date().toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</div>{entries.length === 0 ? <div style={{ fontSize: 10, color: 'rgba(255,255,255,.2)' }}>No appointments</div> : <div style={{ display: 'flex', gap: 6 }}>{schedCol(leftCol)}{rightCol.length > 0 && schedCol(rightCol)}</div>}</div>
             }
             case 'w_revenue': {
               const days = widgetData.weeklyRevenue || []
@@ -785,7 +789,7 @@ export default function DashboardPage() {
         // Row heights: icon rows ~82px, widget rows ~90px (small) or ~110px (medium/activity)
         const rowHeights: Record<number, number> = {}
         cells.forEach(c => {
-          const h = c.item.type === 'icon' ? 82 : c.item.id === 'w_activity' ? 110 : 90
+          const h = c.item.type === 'icon' ? 82 : c.item.id === 'w_activity' ? 110 : c.item.id === 'w_schedule' ? 60 : 90
           rowHeights[c.row] = Math.max(rowHeights[c.row] || 0, h)
         })
         const totalRows = Math.max(...Object.keys(rowHeights).map(Number), 0) + 1
