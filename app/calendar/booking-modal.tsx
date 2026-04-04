@@ -1069,6 +1069,16 @@ export function BookingModal({
                 <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any notes…" rows={2}
                   style={{ ...inp, height: 'auto', padding: '10px 12px', resize: 'vertical' as const, lineHeight: 1.5 }} />
               </div>
+              {!isNew && existingEvent?._raw?.created_at && (
+                <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 16, paddingTop: 2 }}>
+                  <div>
+                    <span style={{ fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,.35)' }}>Created</span>
+                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', marginTop: 2 }}>
+                      {new Date(existingEvent._raw.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}, {new Date(existingEvent._raw.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Services — collapsible checkbox list grouped by type */}
