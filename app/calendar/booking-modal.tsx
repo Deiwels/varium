@@ -1087,12 +1087,30 @@ export function BookingModal({
                 <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any notes…" rows={2}
                   style={{ ...inp, height: 'auto', padding: '10px 12px', resize: 'vertical' as const, lineHeight: 1.5 }} />
               </div>
-              {!isNew && existingEvent?._raw?.created_at && (
-                <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 16, paddingTop: 2 }}>
+              {!isNew && (existingEvent?._raw?.created_at || existingEvent?._raw?.source) && (
+                <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 16, paddingTop: 2, flexWrap: 'wrap' }}>
+                  {existingEvent?._raw?.created_at && (
+                    <div>
+                      <span style={{ fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,.35)' }}>Created</span>
+                      <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', marginTop: 2 }}>
+                        {new Date(existingEvent._raw.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}, {new Date(existingEvent._raw.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  )}
                   <div>
-                    <span style={{ fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,.35)' }}>Created</span>
+                    <span style={{ fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,.35)' }}>Booked by</span>
                     <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', marginTop: 2 }}>
-                      {new Date(existingEvent._raw.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}, {new Date(existingEvent._raw.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                      {(() => {
+                        const cb = existingEvent?._raw?.created_by
+                        const src = existingEvent?._raw?.source
+                        if (cb?.name && cb?.role) {
+                          const roleLabel = cb.role === 'owner' ? 'Owner' : cb.role === 'admin' ? 'Admin' : cb.role === 'barber' ? 'Barber' : cb.role === 'client' ? 'Client' : cb.role
+                          return `${cb.name} (${roleLabel})`
+                        }
+                        if (src === 'website') return 'Client (online)'
+                        if (src === 'square') return 'Square'
+                        return 'Staff (CRM)'
+                      })()}
                     </div>
                   </div>
                 </div>

@@ -2311,6 +2311,7 @@ app.post('/api/bookings', async (req, res) => {
       paid: data.paid || false,
       workspace_id: req.wsId,
       client_token: crypto.randomBytes(24).toString('hex'),
+      created_by: req.user ? { uid: req.user.uid, name: req.user.name || req.user.username, role: req.user.role } : null,
       created_at: toIso(new Date()), updated_at: toIso(new Date()),
     };
 
@@ -4371,6 +4372,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       sms_consent_at: smsConsent ? toIso(new Date()) : null,
       workspace_id: wsId,
       client_token: crypto.randomBytes(24).toString('hex'),
+      created_by: { name: clientName || 'Client', role: 'client' },
       created_at: toIso(new Date()), updated_at: toIso(new Date()),
     };
     const bookingsRef = wsCol('bookings');
