@@ -177,6 +177,7 @@ export default function PublicBookingPage() {
   const [clientPhone, setClientPhone] = useState('')
   const [clientEmail, setClientEmail] = useState('')
   const [clientNote, setClientNote] = useState('')
+  const [referencePhoto, setReferencePhoto] = useState<{ dataUrl: string; name: string } | null>(null)
   const [smsConsent, setSmsConsent] = useState(false)
   const [bookLoading, setBookLoading] = useState(false)
   const [booked, setBooked] = useState(false)
@@ -359,6 +360,9 @@ export default function PublicBookingPage() {
     if (!clientName || !selectedBarber || !selectedSlot) return
     setBookLoading(true); setError('')
     try {
+      const noteWithPhoto = referencePhoto
+        ? (clientNote ? `${clientNote}\nReference photo attached: ${referencePhoto.name}` : `Reference photo attached: ${referencePhoto.name}`)
+        : clientNote
       const res = await api(`/public/bookings/${resolvedWsId}`, {
         method: 'POST',
         body: JSON.stringify({
@@ -373,7 +377,8 @@ export default function PublicBookingPage() {
           service_ids: selectedServiceIds,
           service_name: combinedServiceName || 'Appointment',
           duration_minutes: totalDuration,
-          customer_note: clientNote || undefined,
+          customer_note: noteWithPhoto || undefined,
+          reference_photo: referencePhoto ? { data_url: referencePhoto.dataUrl, file_name: referencePhoto.name } : undefined,
         }),
       })
       if (res.error) throw new Error(res.error)
@@ -388,6 +393,9 @@ export default function PublicBookingPage() {
     setPaymentLoading(true); setError('')
     try {
       // 1. Create booking first
+      const payNoteWithPhoto = referencePhoto
+        ? (clientNote ? `${clientNote}\nReference photo attached: ${referencePhoto.name}` : `Reference photo attached: ${referencePhoto.name}`)
+        : clientNote
       const bookRes = await api(`/public/bookings/${resolvedWsId}`, {
         method: 'POST',
         body: JSON.stringify({
@@ -402,7 +410,8 @@ export default function PublicBookingPage() {
           service_ids: selectedServiceIds,
           service_name: combinedServiceName || 'Appointment',
           duration_minutes: totalDuration,
-          customer_note: clientNote || undefined,
+          customer_note: payNoteWithPhoto || undefined,
+          reference_photo: referencePhoto ? { data_url: referencePhoto.dataUrl, file_name: referencePhoto.name } : undefined,
         }),
       })
       if (bookRes.error) throw new Error(bookRes.error)
@@ -437,7 +446,7 @@ export default function PublicBookingPage() {
   function resetBooking() {
     setStep(isSolo ? 1 : 0); setSelectedServiceIds([]); setSelectedSlot('')
     setSelectedDate(''); setClientName(''); setClientPhone('')
-    setClientNote(''); setBooked(false); setError('')
+    setClientNote(''); setReferencePhoto(null); setBooked(false); setError('')
     setPayOnline(false); setPaymentClientSecret(''); setPaymentBookingId('')
     setShowWaitlistForm(false); setWaitlistDone(false); setWaitlistPhone(''); setWaitlistName('')
     if (!isSolo) setSelectedBarber(null)
@@ -1018,6 +1027,63 @@ export default function PublicBookingPage() {
                   style={{ ...inp, resize: 'vertical' }} />
               </div>
 
+              {/* Reference photo upload */}
+              <div>
+                <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Reference photo (optional)</label>
+                <div style={{
+                  border: `1px dashed ${isLightTheme ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.12)'}`,
+                  borderRadius: 12, padding: '12px 14px',
+                  background: isLightTheme ? 'rgba(0,0,0,.02)' : 'rgba(255,255,255,.02)',
+                }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      if (file.size > 10 * 1024 * 1024) { setError('Photo must be under 10MB'); return }
+                      const reader = new FileReader()
+                      reader.onload = () => {
+                        // Compress to JPEG if large
+                        const img = new Image()
+                        img.onload = () => {
+                          const maxW = 1200
+                          const scale = img.width > maxW ? maxW / img.width : 1
+                          const w = Math.round(img.width * scale)
+                          const h = Math.round(img.height * scale)
+                          const canvas = document.createElement('canvas')
+                          canvas.width = w; canvas.height = h
+                          canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+                          let q = 0.75
+                          let dataUrl = canvas.toDataURL('image/jpeg', q)
+                          while (dataUrl.length > 500000 && q > 0.3) { q -= 0.1; dataUrl = canvas.toDataURL('image/jpeg', q) }
+                          setReferencePhoto({ dataUrl, name: file.name })
+                        }
+                        img.src = reader.result as string
+                      }
+                      reader.readAsDataURL(file)
+                      e.target.value = ''
+                    }}
+                    style={{ fontSize: 12, color: textMuted, fontFamily: 'inherit' }}
+                  />
+                  <div style={{ fontSize: 11, color: textDim, marginTop: 6 }}>Attach a reference photo of the style you want</div>
+                </div>
+                {referencePhoto && (
+                  <div style={{ marginTop: 10, position: 'relative', display: 'inline-block' }}>
+                    <img src={referencePhoto.dataUrl} alt="Reference" style={{
+                      maxWidth: 200, maxHeight: 200, borderRadius: 12, objectFit: 'cover',
+                      border: `1px solid ${isLightTheme ? 'rgba(0,0,0,.1)' : 'rgba(255,255,255,.1)'}`,
+                    }} />
+                    <button onClick={() => setReferencePhoto(null)} style={{
+                      position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 999,
+                      background: 'rgba(220,60,60,.8)', border: 'none', color: '#fff', cursor: 'pointer',
+                      fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                    }}>×</button>
+                    <div style={{ fontSize: 11, color: textDim, marginTop: 4 }}>{referencePhoto.name}</div>
+                  </div>
+                )}
+              </div>
+
               {clientPhone && (
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4 }}>
                   <input
@@ -1028,7 +1094,7 @@ export default function PublicBookingPage() {
                     style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }}
                   />
                   <label htmlFor="sms-consent" style={{ fontSize: 12, color: textMuted, lineHeight: 1.5, cursor: 'pointer' }}>
-                    I agree to receive appointment-related SMS (confirmations, reminders, changes) at the number provided. Msg frequency varies, up to 5 msgs per booking. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help. <a href="/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy</a> &amp; <a href="/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a>.
+                    I agree to receive appointment-related SMS from Vurium (confirmations, reminders, changes) at the number provided. Msg frequency varies, up to 5 msgs per booking. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help. <a href="https://vurium.com/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy Policy</a> &amp; <a href="https://vurium.com/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a>.
                   </label>
                 </div>
               )}

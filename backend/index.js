@@ -1399,8 +1399,8 @@ app.post('/auth/login-email', async (req, res) => {
         break;
       }
     }
-    if (!foundUser || !foundWsId) return res.status(401).json({ error: 'Invalid email or password' });
-    if (!checkPassword(password, foundUser.password_hash)) return res.status(401).json({ error: 'Invalid email or password' });
+    if (!foundUser || !foundWsId) { trackFailedLogin(ip, email); return res.status(401).json({ error: 'Invalid email or password' }); }
+    if (!checkPassword(password, foundUser.password_hash)) { trackFailedLogin(ip, email); return res.status(401).json({ error: 'Invalid email or password' }); }
     await resetRateLimit(ip);
     const token = jwt.sign({
       uid: foundUser.uid, username: foundUser.username, role: foundUser.role,
@@ -1544,6 +1544,9 @@ app.delete('/api/auth/delete-account', async (req, res) => {
     if (!checkPassword(password, userDoc.data().password_hash)) {
       return res.status(401).json({ error: 'Incorrect password' });
     }
+
+    // Log security event for account deletion
+    alertSecurityBreach('Account Deletion', { workspace: req.wsId, user_id: req.user.uid, role: req.user.role, ip: req.ip });
 
     if (req.user.role === 'owner') {
       // Owner: delete entire workspace and all subcollections
@@ -2010,11 +2013,20 @@ app.post('/api/bookings', async (req, res) => {
     const tz = settingsData?.timezone || 'America/Chicago';
     const shopName = safeStr(settingsData?.shop_name || '');
     if (doc.client_phone) {
-      const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
-      const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
-      const prefix = shopName ? `${shopName}: ` : '';
-      sendSms(doc.client_phone, `${prefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your barber'}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`).catch(() => {});
-      scheduleReminders(req.ws, bookingRef.id, doc, tz, shopName).catch(() => {});
+      // Check SMS opt-out before sending
+      const adminPhoneNorm = normPhone(doc.client_phone);
+      let adminOptedOut = false;
+      if (adminPhoneNorm) {
+        const optSnap = await req.ws('clients').where('phone_norm', '==', adminPhoneNorm).where('sms_opt_out', '==', true).limit(1).get();
+        adminOptedOut = !optSnap.empty;
+      }
+      if (!adminOptedOut) {
+        const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+        const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
+        const prefix = shopName ? `${shopName}: ` : '';
+        sendSms(doc.client_phone, `${prefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your barber'}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`).catch(() => {});
+        scheduleReminders(req.ws, bookingRef.id, doc, tz, shopName).catch(() => {});
+      }
     }
     sendCrmPushToStaff(req.ws, doc.barber_id, 'New Booking', `${doc.client_name || 'Client'} booked for ${doc.start_at?.slice(0, 10)}`, { type: 'booking_confirmed' }).catch(() => {});
     // Email confirmation
@@ -2152,12 +2164,20 @@ app.delete('/api/bookings/:id', async (req, res) => {
     const bookingData = doc.data();
     await ref.update({ status: 'cancelled', updated_at: toIso(new Date()) });
     writeAuditLog(req.wsId, { action: 'booking.cancelled', resource_id: req.params.id, req }).catch(() => {});
-    // SMS cancellation notification
+    // SMS cancellation notification (check opt-out first)
     if (bookingData.client_phone) {
-      const cancelSettings = await req.ws('settings').doc('config').get();
-      const cancelShopName = cancelSettings.exists ? safeStr(cancelSettings.data()?.shop_name || '') : '';
-      const cancelPrefix = cancelShopName ? `${cancelShopName}: ` : '';
-      sendSms(bookingData.client_phone, `${cancelPrefix}Your appointment with ${bookingData.barber_name || 'your barber'} has been cancelled. Reply STOP to opt out, HELP for help.`).catch(() => {});
+      const cancelPhoneNorm = normPhone(bookingData.client_phone);
+      let cancelOptedOut = false;
+      if (cancelPhoneNorm) {
+        const coSnap = await req.ws('clients').where('phone_norm', '==', cancelPhoneNorm).where('sms_opt_out', '==', true).limit(1).get();
+        cancelOptedOut = !coSnap.empty;
+      }
+      if (!cancelOptedOut) {
+        const cancelSettings = await req.ws('settings').doc('config').get();
+        const cancelShopName = cancelSettings.exists ? safeStr(cancelSettings.data()?.shop_name || '') : '';
+        const cancelPrefix = cancelShopName ? `${cancelShopName}: ` : '';
+        sendSms(bookingData.client_phone, `${cancelPrefix}Your appointment with ${bookingData.barber_name || 'your barber'} has been cancelled. Reply STOP to opt out, HELP for help.`).catch(() => {});
+      }
     }
     sendCrmPushToBarber(req.ws, bookingData.barber_id, 'Booking Cancelled', `${bookingData.client_name || 'Client'} cancelled`, { type: 'booking_cancelled' }).catch(() => {});
     // Email cancellation notification
@@ -3977,6 +3997,16 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       throw e;
     }
 
+    // Reference photo — store data URL directly (compressed JPEG from frontend)
+    let referencePhoto = null;
+    if (booking.reference_photo && typeof booking.reference_photo === 'object') {
+      const dataUrl = safeStr(booking.reference_photo.data_url || '');
+      const fileName = sanitizeHtml(safeStr(booking.reference_photo.file_name || 'reference-photo'));
+      if (dataUrl && dataUrl.startsWith('data:image/') && dataUrl.length < 800000) {
+        referencePhoto = { data_url: dataUrl, file_name: fileName, uploaded_at: toIso(new Date()) };
+      }
+    }
+
     const doc = {
       client_name: clientName || 'Walk-in',
       client_phone: clientPhone || null,
@@ -3993,6 +4023,8 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       status: 'booked', paid: false, source: 'website',
       notes: sanitizeHtml(safeStr(booking.notes)) || null,
       customer_note: sanitizeHtml(safeStr(booking.customer_note)) || null,
+      reference_photo: referencePhoto,
+      reference_photo_url: referencePhoto ? referencePhoto.data_url : null,
       sms_consent: smsConsent,
       workspace_id: wsId,
       client_token: crypto.randomBytes(24).toString('hex'),
@@ -4323,6 +4355,7 @@ app.get('/api/analytics/summary', async (req, res) => {
 // ============================================================
 let _lastReminderRun = 0;
 let _lastMembershipRun = 0;
+let _lastRetentionRun = 0;
 
 async function runAutoReminders() {
   const now = Date.now();
@@ -4337,6 +4370,16 @@ async function runAutoReminders() {
         for (const d of snap.docs) {
           const r = d.data();
           if (!r.send_at || new Date(r.send_at) > new Date()) continue;
+          // Check SMS opt-out before sending
+          const phoneDigits = String(r.phone || '').replace(/\D/g, '');
+          const phoneNorm = phoneDigits.length === 11 && phoneDigits.startsWith('1') ? phoneDigits.slice(1) : phoneDigits;
+          if (phoneNorm) {
+            const optOutSnap = await wsCol('clients').where('phone_norm', '==', phoneNorm).where('sms_opt_out', '==', true).limit(1).get();
+            if (!optOutSnap.empty) {
+              await d.ref.update({ sent: true, cancelled: true, cancelled_reason: 'sms_opt_out', cancelled_at: toIso(new Date()) });
+              continue;
+            }
+          }
           sendSms(r.phone, r.message).catch(() => {});
           await d.ref.update({ sent: true, sent_at: toIso(new Date()) });
         }
@@ -4399,10 +4442,87 @@ async function runAutoMemberships() {
   } catch (e) { console.warn('runAutoMemberships error:', e?.message); }
 }
 
+// Data retention cleanup — delete bookings older than 2 years (runs daily)
+async function runRetentionCleanup() {
+  const now = Date.now();
+  if (now - _lastRetentionRun < 24 * 60 * 60 * 1000) return; // once per day
+  _lastRetentionRun = now;
+  const cutoff = new Date(now - 2 * 365 * 24 * 60 * 60 * 1000); // 2 years ago
+  const cutoffIso = toIso(cutoff);
+  try {
+    const wsSnap = await db.collection('workspaces').limit(100).get();
+    for (const ws of wsSnap.docs) {
+      try {
+        const old = await db.collection('workspaces').doc(ws.id).collection('bookings')
+          .where('start_at', '<', cutoffIso)
+          .where('status', 'in', ['completed', 'cancelled', 'no_show'])
+          .limit(100).get();
+        for (const d of old.docs) {
+          await d.ref.delete();
+        }
+        if (old.size > 0) console.log(`Retention cleanup: deleted ${old.size} old bookings from ws ${ws.id}`);
+      } catch (e) { console.warn('retention cleanup error for ws', ws.id, e?.message); }
+    }
+  } catch (e) { console.warn('runRetentionCleanup error:', e?.message); }
+}
+
+// Security monitoring — detect suspicious activity
+const _securityCounters = { failedLogins: new Map(), massDeletes: new Map() };
+let _lastSecurityCheck = 0;
+
+function logSecurityEvent(wsId, event) {
+  const col = wsId ? db.collection('workspaces').doc(wsId).collection('security_log') : db.collection('global_security_log');
+  col.add({ ...event, timestamp: toIso(new Date()) }).catch(() => {});
+}
+
+function alertSecurityBreach(type, details) {
+  const alertEmail = process.env.SECURITY_ALERT_EMAIL || 'security@vurium.com';
+  const subject = `[SECURITY ALERT] ${type}`;
+  const html = `
+    <h2 style="color:#e53e3e;">Security Alert: ${type}</h2>
+    <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+    <p><strong>Details:</strong></p>
+    <pre style="background:#f7f7f7;padding:16px;border-radius:8px;font-size:13px;">${JSON.stringify(details, null, 2)}</pre>
+    <p>Please investigate immediately. If this is a data breach, you must notify affected users within 72 hours per GDPR Article 33.</p>
+  `;
+  sendEmail(alertEmail, subject, html, 'Vurium Security').catch(() => {});
+  console.error(`SECURITY ALERT [${type}]:`, JSON.stringify(details));
+}
+
+// Track failed login attempts (brute force detection)
+function trackFailedLogin(ip, email) {
+  const key = `${ip}:${email || 'unknown'}`;
+  const count = (_securityCounters.failedLogins.get(key) || 0) + 1;
+  _securityCounters.failedLogins.set(key, count);
+  if (count >= 10) {
+    alertSecurityBreach('Brute Force Attempt', { ip, email, attempts: count, window: '3 minutes' });
+    _securityCounters.failedLogins.delete(key);
+  }
+}
+
+// Track mass data access/deletion
+function trackMassOperation(wsId, operation, count) {
+  if (count >= 50) {
+    alertSecurityBreach('Mass Data Operation', { workspace: wsId, operation, records_affected: count });
+    logSecurityEvent(wsId, { type: 'mass_operation', operation, count });
+  }
+}
+
+// Reset counters periodically
+function resetSecurityCounters() {
+  const now = Date.now();
+  if (now - _lastSecurityCheck < 3 * 60 * 1000) return;
+  _lastSecurityCheck = now;
+  _securityCounters.failedLogins.clear();
+  _securityCounters.massDeletes.clear();
+}
+
 // Run background jobs every 3 minutes
 setInterval(() => {
   runAutoReminders().catch(() => {});
   runAutoMemberships().catch(() => {});
+  runRetentionCleanup().catch(() => {});
+  resetSecurityCounters();
 }, 3 * 60 * 1000);
 
 // ============================================================
@@ -4964,6 +5084,102 @@ app.post('/api/webhooks/telnyx', async (req, res) => {
 });
 
 // ============================================================
+// GDPR DATA EXPORT (authenticated users)
+// ============================================================
+app.get('/api/data-export', requireAuth, async (req, res) => {
+  try {
+    const wsId = req.wsId;
+    const userId = req.userId;
+    const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
+
+    // Gather user profile
+    const userDoc = await wsCol('users').doc(userId).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+
+    // Gather bookings
+    const bookingsSnap = await wsCol('bookings').where('user_id', '==', userId).limit(500).get();
+    const bookings = bookingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Gather client records by phone
+    const phoneNorm = userData.phone_norm || normPhone(userData.phone || '');
+    let clientRecords = [];
+    if (phoneNorm) {
+      const clientSnap = await wsCol('clients').where('phone_norm', '==', phoneNorm).limit(10).get();
+      clientRecords = clientSnap.docs.map(d => {
+        const cd = d.data();
+        return { id: d.id, name: cd.name, phone_last4: cd.phone_norm ? '****' + cd.phone_norm.slice(-4) : '', email: cd.email, sms_consent: cd.sms_consent, sms_opt_out: cd.sms_opt_out || false, created_at: cd.created_at };
+      });
+    }
+
+    // Gather SMS consent/reminders
+    const remindersSnap = phoneNorm ? await wsCol('sms_reminders').where('phone', '==', phoneNorm).limit(100).get() : { docs: [] };
+    const reminders = remindersSnap.docs.map(d => ({ id: d.id, type: d.data().type, send_at: d.data().send_at, sent: d.data().sent }));
+
+    const exportData = {
+      exported_at: toIso(new Date()),
+      format_version: '1.0',
+      user: {
+        id: userId,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+        created_at: userData.created_at,
+      },
+      client_records: clientRecords,
+      bookings: bookings.map(b => ({
+        id: b.id,
+        service_name: b.service_name,
+        barber_name: b.barber_name,
+        start_at: b.start_at,
+        end_at: b.end_at,
+        status: b.status,
+        created_at: b.created_at,
+      })),
+      sms_reminders: reminders,
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="vurium-data-export-${new Date().toISOString().slice(0, 10)}.json"`);
+    res.json(exportData);
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Public data export (for clients who booked via public page, using client token)
+app.get('/public/data-export/:token', async (req, res) => {
+  try {
+    const token = safeStr(req.params.token);
+    if (!token) return res.status(400).json({ error: 'Token required' });
+    // Find booking by client_token across workspaces
+    const wsSnap = await db.collection('workspaces').limit(100).get();
+    let found = null;
+    for (const ws of wsSnap.docs) {
+      const bSnap = await db.collection('workspaces').doc(ws.id).collection('bookings').where('client_token', '==', token).limit(1).get();
+      if (!bSnap.empty) {
+        const bData = bSnap.docs[0].data();
+        const phoneNorm = normPhone(bData.client_phone || '');
+        // Get all bookings for this client
+        let allBookings = [];
+        if (phoneNorm) {
+          const allSnap = await db.collection('workspaces').doc(ws.id).collection('bookings').where('phone_norm', '==', phoneNorm).limit(200).get();
+          allBookings = allSnap.docs.map(d => ({ id: d.id, service_name: d.data().service_name, barber_name: d.data().barber_name, start_at: d.data().start_at, status: d.data().status, created_at: d.data().created_at }));
+        }
+        found = {
+          exported_at: toIso(new Date()),
+          format_version: '1.0',
+          client: { name: bData.client_name, email: bData.client_email, phone_last4: phoneNorm ? '****' + phoneNorm.slice(-4) : '' },
+          bookings: allBookings,
+        };
+        break;
+      }
+    }
+    if (!found) return res.status(404).json({ error: 'Not found' });
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="vurium-data-export-${new Date().toISOString().slice(0, 10)}.json"`);
+    res.json(found);
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
 // 404 fallback
 // ============================================================
 app.use((req, res) => {
@@ -4975,6 +5191,10 @@ app.use((req, res) => {
 // ============================================================
 app.use((err, req, res, _next) => {
   console.error('Unhandled error:', err.message, err.code || '', err.stack || '');
+  // Log critical unhandled errors for breach detection
+  if (err.message && (err.message.includes('ECONNREFUSED') || err.message.includes('EPERM') || err.message.includes('unauthorized'))) {
+    logSecurityEvent(null, { type: 'unhandled_error', message: err.message, path: req.path, ip: req.ip });
+  }
   res.status(500).json({ error: 'Internal server error' });
 });
 

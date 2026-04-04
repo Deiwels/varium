@@ -370,7 +370,7 @@ export default function SignupPage() {
                 </button>
 
                 <p style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: 'rgba(255,255,255,.2)', lineHeight: 1.5 }}>
-                  By creating an account you agree to our <a href="/terms" style={{ color: 'rgba(130,150,220,.5)', textDecoration: 'none' }}>Terms of Service</a> and <a href="/privacy" style={{ color: 'rgba(130,150,220,.5)', textDecoration: 'none' }}>Privacy Policy</a>.
+                  By creating an account you confirm that you are at least 16 years old and agree to our <a href="/terms" style={{ color: 'rgba(130,150,220,.5)', textDecoration: 'none' }}>Terms of Service</a> and <a href="/privacy" style={{ color: 'rgba(130,150,220,.5)', textDecoration: 'none' }}>Privacy Policy</a>.
                 </p>
               </div>
             </form>

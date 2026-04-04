@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 const COOKIE_NAME = 'VURIUMBOOK_TOKEN'
 
 // Routes that don't need auth
-const PUBLIC_PATHS = ['/', '/signin', '/signup', '/vuriumbook', '/booking', '/book', '/public', '/privacy', '/terms', '/manage-booking', '/reset-password', '/waitlist']
+const PUBLIC_PATHS = ['/', '/signin', '/signup', '/vuriumbook', '/booking', '/book', '/public', '/privacy', '/terms', '/cookies', '/dpa', '/accessibility', '/support', '/manage-booking', '/reset-password', '/waitlist']
 
 // Routes restricted by role
 const OWNER_ADMIN_ONLY = ['/settings', '/payroll', '/billing', '/payments', '/attendance', '/expenses', '/membership']
@@ -29,6 +29,16 @@ function parseRoleCookie(value: string): { role: string; uid: string } | null {
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
+
+  // HTTPS redirect in production
+  if (
+    req.headers.get('x-forwarded-proto') === 'http' &&
+    !req.nextUrl.hostname.includes('localhost')
+  ) {
+    const url = req.nextUrl.clone()
+    url.protocol = 'https'
+    return NextResponse.redirect(url, 301)
+  }
 
   // Always allow public paths, static files, api routes
   if (
