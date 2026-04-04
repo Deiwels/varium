@@ -148,13 +148,13 @@ function ManageBookingContent() {
   }
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.4)', fontFamily: 'Inter,Helvetica,Arial,sans-serif' }}>
+    <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.4)', fontFamily: 'Inter,Helvetica,Arial,sans-serif' }}>
       Loading…
     </div>
   )
 
   if (error) return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: 'Inter,Helvetica,Arial,sans-serif' }}>
+    <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: 'Inter,Helvetica,Arial,sans-serif' }}>
       <div style={{ maxWidth: 400, textAlign: 'center', color: 'rgba(255,130,130,.9)' }}>{error}</div>
     </div>
   )
@@ -162,7 +162,7 @@ function ManageBookingContent() {
   if (!booking) return null
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0a', fontFamily: 'Inter,Helvetica,Arial,sans-serif', color: '#e8e8ed', padding: '40px 20px' }}>
+    <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', background: '#0a0a0a', fontFamily: 'Inter,Helvetica,Arial,sans-serif', color: '#e8e8ed', padding: '40px 20px' }}>
       <div style={{ maxWidth: 480, margin: '0 auto' }}>
 
         {/* Header */}
@@ -299,7 +299,7 @@ function ManageBookingContent() {
 export default function ManageBookingPage() {
   return (
     <Suspense fallback={
-      <div style={{ minHeight: '100vh', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.4)', fontFamily: 'Inter,Helvetica,Arial,sans-serif' }}>
+      <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.4)', fontFamily: 'Inter,Helvetica,Arial,sans-serif' }}>
         Loading…
       </div>
     }>
