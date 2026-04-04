@@ -908,7 +908,7 @@ export default function DashboardPage() {
 
             {/* Done + Add buttons in jiggle mode */}
             {jiggleMode && (
-              <div style={{ position: 'absolute', top: 8, left: 16, right: 16, zIndex: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ position: 'fixed', top: 14, left: 16, right: 16, zIndex: 10003, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <button onClick={e => { e.stopPropagation(); setJiggleMode(false); setShowAddSheet(false) }} style={{ padding: '6px 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Done</button>
                 {hiddenItems.length > 0 && <button onClick={e => { e.stopPropagation(); setShowAddSheet(true) }} style={{ width: 32, height: 32, borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 18, fontWeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>+</button>}
               </div>
