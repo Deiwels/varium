@@ -200,6 +200,19 @@ function UsersTab() {
                 color: u.role === 'owner' ? 'rgba(220,190,100,.7)' : u.role === 'admin' ? 'rgba(130,220,170,.6)' : 'rgba(255,255,255,.4)',
                 textTransform: 'capitalize', flexShrink: 0,
               }}>{u.role === 'barber' ? 'team member' : u.role}</span>
+              {/* Master link */}
+              {u.role === 'barber' && barbers.length > 0 && (
+                <select value={u.barber_id || ''} onChange={async (e) => {
+                  const val = e.target.value || null
+                  try {
+                    await apiFetch(`/api/users/${encodeURIComponent(u.id)}`, { method: 'PATCH', body: JSON.stringify({ barber_id: val }) })
+                    load()
+                  } catch (err: any) { alert(err.message) }
+                }} style={{ ...inpSm, width: 140, flexShrink: 0 }}>
+                  <option value="">No master</option>
+                  {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              )}
               {/* Actions */}
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 <SmBtn onClick={() => resetPw(u.id)}>Reset PW</SmBtn>
