@@ -480,7 +480,7 @@ export default function MessagesPage() {
   const [chatView, setChatView] = useState<'list' | 'conversation'>('list')
   const [chatTarget, setChatTarget] = useState<{ chatType: string; label: string; photo?: string } | null>(null)
   const [staffList, setStaffList] = useState<{id: string; name: string; photo_url?: string; role: string}[]>([])
-  const [dmPreviews, setDmPreviews] = useState<Record<string, { text: string; senderName: string; time: string }>>({})
+  const [dmPreviews, setDmPreviews] = useState<Record<string, { text: string; senderName: string; time: string; senderId?: string }>>({})
   const [messages, setMessages] = useState<Message[]>([])
   const [requests, setRequests] = useState<Request[]>([])
   const [applications, setApplications] = useState<Application[]>([])
