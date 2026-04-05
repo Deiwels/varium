@@ -64,6 +64,11 @@ html {
   width: 140%;
   height: 140%;
   will-change: transform;
+  contain: layout style;
+}
+.stars-wrap {
+  will-change: transform;
+  contain: layout style;
 }
 
 /* ── Individual breathing glow star ── */
@@ -332,6 +337,8 @@ html {
   pointer-events: none;
   opacity: 0;
   animation: nebula-fade 3s ease-out forwards;
+  will-change: transform, opacity;
+  contain: strict;
 }
 
 @keyframes nebula-fade {
@@ -354,6 +361,8 @@ html {
   width: 300px;
   height: 300px;
   animation: orb-slow-rotate 120s linear infinite;
+  will-change: transform;
+  contain: layout style;
 }
 
 .orb-core {

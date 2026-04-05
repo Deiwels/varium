@@ -2,19 +2,14 @@
 import { useEffect, useRef, useState } from 'react'
 
 // Breathing glow stars — fewer, subtler
+// Reduced from 12 to 6 — layout.tsx already has 12 global breathing stars
 const GLOW_STARS = [
   { x: '8%',  y: '9%',   s: 2.5, dur: 4.2, del: 0    },
-  { x: '33%', y: '12%',  s: 3,   dur: 5.0, del: 1.4  },
   { x: '62%', y: '7%',   s: 2,   dur: 3.8, del: 0.6  },
-  { x: '88%', y: '18%',  s: 3.5, dur: 4.6, del: 2.0  },
   { x: '18%', y: '40%',  s: 2.5, dur: 4.8, del: 0.3  },
-  { x: '50%', y: '35%',  s: 3,   dur: 3.5, del: 1.8  },
   { x: '78%', y: '45%',  s: 2,   dur: 5.2, del: 0.9  },
-  { x: '6%',  y: '65%',  s: 2.5, dur: 4.0, del: 2.5  },
   { x: '38%', y: '70%',  s: 2,   dur: 3.6, del: 0.4  },
-  { x: '65%', y: '62%',  s: 3,   dur: 4.4, del: 1.2  },
   { x: '90%', y: '75%',  s: 2,   dur: 5.0, del: 1.7  },
-  { x: '44%', y: '88%',  s: 2.5, dur: 4.2, del: 0.7  },
 ]
 
 export default function Home() {
@@ -27,18 +22,24 @@ export default function Home() {
     setIsMobile(mobile)
 
     let tx = 0, ty = 0, cx = 0, cy = 0
-    let raf: number
+    let raf = 0
+    let running = false
+    let idleTimer: ReturnType<typeof setTimeout> | null = null
+
+    // Cache DOM refs once instead of querying every frame
+    const far  = document.querySelector('.stars-far')   as HTMLElement
+    const mid  = document.querySelector('.stars-mid')   as HTMLElement
+    const near = document.querySelector('.stars-near')  as HTMLElement
+    const orb  = document.querySelector('.orb-parallax') as HTMLElement
+    const neb1 = document.querySelector('.neb-1')        as HTMLElement
+    const neb2 = document.querySelector('.neb-2')        as HTMLElement
 
     function tick() {
+      if (!running) return
       cx += (tx - cx) * 0.02
       cy += (ty - cy) * 0.02
 
-      const far  = document.querySelector('.stars-far')   as HTMLElement
-      const mid  = document.querySelector('.stars-mid')   as HTMLElement
-      const near = document.querySelector('.stars-near')  as HTMLElement
-      const orb  = document.querySelector('.orb-parallax') as HTMLElement
-      const neb1 = document.querySelector('.neb-1')        as HTMLElement
-      const neb2 = document.querySelector('.neb-2')        as HTMLElement
+      if (Math.abs(tx - cx) < 0.001 && Math.abs(ty - cy) < 0.001) { running = false; return }
 
       if (far)  far.style.transform  = `translate(${cx * 3}px, ${cy * 3}px)`
       if (mid)  mid.style.transform  = `translate(${cx * 7}px, ${cy * 7}px)`
@@ -50,13 +51,22 @@ export default function Home() {
       raf = requestAnimationFrame(tick)
     }
 
+    function startLoop() {
+      if (!running) { running = true; raf = requestAnimationFrame(tick) }
+    }
+
+    function onVisibility() {
+      if (document.hidden) { running = false; cancelAnimationFrame(raf) }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
     if (mobile) {
-      // Gyroscope parallax — tilt phone to move stars
       function onOrientation(e: DeviceOrientationEvent) {
         const gamma = Math.max(-15, Math.min(15, e.gamma || 0))
         const beta  = Math.max(-15, Math.min(15, (e.beta || 0) - 45))
         tx = gamma / 15 * 4
         ty = beta  / 15 * 4
+        startLoop()
       }
       const doe = DeviceOrientationEvent as any
       if (typeof doe.requestPermission === 'function') {
@@ -70,13 +80,15 @@ export default function Home() {
       } else {
         window.addEventListener('deviceorientation', onOrientation, { passive: true })
       }
-      raf = requestAnimationFrame(tick)
-      return () => { window.removeEventListener('deviceorientation', onOrientation); cancelAnimationFrame(raf) }
+      return () => { window.removeEventListener('deviceorientation', onOrientation); document.removeEventListener('visibilitychange', onVisibility); cancelAnimationFrame(raf) }
     }
 
     function onMouse(e: MouseEvent) {
       tx = (e.clientX / window.innerWidth - 0.5) * 2
       ty = (e.clientY / window.innerHeight - 0.5) * 2
+      startLoop()
+      if (idleTimer) clearTimeout(idleTimer)
+      idleTimer = setTimeout(() => { running = false }, 2000)
     }
 
     function onScroll() {
@@ -87,12 +99,13 @@ export default function Home() {
 
     window.addEventListener('mousemove', onMouse, { passive: true })
     window.addEventListener('scroll', onScroll, { passive: true })
-    raf = requestAnimationFrame(tick)
 
     return () => {
       window.removeEventListener('mousemove', onMouse)
       window.removeEventListener('scroll', onScroll)
+      document.removeEventListener('visibilitychange', onVisibility)
       cancelAnimationFrame(raf)
+      if (idleTimer) clearTimeout(idleTimer)
     }
   }, [])
 
@@ -133,7 +146,6 @@ export default function Home() {
         <div className="shooting-star shooting-star-2" />
         <div className="nebula-layer neb-1" style={{ width: 900, height: 500, top: '5%', left: '-18%', background: 'rgba(15,20,50,.06)', animationDelay: '.2s' }} />
         <div className="nebula-layer neb-2" style={{ width: 700, height: 400, top: '20%', right: '-12%', background: 'rgba(30,20,55,.04)', animationDelay: '.6s' }} />
-        <div className="nebula-layer" style={{ width: 500, height: 300, bottom: '15%', left: '25%', background: 'rgba(12,25,45,.04)', animationDelay: '1s' }} />
       </div>
       <div className="horizon-grid" />
       <div className="noise-overlay" />
