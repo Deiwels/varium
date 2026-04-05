@@ -165,7 +165,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <Shell>
+    <Shell page="history">
       <div style={{ padding: '16px 16px 120px', maxWidth: 900, margin: '0 auto', fontFamily: 'Inter, system-ui, sans-serif' }}>
 
         {/* ─── Header ──────────────────────────────────────────────────────── */}
