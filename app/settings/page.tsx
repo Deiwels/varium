@@ -140,7 +140,7 @@ function UsersTab() {
       {/* Create form */}
       {showForm && (
         <div style={{ padding: 20, borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.02)' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
             <Field label="Full name"><input value={name} onChange={e => setName(e.target.value)} placeholder="Jane Smith" style={inp} /></Field>
             <Field label="Email (login)"><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@business.com" style={inp} /></Field>
             <Field label="Password"><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 8 chars, letter + number" style={inp} /></Field>
@@ -169,56 +169,63 @@ function UsersTab() {
 
       {/* Team list */}
       {loading ? <div style={{ color: 'rgba(255,255,255,.25)', fontSize: 13, padding: 20, textAlign: 'center' }}>Loading...</div> :
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {users.map(u => (
             <div key={u.id} style={{
-              display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 14,
+              padding: '14px 16px', borderRadius: 16,
               border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)',
               opacity: u.active ? 1 : 0.45, transition: 'opacity .2s',
+              display: 'flex', flexDirection: 'column', gap: 12,
             }}>
-              {/* Avatar */}
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.5)', flexShrink: 0 }}>
-                {initials(u.name || u.username)}
-              </div>
-              {/* Info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#e8e8ed', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {u.name || u.username}
-                  {!u.active && <span style={{ fontSize: 10, color: 'rgba(255,100,100,.6)', marginLeft: 8 }}>inactive</span>}
+              {/* Top row: Avatar + Info + Role badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.5)', flexShrink: 0 }}>
+                  {initials(u.name || u.username)}
                 </div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', marginTop: 2 }}>
-                  {u.username}
-                  {u.barber_id && barbers.find(b => b.id === u.barber_id) && (
-                    <span style={{ marginLeft: 6, color: 'rgba(130,150,220,.6)' }}>· {barbers.find(b => b.id === u.barber_id)!.name}</span>
-                  )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#e8e8ed', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {u.name || u.username}
+                    </span>
+                    {!u.active && <span style={{ fontSize: 9, color: 'rgba(255,100,100,.6)', flexShrink: 0 }}>inactive</span>}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {u.username}
+                  </div>
                 </div>
+                <span style={{
+                  fontSize: 10, fontWeight: 500, letterSpacing: '.04em', padding: '4px 10px', borderRadius: 999,
+                  background: u.role === 'owner' ? 'rgba(220,190,100,.08)' : u.role === 'admin' ? 'rgba(130,220,170,.06)' : 'rgba(255,255,255,.04)',
+                  border: `1px solid ${u.role === 'owner' ? 'rgba(220,190,100,.15)' : u.role === 'admin' ? 'rgba(130,220,170,.12)' : 'rgba(255,255,255,.08)'}`,
+                  color: u.role === 'owner' ? 'rgba(220,190,100,.7)' : u.role === 'admin' ? 'rgba(130,220,170,.6)' : 'rgba(255,255,255,.4)',
+                  textTransform: 'capitalize', flexShrink: 0, whiteSpace: 'nowrap',
+                }}>{u.role === 'barber' ? 'Team' : u.role}</span>
               </div>
-              {/* Role badge */}
-              <span style={{
-                fontSize: 10, fontWeight: 500, letterSpacing: '.04em', padding: '4px 10px', borderRadius: 999,
-                background: u.role === 'owner' ? 'rgba(220,190,100,.08)' : u.role === 'admin' ? 'rgba(130,220,170,.06)' : 'rgba(255,255,255,.04)',
-                border: `1px solid ${u.role === 'owner' ? 'rgba(220,190,100,.15)' : u.role === 'admin' ? 'rgba(130,220,170,.12)' : 'rgba(255,255,255,.08)'}`,
-                color: u.role === 'owner' ? 'rgba(220,190,100,.7)' : u.role === 'admin' ? 'rgba(130,220,170,.6)' : 'rgba(255,255,255,.4)',
-                textTransform: 'capitalize', flexShrink: 0,
-              }}>{u.role === 'barber' ? 'team member' : u.role}</span>
-              {/* Master link */}
-              {u.role === 'barber' && barbers.length > 0 && (
-                <select value={u.barber_id || ''} onChange={async (e) => {
-                  const val = e.target.value || null
-                  try {
-                    await apiFetch(`/api/users/${encodeURIComponent(u.id)}`, { method: 'PATCH', body: JSON.stringify({ barber_id: val }) })
-                    load()
-                  } catch (err: any) { alert(err.message) }
-                }} style={{ ...inpSm, width: 140, flexShrink: 0 }}>
-                  <option value="">No master</option>
-                  {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
+              {/* Master link (if barber) */}
+              {u.barber_id && barbers.find(b => b.id === u.barber_id) && (
+                <div style={{ fontSize: 11, color: 'rgba(130,150,220,.6)', paddingLeft: 52 }}>
+                  Linked to {barbers.find(b => b.id === u.barber_id)!.name}
+                </div>
               )}
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                <SmBtn onClick={() => resetPw(u.id)}>Reset PW</SmBtn>
-                {u.role !== 'owner' && <SmBtn danger onClick={() => toggleActive(u.id, !u.active)}>{u.active ? 'Disable' : 'Enable'}</SmBtn>}
-                {u.role !== 'owner' && <SmBtn danger onClick={() => deleteUser(u.id, u.name || u.username)}>Remove</SmBtn>}
+              {/* Bottom row: Master select + Actions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingLeft: 52 }}>
+                {u.role === 'barber' && barbers.length > 0 && (
+                  <select value={u.barber_id || ''} onChange={async (e) => {
+                    const val = e.target.value || null
+                    try {
+                      await apiFetch(`/api/users/${encodeURIComponent(u.id)}`, { method: 'PATCH', body: JSON.stringify({ barber_id: val }) })
+                      load()
+                    } catch (err: any) { alert(err.message) }
+                  }} style={{ ...inpSm, width: 'auto', minWidth: 100, maxWidth: '100%', flex: '0 1 auto' }}>
+                    <option value="">No master</option>
+                    {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                )}
+                <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', flexShrink: 0 }}>
+                  <SmBtn onClick={() => resetPw(u.id)}>Reset PW</SmBtn>
+                  {u.role !== 'owner' && <SmBtn danger onClick={() => toggleActive(u.id, !u.active)}>{u.active ? 'Disable' : 'Enable'}</SmBtn>}
+                  {u.role !== 'owner' && <SmBtn danger onClick={() => deleteUser(u.id, u.name || u.username)}>Remove</SmBtn>}
+                </div>
               </div>
             </div>
           ))}
