@@ -18,6 +18,10 @@ export default function Home() {
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
+    // Hide global starfield — this page has its own .space-bg starfield
+    const cosmos = document.getElementById('vurium-cosmos')
+    if (cosmos) cosmos.style.display = 'none'
+
     const mobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window
     setIsMobile(mobile)
 
@@ -106,6 +110,8 @@ export default function Home() {
       document.removeEventListener('visibilitychange', onVisibility)
       cancelAnimationFrame(raf)
       if (idleTimer) clearTimeout(idleTimer)
+      // Restore global starfield when leaving landing page
+      if (cosmos) cosmos.style.display = ''
     }
   }, [])
 

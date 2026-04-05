@@ -109,7 +109,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         {/* ── Global cosmic starfield ── */}
-        <div id="vurium-cosmos" style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', background: '#010101' }}>
+        <div id="vurium-cosmos" style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', background: '#010101', willChange: 'transform', contain: 'layout style' as any }}>
 
           {/* Far stars — tiny, many, slow parallax */}
           <div id="v-stars-far" style={{
