@@ -279,7 +279,7 @@ export default function SignupPage() {
                 Create your workspace
               </h1>
               <p style={{ fontSize: 14, color: 'rgba(255,255,255,.35)', marginTop: 10, lineHeight: 1.5 }}>
-                Set up VuriumBook for your business in under a minute.
+                Set up VuriumBook&trade; for your business in under a minute.
               </p>
             </div>
 
@@ -484,7 +484,7 @@ export default function SignupPage() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, color: 'rgba(130,220,170,.8)',
               }}>&#10003;</div>
 
-              <h2 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8, color: '#e8e8ed' }}>Welcome to VuriumBook!</h2>
+              <h2 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8, color: '#e8e8ed' }}>Welcome to VuriumBook&trade;!</h2>
               <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 14, lineHeight: 1.7, marginBottom: 32 }}>
                 Your workspace <strong style={{ color: 'rgba(255,255,255,.7)' }}>{businessName}</strong> is ready.
               </p>

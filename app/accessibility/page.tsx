@@ -55,7 +55,7 @@ export default function AccessibilityPage() {
 
         <h2 style={heading}>Feedback</h2>
         <p style={text}>
-          We welcome your feedback on the accessibility of VuriumBook. If you experience accessibility barriers or have suggestions for improvement, please contact us:
+          We welcome your feedback on the accessibility of VuriumBook&trade;. If you experience accessibility barriers or have suggestions for improvement, please contact us:
         </p>
         <ul style={list}>
           <li>Email: <a href="mailto:support@vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>support@vurium.com</a></li>
@@ -67,7 +67,7 @@ export default function AccessibilityPage() {
 
         <h2 style={heading}>Compatibility</h2>
         <p style={text}>
-          VuriumBook is designed to be compatible with the following assistive technologies:
+          VuriumBook&trade; is designed to be compatible with the following assistive technologies:
         </p>
         <ul style={list}>
           <li>Screen readers (VoiceOver, NVDA, JAWS).</li>

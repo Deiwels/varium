@@ -320,7 +320,7 @@ function ManageBookingContent() {
         )}
 
         <div style={{ textAlign: 'center', marginTop: 32 }}>
-          <a href="https://vurium.com" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Powered by VuriumBook</a>
+          <a href="https://vurium.com" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Powered by VuriumBook&trade;</a>
         </div>
       </div>
     </div>

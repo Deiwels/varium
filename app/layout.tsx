@@ -7,7 +7,7 @@ import CookieBanner from '@/components/CookieBanner'
 
 export const metadata: Metadata = {
   title: 'Vurium — Software That Works',
-  description: 'We build modern software solutions. Our first product: VuriumBook — a powerful booking system for barbershops and salons.',
+  description: 'We build modern software solutions. Our first product: VuriumBook™ — a powerful booking system for barbershops and salons.',
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: '32x32' },
