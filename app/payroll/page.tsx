@@ -469,8 +469,8 @@ export default function PayrollPage() {
       setExpensesTotal(Number(expData?.total || 0))
       setExpensesByCategory(expData?.by_category || {})
       setRules(rulesData?.rules || {})
-      // Admin users
-      const allUsers = usersData?.users || []
+      // Admin users — API returns array directly or { users: [...] }
+      const allUsers = Array.isArray(usersData) ? usersData : (usersData?.users || [])
       // Only admin users (not owner) for admin payroll
       const admins = allUsers.filter((u: any) => u.role === 'admin' && u.active !== false)
       setAdminUsers(admins)
