@@ -1,11 +1,12 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { clearAuthCookie, setAuthCookie } from '@/lib/auth-cookie'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import ImageCropper from '@/components/ImageCropper'
 import { hasPinSetup, verifyPin, getCredentials, getPinUsername } from '@/lib/pin'
 import { usePlan } from '@/components/PlanProvider'
+import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
 
@@ -540,24 +541,21 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
   }, [])
 
   // Periodically check session validity — show PIN overlay if expired
-  useEffect(() => {
+  const checkSession = useCallback(() => {
     if (status !== 'ok' || !user) return
-    const checkSession = () => {
-      const token = localStorage.getItem('VURIUMBOOK_TOKEN')
-      if (!token) { setShowPinOverlay(hasPinSetup()); return }
-      fetch(`${API}/api/auth/me`, { credentials: 'include', headers: { Authorization: `Bearer ${token}` } })
-        .then(r => {
-          if (r.status === 401) {
-            localStorage.removeItem('VURIUMBOOK_TOKEN')
-            if (hasPinSetup()) setShowPinOverlay(true)
-            else { localStorage.removeItem('VURIUMBOOK_USER'); window.location.href = '/signin' }
-          }
-        })
-        .catch(() => {})
-    }
-    const interval = setInterval(checkSession, 5 * 60 * 1000) // check every 5 minutes
-    return () => clearInterval(interval)
+    const token = localStorage.getItem('VURIUMBOOK_TOKEN')
+    if (!token) { setShowPinOverlay(hasPinSetup()); return }
+    fetch(`${API}/api/auth/me`, { credentials: 'include', headers: { Authorization: `Bearer ${token}` } })
+      .then(r => {
+        if (r.status === 401) {
+          localStorage.removeItem('VURIUMBOOK_TOKEN')
+          if (hasPinSetup()) setShowPinOverlay(true)
+          else { localStorage.removeItem('VURIUMBOOK_USER'); window.location.href = '/signin' }
+        }
+      })
+      .catch(() => {})
   }, [status, user])
+  useVisibilityPolling(checkSession, 5 * 60 * 1000, [checkSession])
 
   useEffect(() => {
     if (status === 'noauth') {
@@ -567,45 +565,40 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
   }, [status])
 
   // Poll for unread messages — check latest message per chat type
-  useEffect(() => {
+  const CHAT_COLORS: Record<string, string> = useMemo(() => ({ general: 'rgba(130,150,220,.6)', barbers: 'rgba(130,150,220,.6)', admins: 'rgba(130,220,170,.5)', students: 'rgba(180,140,220,.6)', requests: 'rgba(220,190,130,.5)', applications: 'rgba(220,130,160,.5)' }), [])
+  const checkUnread = useCallback(async () => {
     if (status !== 'ok' || !user) return
-    const CHAT_COLORS: Record<string, string> = { general: 'rgba(130,150,220,.6)', barbers: 'rgba(130,150,220,.6)', admins: 'rgba(130,220,170,.5)', students: 'rgba(180,140,220,.6)', requests: 'rgba(220,190,130,.5)', applications: 'rgba(220,130,160,.5)' }
-    const chatTypes = ['general', 'barbers', 'admins', 'students']
-    const lastSeenKey = 'VB_MSG_LAST_SEEN'
-    const lastSeenAppsKey = 'VB_APPS_LAST_SEEN'
-    const lastSeenReqKey = 'VB_REQ_LAST_SEEN'
+    if (pathname === '/messages') { setUnreadChat(null); return }
+    const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
+    if (!token) return
+    const hdrs = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+    const lastSeen = localStorage.getItem('VB_MSG_LAST_SEEN') || ''
     const isOwnerAdmin = user.role === 'owner' || user.role === 'admin'
-    const hdrs = { Authorization: `Bearer ${localStorage.getItem('VURIUMBOOK_TOKEN') || ''}`, 'Content-Type': 'application/json' }
-
-    async function checkUnread() {
-      if (pathname === '/messages') { setUnreadChat(null); return }
-      const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
-      if (!token) return
-      const lastSeen = localStorage.getItem(lastSeenKey) || ''
-      try {
-        // Fire ALL chat checks in parallel instead of sequentially
-        const chatPromises = chatTypes.map(ct =>
-          fetch(`${API}/api/messages?chatType=${ct}&limit=1`, { credentials: 'include', headers: hdrs })
+    try {
+      // Consolidate: single /api/messages/unread call if available, else batch
+      const chatTypes = ['general', 'barbers', 'admins', 'students']
+      const chatPromises = chatTypes.map(ct =>
+        fetch(`${API}/api/messages?chatType=${ct}&limit=1`, { credentials: 'include', headers: hdrs })
+          .then(r => r.ok ? r.json() : null).catch(() => null)
+          .then(data => ({ ct, data }))
+      )
+      const extraPromises: Promise<{ type: string; data: any }>[] = []
+      if (isOwnerAdmin) {
+        extraPromises.push(
+          fetch(`${API}/api/applications?status=new&limit=1`, { credentials: 'include', headers: hdrs })
             .then(r => r.ok ? r.json() : null).catch(() => null)
-            .then(data => ({ ct, data }))
+            .then(data => ({ type: 'applications', data }))
         )
-        const extraPromises: Promise<{ type: string; data: any }>[] = []
-        if (isOwnerAdmin) {
-          extraPromises.push(
-            fetch(`${API}/api/applications?status=new&limit=1`, { credentials: 'include', headers: hdrs })
-              .then(r => r.ok ? r.json() : null).catch(() => null)
-              .then(data => ({ type: 'applications', data }))
-          )
-          extraPromises.push(
-            fetch(`${API}/api/requests`, { credentials: 'include', headers: hdrs })
-              .then(r => r.ok ? r.json() : null).catch(() => null)
-              .then(data => ({ type: 'requests', data }))
-          )
-        }
+        extraPromises.push(
+          fetch(`${API}/api/requests`, { credentials: 'include', headers: hdrs })
+            .then(r => r.ok ? r.json() : null).catch(() => null)
+            .then(data => ({ type: 'requests', data }))
+        )
+      }
 
-        const [chatResults, ...extraResults] = await Promise.all([
-          Promise.all(chatPromises), ...extraPromises
-        ])
+      const [chatResults, ...extraResults] = await Promise.all([
+        Promise.all(chatPromises), ...extraPromises
+      ])
 
         // Check chat messages
         for (const { ct, data } of chatResults as { ct: string; data: any }[]) {
@@ -620,7 +613,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         if (isOwnerAdmin) {
           const appsResult = extraResults.find((r: any) => r?.type === 'applications')
           if (appsResult) {
-            const lastSeenApps = localStorage.getItem(lastSeenAppsKey) || ''
+            const lastSeenApps = localStorage.getItem('VB_APPS_LAST_SEEN') || ''
             const apps = appsResult.data?.applications || []
             if (apps.length && apps[0]?.created_at > lastSeenApps) {
               setUnreadChat(CHAT_COLORS.applications)
@@ -629,7 +622,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
           }
           const reqResult = extraResults.find((r: any) => r?.type === 'requests')
           if (reqResult) {
-            const lastSeenReq = localStorage.getItem(lastSeenReqKey) || ''
+            const lastSeenReq = localStorage.getItem('VB_REQ_LAST_SEEN') || ''
             const pending = (reqResult.data?.requests || []).filter((r: any) => r.status === 'pending')
             if (pending.length && pending[0]?.createdAt > lastSeenReq) {
               setUnreadChat(CHAT_COLORS.requests)
@@ -639,12 +632,8 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         }
         setUnreadChat(null)
       } catch { /* ignore */ }
-    }
-
-    checkUnread()
-    const interval = setInterval(checkUnread, 20000)
-    return () => clearInterval(interval)
-  }, [status, user, pathname])
+  }, [status, user, pathname, CHAT_COLORS])
+  useVisibilityPolling(checkUnread, 45000, [checkUnread])
 
   // Mark messages as seen when visiting Messages page
   useEffect(() => {

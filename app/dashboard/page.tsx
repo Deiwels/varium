@@ -96,7 +96,15 @@ function KpiCard({ title, value, sub, color }: { title: string; value: string; s
 // ─── Clock Widget — transparent analog clock ──────────────────────────────────
 function ClockWidget() {
   const [time, setTime] = useState(new Date())
-  useEffect(() => { const t = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(t) }, [])
+  useEffect(() => {
+    let t: ReturnType<typeof setInterval> | null = null
+    const start = () => { if (!t) t = setInterval(() => setTime(new Date()), 1000) }
+    const stop = () => { if (t) { clearInterval(t); t = null } }
+    const onVis = () => { if (document.hidden) stop(); else { setTime(new Date()); start() } }
+    document.addEventListener('visibilitychange', onVis)
+    start()
+    return () => { stop(); document.removeEventListener('visibilitychange', onVis) }
+  }, [])
   const h = time.getHours() % 12, m = time.getMinutes(), s = time.getSeconds()
   const hDeg = h * 30 + m * 0.5, mDeg = m * 6, sDeg = s * 6
   const size = 70, cx = size / 2, cy = size / 2
@@ -556,19 +564,15 @@ export default function DashboardPage() {
   const fmtMins = (m: number) => { const h = Math.floor(m / 60); const mm = m % 60; return h > 0 ? `${h}h ${mm}m` : `${mm}m` }
   const clockInSince = clockInTime ? new Date(clockInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : ''
 
-  // Live elapsed timer
-  useEffect(() => {
+  // Live elapsed timer — visibility-aware
+  const tickElapsed = useCallback(() => {
     if (!clockedIn || !clockInTime) { setElapsedStr(''); return }
-    function tick() {
-      const ms = Date.now() - new Date(clockInTime!).getTime()
-      const h = Math.floor(ms / 3600000)
-      const m = Math.floor((ms % 3600000) / 60000)
-      setElapsedStr(h > 0 ? `${h}h ${m}m` : `${m}m`)
-    }
-    tick()
-    const t = setInterval(tick, 30000)
-    return () => clearInterval(t)
+    const ms = Date.now() - new Date(clockInTime).getTime()
+    const h = Math.floor(ms / 3600000)
+    const m = Math.floor((ms % 3600000) / 60000)
+    setElapsedStr(h > 0 ? `${h}h ${m}m` : `${m}m`)
   }, [clockedIn, clockInTime])
+  useVisibilityPolling(tickElapsed, 30000, [tickElapsed])
 
   async function handleClockAction() {
     setClockLoading(true)

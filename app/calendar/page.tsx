@@ -7,6 +7,7 @@ const BookingModal = dynamic(() => import('@/app/calendar/booking-modal').then(m
 const ImageCropper = dynamic(() => import('@/components/ImageCropper'), { ssr: false })
 
 import { apiFetch, API } from '@/lib/api'
+import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Barber {
@@ -81,6 +82,13 @@ const STATUS_COLORS: Record<string, { border: string; bg: string; color: string 
   cancelled: { border: 'rgba(255,107,107,.30)', bg: 'rgba(255,107,107,.07)', color: 'rgba(220,130,160,.5)' },
   model:     { border: 'rgba(168,107,255,.40)', bg: 'rgba(168,107,255,.10)', color: 'rgba(180,140,220,.6)' },
 }
+
+// ─── Reusable style constants (avoid recreating objects on every render) ──────
+const OFFHOURS_GLASS: React.CSSProperties = { backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }
+const OFFHOURS_BG = 'rgba(0,0,0,.15)'
+const OFFHOURS_BORDER = 'rgba(255,255,255,.12)'
+const OFFHOURS_TIME_PILL: React.CSSProperties = { fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 999, background: 'rgba(0,0,0,.50)', border: '1px solid rgba(255,255,255,.18)', color: 'rgba(255,255,255,.55)', letterSpacing: '.04em', fontFamily: 'Inter,sans-serif' }
+
 function Chip({ label, type }: { label: string; type: string }) {
   const s = STATUS_COLORS[type] || STATUS_COLORS.booked
   return <span style={{ fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase', padding: '3px 7px', borderRadius: 999, border: `1px solid ${s.border}`, background: s.bg, color: s.color, whiteSpace: 'nowrap' as const }}>{label}</span>
@@ -924,15 +932,19 @@ export default function CalendarPage() {
   })
   // Re-read user from localStorage when Shell updates it (barber_id might arrive late)
   useEffect(() => {
-    const interval = setInterval(() => {
+    const sync = () => {
       try {
         const fresh = JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || 'null')
-        if (fresh?.barber_id && fresh.barber_id !== currentUser?.barber_id) {
-          setCurrentUser(fresh)
-        }
+        if (fresh?.barber_id && fresh.barber_id !== currentUser?.barber_id) setCurrentUser(fresh)
       } catch {}
-    }, 1500)
-    return () => clearInterval(interval)
+    }
+    // Listen for cross-tab storage changes + check once on visibility restore
+    window.addEventListener('storage', sync)
+    const onVis = () => { if (!document.hidden) sync() }
+    document.addEventListener('visibilitychange', onVis)
+    // One-time delayed check for late barber_id assignment
+    const t = setTimeout(sync, 3000)
+    return () => { window.removeEventListener('storage', sync); document.removeEventListener('visibilitychange', onVis); clearTimeout(t) }
   }, [currentUser?.barber_id])
   const isBarber = currentUser?.role === 'barber'
   const isStudent = currentUser?.role === 'student'
@@ -1064,10 +1076,8 @@ export default function CalendarPage() {
 
   const selectedEvent = events.find(e => e.id === modal.eventId) || null
 
-  useEffect(() => {
-    const tick = () => { setNowMin(tzMinOfDay(new Date())) }
-    tick(); const t = setInterval(tick, 30000); return () => clearInterval(t)
-  }, [])
+  const tickNow = useCallback(() => { setNowMin(tzMinOfDay(new Date())) }, [])
+  useVisibilityPolling(tickNow, 30000, [])
 
   // Per-day schedule overrides stored in localStorage
   // Key: 'sched_override_<barberId>' = {dow: {startMin, endMin}, ...}
@@ -1277,15 +1287,13 @@ export default function CalendarPage() {
     }).catch(e => { console.warn(e); setLoading(false); isFirstLoad.current = false })
   }, [todayStr])
 
-  // Poll bookings + pending blocks every 15s — PAUSE when modal is open
-  useEffect(() => {
-    if (modal.open) return // Don't poll while booking modal is open
-    const interval = setInterval(() => {
-      loadBookings(barbers, services).then(evs => setEvents(evs.map((e: any) => { if ((e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id)) clearArrived(e.id); return !(e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id) ? { ...e, status: 'arrived' } : e }))).catch(console.warn)
-      loadPendingBlocks().catch(() => {})
-    }, 15000)
-    return () => clearInterval(interval)
+  // Poll bookings + pending blocks — PAUSE when modal is open or tab hidden
+  const pollBookings = useCallback(() => {
+    if (modal.open) return
+    loadBookings(barbers, services).then(evs => setEvents(evs.map((e: any) => { if ((e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id)) clearArrived(e.id); return !(e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id) ? { ...e, status: 'arrived' } : e }))).catch(console.warn)
+    loadPendingBlocks().catch(() => {})
   }, [barbers, services, loadBookings, modal.open])
+  useVisibilityPolling(pollBookings, 20000, [pollBookings])
 
   const reload = useCallback(() => {
     loadBookings(barbers, services).then(evs => setEvents(evs.map((e: any) => { if ((e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id)) clearArrived(e.id); return !(e.paid || e.status === 'done' || e.status === 'completed') && arrivedIdsRef.current.has(e.id) ? { ...e, status: 'arrived' } : e }))).catch(console.warn)
@@ -2210,11 +2218,11 @@ export default function CalendarPage() {
                       const sy = minToY(startMin)
                       const ey = minToY(endMin)
 
-                      // Frosted glass effect for off-hours
-                      const GLASS = { backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' } as React.CSSProperties
-                      const BG = 'rgba(0,0,0,.15)'
-                      const BORDER_COLOR = 'rgba(255,255,255,.12)'
-                      const TIME_PILL = { fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 999, background: 'rgba(0,0,0,.50)', border: '1px solid rgba(255,255,255,.18)', color: 'rgba(255,255,255,.55)', letterSpacing: '.04em', fontFamily: 'Inter,sans-serif' } as React.CSSProperties
+                      // Frosted glass effect for off-hours (constants defined at module level)
+                      const GLASS = OFFHOURS_GLASS
+                      const BG = OFFHOURS_BG
+                      const BORDER_COLOR = OFFHOURS_BORDER
+                      const TIME_PILL = OFFHOURS_TIME_PILL
 
                       if (dayOff) return (
                         <div style={{ position: 'absolute', inset: 0, zIndex: 2, background: BG, ...GLASS, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'not-allowed', pointerEvents: 'none' }}>
@@ -2277,9 +2285,15 @@ export default function CalendarPage() {
                       )
                     })()}
                     {/* Grid lines */}
-                    {Array.from({ length: (END_HOUR-START_HOUR)*12 }, (_, i) => (
-                      <div key={i} style={{ position: 'absolute', left: 0, right: 0, top: i*slotH, height: 1, background: i%12===0 ? 'rgba(255,255,255,.10)' : i%4===0 ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.015)', pointerEvents: 'none' }} />
-                    ))}
+                    {/* Grid lines via CSS background instead of 288 individual divs */}
+                    <div style={{
+                      position: 'absolute', inset: 0, pointerEvents: 'none',
+                      backgroundImage: [
+                        `repeating-linear-gradient(to bottom, rgba(255,255,255,.10) 0px, rgba(255,255,255,.10) 1px, transparent 1px, transparent ${slotH * 12}px)`,
+                        `repeating-linear-gradient(to bottom, rgba(255,255,255,.04) 0px, rgba(255,255,255,.04) 1px, transparent 1px, transparent ${slotH * 4}px)`,
+                        `repeating-linear-gradient(to bottom, rgba(255,255,255,.015) 0px, rgba(255,255,255,.015) 1px, transparent 1px, transparent ${slotH}px)`,
+                      ].join(','),
+                    }} />
                     {/* Now line — full width across all columns */}
                     {showNow && (
                       <div style={{ position: 'absolute', left: 0, right: 0, top: nowY, height: 2, background: 'rgba(255,255,255,.5)', boxShadow: '0 0 14px rgba(255,255,255,.10)', pointerEvents: 'none', zIndex: 20 }}>
