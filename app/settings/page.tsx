@@ -590,16 +590,17 @@ export default function SettingsPage() {
     setGeocoding(false)
   }
 
-  const TABS = [
-    { id: 'shop', label: 'General' },
-    { id: 'booking', label: 'Booking' },
-    { id: 'site', label: 'Site Builder' },
-    { id: 'fees', label: 'Fees & Tax' },
-    { id: 'payroll', label: 'Payroll' },
-    { id: 'square', label: 'Integrations' },
-    { id: 'users', label: 'Accounts' },
-    { id: 'billing', label: 'Billing' },
+  const ALL_TABS = [
+    { id: 'shop', label: 'General', ownerOnly: false },
+    { id: 'booking', label: 'Booking', ownerOnly: false },
+    { id: 'site', label: 'Site Builder', ownerOnly: false },
+    { id: 'fees', label: 'Fees & Tax', ownerOnly: true },
+    { id: 'payroll', label: 'Payroll', ownerOnly: true },
+    { id: 'square', label: 'Integrations', ownerOnly: false },
+    { id: 'users', label: 'Accounts', ownerOnly: true },
+    { id: 'billing', label: 'Billing', ownerOnly: true },
   ] as const
+  const TABS = ALL_TABS.filter(t => !t.ownerOnly || userRole === 'owner')
 
   return (
     <Shell page="settings">

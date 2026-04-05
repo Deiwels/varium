@@ -25,8 +25,8 @@ const NAV = [
   { id: 'attendance', href: '/attendance', label: 'Attendance', sub: 'Hours & clock',       ownerAdmin: true },
   { id: 'cash',      href: '/cash',      label: 'Cash',       sub: 'Daily register',      ownerAdmin: true },
   { id: 'membership', href: '/membership', label: 'Membership', sub: 'Recurring clients',   ownerAdmin: true },
-  { id: 'expenses',  href: '/expenses',  label: 'Expenses',   sub: 'Track costs',         ownerAdmin: true },
-  { id: 'payroll',   href: '/payroll',   label: 'Payroll',    sub: 'Commission + tips',   ownerOnly: true },
+  { id: 'expenses',  href: '/expenses',  label: 'Expenses',   sub: 'Track costs',         ownerAdmin: true, feature: 'expenses' },
+  { id: 'payroll',   href: '/payroll',   label: 'Payroll',    sub: 'Commission + tips',   ownerOnly: true, feature: 'payroll' },
   { id: 'billing',   href: '/billing',   label: 'Billing',    sub: 'Plan & payments',     ownerOnly: true },
   { id: 'settings',  href: '/settings',  label: 'Settings',   sub: 'Config & sync',       ownerAdmin: true },
 ] as const

@@ -3089,6 +3089,29 @@ app.delete('/api/reviews/:id', requireRole('owner', 'admin'), async (req, res) =
 // ============================================================
 // MESSAGES
 // ============================================================
+// Get last message preview for each DM conversation
+app.get('/api/messages/dm-previews', requirePlanFeature('messages'), async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    const snap = await req.ws('messages').where('chatType', '>=', 'dm_').where('chatType', '<=', 'dm_\uf8ff').orderBy('chatType').orderBy('createdAt', 'desc').get();
+    const previews = {};
+    for (const d of snap.docs) {
+      const data = d.data();
+      // Only include DMs that involve this user
+      if (!data.chatType.includes(userId)) continue;
+      // Only keep the latest message per chatType
+      if (previews[data.chatType]) continue;
+      previews[data.chatType] = {
+        text: data.content || (data.imageUrl ? '📷 Photo' : data.audioUrl ? '🎤 Voice' : data.fileUrl ? '📎 File' : ''),
+        senderName: data.sender_name || '',
+        senderId: data.sender_id || '',
+        time: data.createdAt || '',
+      };
+    }
+    res.json(previews);
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
 app.get('/api/messages', requirePlanFeature('messages'), async (req, res) => {
   try {
     const chatType = safeStr(req.query?.chatType || 'general');
