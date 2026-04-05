@@ -82,8 +82,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <style dangerouslySetInnerHTML={{ __html: `
           @keyframes starBreathe {
-            0%, 100% { opacity: 0.25; transform: scale(0.8); box-shadow: 0 0 3px 1px rgba(200,220,255,.12); }
-            50% { opacity: 0.85; transform: scale(1.4); box-shadow: 0 0 10px 4px rgba(200,220,255,.25); }
+            0%, 100% { opacity: 0.25; transform: scale(0.8); }
+            50% { opacity: 0.85; transform: scale(1.4); }
           }
           @keyframes slowDrift {
             0% { transform: translate(0,0); }
@@ -135,6 +135,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               position: 'absolute', left: `${s.x}%`, top: `${s.y}%`,
               width: s.size, height: s.size, borderRadius: '50%',
               background: 'rgba(220,230,255,.9)',
+              boxShadow: '0 0 6px 2px rgba(200,220,255,.18)',
               animation: `starBreathe ${s.dur}s ease-in-out ${s.delay}s infinite`,
             }} />
           ))}
