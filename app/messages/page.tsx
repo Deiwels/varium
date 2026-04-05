@@ -595,27 +595,36 @@ export default function MessagesPage() {
   useEffect(() => {
     const vv = window.visualViewport
     if (!vv) return
+    let rafId = 0
     function onResize() {
-      const container = document.querySelector('.msg-container') as HTMLElement
-      if (!container) return
-      container.style.height = `${vv!.height}px`
-      window.scrollTo(0, 0)
-      document.documentElement.scrollTop = 0
-      document.body.scrollTop = 0
+      cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        const container = document.querySelector('.msg-container') as HTMLElement
+        if (!container) return
+        container.style.height = `${vv!.height}px`
+        // Only reset scroll if no input is focused (avoid fighting the keyboard)
+        if (!document.activeElement || document.activeElement === document.body) {
+          window.scrollTo(0, 0)
+        }
+      })
     }
     vv.addEventListener('resize', onResize)
     vv.addEventListener('scroll', onResize)
-    function onBlur() {
+    function onBlur(e: FocusEvent) {
+      // Only reset height if focus is leaving the page entirely (keyboard closing),
+      // not when focus moves between elements (e.g. autocomplete, prediction bar)
+      const related = (e as FocusEvent).relatedTarget as HTMLElement | null
+      if (related) return // focus moved to another element, keyboard is still open
       setTimeout(() => {
+        // Double-check: if something is focused now, keyboard is still open
+        if (document.activeElement && document.activeElement !== document.body) return
         window.scrollTo(0, 0)
-        document.documentElement.scrollTop = 0
-        document.body.scrollTop = 0
         const container = document.querySelector('.msg-container') as HTMLElement
         if (container) container.style.height = '100%'
-      }, 100)
+      }, 300)
     }
     document.addEventListener('focusout', onBlur)
-    return () => { vv.removeEventListener('resize', onResize); vv.removeEventListener('scroll', onResize); document.removeEventListener('focusout', onBlur) }
+    return () => { cancelAnimationFrame(rafId); vv.removeEventListener('resize', onResize); vv.removeEventListener('scroll', onResize); document.removeEventListener('focusout', onBlur) }
   }, [])
 
   // Auto-scroll to bottom
