@@ -136,8 +136,8 @@ function DatePicker({ from, to, onChange, onClose }: {
 }
 
 // ─── CommissionEditor ─────────────────────────────────────────────────────────
-function CommissionEditor({ barber, rule, onSaved }: { barber: BarberPayroll; rule: Rule; onSaved: (r: Rule) => void }) {
-  const [open, setOpen] = useState(false)
+function CommissionEditor({ barber, rule, onSaved, startOpen }: { barber: BarberPayroll; rule: Rule; onSaved: (r: Rule) => void; startOpen?: boolean }) {
+  const [open, setOpen] = useState(!!startOpen)
   const [basePct, setBasePct] = useState(rule.base_pct)
   const [tipsPct, setTipsPct] = useState(rule.tips_pct)
   const [tiers, setTiers] = useState<Tier[]>(rule.tiers || [])
@@ -250,8 +250,8 @@ const DEFAULT_SCHEDULE = Array.from({ length: 7 }, () => ({ enabled: false, star
 function minToTime(m: number) { return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}` }
 function timeToMin(t: string) { const [h, m] = t.split(':').map(Number); return (h || 0) * 60 + (m || 0) }
 
-function AdminPayrollEditor({ userId, userName, rule, onSaved, extraDays, schedule, onScheduleSaved }: { userId: string; userName: string; rule: Rule; onSaved: (r: Rule) => void; extraDays?: number[]; schedule?: any[] | null; onScheduleSaved?: (s: any[]) => void }) {
-  const [open, setOpen] = useState(false)
+function AdminPayrollEditor({ userId, userName, rule, onSaved, extraDays, schedule, onScheduleSaved, startOpen }: { userId: string; userName: string; rule: Rule; onSaved: (r: Rule) => void; extraDays?: number[]; schedule?: any[] | null; onScheduleSaved?: (s: any[]) => void; startOpen?: boolean }) {
+  const [open, setOpen] = useState(!!startOpen)
   const [hourly, setHourly] = useState(rule.hourly_rate ?? 0)
   const [ownerPct, setOwnerPct] = useState(rule.owner_profit_pct ?? 2)
   const [feePct, setFeePct] = useState(rule.service_fee_pct ?? 3)
@@ -390,6 +390,7 @@ export default function PayrollPage() {
   const [expensesTotal, setExpensesTotal] = useState(0)
   const [expensesByCategory, setExpensesByCategory] = useState<Record<string, number>>({})
   const [adminSchedules, setAdminSchedules] = useState<Record<string, any[]>>({})
+  const [rulesModal, setRulesModal] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -953,38 +954,68 @@ export default function PayrollPage() {
               )}
 
               {activeTab === 'rules' && (
-                <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {/* Admin rules */}
-                  {adminUsers.length > 0 && (
-                    <>
-                      <div style={{ ...lbl, marginBottom: 4, marginTop: 4 }}>Admin payroll rules</div>
-                      {adminUsers.map(u => (
-                        <AdminPayrollEditor key={u.id} userId={u.id} userName={u.name || u.username}
-                          rule={rules[u.id] || { base_pct: 0, tips_pct: 0, tiers: [], hourly_rate: 0, owner_profit_pct: 2, service_fee_pct: 3, service_fee_days: [] }}
-                          extraDays={adminWorkDays[u.id] || []}
-                          onSaved={r => { setRules(prev => ({ ...prev, [u.id]: r })); load() }}
-                          schedule={adminSchedules[u.id] || null}
-                          onScheduleSaved={s => setAdminSchedules(prev => ({ ...prev, [u.id]: s }))}
-                        />
-                      ))}
-                      <div style={{ height: 1, background: 'rgba(255,255,255,.08)', margin: '4px 0' }} />
-                      <div style={{ ...lbl, marginBottom: 4 }}>Commission rules</div>
-                    </>
-                  )}
-                  {barbers.length === 0 ? (
-                    <div style={{ color: 'rgba(255,255,255,.35)', fontSize: 12, padding: '12px 0' }}>Load data first</div>
-                  ) : barbers.map(b => (
-                    <CommissionEditor key={b.barber_id} barber={b}
-                      rule={rules[b.barber_id] || b.rule || { base_pct: 60, tips_pct: 100, tiers: [] }}
-                      onSaved={r => { setRules(prev => ({ ...prev, [b.barber_id]: r })); load() }}
-                    />
-                  ))}
+                <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {/* Quick view of rules per barber */}
+                  {adminUsers.map(u => {
+                    const r = rules[u.id] || { hourly_rate: 0, owner_profit_pct: 2, service_fee_pct: 3 }
+                    return (
+                      <div key={u.id} onClick={() => setRulesModal(u.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(143,240,177,.15)', background: 'rgba(143,240,177,.04)', cursor: 'pointer' }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(143,240,177,.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 900, color: 'rgba(130,220,170,.6)' }}>{initials(u.name||u.username)}</div>
+                        <div style={{ flex: 1 }}><span style={{ fontWeight: 700, fontSize: 12 }}>{u.name||u.username}</span> <span style={{ fontSize: 9, color: 'rgba(130,220,170,.5)' }}>ADMIN</span></div>
+                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>${r.hourly_rate||0}/hr · {r.owner_profit_pct||2}% · {r.service_fee_pct||3}%</span>
+                        <span style={{ color: 'rgba(255,255,255,.25)', fontSize: 12 }}>›</span>
+                      </div>
+                    )
+                  })}
+                  {barbers.map(b => {
+                    const r = rules[b.barber_id] || b.rule || { base_pct: 60, tips_pct: 100 }
+                    return (
+                      <div key={b.barber_id} onClick={() => setRulesModal(b.barber_id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', cursor: 'pointer' }}>
+                        {b.barber_photo
+                          ? <img src={b.barber_photo} alt="" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'cover', border: '1px solid rgba(255,255,255,.10)' }} onError={e => (e.currentTarget.style.display='none')} />
+                          : <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 900 }}>{initials(b.barber_name)}</div>
+                        }
+                        <div style={{ flex: 1, fontWeight: 700, fontSize: 12 }}>{b.barber_name}</div>
+                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>{r.base_pct}% base · {r.tips_pct}% tips</span>
+                        <span style={{ color: 'rgba(255,255,255,.25)', fontSize: 12 }}>›</span>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Rules modal */}
+      {rulesModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 16 } as React.CSSProperties}
+          onClick={e => { if (e.target === e.currentTarget) setRulesModal('') }}>
+          <div style={{ width: 'min(520px,96vw)', maxHeight: '85vh', overflowY: 'auto', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'linear-gradient(180deg,rgba(20,20,30,.95),rgba(10,10,18,.92))', backdropFilter: 'blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.60)', padding: '18px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid rgba(255,255,255,.08)' }}>
+              <div style={{ ...lbl, fontSize: 11 }}>Edit rules</div>
+              <button onClick={() => setRulesModal('')} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: '#fff', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>✕</button>
+            </div>
+            {/* Check if it's an admin user */}
+            {adminUsers.find(u => u.id === rulesModal) ? (
+              <AdminPayrollEditor startOpen userId={rulesModal} userName={adminUsers.find(u => u.id === rulesModal)?.name || ''}
+                rule={rules[rulesModal] || { base_pct: 0, tips_pct: 0, tiers: [], hourly_rate: 0, owner_profit_pct: 2, service_fee_pct: 3, service_fee_days: [] }}
+                extraDays={adminWorkDays[rulesModal] || []}
+                onSaved={r => { setRules(prev => ({ ...prev, [rulesModal]: r })); load() }}
+                schedule={adminSchedules[rulesModal] || null}
+                onScheduleSaved={s => setAdminSchedules(prev => ({ ...prev, [rulesModal]: s }))}
+              />
+            ) : barbers.find(b => b.barber_id === rulesModal) ? (
+              <CommissionEditor barber={barbers.find(b => b.barber_id === rulesModal)!}
+                rule={rules[rulesModal] || { base_pct: 60, tips_pct: 100, tiers: [] }}
+                onSaved={r => { setRules(prev => ({ ...prev, [rulesModal]: r })); load() }}
+                startOpen
+              />
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {showDatePicker && (
         <DatePicker from={from} to={to}
