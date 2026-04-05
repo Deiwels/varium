@@ -2617,7 +2617,7 @@ app.get('/api/users', requireRole('owner', 'admin'), async (req, res) => {
     const snap = await req.ws('users').get();
     const list = snap.docs.map(d => {
       const data = d.data();
-      return { id: d.id, username: data.username, name: data.name, role: data.role, active: data.active, barber_id: data.barber_id || null, phone: data.phone || null, photo_url: data.photo_url || null, created_at: data.created_at, updated_at: data.updated_at };
+      return { id: d.id, username: data.username, name: data.name, role: data.role, active: data.active, barber_id: data.barber_id || null, phone: data.phone || null, photo_url: data.photo_url || null, schedule: data.schedule || null, created_at: data.created_at, updated_at: data.updated_at };
     });
     res.json(list);
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -2639,9 +2639,15 @@ app.post('/api/users', requireRole('owner'), async (req, res) => {
       }
     }
     const usernameLC = username.toLowerCase();
+    const emailLC = email ? email.toLowerCase() : null;
     // Check uniqueness within workspace
     const existing = await req.ws('users').where('username', '==', usernameLC).limit(1).get();
     if (!existing.empty) return res.status(409).json({ error: 'Username already exists' });
+    // Check email uniqueness within workspace
+    if (emailLC) {
+      const emailExists = await req.ws('users').where('email', '==', emailLC).limit(1).get();
+      if (!emailExists.empty) return res.status(409).json({ error: 'A team member with this email already exists' });
+    }
     const doc = {
       username: usernameLC,
       name: sanitizeHtml(name || username),

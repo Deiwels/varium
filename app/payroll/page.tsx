@@ -346,6 +346,60 @@ function AdminPayrollEditor({ userId, userName, rule, onSaved, extraDays }: { us
   )
 }
 
+// ─── AdminScheduleEditor ──────────────────────────────────────────────────────
+const DEFAULT_SCHEDULE = Array.from({ length: 7 }, () => ({ enabled: false, startMin: 540, endMin: 1020 }))
+function minToTime(m: number) { return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}` }
+function timeToMin(t: string) { const [h, m] = t.split(':').map(Number); return (h || 0) * 60 + (m || 0) }
+
+function AdminScheduleEditor({ userId, userName, schedule, onSaved }: { userId: string; userName: string; schedule: any[] | null; onSaved: (s: any[]) => void }) {
+  const [sched, setSched] = useState<{ enabled: boolean; startMin: number; endMin: number }[]>(() => {
+    if (Array.isArray(schedule) && schedule.length === 7) return schedule.map(d => ({ enabled: !!d.enabled, startMin: d.startMin ?? d.start_min ?? 540, endMin: d.endMin ?? d.end_min ?? 1020 }))
+    return DEFAULT_SCHEDULE.map(d => ({ ...d }))
+  })
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  function updateDay(i: number, patch: Partial<typeof sched[0]>) {
+    setSched(prev => prev.map((d, idx) => idx === i ? { ...d, ...patch } : d))
+  }
+
+  async function save() {
+    setSaving(true)
+    try {
+      await apiFetch(`/api/users/${encodeURIComponent(userId)}`, { method: 'PATCH', body: JSON.stringify({ schedule: sched }) })
+      onSaved(sched)
+      setSaved(true); setTimeout(() => setSaved(false), 2000)
+    } catch (e: any) { alert('Error: ' + e.message) }
+    setSaving(false)
+  }
+
+  const lbl: React.CSSProperties = { fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', display: 'block', marginBottom: 6 }
+  const timeInp: React.CSSProperties = { height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(0,0,0,.22)', color: '#fff', padding: '0 8px', outline: 'none', fontSize: 12, fontFamily: 'inherit', width: '100%' }
+
+  return (
+    <div style={{ marginTop: 8, borderRadius: 12, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)', padding: '12px 14px' }}>
+      <label style={lbl}>Work schedule — {userName}</label>
+      <div style={{ display: 'grid', gap: 6 }}>
+        {DAY_LABELS.map((d, i) => (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: '50px 44px 1fr 1fr', gap: 8, alignItems: 'center' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: sched[i].enabled ? '#e8e8ed' : 'rgba(255,255,255,.25)' }}>{d}</span>
+            <button onClick={() => updateDay(i, { enabled: !sched[i].enabled })}
+              style={{ height: 28, borderRadius: 8, border: `1px solid ${sched[i].enabled ? 'rgba(143,240,177,.40)' : 'rgba(255,255,255,.10)'}`, background: sched[i].enabled ? 'rgba(143,240,177,.10)' : 'rgba(255,255,255,.03)', color: sched[i].enabled ? 'rgba(130,220,170,.6)' : 'rgba(255,255,255,.30)', cursor: 'pointer', fontSize: 9, fontWeight: 800, fontFamily: 'inherit' }}>
+              {sched[i].enabled ? 'ON' : 'OFF'}
+            </button>
+            <input type="time" value={minToTime(sched[i].startMin)} onChange={e => updateDay(i, { startMin: timeToMin(e.target.value) })} disabled={!sched[i].enabled} style={{ ...timeInp, opacity: sched[i].enabled ? 1 : .3 }} />
+            <input type="time" value={minToTime(sched[i].endMin)} onChange={e => updateDay(i, { endMin: timeToMin(e.target.value) })} disabled={!sched[i].enabled} style={{ ...timeInp, opacity: sched[i].enabled ? 1 : .3 }} />
+          </div>
+        ))}
+      </div>
+      <button onClick={save} disabled={saving}
+        style={{ width: '100%', height: 36, borderRadius: 10, border: `1px solid ${saved ? 'rgba(143,240,177,.45)' : 'rgba(255,255,255,.15)'}`, background: saved ? 'rgba(143,240,177,.15)' : 'rgba(255,255,255,.04)', color: saved ? 'rgba(130,220,170,.6)' : 'rgba(255,255,255,.55)', cursor: 'pointer', fontWeight: 800, fontSize: 12, fontFamily: 'inherit', marginTop: 10 }}>
+        {saving ? 'Saving…' : saved ? 'Schedule saved ✓' : 'Save schedule'}
+      </button>
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function PayrollPage() {
   const [from, setFrom] = useState(thisWeekMonday())
@@ -366,6 +420,7 @@ export default function PayrollPage() {
   const [lateMinutes, setLateMinutes] = useState<Record<string, number>>({})
   const [expensesTotal, setExpensesTotal] = useState(0)
   const [expensesByCategory, setExpensesByCategory] = useState<Record<string, number>>({})
+  const [adminSchedules, setAdminSchedules] = useState<Record<string, any[]>>({})
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -419,6 +474,10 @@ export default function PayrollPage() {
       // Only admin users (not owner) for admin payroll
       const admins = allUsers.filter((u: any) => u.role === 'admin' && u.active !== false)
       setAdminUsers(admins)
+      // Extract admin schedules from user records
+      const schedMap: Record<string, any[]> = {}
+      admins.forEach((u: any) => { if (Array.isArray(u.schedule)) schedMap[u.id] = u.schedule })
+      setAdminSchedules(schedMap)
       // Attendance hours per user (keyed by user_id AND barber_id)
       const attHours: Record<string, number> = {}
       const attRecords = attData?.attendance || []
@@ -861,7 +920,17 @@ export default function PayrollPage() {
                             <div style={{ ...lbl, color: 'rgba(130,220,170,.5)', marginBottom: 10 }}>Admin payroll</div>
                             {adminCalcs.map(({ u, r, hours, basePay, profitShare, feeShare, total, allFeeDays }) => (
                               <div key={u.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-                                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, color: '#e8e8ed' }}>{u.name || u.username}</div>
+                                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2, color: '#e8e8ed' }}>{u.name || u.username}</div>
+                                {/* Compact schedule display */}
+                                {(() => {
+                                  const s = adminSchedules[u.id]
+                                  if (!Array.isArray(s)) return null
+                                  const activeDays = s.map((d, i) => d.enabled ? DAY_LABELS[i] : null).filter(Boolean)
+                                  if (!activeDays.length) return null
+                                  const firstEnabled = s.find(d => d.enabled)
+                                  const timeStr = firstEnabled ? `${minToTime(firstEnabled.startMin)}–${minToTime(firstEnabled.endMin)}` : ''
+                                  return <div style={{ fontSize: 10, color: 'rgba(255,255,255,.30)', marginBottom: 6 }}>{activeDays.join(', ')} · {timeStr}</div>
+                                })()}
                                 <div className="admin-payroll-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 12 }}>
                                   <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Hours: </span><span style={{ color: 'rgba(255,255,255,.6)' }}>{hours.toFixed(1)}h</span></div>
                                   <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Base pay (${r.hourly_rate || 0}/hr): </span><span style={{ color: 'rgba(130,220,170,.8)' }}>{fmtMoney(basePay)}</span></div>
@@ -941,11 +1010,17 @@ export default function PayrollPage() {
                     <>
                       <div style={{ ...lbl, marginBottom: 4, marginTop: 4 }}>Admin payroll rules</div>
                       {adminUsers.map(u => (
-                        <AdminPayrollEditor key={u.id} userId={u.id} userName={u.name || u.username}
-                          rule={rules[u.id] || { base_pct: 0, tips_pct: 0, tiers: [], hourly_rate: 0, owner_profit_pct: 2, service_fee_pct: 3, service_fee_days: [] }}
-                          extraDays={adminWorkDays[u.id] || []}
-                          onSaved={r => { setRules(prev => ({ ...prev, [u.id]: r })); load() }}
-                        />
+                        <div key={u.id}>
+                          <AdminPayrollEditor userId={u.id} userName={u.name || u.username}
+                            rule={rules[u.id] || { base_pct: 0, tips_pct: 0, tiers: [], hourly_rate: 0, owner_profit_pct: 2, service_fee_pct: 3, service_fee_days: [] }}
+                            extraDays={adminWorkDays[u.id] || []}
+                            onSaved={r => { setRules(prev => ({ ...prev, [u.id]: r })); load() }}
+                          />
+                          <AdminScheduleEditor userId={u.id} userName={u.name || u.username}
+                            schedule={adminSchedules[u.id] || null}
+                            onSaved={s => setAdminSchedules(prev => ({ ...prev, [u.id]: s }))}
+                          />
+                        </div>
                       ))}
                       <div style={{ height: 1, background: 'rgba(255,255,255,.08)', margin: '4px 0' }} />
                       <div style={{ ...lbl, marginBottom: 4 }}>Commission rules</div>
