@@ -4025,7 +4025,10 @@ app.post('/api/payments/terminal', async (req, res) => {
     };
     const r = await squareFetch('/v2/terminals/checkouts', { method: 'POST', headers, body: JSON.stringify(sqBody) });
     const data = await r.json();
-    if (!r.ok) return res.status(r.status).json({ error: 'Square error', details: data });
+    if (!r.ok) {
+      const errDetail = data?.errors?.[0]?.detail || data?.message || JSON.stringify(data?.errors || data);
+      return res.status(r.status).json({ error: 'Square error: ' + errDetail, details: data });
+    }
     const checkout = data.checkout || {};
     const prDoc = {
       checkout_id: checkout.id, booking_id: bookingId, amount_cents: amountCents,
