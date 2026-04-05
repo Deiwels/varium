@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import Shell from '@/components/Shell'
+import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
 import FeatureGate from '@/components/FeatureGate'
 
 import { apiFetch, API } from '@/lib/api'
@@ -135,7 +136,7 @@ export default function AttendancePage() {
     setLoading(false)
   }, [from, to])
 
-  useEffect(() => { loadAll(); const interval = setInterval(loadAll, 30000); return () => clearInterval(interval) }, [loadAll])
+  useVisibilityPolling(loadAll, 30000, [loadAll])
 
   // Build barber map (barber_id → Barber) and user→barber map
   const barberMap: Record<string, Barber> = {}

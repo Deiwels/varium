@@ -3,6 +3,7 @@ import Shell from '@/components/Shell'
 import { useEffect, useState, useCallback } from 'react'
 
 import { apiFetch } from '@/lib/api'
+import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Client {
@@ -485,7 +486,7 @@ export default function ClientsPage() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { load(); const interval = setInterval(load, 30000); return () => clearInterval(interval) }, [load])
+  useVisibilityPolling(load, 30000, [load])
 
   const ql = q.toLowerCase()
   const visible = clients.filter(c => {

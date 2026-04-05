@@ -1,9 +1,24 @@
 import type { Metadata } from 'next'
+import { Inter, Julius_Sans_One } from 'next/font/google'
 import './globals.css'
 import { DialogWrapper } from './DialogWrapper'
 import CosmosParallax from '@/components/CosmosParallax'
 import { PlanProvider } from '@/components/PlanProvider'
 import CookieBanner from '@/components/CookieBanner'
+
+const inter = Inter({
+  subsets: ['latin', 'cyrillic'],
+  weight: ['300', '400', '500', '600', '700'],
+  display: 'swap',
+  variable: '--font-inter',
+})
+
+const julius = Julius_Sans_One({
+  subsets: ['latin'],
+  weight: '400',
+  display: 'swap',
+  variable: '--font-julius',
+})
 
 export const metadata: Metadata = {
   title: 'Vurium — Software That Works',
@@ -62,13 +77,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   ]
 
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${julius.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {/* Load fonts — swap shows fallback font immediately, then swaps when ready */}
-        <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Julius+Sans+One&display=swap" as="style" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Julius+Sans+One&display=swap" rel="stylesheet" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <style dangerouslySetInnerHTML={{ __html: `
           @keyframes starBreathe {
@@ -129,11 +139,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }} />
           ))}
 
-          {/* Nebula glow effects — lighter on mobile via CSS */}
-          <div className="nebula-glow nebula-layer" style={{ position: 'absolute', width: 800, height: 450, top: '0%', left: '-12%', background: 'rgba(30,45,110,.05)', borderRadius: '50%', filter: 'blur(140px)' }} />
-          <div className="nebula-glow nebula-layer" style={{ position: 'absolute', width: 600, height: 350, bottom: '5%', right: '-8%', background: 'rgba(55,35,100,.04)', borderRadius: '50%', filter: 'blur(140px)' }} />
-          <div className="nebula-glow nebula-layer" style={{ position: 'absolute', width: 400, height: 280, top: '40%', left: '20%', background: 'rgba(40,30,80,.025)', borderRadius: '50%', filter: 'blur(120px)' }} />
-          <div className="nebula-glow nebula-layer" style={{ position: 'absolute', width: 300, height: 200, top: '15%', right: '15%', background: 'rgba(25,50,100,.02)', borderRadius: '50%', filter: 'blur(100px)' }} />
+          {/* Nebula glow effects — use will-change to promote to GPU layer, contain to isolate repaints */}
+          <div className="nebula-glow nebula-layer" style={{ position: 'absolute', width: 800, height: 450, top: '0%', left: '-12%', background: 'rgba(30,45,110,.05)', borderRadius: '50%', filter: 'blur(140px)', willChange: 'transform', contain: 'strict' }} />
+          <div className="nebula-glow nebula-layer" style={{ position: 'absolute', width: 600, height: 350, bottom: '5%', right: '-8%', background: 'rgba(55,35,100,.04)', borderRadius: '50%', filter: 'blur(140px)', willChange: 'transform', contain: 'strict' }} />
+          <div className="nebula-glow nebula-layer" style={{ position: 'absolute', width: 400, height: 280, top: '40%', left: '20%', background: 'rgba(40,30,80,.025)', borderRadius: '50%', filter: 'blur(120px)', willChange: 'transform', contain: 'strict' }} />
+          <div className="nebula-glow nebula-layer" style={{ position: 'absolute', width: 300, height: 200, top: '15%', right: '15%', background: 'rgba(25,50,100,.02)', borderRadius: '50%', filter: 'blur(100px)', willChange: 'transform', contain: 'strict' }} />
         </div>
 
         <CosmosParallax />

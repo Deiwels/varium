@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import Shell from '@/components/Shell'
 import { apiFetch } from '@/lib/api'
+import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
 
@@ -465,8 +466,7 @@ export default function DashboardPage() {
     setLoading(false)
   }, [isBarber, myBarberId, earningsPeriod, earningsOffset])
 
-  useEffect(() => { loadAll() }, [loadAll])
-  useEffect(() => { const t = setInterval(loadAll, 30000); return () => clearInterval(t) }, [loadAll])
+  useVisibilityPolling(loadAll, 30000, [loadAll])
 
   // For owner/admin: all barbers. For barber: only themselves
   const allBarberNames = [...new Set(bookings.map(b => b.barber_name || b.barber).filter(Boolean))] as string[]

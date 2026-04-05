@@ -1,6 +1,7 @@
 'use client'
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import Shell from '@/components/Shell'
+import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
 import FeatureGate from '@/components/FeatureGate'
 
 import { apiFetch } from '@/lib/api'
@@ -578,7 +579,7 @@ export default function MessagesPage() {
     } catch { /* ignore */ }
   }, [])
 
-  // Initial load + polling
+  // Initial load
   useEffect(() => {
     const hasData = messages.length > 0 || requests.length > 0 || applications.length > 0
     if (!hasData) setLoading(true)
@@ -591,13 +592,16 @@ export default function MessagesPage() {
     } else {
       setLoading(false)
     }
-    const interval = setInterval(() => {
-      if (topTab === 'requests') loadRequests()
-      else if (topTab === 'applications') loadApplications()
-      else if (topTab === 'chat' && chatView === 'conversation' && chatTarget) loadMessages()
-    }, 10000)
-    return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topTab, chatView, chatTarget])
+
+  // Polling — only when tab is visible
+  const pollMessages = useCallback(() => {
+    if (topTab === 'requests') loadRequests()
+    else if (topTab === 'applications') loadApplications()
+    else if (topTab === 'chat' && chatView === 'conversation' && chatTarget) loadMessages()
   }, [topTab, chatView, chatTarget, loadMessages, loadRequests, loadApplications])
+  useVisibilityPolling(pollMessages, 15000, [pollMessages])
 
   // Fix mobile keyboard pushing content
   useEffect(() => {

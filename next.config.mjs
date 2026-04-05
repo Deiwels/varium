@@ -6,10 +6,6 @@ const nextConfig = {
         source: '/(.*)',
         headers: [
           {
-            key: 'Cache-Control',
-            value: 'public, max-age=0, must-revalidate',
-          },
-          {
             key: 'X-Frame-Options',
             value: 'DENY',
           },
@@ -35,7 +31,7 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://connect.facebook.net https://*.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https: http:; connect-src 'self' https://*.stripe.com https://*.googleapis.com https://api.telnyx.com https://api.resend.com https://*.run.app; frame-src https://js.stripe.com https://hooks.stripe.com; object-src 'none'; base-uri 'self'",
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://connect.facebook.net https://*.googleapis.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https: http:; connect-src 'self' https://*.stripe.com https://*.googleapis.com https://api.telnyx.com https://api.resend.com https://*.run.app; frame-src https://js.stripe.com https://hooks.stripe.com; object-src 'none'; base-uri 'self'",
           },
         ],
       },

@@ -1,6 +1,7 @@
 'use client'
 import React, { useState, useEffect, useCallback } from 'react'
 import Shell from '../../components/Shell'
+import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
 import FeatureGate from '@/components/FeatureGate'
 
 import { apiFetch } from '@/lib/api'
@@ -77,7 +78,7 @@ export default function WaitlistPage() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { load(); const interval = setInterval(load, 30000); return () => clearInterval(interval) }, [load])
+  useVisibilityPolling(load, 30000, [load])
 
   async function confirm(id: string) {
     try {

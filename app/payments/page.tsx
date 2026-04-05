@@ -3,6 +3,7 @@ import Shell from '@/components/Shell'
 import { useEffect, useState, useCallback, useRef } from 'react'
 
 import { apiFetch } from '@/lib/api'
+import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Payment {
@@ -258,7 +259,7 @@ export default function PaymentsPage() {
     setLoading(false)
   }, [from, to])
 
-  useEffect(() => { load(); const interval = setInterval(load, 30000); return () => clearInterval(interval) }, [load])
+  useVisibilityPolling(load, 30000, [load])
 
   // Filtered list
   const ql = q.toLowerCase()
