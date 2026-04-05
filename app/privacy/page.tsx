@@ -10,8 +10,8 @@ export default function PrivacyPage() {
     <>
       <nav className="navbar">
         <a href="/" className="navbar-logo">
-          <img src="/logo.jpg" alt="Vurium™" />
-          Vurium&trade;
+          <img src="/logo.jpg" alt="Vurium" />
+          Vurium
         </a>
         <ul className="navbar-links">
           <li><a href="/">Home</a></li>
