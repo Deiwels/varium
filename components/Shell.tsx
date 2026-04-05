@@ -708,7 +708,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
                 <path d="M6 8 L26 20" stroke="rgba(255,255,255,.15)" strokeWidth="1" />
                 <path d="M26 8 L6 20" stroke="rgba(255,255,255,.15)" strokeWidth="1" />
               </svg>
-              <span style={{ fontSize: 20, fontWeight: 600, color: '#e8e8ed', letterSpacing: '-.02em' }}>Vurium</span>
+              <span style={{ fontSize: 20, fontWeight: 600, color: '#e8e8ed', letterSpacing: '-.02em' }}>VuriumBook</span>
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,.30)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 32 }}>Session expired</div>
 
