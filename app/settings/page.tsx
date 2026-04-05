@@ -416,7 +416,9 @@ export default function SettingsPage() {
   const [stripeConnect, setStripeConnect] = useState<{ connected: boolean; account_id?: string; connected_at?: string; charges_enabled?: boolean; payouts_enabled?: boolean }>({ connected: false })
   const [stripeConnecting, setStripeConnecting] = useState(false)
   const [squareDevices, setSquareDevices] = useState<any[]>([])
+  const [squareLocations, setSquareLocations] = useState<any[]>([])
   const [selectedDeviceId, setSelectedDeviceId] = useState('')
+  const [selectedLocationId, setSelectedLocationId] = useState('')
   const [loadingDevices, setLoadingDevices] = useState(false)
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(''), 2500) }
@@ -452,6 +454,7 @@ export default function SettingsPage() {
   // Load saved terminal device from settings
   useEffect(() => {
     if (settings?.square?.terminal_device_id) setSelectedDeviceId(settings.square.terminal_device_id)
+    if (settings?.square?.location_id) setSelectedLocationId(settings.square.location_id)
   }, [settings])
 
   // Load Square & Stripe Connect status on mount
@@ -541,20 +544,33 @@ export default function SettingsPage() {
   async function loadSquareDevices() {
     setLoadingDevices(true)
     try {
-      const d = await apiFetch('/api/payments/terminal/devices')
-      const devices = d?.devices || []
-      setSquareDevices(devices)
-      if (!devices.length) showToast('⚠ No terminal devices found')
+      const [devRes, locRes] = await Promise.all([
+        apiFetch('/api/payments/terminal/devices').catch(() => ({ devices: [] })),
+        apiFetch('/api/square/locations').catch(() => ({ locations: [] })),
+      ])
+      setSquareDevices(devRes?.devices || [])
+      setSquareLocations(locRes?.locations || [])
+      if (!(devRes?.devices?.length)) showToast('⚠ No terminal devices found')
     } catch (e: any) { showToast('❌ ' + e.message) }
     setLoadingDevices(false)
   }
 
+  async function saveSquareSetting(key: string, value: string) {
+    try {
+      const sq = { ...settings.square, [key]: value }
+      await apiFetch('/api/settings', { method: 'POST', body: JSON.stringify({ ...settings, square: sq }) })
+      showToast('Saved ✓')
+    } catch (e: any) { showToast('❌ ' + e.message) }
+  }
+
   async function saveTerminalDevice(deviceId: string) {
     setSelectedDeviceId(deviceId)
-    try {
-      await apiFetch('/api/settings', { method: 'POST', body: JSON.stringify({ ...settings, square: { ...settings.square, terminal_device_id: deviceId } }) })
-      showToast('Terminal device saved ✓')
-    } catch (e: any) { showToast('❌ ' + e.message) }
+    await saveSquareSetting('terminal_device_id', deviceId)
+  }
+
+  async function saveLocation(locationId: string) {
+    setSelectedLocationId(locationId)
+    await saveSquareSetting('location_id', locationId)
   }
 
   async function cleanup() {
@@ -915,6 +931,33 @@ export default function SettingsPage() {
                     </div>
                   )}
                 </SectionCard>
+
+                {/* ── LOCATION ── */}
+                {squareOAuth.connected && squareLocations.length > 0 && (
+                  <SectionCard title="Square Location">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', marginBottom: 4 }}>Select the location for terminal payments</div>
+                      {squareLocations.map((loc: any) => (
+                        <button key={loc.id} onClick={() => saveLocation(loc.id)}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '10px 14px', borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit',
+                            border: `1px solid ${selectedLocationId === loc.id ? 'rgba(143,240,177,.25)' : 'rgba(255,255,255,.08)'}`,
+                            background: selectedLocationId === loc.id ? 'rgba(143,240,177,.06)' : 'rgba(0,0,0,.14)',
+                            color: '#e8e8ed', transition: 'all .2s',
+                          }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600 }}>{loc.name || 'Location'}</div>
+                            {loc.address && <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 2 }}>{[loc.address.address_line_1, loc.address.locality, loc.address.administrative_district_level_1].filter(Boolean).join(', ')}</div>}
+                          </div>
+                          {selectedLocationId === loc.id && (
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(130,220,170,.8)' }}>Active ✓</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </SectionCard>
+                )}
 
                 {/* ── TERMINAL DEVICE ── */}
                 {squareOAuth.connected && (

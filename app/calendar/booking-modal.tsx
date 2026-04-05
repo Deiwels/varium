@@ -685,6 +685,16 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(130,220,170,.8)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
           <span style={{ fontSize: 13, color: 'rgba(130,220,170,.5)', fontWeight: 700 }}>Paid via {ev.paymentMethod || '—'}</span>
         </div>
+        {ev._raw?.client_phone && (
+          <button onClick={async () => {
+            try {
+              await apiFetch('/api/receipts/send', { method: 'POST', body: JSON.stringify({ booking_id: ev._raw?.id, phone: ev._raw?.client_phone }) })
+              setHint('Receipt sent ✓'); setHintType('success')
+            } catch (e: any) { setHint('Failed: ' + e.message); setHintType('error') }
+          }} style={{ width: '100%', height: 36, borderRadius: 10, border: '1px solid rgba(130,150,220,.25)', background: 'rgba(130,150,220,.06)', color: 'rgba(130,150,220,.7)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', marginTop: 8 }}>
+            Send Receipt
+          </button>
+        )}
         {isOwnerOrAdmin && ev._raw?.id && (
           <button onClick={handleRefund} style={{ width: '100%', height: 36, borderRadius: 10, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.06)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', marginTop: 8 }}>
             Issue Refund

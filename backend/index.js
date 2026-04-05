@@ -3622,6 +3622,42 @@ app.patch('/api/requests/:id', requireRole('owner', 'admin'), async (req, res) =
 });
 
 // ============================================================
+// RECEIPTS
+// ============================================================
+app.post('/api/receipts/send', async (req, res) => {
+  try {
+    const { booking_id, phone } = req.body || {};
+    if (!booking_id || !phone) return res.status(400).json({ error: 'booking_id and phone required' });
+    const bookingDoc = await req.ws('bookings').doc(booking_id).get();
+    if (!bookingDoc.exists) return res.status(404).json({ error: 'Booking not found' });
+    const b = bookingDoc.data();
+    const serviceName = b.service_name || 'Service';
+    const amount = Number(b.amount || b.service_amount || 0);
+    const tip = Number(b.tip || b.tip_amount || 0);
+    const total = amount + tip;
+    const date = b.date || b.start_at?.slice(0, 10) || '';
+    const barberName = b.barber_name || '';
+    // Get shop name
+    const settingsDoc = await req.ws('settings').doc('config').get();
+    const shopName = settingsDoc.exists ? settingsDoc.data()?.shop_name || 'VuriumBook' : 'VuriumBook';
+    const lines = [
+      `${shopName} — Receipt`,
+      `Date: ${date}`,
+      barberName ? `Barber: ${barberName}` : '',
+      `Service: ${serviceName}`,
+      `Amount: $${amount.toFixed(2)}`,
+      tip > 0 ? `Tip: $${tip.toFixed(2)}` : '',
+      `Total: $${total.toFixed(2)}`,
+      `Payment: ${(b.payment_method || '').charAt(0).toUpperCase() + (b.payment_method || '').slice(1)}`,
+      '',
+      'Thank you for your visit!'
+    ].filter(Boolean).join('\n');
+    await sendSms(phone, lines);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
 // SQUARE OAUTH ROUTES
 // ============================================================
 app.get('/api/square/oauth/url', requireRole('owner'), async (req, res) => {
@@ -3921,6 +3957,15 @@ app.post('/api/square/customers/sync', requireRole('owner', 'admin'), async (req
 // ============================================================
 // SQUARE TERMINAL PAYMENTS
 // ============================================================
+app.get('/api/square/locations', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const headers = await squareHeaders(req.ws);
+    const r = await squareFetch('/v2/locations', { headers });
+    const data = await r.json();
+    res.json({ locations: (data.locations || []).map(l => ({ id: l.id, name: l.name, status: l.status, address: l.address })) });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
 app.get('/api/payments/terminal/devices', requireRole('owner', 'admin'), async (req, res) => {
   try {
     const headers = await squareHeaders(req.ws);
@@ -3977,7 +4022,27 @@ app.post('/api/payments/terminal', async (req, res) => {
     // Card payment via Square Terminal
     if (!deviceId) return res.status(400).json({ error: 'device_id required for card payments' });
     const headers = await squareHeaders(req.ws, { hasBody: true });
-    const locationId = safeStr(b.location_id || process.env.SQUARE_LOCATION_ID || '');
+    // Get location_id: from request > workspace settings > env > auto-fetch from Square
+    let locationId = safeStr(b.location_id || '');
+    if (!locationId) {
+      try {
+        const settingsDoc = await req.ws('settings').doc('config').get();
+        locationId = safeStr(settingsDoc.exists ? settingsDoc.data()?.square?.location_id || '' : '');
+      } catch {}
+    }
+    if (!locationId) locationId = safeStr(process.env.SQUARE_LOCATION_ID || '');
+    if (!locationId) {
+      try {
+        const lr = await squareFetch('/v2/locations', { headers });
+        const ld = await lr.json();
+        const loc = (ld.locations || []).find(l => l.status === 'ACTIVE') || ld.locations?.[0];
+        if (loc?.id) {
+          locationId = loc.id;
+          // Save for future use
+          await req.ws('settings').doc('config').set({ square: { location_id: locationId } }, { merge: true }).catch(() => {});
+        }
+      } catch {}
+    }
     const idempotencyKey = crypto.randomUUID();
 
     // Auto-sync client to Square if we have client info
@@ -4021,6 +4086,7 @@ app.post('/api/payments/terminal', async (req, res) => {
         payment_type: 'CARD_PRESENT',
         note: b.note || `Booking ${bookingId}`,
         ...(squareCustomerId ? { customer_id: squareCustomerId } : {}),
+        ...(locationId ? { location_id: locationId } : {}),
       },
     };
     const r = await squareFetch('/v2/terminals/checkouts', { method: 'POST', headers, body: JSON.stringify(sqBody) });
