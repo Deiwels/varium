@@ -21,33 +21,7 @@ export default function ResetPasswordPage() {
     setUid(params.get('uid') || '')
   }, [])
 
-  // Parallax stars
-  useEffect(() => {
-    const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window
-    let tx = 0, ty = 0, cx = 0, cy = 0, raf: number
-    function tick() {
-      cx += (tx - cx) * 0.02; cy += (ty - cy) * 0.02
-      const f = document.getElementById('v-stars-far')
-      const m = document.getElementById('v-stars-mid')
-      const n = document.getElementById('v-stars-near')
-      if (f) f.style.transform = `translate(${cx * 8}px, ${cy * 8}px)`
-      if (m) m.style.transform = `translate(${cx * 20}px, ${cy * 20}px)`
-      if (n) n.style.transform = `translate(${cx * 35}px, ${cy * 35}px)`
-      raf = requestAnimationFrame(tick)
-    }
-    if (isMobile) {
-      function onO(e: DeviceOrientationEvent) { const g = Math.max(-15, Math.min(15, e.gamma || 0)); const b = Math.max(-15, Math.min(15, (e.beta || 0) - 45)); tx = g / 15 * 4; ty = b / 15 * 4 }
-      const doe = DeviceOrientationEvent as any
-      if (typeof doe.requestPermission === 'function') { const r = () => { doe.requestPermission().then((s: string) => { if (s === 'granted') window.addEventListener('deviceorientation', onO, { passive: true }) }).catch(() => {}); document.removeEventListener('click', r) }; document.addEventListener('click', r, { once: true }) }
-      else { window.addEventListener('deviceorientation', onO, { passive: true }) }
-      raf = requestAnimationFrame(tick)
-      return () => { window.removeEventListener('deviceorientation', onO); cancelAnimationFrame(raf) }
-    }
-    function onMouse(e: MouseEvent) { tx = (e.clientX / window.innerWidth - 0.5) * 2; ty = (e.clientY / window.innerHeight - 0.5) * 2 }
-    window.addEventListener('mousemove', onMouse, { passive: true })
-    raf = requestAnimationFrame(tick)
-    return () => { window.removeEventListener('mousemove', onMouse); cancelAnimationFrame(raf) }
-  }, [])
+  // Parallax handled by global CosmosParallax component — no duplicate rAF needed
 
   async function handleReset(e: React.FormEvent) {
     e.preventDefault()

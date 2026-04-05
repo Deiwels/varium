@@ -6,19 +6,28 @@ export default function VuriumBook() {
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
+    // Hide global starfield — this page has its own .space-bg
+    const cosmos = document.getElementById('vurium-cosmos')
+    if (cosmos) cosmos.style.display = 'none'
+
     const mobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window
     setIsMobile(mobile)
 
     let tx = 0, ty = 0, cx = 0, cy = 0
-    let raf: number
+    let raf = 0
+    let running = false
+    let idleTimer: ReturnType<typeof setTimeout> | null = null
+
+    const far  = document.querySelector('.stars-far')    as HTMLElement
+    const mid  = document.querySelector('.stars-mid')    as HTMLElement
+    const near = document.querySelector('.stars-near')   as HTMLElement
+    const orb  = document.querySelector('.orb-parallax') as HTMLElement
 
     function tick() {
+      if (!running) return
       cx += (tx - cx) * 0.02
       cy += (ty - cy) * 0.02
-      const far  = document.querySelector('.stars-far')    as HTMLElement
-      const mid  = document.querySelector('.stars-mid')    as HTMLElement
-      const near = document.querySelector('.stars-near')   as HTMLElement
-      const orb  = document.querySelector('.orb-parallax') as HTMLElement
+      if (Math.abs(tx - cx) < 0.001 && Math.abs(ty - cy) < 0.001) { running = false; return }
       if (far)  far.style.transform  = `translate(${cx * 8}px, ${cy * 8}px)`
       if (mid)  mid.style.transform  = `translate(${cx * 20}px, ${cy * 20}px)`
       if (near) near.style.transform = `translate(${cx * 35}px, ${cy * 35}px)`
@@ -26,24 +35,31 @@ export default function VuriumBook() {
       raf = requestAnimationFrame(tick)
     }
 
+    function startLoop() { if (!running) { running = true; raf = requestAnimationFrame(tick) } }
+    function onVisibility() { if (document.hidden) { running = false; cancelAnimationFrame(raf) } }
+    document.addEventListener('visibilitychange', onVisibility)
+
     if (mobile) {
       function onOrientation(e: DeviceOrientationEvent) {
         const gamma = Math.max(-15, Math.min(15, e.gamma || 0))
         const beta  = Math.max(-15, Math.min(15, (e.beta || 0) - 45))
         tx = gamma / 15 * 4; ty = beta / 15 * 4
+        startLoop()
       }
       const doe = DeviceOrientationEvent as any
       if (typeof doe.requestPermission === 'function') {
         const req = () => { doe.requestPermission().then((s: string) => { if (s === 'granted') window.addEventListener('deviceorientation', onOrientation, { passive: true }) }).catch(() => {}); document.removeEventListener('click', req) }
         document.addEventListener('click', req, { once: true })
       } else { window.addEventListener('deviceorientation', onOrientation, { passive: true }) }
-      raf = requestAnimationFrame(tick)
-      return () => { window.removeEventListener('deviceorientation', onOrientation); cancelAnimationFrame(raf) }
+      return () => { window.removeEventListener('deviceorientation', onOrientation); document.removeEventListener('visibilitychange', onVisibility); cancelAnimationFrame(raf); if (cosmos) cosmos.style.display = '' }
     }
 
     function onMouse(e: MouseEvent) {
       tx = (e.clientX / window.innerWidth - 0.5) * 2
       ty = (e.clientY / window.innerHeight - 0.5) * 2
+      startLoop()
+      if (idleTimer) clearTimeout(idleTimer)
+      idleTimer = setTimeout(() => { running = false }, 2000)
     }
     function onScroll() {
       const y = window.scrollY
@@ -53,8 +69,14 @@ export default function VuriumBook() {
 
     window.addEventListener('mousemove', onMouse, { passive: true })
     window.addEventListener('scroll', onScroll, { passive: true })
-    raf = requestAnimationFrame(tick)
-    return () => { window.removeEventListener('mousemove', onMouse); window.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf) }
+    return () => {
+      window.removeEventListener('mousemove', onMouse)
+      window.removeEventListener('scroll', onScroll)
+      document.removeEventListener('visibilitychange', onVisibility)
+      cancelAnimationFrame(raf)
+      if (idleTimer) clearTimeout(idleTimer)
+      if (cosmos) cosmos.style.display = ''
+    }
   }, [])
 
   return (
