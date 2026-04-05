@@ -854,7 +854,7 @@ export default function MessagesPage() {
         </div>
       )}
       <style>{`
-        .content { padding-bottom: 0 !important; overflow: hidden !important; }
+        .content { overflow: hidden !important; }
         .msg-input:focus { border-color: rgba(255,255,255,.20) !important; box-shadow: 0 0 0 3px rgba(255,255,255,.04) !important; }
         .msg-list::-webkit-scrollbar { width: 4px; }
         .msg-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 2px; }
