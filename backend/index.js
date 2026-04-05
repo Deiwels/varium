@@ -393,6 +393,15 @@ function sendSms(to, body) {
   if (!apiKey || !from) { console.warn('Telnyx not configured'); return Promise.resolve(null); }
   const toFormatted = formatPhone(to);
   if (!toFormatted) { console.warn('sendSms: invalid phone', to); return Promise.resolve(null); }
+  // Log SMS send for compliance audit trail
+  const phoneNormLog = normPhone(to);
+  db.collection('sms_logs').add({
+    phone_last4: phoneNormLog ? '****' + phoneNormLog.slice(-4) : '****',
+    direction: 'outbound',
+    message_preview: String(body || '').slice(0, 50) + '...',
+    char_count: String(body || '').length,
+    sent_at: toIso(new Date()),
+  }).catch(() => {});
   const payload = JSON.stringify({ from, to: toFormatted, text: body });
   return new Promise((resolve) => {
     const req = https.request({
@@ -585,13 +594,13 @@ async function sendCrmPush(wsCol, userId, title, body, data = {}) {
   for (const t of tokens) sendApnsPush(t, title, body, data).catch(e => console.error('🔔 [APNs] sendCrmPush error:', e?.message));
 }
 
-async function sendCrmPushToRoles(wsCol, roles, title, body, data = {}) {
+async function sendCrmPushToRoles(wsCol, roles, title, body, data = {}, excludeUserId = null) {
   try {
     const snap = await wsCol('crm_push_tokens').get();
     let count = 0;
     for (const d of snap.docs) {
       const td = d.data();
-      if (roles.includes(td.role)) { count++; sendApnsPush(td.device_token, title, body, data).catch(e => console.error('🔔 [APNs] role push error:', e?.message)); }
+      if (roles.includes(td.role) && td.user_id !== excludeUserId) { count++; sendApnsPush(td.device_token, title, body, data).catch(e => console.error('🔔 [APNs] role push error:', e?.message)); }
     }
     console.log('🔔 [APNs] sendCrmPushToRoles roles=' + roles.join(',') + ' sent=' + count + ' title=' + title);
   } catch (e) { console.error('🔔 [APNs] sendCrmPushToRoles error:', e?.message); }
@@ -2585,6 +2594,19 @@ app.post('/api/availability', async (req, res) => {
 // ============================================================
 // USERS CRUD
 // ============================================================
+// Lightweight staff list for messaging — all authenticated users can see team members
+app.get('/api/staff', async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
+  try {
+    const snap = await req.ws('users').where('active', '==', true).get();
+    const list = snap.docs.map(d => {
+      const data = d.data();
+      return { id: d.id, name: data.name, role: data.role, photo_url: data.photo_url || null };
+    });
+    res.json(list);
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
 app.get('/api/users', requireRole('owner', 'admin'), async (req, res) => {
   try {
     const snap = await req.ws('users').get();
@@ -3098,7 +3120,7 @@ app.post('/api/messages', requirePlanFeature('messages'), async (req, res) => {
     } else {
       const chatRoleMap = { general: ['owner', 'admin', 'barber'], team: ['owner', 'admin', 'barber'], barbers: ['barber'], admins: ['owner', 'admin'], students: ['student'] };
       const targetRoles = chatRoleMap[doc.chatType] || ['owner', 'admin', 'barber'];
-      sendCrmPushToRoles(req.ws, targetRoles, pushTitle, pushBody, pushData).catch(() => {});
+      sendCrmPushToRoles(req.ws, targetRoles, pushTitle, pushBody, pushData, req.user.uid).catch(() => {});
     }
     res.status(201).json({ id: ref.id, ...doc });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -3443,6 +3465,12 @@ app.get('/api/admin/waitlist/check', requireRole('owner', 'admin'), async (req, 
         const wlShopName = wlSettings.exists ? safeStr(wlSettings.data()?.shop_name || '') : '';
         const wlPrefix = wlShopName || 'VuriumBook';
         const msg = `${wlPrefix}: A spot opened up for ${svcText} with ${w.barber_name || 'your barber'} on ${w.date} at ${slotTime}. Book now! Reply STOP to opt out, HELP for help.`;
+        // Check SMS opt-out before sending waitlist notification
+        const wlPhoneNorm = normPhone(w.phone_raw || w.phone_norm);
+        if (wlPhoneNorm) {
+          const wlOptOut = await req.ws('clients').where('phone_norm', '==', wlPhoneNorm).where('sms_opt_out', '==', true).limit(1).get();
+          if (!wlOptOut.empty) { await wDoc.ref.update({ notified: true, notified_at: toIso(new Date()), cancelled_reason: 'sms_opt_out' }); continue; }
+        }
         sendSms(w.phone_raw || w.phone_norm, msg).catch(() => {});
         await wDoc.ref.update({ notified: true, notified_at: toIso(new Date()), notified_slot: toIso(slots[0]) });
         notified++;
@@ -4555,7 +4583,7 @@ app.post('/public/verify/send/:workspace_id', async (req, res) => {
     const verifySettings = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
     const verifyShopName = verifySettings.exists ? safeStr(verifySettings.data()?.shop_name || '') : '';
     const verifyPrefix = verifyShopName || 'VuriumBook';
-    sendSms(formatted, `${verifyPrefix}: Your verification code is ${code}. Do not share this code.`).catch(e => console.warn('verify SMS error:', e?.message));
+    sendSms(formatted, `${verifyPrefix}: Your verification code is ${code}. Do not share this code. Reply STOP to opt out, HELP for help.`).catch(e => console.warn('verify SMS error:', e?.message));
     res.json({ ok: true, sent: true });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
