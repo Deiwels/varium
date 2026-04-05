@@ -305,7 +305,7 @@ export default function SupportPage() {
 
         <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', marginTop: 48, paddingTop: 24 }}>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,.2)', lineHeight: 1.6 }}>
-            Vurium Inc. &middot; 1603 Orchard Rd, Aurora, IL 60506, United States &middot; support@vurium.com &middot; (847) 630-1884
+            Vurium Inc. &middot; 1142 W Lake Cook Rd, Buffalo Grove, IL 60089, United States &middot; support@vurium.com &middot; (847) 630-1884
           </p>
         </div>
       </main>

@@ -179,8 +179,8 @@ export default function PrivacyPage() {
         <div style={highlight}>
           <p style={{ ...text, marginBottom: 0 }}>
             Vurium Inc.<br />
-            1603 Orchard Rd, 60506<br />
-            Aurora, IL, United States<br />
+            1142 W Lake Cook Rd, 60089<br />
+            Buffalo Grove, IL, United States<br />
             Email: <a href="mailto:support@vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>support@vurium.com</a><br />
             Phone: <a href="tel:+18476301884" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>(847) 630-1884</a><br />
             Privacy inquiries: <a href="mailto:support@vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>support@vurium.com</a><br />
