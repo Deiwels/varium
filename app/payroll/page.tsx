@@ -244,9 +244,13 @@ function CommissionEditor({ barber, rule, onSaved }: { barber: BarberPayroll; ru
   )
 }
 
-// ─── AdminPayrollEditor ───────────────────────────────────────────────────────
+// ─── AdminPayrollEditor (with integrated schedule) ───────────────────────────
 const DAY_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
-function AdminPayrollEditor({ userId, userName, rule, onSaved, extraDays }: { userId: string; userName: string; rule: Rule; onSaved: (r: Rule) => void; extraDays?: number[] }) {
+const DEFAULT_SCHEDULE = Array.from({ length: 7 }, () => ({ enabled: false, startMin: 540, endMin: 1020 }))
+function minToTime(m: number) { return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}` }
+function timeToMin(t: string) { const [h, m] = t.split(':').map(Number); return (h || 0) * 60 + (m || 0) }
+
+function AdminPayrollEditor({ userId, userName, rule, onSaved, extraDays, schedule, onScheduleSaved }: { userId: string; userName: string; rule: Rule; onSaved: (r: Rule) => void; extraDays?: number[]; schedule?: any[] | null; onScheduleSaved?: (s: any[]) => void }) {
   const [open, setOpen] = useState(false)
   const [hourly, setHourly] = useState(rule.hourly_rate ?? 0)
   const [ownerPct, setOwnerPct] = useState(rule.owner_profit_pct ?? 2)
@@ -254,8 +258,16 @@ function AdminPayrollEditor({ userId, userName, rule, onSaved, extraDays }: { us
   const [bonusDays, setBonusDays] = useState<number[]>(rule.service_fee_days ?? [])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [sched, setSched] = useState<{ enabled: boolean; startMin: number; endMin: number }[]>(() => {
+    if (Array.isArray(schedule) && schedule.length === 7) return schedule.map(d => ({ enabled: !!d.enabled, startMin: d.startMin ?? d.start_min ?? 540, endMin: d.endMin ?? d.end_min ?? 1020 }))
+    return DEFAULT_SCHEDULE.map(d => ({ ...d }))
+  })
+  const [schedSaving, setSchedSaving] = useState(false)
+  const [schedSaved, setSchedSaved] = useState(false)
 
-  const inp: React.CSSProperties = { height: 36, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(0,0,0,.22)', color: '#fff', padding: '0 10px', outline: 'none', fontSize: 13, fontFamily: 'inherit', width: '100%' }
+  const inp: React.CSSProperties = { height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(0,0,0,.22)', color: '#fff', padding: '0 10px', outline: 'none', fontSize: 13, fontFamily: 'inherit', width: '100%' }
+  const microLbl: React.CSSProperties = { fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', display: 'block', marginBottom: 4 }
+  const timeInp: React.CSSProperties = { height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.18)', color: '#fff', padding: '0 6px', outline: 'none', fontSize: 11, fontFamily: 'inherit', width: '100%' }
 
   async function save() {
     setSaving(true)
@@ -269,133 +281,90 @@ function AdminPayrollEditor({ userId, userName, rule, onSaved, extraDays }: { us
     setSaving(false)
   }
 
-  function toggleBonusDay(d: number) { setBonusDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort()) }
+  async function saveSched() {
+    setSchedSaving(true)
+    try {
+      await apiFetch(`/api/users/${encodeURIComponent(userId)}`, { method: 'PATCH', body: JSON.stringify({ schedule: sched }) })
+      onScheduleSaved?.(sched)
+      setSchedSaved(true); setTimeout(() => setSchedSaved(false), 2000)
+    } catch (e: any) { alert('Error: ' + e.message) }
+    setSchedSaving(false)
+  }
 
-  // Days admin actually worked (from attendance) are auto-included
+  function toggleBonusDay(d: number) { setBonusDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort()) }
+  function updateDay(i: number, patch: Partial<typeof sched[0]>) { setSched(prev => prev.map((d, idx) => idx === i ? { ...d, ...patch } : d)) }
   const workedDays = extraDays || []
 
   return (
-    <div style={{ borderRadius: 14, border: `1px solid ${open ? 'rgba(143,240,177,.25)' : 'rgba(255,255,255,.08)'}`, overflow: 'hidden', background: open ? 'rgba(143,240,177,.04)' : 'rgba(0,0,0,.12)' }}>
-      <div onClick={() => setOpen(v => !v)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: 'pointer' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(143,240,177,.12)', border: '1px solid rgba(143,240,177,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, color: 'rgba(130,220,170,.5)' }}>{initials(userName)}</div>
+    <div style={{ borderRadius: 14, border: `1px solid ${open ? 'rgba(143,240,177,.20)' : 'rgba(255,255,255,.08)'}`, overflow: 'hidden', background: open ? 'rgba(143,240,177,.03)' : 'rgba(0,0,0,.12)', marginBottom: 6 }}>
+      <div onClick={() => setOpen(v => !v)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', cursor: 'pointer' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(143,240,177,.10)', border: '1px solid rgba(143,240,177,.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 900, color: 'rgba(130,220,170,.5)' }}>{initials(userName)}</div>
           <div>
-            <div style={{ fontWeight: 900, fontSize: 13 }}>{userName}</div>
-            <div style={{ fontSize: 10, color: 'rgba(130,220,170,.5)' }}>ADMIN</div>
+            <div style={{ fontWeight: 800, fontSize: 12 }}>{userName} <span style={{ fontSize: 9, color: 'rgba(130,220,170,.5)', fontWeight: 700 }}>ADMIN</span></div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>${hourly}/hr · {ownerPct}% profit · {feePct}% fee</span>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,.40)' }}>{open ? '▴' : '▾'}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>${hourly}/hr · {ownerPct}% · {feePct}%</span>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,.30)' }}>{open ? '▴' : '▾'}</span>
         </div>
       </div>
       {open && (
-        <div style={{ padding: '12px 14px', borderTop: '1px solid rgba(255,255,255,.08)' }}>
-          <div className="admin-editor-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
-            <div>
-              <label style={{ fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', display: 'block', marginBottom: 5 }}>Hourly rate ($)</label>
-              <input type="number" min={0} step={0.5} value={hourly} onChange={e => setHourly(Number(e.target.value))} style={inp} />
+        <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,.06)' }}>
+          {/* Pay rules */}
+          <div className="admin-editor-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
+            <div><label style={microLbl}>Hourly rate ($)</label><input type="number" min={0} step={0.5} value={hourly} onChange={e => setHourly(Number(e.target.value))} style={inp} /></div>
+            <div><label style={microLbl}>Owner profit %</label><input type="number" min={0} max={100} step={0.5} value={ownerPct} onChange={e => setOwnerPct(Number(e.target.value))} style={inp} /></div>
+            <div><label style={microLbl}>Service fee %</label><input type="number" min={0} max={100} step={0.5} value={feePct} onChange={e => setFeePct(Number(e.target.value))} style={inp} /></div>
+          </div>
+          {/* Days worked + extra days — compact row */}
+          <div style={{ display: 'flex', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <label style={microLbl}>Days worked (auto)</label>
+              <div className="day-pills" style={{ display: 'flex', gap: 3 }}>
+                {DAY_LABELS.map((d, i) => (
+                  <div key={i} style={{ height: 24, width: 32, borderRadius: 6, border: `1px solid ${workedDays.includes(i) ? 'rgba(143,240,177,.40)' : 'rgba(255,255,255,.06)'}`, background: workedDays.includes(i) ? 'rgba(143,240,177,.10)' : 'rgba(255,255,255,.02)', color: workedDays.includes(i) ? 'rgba(130,220,170,.6)' : 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700 }}>{d}</div>
+                ))}
+              </div>
             </div>
-            <div>
-              <label style={{ fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', display: 'block', marginBottom: 5 }}>Owner profit %</label>
-              <input type="number" min={0} max={100} step={0.5} value={ownerPct} onChange={e => setOwnerPct(Number(e.target.value))} style={inp} />
-            </div>
-            <div>
-              <label style={{ fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', display: 'block', marginBottom: 5 }}>Service fee %</label>
-              <input type="number" min={0} max={100} step={0.5} value={feePct} onChange={e => setFeePct(Number(e.target.value))} style={inp} />
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <label style={microLbl}>Extra fee days</label>
+              <div className="day-pills" style={{ display: 'flex', gap: 3 }}>
+                {DAY_LABELS.map((d, i) => (
+                  <button key={i} onClick={() => toggleBonusDay(i)}
+                    style={{ height: 24, width: 32, borderRadius: 6, border: `1px solid ${bonusDays.includes(i) ? 'rgba(130,150,220,.40)' : 'rgba(255,255,255,.08)'}`, background: bonusDays.includes(i) ? 'rgba(130,150,220,.10)' : 'rgba(255,255,255,.02)', color: bonusDays.includes(i) ? 'rgba(130,150,220,.7)' : 'rgba(255,255,255,.25)', cursor: 'pointer', fontSize: 8, fontWeight: 700, fontFamily: 'inherit' }}>{d}</button>
+                ))}
+              </div>
             </div>
           </div>
-          {/* Worked days (auto from attendance) */}
-          <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', display: 'block', marginBottom: 6 }}>Days worked (auto from clock-in)</label>
-            <div className="day-pills" style={{ display: 'flex', gap: 6 }}>
+          <button onClick={save} disabled={saving}
+            style={{ width: '100%', height: 34, borderRadius: 10, border: `1px solid ${saved ? 'rgba(143,240,177,.40)' : 'rgba(143,240,177,.30)'}`, background: saved ? 'rgba(143,240,177,.15)' : 'rgba(143,240,177,.08)', color: 'rgba(130,220,170,.6)', cursor: 'pointer', fontWeight: 800, fontSize: 11, fontFamily: 'inherit', marginBottom: 10 }}>
+            {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save pay rules'}
+          </button>
+
+          {/* Work schedule — integrated */}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', paddingTop: 10 }}>
+            <label style={microLbl}>Work schedule</label>
+            <div style={{ display: 'grid', gap: 4 }}>
               {DAY_LABELS.map((d, i) => (
-                <div key={i} style={{ height: 30, width: 40, borderRadius: 8, border: `1px solid ${workedDays.includes(i) ? 'rgba(143,240,177,.45)' : 'rgba(255,255,255,.06)'}`, background: workedDays.includes(i) ? 'rgba(143,240,177,.12)' : 'rgba(255,255,255,.02)', color: workedDays.includes(i) ? 'rgba(130,220,170,.5)' : 'rgba(255,255,255,.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700 }}>
-                  {d}
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '40px 36px 1fr 1fr', gap: 6, alignItems: 'center' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: sched[i].enabled ? '#e8e8ed' : 'rgba(255,255,255,.20)' }}>{d}</span>
+                  <button onClick={() => updateDay(i, { enabled: !sched[i].enabled })}
+                    style={{ height: 24, borderRadius: 6, border: `1px solid ${sched[i].enabled ? 'rgba(143,240,177,.35)' : 'rgba(255,255,255,.08)'}`, background: sched[i].enabled ? 'rgba(143,240,177,.08)' : 'rgba(255,255,255,.02)', color: sched[i].enabled ? 'rgba(130,220,170,.6)' : 'rgba(255,255,255,.25)', cursor: 'pointer', fontSize: 8, fontWeight: 800, fontFamily: 'inherit' }}>
+                    {sched[i].enabled ? 'ON' : 'OFF'}
+                  </button>
+                  <input type="time" value={minToTime(sched[i].startMin)} onChange={e => updateDay(i, { startMin: timeToMin(e.target.value) })} disabled={!sched[i].enabled} style={{ ...timeInp, opacity: sched[i].enabled ? 1 : .25 }} />
+                  <input type="time" value={minToTime(sched[i].endMin)} onChange={e => updateDay(i, { endMin: timeToMin(e.target.value) })} disabled={!sched[i].enabled} style={{ ...timeInp, opacity: sched[i].enabled ? 1 : .25 }} />
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 3 }}>Service fee auto-counts on days admin clocked in</div>
+            <button onClick={saveSched} disabled={schedSaving}
+              style={{ width: '100%', height: 30, borderRadius: 8, border: `1px solid ${schedSaved ? 'rgba(143,240,177,.35)' : 'rgba(255,255,255,.10)'}`, background: schedSaved ? 'rgba(143,240,177,.10)' : 'rgba(255,255,255,.03)', color: schedSaved ? 'rgba(130,220,170,.6)' : 'rgba(255,255,255,.45)', cursor: 'pointer', fontWeight: 700, fontSize: 10, fontFamily: 'inherit', marginTop: 8 }}>
+              {schedSaving ? 'Saving…' : schedSaved ? 'Schedule saved ✓' : 'Save schedule'}
+            </button>
           </div>
-          {/* Extra days override */}
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', display: 'block', marginBottom: 6 }}>Add extra days (override)</label>
-            <div className="day-pills" style={{ display: 'flex', gap: 6 }}>
-              {DAY_LABELS.map((d, i) => (
-                <button key={i} onClick={() => toggleBonusDay(i)}
-                  style={{ height: 30, width: 40, borderRadius: 8, border: `1px solid ${bonusDays.includes(i) ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.10)'}`, background: bonusDays.includes(i) ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.03)', color: bonusDays.includes(i) ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.40)', cursor: 'pointer', fontSize: 10, fontWeight: 700, fontFamily: 'inherit' }}>
-                  {d}
-                </button>
-              ))}
-            </div>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 3 }}>Blue = manually added extra days for service fee</div>
-          </div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginBottom: 12, lineHeight: 1.5 }}>
-            <strong style={{ color: 'rgba(255,255,255,.55)' }}>Formula:</strong><br/>
-            Base pay = ${hourly}/hr × hours worked<br/>
-            Profit share = owner net profit × {ownerPct}%<br/>
-            Service fee = total fees × {feePct}% (days clocked in + extra days)
-          </div>
-          <button onClick={save} disabled={saving}
-            style={{ width: '100%', height: 40, borderRadius: 12, border: `1px solid ${saved ? 'rgba(143,240,177,.45)' : 'rgba(143,240,177,.40)'}`, background: saved ? 'rgba(143,240,177,.18)' : 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>
-            {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save admin rules'}
-          </button>
         </div>
       )}
-    </div>
-  )
-}
-
-// ─── AdminScheduleEditor ──────────────────────────────────────────────────────
-const DEFAULT_SCHEDULE = Array.from({ length: 7 }, () => ({ enabled: false, startMin: 540, endMin: 1020 }))
-function minToTime(m: number) { return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}` }
-function timeToMin(t: string) { const [h, m] = t.split(':').map(Number); return (h || 0) * 60 + (m || 0) }
-
-function AdminScheduleEditor({ userId, userName, schedule, onSaved }: { userId: string; userName: string; schedule: any[] | null; onSaved: (s: any[]) => void }) {
-  const [sched, setSched] = useState<{ enabled: boolean; startMin: number; endMin: number }[]>(() => {
-    if (Array.isArray(schedule) && schedule.length === 7) return schedule.map(d => ({ enabled: !!d.enabled, startMin: d.startMin ?? d.start_min ?? 540, endMin: d.endMin ?? d.end_min ?? 1020 }))
-    return DEFAULT_SCHEDULE.map(d => ({ ...d }))
-  })
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-
-  function updateDay(i: number, patch: Partial<typeof sched[0]>) {
-    setSched(prev => prev.map((d, idx) => idx === i ? { ...d, ...patch } : d))
-  }
-
-  async function save() {
-    setSaving(true)
-    try {
-      await apiFetch(`/api/users/${encodeURIComponent(userId)}`, { method: 'PATCH', body: JSON.stringify({ schedule: sched }) })
-      onSaved(sched)
-      setSaved(true); setTimeout(() => setSaved(false), 2000)
-    } catch (e: any) { alert('Error: ' + e.message) }
-    setSaving(false)
-  }
-
-  const lbl: React.CSSProperties = { fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', display: 'block', marginBottom: 6 }
-  const timeInp: React.CSSProperties = { height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(0,0,0,.22)', color: '#fff', padding: '0 8px', outline: 'none', fontSize: 12, fontFamily: 'inherit', width: '100%' }
-
-  return (
-    <div style={{ marginTop: 8, borderRadius: 12, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)', padding: '12px 14px' }}>
-      <label style={lbl}>Work schedule — {userName}</label>
-      <div style={{ display: 'grid', gap: 6 }}>
-        {DAY_LABELS.map((d, i) => (
-          <div key={i} style={{ display: 'grid', gridTemplateColumns: '50px 44px 1fr 1fr', gap: 8, alignItems: 'center' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: sched[i].enabled ? '#e8e8ed' : 'rgba(255,255,255,.25)' }}>{d}</span>
-            <button onClick={() => updateDay(i, { enabled: !sched[i].enabled })}
-              style={{ height: 28, borderRadius: 8, border: `1px solid ${sched[i].enabled ? 'rgba(143,240,177,.40)' : 'rgba(255,255,255,.10)'}`, background: sched[i].enabled ? 'rgba(143,240,177,.10)' : 'rgba(255,255,255,.03)', color: sched[i].enabled ? 'rgba(130,220,170,.6)' : 'rgba(255,255,255,.30)', cursor: 'pointer', fontSize: 9, fontWeight: 800, fontFamily: 'inherit' }}>
-              {sched[i].enabled ? 'ON' : 'OFF'}
-            </button>
-            <input type="time" value={minToTime(sched[i].startMin)} onChange={e => updateDay(i, { startMin: timeToMin(e.target.value) })} disabled={!sched[i].enabled} style={{ ...timeInp, opacity: sched[i].enabled ? 1 : .3 }} />
-            <input type="time" value={minToTime(sched[i].endMin)} onChange={e => updateDay(i, { endMin: timeToMin(e.target.value) })} disabled={!sched[i].enabled} style={{ ...timeInp, opacity: sched[i].enabled ? 1 : .3 }} />
-          </div>
-        ))}
-      </div>
-      <button onClick={save} disabled={saving}
-        style={{ width: '100%', height: 36, borderRadius: 10, border: `1px solid ${saved ? 'rgba(143,240,177,.45)' : 'rgba(255,255,255,.15)'}`, background: saved ? 'rgba(143,240,177,.15)' : 'rgba(255,255,255,.04)', color: saved ? 'rgba(130,220,170,.6)' : 'rgba(255,255,255,.55)', cursor: 'pointer', fontWeight: 800, fontSize: 12, fontFamily: 'inherit', marginTop: 10 }}>
-        {saving ? 'Saving…' : saved ? 'Schedule saved ✓' : 'Save schedule'}
-      </button>
     </div>
   )
 }
@@ -671,7 +640,7 @@ export default function PayrollPage() {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif', overflowY: 'auto' }}>
 
         {/* Topbar */}
-        <div className="topbar-pad" style={{ padding: '10px 18px', borderBottom: '1px solid rgba(255,255,255,.06)', position: 'sticky', top: 0, zIndex: 20 }}>
+        <div className="topbar-pad" style={{ padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,.06)', position: 'sticky', top: 0, zIndex: 20 }}>
           <div className="payroll-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>
               {barbers.length} barbers · {barbers.reduce((s,b)=>s+b.bookings_count,0)} bookings
@@ -699,11 +668,11 @@ export default function PayrollPage() {
         </div>
 
         {/* Body */}
-        <div className="payroll-body" style={{ flex: 1, padding: '18px 20px', display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'start' }}>
+        <div className="payroll-body" style={{ flex: 1, padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr 300px', gap: 12, alignItems: 'start' }}>
 
           {/* Left — table */}
           <div style={card}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.12)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.12)' }}>
               <div style={{ ...lbl }}>Team payout summary</div>
               <div style={{ ...lbl, border: '1px solid rgba(255,255,255,.12)', padding: '4px 10px', borderRadius: 999 }}>{visible.length} barbers</div>
             </div>
@@ -723,7 +692,7 @@ export default function PayrollPage() {
                   <thead>
                     <tr>
                       {['Team member','Hours','Rate','Services','Member share','Owner share','Tips','Total payout',''].map(h => (
-                        <th key={h} style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.08)', textAlign: 'left', ...lbl, background: 'rgba(0,0,0,.10)', whiteSpace: 'nowrap' }}>{h}</th>
+                        <th key={h} style={{ padding: '7px 10px', borderBottom: '1px solid rgba(255,255,255,.08)', textAlign: 'left', ...lbl, background: 'rgba(0,0,0,.10)', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -740,7 +709,7 @@ export default function PayrollPage() {
                         <tr key={b.barber_id} style={{ background: isOpen ? 'rgba(255,255,255,.03)' : 'transparent' }}
                           onMouseEnter={e => (e.currentTarget.style.background='rgba(255,255,255,.025)')}
                           onMouseLeave={e => (e.currentTarget.style.background=isOpen?'rgba(255,255,255,.03)':'transparent')}>
-                          <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                          <td style={{ padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               {b.barber_photo
                                 ? <img src={b.barber_photo} alt={b.barber_name} style={{ width: 36, height: 36, borderRadius: 12, objectFit: 'cover', border: '1px solid rgba(255,255,255,.14)', flexShrink: 0 }} onError={e => (e.currentTarget.style.display='none')} />
@@ -752,19 +721,19 @@ export default function PayrollPage() {
                               </div>
                             </div>
                           </td>
-                          <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,.06)', whiteSpace: 'nowrap' }}>
                             {(() => { const mins = adminAttendance[b.barber_id] || 0; const h = mins / 60; return h > 0 ? <span style={{ fontSize: 12, color: 'rgba(255,255,255,.6)', fontWeight: 700 }}>{h.toFixed(1)}h</span> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,.25)' }}>—</span> })()}
                           </td>
-                          <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,.06)', whiteSpace: 'nowrap' }}>
                             <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 999, border: isBoosted ? '1px solid rgba(143,240,177,.45)' : '1px solid rgba(255,255,255,.12)', background: isBoosted ? 'rgba(143,240,177,.10)' : 'rgba(255,255,255,.04)', color: isBoosted ? 'rgba(130,220,170,.5)' : 'rgba(130,150,220,.6)' }}>
                               {b.effective_pct}%{isBoosted ? ' ↑' : ''}
                             </span>
                           </td>
-                          <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', fontWeight: 700 }}>{fmtMoney(b.service_total)}</td>
-                          <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)' }}>{fmtMoney(b.barber_service_share)}</td>
-                          <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.45)' }}>{fmtMoney(b.owner_service_share)}</td>
-                          <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', color: 'rgba(130,220,170,.8)' }}>{fmtMoney(b.tips_total)}</td>
-                          <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', fontWeight: 900, fontSize: 14 }}>
+                          <td style={{ padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,.06)', fontWeight: 700 }}>{fmtMoney(b.service_total)}</td>
+                          <td style={{ padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)' }}>{fmtMoney(b.barber_service_share)}</td>
+                          <td style={{ padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,.06)', color: 'rgba(255,255,255,.45)' }}>{fmtMoney(b.owner_service_share)}</td>
+                          <td style={{ padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,.06)', color: 'rgba(130,220,170,.8)' }}>{fmtMoney(b.tips_total)}</td>
+                          <td style={{ padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,.06)', fontWeight: 900, fontSize: 14 }}>
                             {latePenalty > 0 ? (
                               <div>
                                 <span>{fmtMoney(adjustedTotal)}</span>
@@ -787,7 +756,7 @@ export default function PayrollPage() {
                               </div>
                             ) : fmtMoney(b.barber_total)}
                           </td>
-                          <td style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                          <td style={{ padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
                             <button onClick={() => toggleExpand(b.barber_id)}
                               style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.45)', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '2px 6px', borderRadius: 8 }}>
                               {isOpen ? '▴' : '▾'}
@@ -831,10 +800,10 @@ export default function PayrollPage() {
           </div>
 
           {/* Right panel */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={card}>
               {/* Tabs */}
-              <div style={{ display: 'flex', gap: 6, padding: '12px 14px 0', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 4, padding: '10px 12px 0', flexWrap: 'wrap' }}>
                 {(['summary','attendance','rules'] as const).map(tab => (
                   <button key={tab} onClick={() => setActiveTab(tab)}
                     style={{ height: 34, padding: '0 14px', borderRadius: 999, border: `1px solid ${activeTab===tab ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.10)'}`, background: activeTab===tab ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.04)', color: activeTab===tab ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.70)', cursor: 'pointer', fontWeight: 900, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -846,7 +815,7 @@ export default function PayrollPage() {
 
               {activeTab === 'summary' && (
                 <>
-                  <div className="summary-cards" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '12px 14px' }}>
+                  <div className="summary-cards" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, padding: '10px 12px' }}>
                     {[
                       { label: 'Services gross', value: fmtMoney(totals?.service_total||0), wide: true },
                       { label: 'Team total', value: fmtMoney(totals?.barber_service_share||0) },
@@ -854,13 +823,13 @@ export default function PayrollPage() {
                       { label: 'Tips', value: fmtMoney(totals?.tips_total||0) },
                       { label: 'Team total payout', value: fmtMoney(totals?.barber_total||0), wide: true, big: true },
                     ].map(k => (
-                      <div key={k.label} style={{ padding: '12px', borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)', gridColumn: k.wide ? '1/-1' : undefined }}>
-                        <div style={{ ...lbl, marginBottom: 4 }}>{k.label}</div>
-                        <div style={{ fontWeight: 900, fontSize: k.big ? 22 : 16, letterSpacing: '.02em' }}>{k.value}</div>
+                      <div key={k.label} style={{ padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)', gridColumn: k.wide ? '1/-1' : undefined }}>
+                        <div style={{ ...lbl, marginBottom: 2 }}>{k.label}</div>
+                        <div style={{ fontWeight: 900, fontSize: k.big ? 20 : 15, letterSpacing: '.02em' }}>{k.value}</div>
                       </div>
                     ))}
                   </div>
-                  <div style={{ padding: '0 14px 14px', fontSize: 12, color: 'rgba(255,255,255,.40)', lineHeight: 1.7 }}>
+                  <div style={{ padding: '0 12px 10px', fontSize: 11, color: 'rgba(255,255,255,.35)', lineHeight: 1.6 }}>
                     <strong style={{ color: 'rgba(255,255,255,.65)' }}>Formula</strong><br/>
                     Barber payout = services × rate% + tips × tips%<br/>
                     Owner share = services × (100 − rate%)<br/>
@@ -900,23 +869,23 @@ export default function PayrollPage() {
                     return (
                       <>
                         {/* Owner net profit */}
-                        <div style={{ margin: '0 14px 14px', borderRadius: 14, border: '1px solid rgba(255,207,63,.20)', background: 'rgba(255,207,63,.04)', padding: '14px' }}>
+                        <div style={{ margin: '0 12px 10px', borderRadius: 12, border: '1px solid rgba(255,207,63,.18)', background: 'rgba(255,207,63,.03)', padding: '10px 12px' }}>
                           <div style={{ ...lbl, color: 'rgba(220,190,130,.5)', marginBottom: 8 }}>Owner net profit</div>
-                          <div className="owner-net-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 12, marginBottom: 8 }}>
+                          <div className="owner-net-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 11, marginBottom: 6 }}>
                             <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Gross revenue: </span><span>{fmtMoney(totalServices)}</span></div>
                             <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Team payout: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(barbersTotalPayout)}</span></div>
                             <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Owner share: </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(ownerShare)}</span></div>
                             {adminUsers.length > 0 && <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Admin pay: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(totalAdminPay)}</span></div>}
                             {expensesTotal > 0 && <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Expenses: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(expensesTotal)}</span></div>}
                           </div>
-                          <div style={{ fontWeight: 900, fontSize: 22, color: 'rgba(220,190,130,.5)' }}>
+                          <div style={{ fontWeight: 900, fontSize: 18, color: 'rgba(220,190,130,.5)' }}>
                             Net: {fmtMoney(ownerNet)}
                           </div>
                         </div>
 
                         {/* Admin payroll breakdown */}
                         {adminCalcs.length > 0 && (
-                          <div style={{ margin: '0 14px 14px', borderRadius: 14, border: '1px solid rgba(143,240,177,.20)', background: 'rgba(143,240,177,.04)', padding: '14px' }}>
+                          <div style={{ margin: '0 12px 10px', borderRadius: 12, border: '1px solid rgba(143,240,177,.18)', background: 'rgba(143,240,177,.03)', padding: '10px 12px' }}>
                             <div style={{ ...lbl, color: 'rgba(130,220,170,.5)', marginBottom: 10 }}>Admin payroll</div>
                             {adminCalcs.map(({ u, r, hours, basePay, profitShare, feeShare, total, allFeeDays }) => (
                               <div key={u.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
@@ -931,13 +900,13 @@ export default function PayrollPage() {
                                   const timeStr = firstEnabled ? `${minToTime(firstEnabled.startMin)}–${minToTime(firstEnabled.endMin)}` : ''
                                   return <div style={{ fontSize: 10, color: 'rgba(255,255,255,.30)', marginBottom: 6 }}>{activeDays.join(', ')} · {timeStr}</div>
                                 })()}
-                                <div className="admin-payroll-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 12 }}>
+                                <div className="admin-payroll-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 11 }}>
                                   <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Hours: </span><span style={{ color: 'rgba(255,255,255,.6)' }}>{hours.toFixed(1)}h</span></div>
                                   <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Base pay (${r.hourly_rate || 0}/hr): </span><span style={{ color: 'rgba(130,220,170,.8)' }}>{fmtMoney(basePay)}</span></div>
                                   <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Profit {r.owner_profit_pct || 0}%: </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(profitShare)}</span></div>
                                   <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Fee {r.service_fee_pct || 0}% ({allFeeDays.length}d): </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(feeShare)}</span></div>
                                 </div>
-                                <div style={{ marginTop: 6, fontWeight: 900, fontSize: 16 }}>
+                                <div style={{ marginTop: 4, fontWeight: 900, fontSize: 14 }}>
                                   Total: <span style={{ color: 'rgba(130,220,170,.8)' }}>{fmtMoney(total)}</span>
                                 </div>
                               </div>
@@ -951,7 +920,7 @@ export default function PayrollPage() {
               )}
 
               {activeTab === 'attendance' && (
-                <div style={{ padding: '12px 14px' }}>
+                <div style={{ padding: '10px 12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(130,150,220,.6)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     <span style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.55)', fontWeight: 900 }}>Attendance history</span>
@@ -1004,23 +973,19 @@ export default function PayrollPage() {
               )}
 
               {activeTab === 'rules' && (
-                <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {/* Admin rules */}
                   {adminUsers.length > 0 && (
                     <>
                       <div style={{ ...lbl, marginBottom: 4, marginTop: 4 }}>Admin payroll rules</div>
                       {adminUsers.map(u => (
-                        <div key={u.id}>
-                          <AdminPayrollEditor userId={u.id} userName={u.name || u.username}
-                            rule={rules[u.id] || { base_pct: 0, tips_pct: 0, tiers: [], hourly_rate: 0, owner_profit_pct: 2, service_fee_pct: 3, service_fee_days: [] }}
-                            extraDays={adminWorkDays[u.id] || []}
-                            onSaved={r => { setRules(prev => ({ ...prev, [u.id]: r })); load() }}
-                          />
-                          <AdminScheduleEditor userId={u.id} userName={u.name || u.username}
-                            schedule={adminSchedules[u.id] || null}
-                            onSaved={s => setAdminSchedules(prev => ({ ...prev, [u.id]: s }))}
-                          />
-                        </div>
+                        <AdminPayrollEditor key={u.id} userId={u.id} userName={u.name || u.username}
+                          rule={rules[u.id] || { base_pct: 0, tips_pct: 0, tiers: [], hourly_rate: 0, owner_profit_pct: 2, service_fee_pct: 3, service_fee_days: [] }}
+                          extraDays={adminWorkDays[u.id] || []}
+                          onSaved={r => { setRules(prev => ({ ...prev, [u.id]: r })); load() }}
+                          schedule={adminSchedules[u.id] || null}
+                          onScheduleSaved={s => setAdminSchedules(prev => ({ ...prev, [u.id]: s }))}
+                        />
                       ))}
                       <div style={{ height: 1, background: 'rgba(255,255,255,.08)', margin: '4px 0' }} />
                       <div style={{ ...lbl, marginBottom: 4 }}>Commission rules</div>
