@@ -677,22 +677,66 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
 
   return (
     <>
-      {/* PIN Overlay */}
+      {/* PIN Overlay — Vurium Dark Cosmos */}
       {showPinOverlay && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.95)', backdropFilter: 'blur(20px)', padding: 20, fontFamily: 'Inter, system-ui, sans-serif' }}>
-          <div style={{ width: '100%', maxWidth: 360, textAlign: 'center' }}>
-            <div style={{ fontFamily: '"Inter", sans-serif', letterSpacing: '.22em', textTransform: 'uppercase', fontSize: 18, marginBottom: 6, color: '#e8e8ed' }}>Element</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.40)', marginBottom: 8 }}>Session expired</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', marginBottom: 28 }}>Enter your PIN to continue as <strong style={{ color: 'rgba(130,150,220,.6)' }}>{user?.name || getPinUsername()}</strong></div>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', padding: 20, fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden' }}>
+          {/* Cosmic background */}
+          <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+            {/* Stars */}
+            {Array.from({ length: 40 }).map((_, i) => (
+              <div key={i} style={{
+                position: 'absolute',
+                width: i % 5 === 0 ? 2 : 1,
+                height: i % 5 === 0 ? 2 : 1,
+                borderRadius: '50%',
+                background: `rgba(255,255,255,${0.1 + (i % 4) * 0.08})`,
+                left: `${(i * 37 + 13) % 100}%`,
+                top: `${(i * 53 + 7) % 100}%`,
+              }} />
+            ))}
+            {/* Nebula glow */}
+            <div style={{ position: 'absolute', top: '20%', left: '50%', transform: 'translate(-50%, -50%)', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(100,120,200,.06) 0%, transparent 70%)', filter: 'blur(60px)' }} />
+            <div style={{ position: 'absolute', bottom: '10%', right: '20%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(130,150,220,.04) 0%, transparent 70%)', filter: 'blur(50px)' }} />
+          </div>
+
+          <div style={{ width: '100%', maxWidth: 360, textAlign: 'center', position: 'relative', zIndex: 1 }}>
+            {/* Logo */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
+              <svg width="24" height="24" viewBox="0 0 32 32" fill="none" style={{ opacity: 0.7 }}>
+                <path d="M6 8 L16 4 L26 8 L26 20 L16 28 L6 20Z" stroke="rgba(255,255,255,.5)" strokeWidth="1.5" fill="none" />
+                <path d="M16 4 L16 28" stroke="rgba(255,255,255,.25)" strokeWidth="1" />
+                <path d="M6 8 L26 20" stroke="rgba(255,255,255,.15)" strokeWidth="1" />
+                <path d="M26 8 L6 20" stroke="rgba(255,255,255,.15)" strokeWidth="1" />
+              </svg>
+              <span style={{ fontSize: 20, fontWeight: 600, color: '#e8e8ed', letterSpacing: '-.02em' }}>Vurium</span>
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.30)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 32 }}>Session expired</div>
+
+            <div style={{ fontSize: 14, color: 'rgba(255,255,255,.50)', marginBottom: 32 }}>
+              Enter PIN to continue as <strong style={{ color: 'rgba(130,150,220,.7)' }}>{user?.name || getPinUsername()}</strong>
+            </div>
+
             {/* PIN dots */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginBottom: 32 }}>
               {[0, 1, 2, 3].map(i => (
-                <div key={i} style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,.20)', background: i < pinInput.length ? 'rgba(130,150,220,.6)' : 'transparent', transition: 'background .15s' }} />
+                <div key={i} style={{
+                  width: 14, height: 14, borderRadius: '50%',
+                  border: `1.5px solid ${i < pinInput.length ? 'rgba(130,150,220,.5)' : 'rgba(255,255,255,.15)'}`,
+                  background: i < pinInput.length ? 'rgba(130,150,220,.6)' : 'transparent',
+                  transition: 'all .2s ease',
+                  boxShadow: i < pinInput.length ? '0 0 12px rgba(130,150,220,.3)' : 'none',
+                }} />
               ))}
             </div>
-            {pinError && <div style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.08)', color: 'rgba(220,130,160,.5)', fontSize: 12, marginBottom: 16 }}>{pinError}</div>}
+
+            {pinError && (
+              <div style={{ padding: '10px 16px', borderRadius: 12, border: '1px solid rgba(255,107,107,.20)', background: 'rgba(255,107,107,.06)', color: 'rgba(255,130,130,.7)', fontSize: 12, marginBottom: 20 }}>
+                {pinError}
+              </div>
+            )}
+
             {/* Number pad */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, maxWidth: 260, margin: '0 auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, maxWidth: 280, margin: '0 auto' }}>
               {[1,2,3,4,5,6,7,8,9,null,0,'del'].map((n, i) => (
                 <button key={i} type="button" disabled={pinLoading}
                   onClick={() => {
@@ -700,19 +744,29 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
                     else if (n !== null && pinInput.length < 4) { setPinInput(p => p + n); setPinError('') }
                   }}
                   style={{
-                    height: 56, borderRadius: 14, border: 'none',
-                    background: n === null ? 'transparent' : 'rgba(255,255,255,.06)',
-                    color: n === 'del' ? 'rgba(255,255,255,.40)' : '#e8e8ed',
-                    fontSize: n === 'del' ? 14 : 22, fontWeight: 600, cursor: n === null ? 'default' : 'pointer',
-                    fontFamily: 'inherit', transition: 'background .1s',
+                    height: 60, borderRadius: 16,
+                    border: n === null ? 'none' : '1px solid rgba(255,255,255,.06)',
+                    background: n === null ? 'transparent' : 'rgba(255,255,255,.03)',
+                    color: n === 'del' ? 'rgba(255,255,255,.35)' : '#e8e8ed',
+                    fontSize: n === 'del' ? 16 : 24, fontWeight: 500,
+                    cursor: n === null ? 'default' : 'pointer',
+                    fontFamily: 'inherit', transition: 'all .15s',
                     visibility: n === null ? 'hidden' : 'visible',
-                  }}>
+                    letterSpacing: '-.02em',
+                  }}
+                  onMouseEnter={e => { if (n !== null) (e.target as HTMLElement).style.background = 'rgba(255,255,255,.08)' }}
+                  onMouseLeave={e => { if (n !== null) (e.target as HTMLElement).style.background = 'rgba(255,255,255,.03)' }}
+                >
                   {n === 'del' ? '\u232B' : n}
                 </button>
               ))}
             </div>
+
             <button type="button" onClick={() => { setShowPinOverlay(false); localStorage.removeItem('VURIUMBOOK_USER'); clearAuthCookie(); window.location.href = '/signin' }}
-              style={{ marginTop: 24, background: 'none', border: 'none', color: 'rgba(255,255,255,.30)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '.06em' }}>
+              style={{ marginTop: 32, background: 'none', border: 'none', color: 'rgba(255,255,255,.25)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '.06em', transition: 'color .2s' }}
+              onMouseEnter={e => (e.target as HTMLElement).style.color = 'rgba(255,255,255,.45)'}
+              onMouseLeave={e => (e.target as HTMLElement).style.color = 'rgba(255,255,255,.25)'}
+            >
               Login with password
             </button>
           </div>
