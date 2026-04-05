@@ -618,7 +618,6 @@ export default function PayrollPage() {
         ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
         select option{background:#111}
         @media(max-width:768px){
-          .payroll-body{grid-template-columns:1fr!important}
           .payroll-topbar-row{flex-direction:column!important;align-items:stretch!important;gap:10px!important}
           .payroll-topbar-actions{flex-wrap:wrap!important;justify-content:stretch!important;gap:6px!important}
           .payroll-topbar-actions>button,.payroll-topbar-actions>select{flex:1 1 auto!important;min-width:0!important}
@@ -629,12 +628,13 @@ export default function PayrollPage() {
           .admin-editor-grid{grid-template-columns:1fr!important}
           .tier-row{grid-template-columns:1fr 1fr!important}
           .bonus-row{grid-template-columns:1fr!important}
-          .summary-cards{grid-template-columns:1fr!important}
+          .kpi-strip{grid-template-columns:repeat(2,1fr)!important}
           .owner-net-grid{grid-template-columns:1fr!important}
           .admin-payroll-grid{grid-template-columns:1fr!important}
           .day-pills{flex-wrap:wrap!important}
-          .topbar-pad{padding:12px 12px 10px!important}
-          .payroll-body{padding:12px!important;gap:12px!important}
+          .topbar-pad{padding:10px 12px!important}
+          .payroll-content{padding:10px!important}
+          .bottom-panels{grid-template-columns:1fr!important}
         }
       `}</style>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif', overflowY: 'auto' }}>
@@ -667,10 +667,26 @@ export default function PayrollPage() {
           </div>
         </div>
 
-        {/* Body */}
-        <div className="payroll-body" style={{ flex: 1, padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr 300px', gap: 12, alignItems: 'start' }}>
+        {/* Body — single column */}
+        <div className="payroll-content" style={{ flex: 1, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-          {/* Left — table */}
+          {/* KPI strip */}
+          <div className="kpi-strip" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+            {[
+              { label: 'Services gross', value: fmtMoney(totals?.service_total||0), color: '' },
+              { label: 'Team total', value: fmtMoney(totals?.barber_service_share||0), color: '' },
+              { label: 'Owner share', value: fmtMoney(totals?.owner_service_share||0), color: 'rgba(220,190,130,.6)' },
+              { label: 'Tips', value: fmtMoney(totals?.tips_total||0), color: 'rgba(130,220,170,.7)' },
+              { label: 'Total payout (incl. tips)', value: fmtMoney(totals?.barber_total||0), color: '' },
+            ].map(k => (
+              <div key={k.label} style={{ padding: '10px 12px', borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02))', backdropFilter: 'blur(12px)' }}>
+                <div style={{ ...lbl, marginBottom: 3 }}>{k.label}</div>
+                <div style={{ fontWeight: 900, fontSize: 17, letterSpacing: '.02em', color: k.color || '#e8e8ed' }}>{k.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Table */}
           <div style={card}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.12)' }}>
               <div style={{ ...lbl }}>Team payout summary</div>
@@ -799,125 +815,89 @@ export default function PayrollPage() {
             )}
           </div>
 
-          {/* Right panel */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* Bottom panels — 2 column grid */}
+          <div className="bottom-panels" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+
+            {/* Left — Owner profit + Admin payroll */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Formula */}
+              <div style={{ ...card, padding: '12px 14px' }}>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', lineHeight: 1.6 }}>
+                  <strong style={{ color: 'rgba(255,255,255,.65)' }}>Formula</strong><br/>
+                  Barber payout = services × rate% + tips × tips%<br/>
+                  Owner share = services × (100 − rate%)<br/>
+                  Tiers override base % when threshold reached
+                </div>
+              </div>
+
+              {/* Owner net profit + Admin payroll */}
+              {(() => {
+                const ownerShare = totals?.owner_service_share || 0
+                const totalServices = totals?.service_total || 0
+                const terminalServices = (totals as any)?.terminal_service_total || 0
+                const barbersTotalPayout = totals?.barber_total || 0
+                let totalAdminPay = 0
+                const adminCalcs = adminUsers.map(u => {
+                  const r = rules[u.id] || { hourly_rate: 0, owner_profit_pct: 2, service_fee_pct: 3, service_fee_days: [] }
+                  const hours = (adminAttendance[u.id] || 0) / 60
+                  const basePay = (r.hourly_rate || 0) * hours
+                  const profitShare = ownerShare * ((r.owner_profit_pct || 0) / 100)
+                  const workedDays = adminWorkDays[u.id] || []
+                  const extraDays = (r.service_fee_days || []) as number[]
+                  const allFeeDays = [...new Set([...workedDays, ...extraDays])]
+                  const feeShare = allFeeDays.length > 0 ? terminalServices * ((r.service_fee_pct || 0) / 100) : 0
+                  const total = basePay + profitShare + feeShare
+                  totalAdminPay += total
+                  return { u, r, hours, basePay, profitShare, feeShare, total, allFeeDays }
+                })
+                const ownerNet = ownerShare - totalAdminPay - expensesTotal
+                return (
+                  <>
+                    <div style={{ ...card, padding: '12px 14px', border: '1px solid rgba(255,207,63,.18)', background: 'linear-gradient(180deg,rgba(255,207,63,.05),rgba(255,207,63,.01))' }}>
+                      <div style={{ ...lbl, color: 'rgba(220,190,130,.6)', marginBottom: 6 }}>Owner net profit</div>
+                      <div className="owner-net-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 11, marginBottom: 6 }}>
+                        <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Gross revenue: </span><span>{fmtMoney(totalServices)}</span></div>
+                        <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Team payout: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(barbersTotalPayout)}</span></div>
+                        <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Owner share: </span><span style={{ color: 'rgba(220,190,130,.6)' }}>{fmtMoney(ownerShare)}</span></div>
+                        {adminUsers.length > 0 && <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Admin pay: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(totalAdminPay)}</span></div>}
+                        {expensesTotal > 0 && <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Expenses: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(expensesTotal)}</span></div>}
+                      </div>
+                      <div style={{ fontWeight: 900, fontSize: 20, color: 'rgba(220,190,130,.6)' }}>Net: {fmtMoney(ownerNet)}</div>
+                    </div>
+                    {adminCalcs.length > 0 && (
+                      <div style={{ ...card, padding: '12px 14px', border: '1px solid rgba(143,240,177,.18)', background: 'linear-gradient(180deg,rgba(143,240,177,.04),rgba(143,240,177,.01))' }}>
+                        <div style={{ ...lbl, color: 'rgba(130,220,170,.6)', marginBottom: 8 }}>Admin payroll</div>
+                        {adminCalcs.map(({ u, r, hours, basePay, profitShare, feeShare, total, allFeeDays }) => (
+                          <div key={u.id} style={{ padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: '#e8e8ed' }}>{u.name || u.username}</div>
+                            {(() => { const s = adminSchedules[u.id]; if (!Array.isArray(s)) return null; const ad = s.map((d, i) => d.enabled ? DAY_LABELS[i] : null).filter(Boolean); if (!ad.length) return null; const fe = s.find(d => d.enabled); return <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginBottom: 4 }}>{ad.join(', ')} · {fe ? `${minToTime(fe.startMin)}–${minToTime(fe.endMin)}` : ''}</div> })()}
+                            <div className="admin-payroll-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, fontSize: 11 }}>
+                              <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Hours: </span><span style={{ color: 'rgba(255,255,255,.6)' }}>{hours.toFixed(1)}h</span></div>
+                              <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Base (${r.hourly_rate||0}/hr): </span><span style={{ color: 'rgba(130,220,170,.8)' }}>{fmtMoney(basePay)}</span></div>
+                              <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Profit {r.owner_profit_pct||0}%: </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(profitShare)}</span></div>
+                              <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Fee {r.service_fee_pct||0}% ({allFeeDays.length}d): </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(feeShare)}</span></div>
+                            </div>
+                            <div style={{ marginTop: 3, fontWeight: 900, fontSize: 14 }}>Total: <span style={{ color: 'rgba(130,220,170,.8)' }}>{fmtMoney(total)}</span></div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+            </div>
+
+            {/* Right — Tabs: Attendance & Rules */}
             <div style={card}>
-              {/* Tabs */}
-              <div style={{ display: 'flex', gap: 4, padding: '10px 12px 0', flexWrap: 'wrap' }}>
-                {(['summary','attendance','rules'] as const).map(tab => (
+              <div style={{ display: 'flex', gap: 4, padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                {(['attendance','rules'] as const).map(tab => (
                   <button key={tab} onClick={() => setActiveTab(tab)}
-                    style={{ height: 34, padding: '0 14px', borderRadius: 999, border: `1px solid ${activeTab===tab ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.10)'}`, background: activeTab===tab ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.04)', color: activeTab===tab ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.70)', cursor: 'pointer', fontWeight: 900, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    {tab === 'attendance' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
-                    {tab === 'summary' ? 'Summary' : tab === 'attendance' ? 'Hours & Clock' : 'Commission rules'}
+                    style={{ height: 32, padding: '0 14px', borderRadius: 999, border: `1px solid ${activeTab===tab ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.08)'}`, background: activeTab===tab ? 'rgba(255,255,255,.06)' : 'transparent', color: activeTab===tab ? 'rgba(130,150,220,.7)' : 'rgba(255,255,255,.50)', cursor: 'pointer', fontWeight: 800, fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    {tab === 'attendance' && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
+                    {tab === 'attendance' ? 'Hours & Clock' : 'Commission rules'}
                   </button>
                 ))}
               </div>
-
-              {activeTab === 'summary' && (
-                <>
-                  <div className="summary-cards" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, padding: '10px 12px' }}>
-                    {[
-                      { label: 'Services gross', value: fmtMoney(totals?.service_total||0), wide: true },
-                      { label: 'Team total', value: fmtMoney(totals?.barber_service_share||0) },
-                      { label: 'Owner share', value: fmtMoney(totals?.owner_service_share||0) },
-                      { label: 'Tips', value: fmtMoney(totals?.tips_total||0) },
-                      { label: 'Team total payout (incl. tips)', value: fmtMoney(totals?.barber_total||0), wide: true, big: true },
-                    ].map(k => (
-                      <div key={k.label} style={{ padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)', gridColumn: k.wide ? '1/-1' : undefined }}>
-                        <div style={{ ...lbl, marginBottom: 2 }}>{k.label}</div>
-                        <div style={{ fontWeight: 900, fontSize: k.big ? 20 : 15, letterSpacing: '.02em' }}>{k.value}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ padding: '0 12px 10px', fontSize: 11, color: 'rgba(255,255,255,.35)', lineHeight: 1.6 }}>
-                    <strong style={{ color: 'rgba(255,255,255,.65)' }}>Formula</strong><br/>
-                    Barber payout = services × rate% + tips × tips%<br/>
-                    Owner share = services × (100 − rate%)<br/>
-                    Tiers override base % when threshold reached
-                  </div>
-
-                  {/* Admin payroll + Owner net profit */}
-                  {(() => {
-                    const ownerShare = totals?.owner_service_share || 0
-                    const totalServices = totals?.service_total || 0
-                    const terminalServices = (totals as any)?.terminal_service_total || 0
-                    const barbersTotalPayout = totals?.barber_total || 0
-                    // Service fee only from terminal/card payments (Square charges fee)
-                    const serviceFeeGross = terminalServices * 0.03
-
-                    // Calculate admin payroll
-                    let totalAdminPay = 0
-                    const adminCalcs = adminUsers.map(u => {
-                      const r = rules[u.id] || { hourly_rate: 0, owner_profit_pct: 2, service_fee_pct: 3, service_fee_days: [] }
-                      const hours = (adminAttendance[u.id] || 0) / 60
-                      const basePay = (r.hourly_rate || 0) * hours
-                      // Profit share from owner's net
-                      const profitShare = ownerShare * ((r.owner_profit_pct || 0) / 100)
-                      // Service fee: percentage of total services for days worked
-                      const workedDays = adminWorkDays[u.id] || []
-                      const extraDays = (r.service_fee_days || []) as number[]
-                      const allFeeDays = [...new Set([...workedDays, ...extraDays])]
-                      // Fee = service_fee_pct% of terminal services only (if worked any days)
-                      const feeShare = allFeeDays.length > 0 ? terminalServices * ((r.service_fee_pct || 0) / 100) : 0
-                      const total = basePay + profitShare + feeShare
-                      totalAdminPay += total
-                      return { u, r, hours, basePay, profitShare, feeShare, total, allFeeDays }
-                    })
-
-                    // Owner net = owner share - admin pay
-                    const ownerNet = ownerShare - totalAdminPay - expensesTotal
-                    return (
-                      <>
-                        {/* Owner net profit */}
-                        <div style={{ margin: '0 12px 10px', borderRadius: 12, border: '1px solid rgba(255,207,63,.18)', background: 'rgba(255,207,63,.03)', padding: '10px 12px' }}>
-                          <div style={{ ...lbl, color: 'rgba(220,190,130,.5)', marginBottom: 8 }}>Owner net profit</div>
-                          <div className="owner-net-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 11, marginBottom: 6 }}>
-                            <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Gross revenue: </span><span>{fmtMoney(totalServices)}</span></div>
-                            <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Team payout: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(barbersTotalPayout)}</span></div>
-                            <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Owner share: </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(ownerShare)}</span></div>
-                            {adminUsers.length > 0 && <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Admin pay: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(totalAdminPay)}</span></div>}
-                            {expensesTotal > 0 && <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Expenses: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(expensesTotal)}</span></div>}
-                          </div>
-                          <div style={{ fontWeight: 900, fontSize: 18, color: 'rgba(220,190,130,.5)' }}>
-                            Net: {fmtMoney(ownerNet)}
-                          </div>
-                        </div>
-
-                        {/* Admin payroll breakdown */}
-                        {adminCalcs.length > 0 && (
-                          <div style={{ margin: '0 12px 10px', borderRadius: 12, border: '1px solid rgba(143,240,177,.18)', background: 'rgba(143,240,177,.03)', padding: '10px 12px' }}>
-                            <div style={{ ...lbl, color: 'rgba(130,220,170,.5)', marginBottom: 10 }}>Admin payroll</div>
-                            {adminCalcs.map(({ u, r, hours, basePay, profitShare, feeShare, total, allFeeDays }) => (
-                              <div key={u.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-                                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2, color: '#e8e8ed' }}>{u.name || u.username}</div>
-                                {/* Compact schedule display */}
-                                {(() => {
-                                  const s = adminSchedules[u.id]
-                                  if (!Array.isArray(s)) return null
-                                  const activeDays = s.map((d, i) => d.enabled ? DAY_LABELS[i] : null).filter(Boolean)
-                                  if (!activeDays.length) return null
-                                  const firstEnabled = s.find(d => d.enabled)
-                                  const timeStr = firstEnabled ? `${minToTime(firstEnabled.startMin)}–${minToTime(firstEnabled.endMin)}` : ''
-                                  return <div style={{ fontSize: 10, color: 'rgba(255,255,255,.30)', marginBottom: 6 }}>{activeDays.join(', ')} · {timeStr}</div>
-                                })()}
-                                <div className="admin-payroll-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 11 }}>
-                                  <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Hours: </span><span style={{ color: 'rgba(255,255,255,.6)' }}>{hours.toFixed(1)}h</span></div>
-                                  <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Base pay (${r.hourly_rate || 0}/hr): </span><span style={{ color: 'rgba(130,220,170,.8)' }}>{fmtMoney(basePay)}</span></div>
-                                  <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Profit {r.owner_profit_pct || 0}%: </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(profitShare)}</span></div>
-                                  <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Fee {r.service_fee_pct || 0}% ({allFeeDays.length}d): </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(feeShare)}</span></div>
-                                </div>
-                                <div style={{ marginTop: 4, fontWeight: 900, fontSize: 14 }}>
-                                  Total: <span style={{ color: 'rgba(130,220,170,.8)' }}>{fmtMoney(total)}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )
-                  })()}
-                </>
-              )}
 
               {activeTab === 'attendance' && (
                 <div style={{ padding: '10px 12px' }}>
