@@ -199,6 +199,7 @@ export default function PrivacyPage() {
           <a href="/terms" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Terms</a>
           <a href="/cookies" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Cookies</a>
           <a href="/dpa" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>DPA</a>
+          <a href="/support" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Support</a>
         </div>
       </footer>
     </>
