@@ -691,7 +691,7 @@ export default function PayrollPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      {['Team member','Hours','Rate','Services','Member share','Owner share','Tips','Total payout',''].map(h => (
+                      {['Team member','Hours','Rate','Services','Member share','Owner share','Tips','Total (incl. tips)',''].map(h => (
                         <th key={h} style={{ padding: '7px 10px', borderBottom: '1px solid rgba(255,255,255,.08)', textAlign: 'left', ...lbl, background: 'rgba(0,0,0,.10)', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
@@ -821,7 +821,7 @@ export default function PayrollPage() {
                       { label: 'Team total', value: fmtMoney(totals?.barber_service_share||0) },
                       { label: 'Owner share', value: fmtMoney(totals?.owner_service_share||0) },
                       { label: 'Tips', value: fmtMoney(totals?.tips_total||0) },
-                      { label: 'Team total payout', value: fmtMoney(totals?.barber_total||0), wide: true, big: true },
+                      { label: 'Team total payout (incl. tips)', value: fmtMoney(totals?.barber_total||0), wide: true, big: true },
                     ].map(k => (
                       <div key={k.label} style={{ padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)', gridColumn: k.wide ? '1/-1' : undefined }}>
                         <div style={{ ...lbl, marginBottom: 2 }}>{k.label}</div>
