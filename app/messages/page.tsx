@@ -491,6 +491,7 @@ export default function MessagesPage() {
   const [imagePreview, setImagePreview] = useState('')
   const [filePreview, setFilePreview] = useState<{ name: string; dataUrl: string } | null>(null)
   const [showAttachMenu, setShowAttachMenu] = useState(false)
+  const [containerHeight, setContainerHeight] = useState<string>('100%')
   const listRef = useRef<HTMLDivElement>(null)
   const wasAtBottom = useRef(true)
 
@@ -591,40 +592,30 @@ export default function MessagesPage() {
     return () => clearInterval(interval)
   }, [topTab, chatView, chatTarget, loadMessages, loadRequests, loadApplications])
 
-  // Fix mobile keyboard pushing content
+  // Fix mobile keyboard pushing content — use React state so re-renders preserve the height
   useEffect(() => {
     const vv = window.visualViewport
     if (!vv) return
-    let rafId = 0
     function onResize() {
-      cancelAnimationFrame(rafId)
-      rafId = requestAnimationFrame(() => {
-        const container = document.querySelector('.msg-container') as HTMLElement
-        if (!container) return
-        container.style.height = `${vv!.height}px`
-        // Only reset scroll if no input is focused (avoid fighting the keyboard)
-        if (!document.activeElement || document.activeElement === document.body) {
-          window.scrollTo(0, 0)
-        }
-      })
+      setContainerHeight(`${vv!.height}px`)
+      // Only reset scroll if no input is focused (avoid fighting the keyboard)
+      if (!document.activeElement || document.activeElement === document.body) {
+        window.scrollTo(0, 0)
+      }
     }
     vv.addEventListener('resize', onResize)
     vv.addEventListener('scroll', onResize)
     function onBlur(e: FocusEvent) {
-      // Only reset height if focus is leaving the page entirely (keyboard closing),
-      // not when focus moves between elements (e.g. autocomplete, prediction bar)
       const related = (e as FocusEvent).relatedTarget as HTMLElement | null
-      if (related) return // focus moved to another element, keyboard is still open
+      if (related) return
       setTimeout(() => {
-        // Double-check: if something is focused now, keyboard is still open
         if (document.activeElement && document.activeElement !== document.body) return
         window.scrollTo(0, 0)
-        const container = document.querySelector('.msg-container') as HTMLElement
-        if (container) container.style.height = '100%'
+        setContainerHeight('100%')
       }, 300)
     }
     document.addEventListener('focusout', onBlur)
-    return () => { cancelAnimationFrame(rafId); vv.removeEventListener('resize', onResize); vv.removeEventListener('scroll', onResize); document.removeEventListener('focusout', onBlur) }
+    return () => { vv.removeEventListener('resize', onResize); vv.removeEventListener('scroll', onResize); document.removeEventListener('focusout', onBlur) }
   }, [])
 
   // Auto-scroll to bottom
@@ -902,7 +893,7 @@ export default function MessagesPage() {
         .chat-list-item:active { background: rgba(255,255,255,.08) !important; }
       `}</style>
 
-      <div className="msg-container" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Inter,sans-serif', color: '#e8e8ed' }}>
+      <div className="msg-container" style={{ height: containerHeight, display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Inter,sans-serif', color: '#e8e8ed' }}>
         {/* Top tab bar — only show when NOT in conversation view */}
         {!(topTab === 'chat' && chatView === 'conversation') && (
           <div className="msg-tabs msg-tabs-scroll" style={{ display: 'flex', gap: 6, padding: '10px 18px', borderBottom: '1px solid rgba(255,255,255,.06)', overflowX: 'auto', flexShrink: 0 }}>
