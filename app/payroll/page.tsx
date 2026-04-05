@@ -565,8 +565,8 @@ export default function PayrollPage() {
     a.download = `payroll_${from}_${to}.csv`; a.click()
   }
 
-  const lbl: React.CSSProperties = { fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)' }
-  const card: React.CSSProperties = { borderRadius: 18, border: '1px solid rgba(255,255,255,.10)', background: 'linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02))', backdropFilter: 'blur(14px)', overflow: 'hidden' }
+  const lbl: React.CSSProperties = { fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', fontWeight: 700 }
+  const card: React.CSSProperties = { borderRadius: 20, border: '1px solid rgba(255,255,255,.07)', background: 'linear-gradient(180deg,rgba(255,255,255,.04),rgba(0,0,0,.20))', backdropFilter: 'saturate(180%) blur(20px)', WebkitBackdropFilter: 'saturate(180%) blur(20px)', overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,.25)' } as React.CSSProperties
 
   function exportPDF() {
     const doc: string[] = []
@@ -640,7 +640,7 @@ export default function PayrollPage() {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif', overflowY: 'auto' }}>
 
         {/* Topbar */}
-        <div className="topbar-pad" style={{ padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,.06)', position: 'sticky', top: 0, zIndex: 20 }}>
+        <div className="topbar-pad" style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,.05)', position: 'sticky', top: 0, zIndex: 20, background: 'rgba(1,1,1,.60)', backdropFilter: 'saturate(180%) blur(20px)', WebkitBackdropFilter: 'saturate(180%) blur(20px)' } as React.CSSProperties}>
           <div className="payroll-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>
               {barbers.length} barbers · {barbers.reduce((s,b)=>s+b.bookings_count,0)} bookings
@@ -648,19 +648,19 @@ export default function PayrollPage() {
             <div className="payroll-topbar-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               {/* Date range */}
               <button className="payroll-date-btn" onClick={() => setShowDatePicker(true)}
-                style={{ height: 40, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit', minWidth: 200 }}>
+                style={{ height: 38, padding: '0 18px', borderRadius: 999, border: '1px solid rgba(130,150,220,.25)', background: 'rgba(130,150,220,.08)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit', minWidth: 200, boxShadow: '0 0 12px rgba(130,150,220,.08)' }}>
                 {fmtDate(from)} → {fmtDate(to)}
               </button>
               {/* Barber filter */}
               <select value={filterBarber} onChange={e => setFilterBarber(e.target.value)}
-                style={{ height: 40, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(0,0,0,.22)', color: '#fff', padding: '0 14px', outline: 'none', fontSize: 13 }}>
+                style={{ height: 38, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: '#fff', padding: '0 14px', outline: 'none', fontSize: 12, fontFamily: 'inherit' }}>
                 <option value="">All team members</option>
                 {barbers.map(b => <option key={b.barber_id} value={b.barber_id}>{b.barber_name}</option>)}
               </select>
               <button onClick={load} disabled={loading}
-                style={{ height: 40, width: 40, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontSize: 16, opacity: loading ? .5 : 1 }}>↻</button>
+                style={{ height: 38, width: 38, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 15, opacity: loading ? .5 : 1, fontFamily: 'inherit' }}>↻</button>
               <button onClick={exportCSV}
-                style={{ height: 40, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit' }}>
+                style={{ height: 38, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.50)', cursor: 'pointer', fontWeight: 800, fontSize: 12, fontFamily: 'inherit' }}>
                 Export CSV
               </button>
             </div>
@@ -673,24 +673,24 @@ export default function PayrollPage() {
           {/* KPI strip */}
           <div className="kpi-strip" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
             {[
-              { label: 'Services gross', value: fmtMoney(totals?.service_total||0), color: '' },
-              { label: 'Team total', value: fmtMoney(totals?.barber_service_share||0), color: '' },
-              { label: 'Owner share', value: fmtMoney(totals?.owner_service_share||0), color: 'rgba(220,190,130,.6)' },
-              { label: 'Tips', value: fmtMoney(totals?.tips_total||0), color: 'rgba(130,220,170,.7)' },
-              { label: 'Total payout (incl. tips)', value: fmtMoney(totals?.barber_total||0), color: '' },
+              { label: 'Services gross', value: fmtMoney(totals?.service_total||0), color: '#e8e8ed', accent: 'rgba(130,150,220,.15)', border: 'rgba(130,150,220,.12)' },
+              { label: 'Team total', value: fmtMoney(totals?.barber_service_share||0), color: '#e8e8ed', accent: 'rgba(255,255,255,.03)', border: 'rgba(255,255,255,.07)' },
+              { label: 'Owner share', value: fmtMoney(totals?.owner_service_share||0), color: 'rgba(220,190,130,.7)', accent: 'rgba(255,207,63,.06)', border: 'rgba(255,207,63,.15)' },
+              { label: 'Tips', value: fmtMoney(totals?.tips_total||0), color: 'rgba(130,220,170,.8)', accent: 'rgba(143,240,177,.06)', border: 'rgba(143,240,177,.15)' },
+              { label: 'Total (incl. tips)', value: fmtMoney(totals?.barber_total||0), color: '#e8e8ed', accent: 'rgba(180,140,220,.08)', border: 'rgba(180,140,220,.15)' },
             ].map(k => (
-              <div key={k.label} style={{ padding: '10px 12px', borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02))', backdropFilter: 'blur(12px)' }}>
-                <div style={{ ...lbl, marginBottom: 3 }}>{k.label}</div>
-                <div style={{ fontWeight: 900, fontSize: 17, letterSpacing: '.02em', color: k.color || '#e8e8ed' }}>{k.value}</div>
+              <div key={k.label} style={{ padding: '12px 14px', borderRadius: 16, border: `1px solid ${k.border}`, background: `linear-gradient(180deg,${k.accent},rgba(0,0,0,.15))`, backdropFilter: 'saturate(180%) blur(16px)', boxShadow: '0 2px 12px rgba(0,0,0,.20)' }}>
+                <div style={{ ...lbl, marginBottom: 4 }}>{k.label}</div>
+                <div style={{ fontWeight: 900, fontSize: 18, letterSpacing: '.02em', color: k.color }}>{k.value}</div>
               </div>
             ))}
           </div>
 
           {/* Table */}
           <div style={card}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.12)' }}>
-              <div style={{ ...lbl }}>Team payout summary</div>
-              <div style={{ ...lbl, border: '1px solid rgba(255,255,255,.12)', padding: '4px 10px', borderRadius: 999 }}>{visible.length} barbers</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(90deg,rgba(130,150,220,.04),transparent)' }}>
+              <div style={{ ...lbl, fontSize: 10 }}>Team payout summary</div>
+              <div style={{ ...lbl, border: '1px solid rgba(130,150,220,.18)', background: 'rgba(130,150,220,.06)', padding: '3px 10px', borderRadius: 999, color: 'rgba(130,150,220,.6)' }}>{visible.length} barbers</div>
             </div>
 
             {loading ? (
