@@ -190,12 +190,11 @@ function getEffectivePlan(wsData) {
   const planType = wsData?.plan_type || wsData?.plan || 'individual';
   const billingStatus = wsData?.billing_status || wsData?.subscription_status || 'inactive';
 
-  // During active trial → give access to purchased plan (minimum salon)
+  // During active trial → give full access (custom) so user can try everything
   if (billingStatus === 'trialing') {
     const trialEnd = wsData?.trial_ends_at ? new Date(wsData.trial_ends_at) : null;
     if (trialEnd && trialEnd > new Date()) {
-      const planRank = { individual: 1, salon: 2, custom: 3 };
-      return (planRank[planType] || 0) >= (planRank.salon || 2) ? planType : 'salon';
+      return 'custom';
     }
   }
 
