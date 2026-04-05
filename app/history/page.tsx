@@ -54,14 +54,14 @@ const fmtTime = (iso: string) => {
 const fmtMoney = (n?: number) => n != null ? `$${n.toFixed(2)}` : '—'
 
 function StatusChip({ status }: { status: string }) {
-  const st = STATUS_STYLE[status] || {}
+  const st = STATUS_STYLE[status] || { border: 'rgba(255,255,255,.12)', bg: 'rgba(0,0,0,.12)', color: 'rgba(255,255,255,.70)' }
   return (
     <span style={{
       fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase',
       padding: '3px 8px', borderRadius: 999,
-      border: `1px solid ${st.border || 'rgba(255,255,255,.12)'}`,
-      background: st.bg || 'rgba(0,0,0,.12)',
-      color: st.color || 'rgba(255,255,255,.70)',
+      border: `1px solid ${st.border}`,
+      background: st.bg,
+      color: st.color,
       display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
     }}>
       <span style={{ width: 5, height: 5, borderRadius: 999, background: 'currentColor', flexShrink: 0 }} />
