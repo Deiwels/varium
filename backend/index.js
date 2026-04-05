@@ -492,7 +492,7 @@ ${logoHtml}
 ${bodyHtml}
 </td></tr>
 <tr><td style="padding:16px 28px;border-top:1px solid ${t.border};text-align:center;background:${t.card};">
-<a href="https://vurium.com" style="font-size:11px;color:${t.footer};text-decoration:none;">Powered by VuriumBook</a>
+<a href="https://vurium.com" style="font-size:11px;color:${t.footer};text-decoration:none;">Powered by VuriumBook&trade;</a>
 </td></tr>
 </table>
 </td></tr>
@@ -2674,7 +2674,7 @@ app.post('/api/users', requireRole('owner'), async (req, res) => {
             <div style="margin:0;"><strong>Password:</strong> the one set by your manager</div>
           </div>
           <p style="margin:0 0 16px;">Sign in at:</p>
-          <a href="https://vurium.com/signin" style="display:inline-block;padding:12px 28px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;text-decoration:none;font-weight:600;font-size:14px;">Sign In to VuriumBook</a>
+          <a href="https://vurium.com/signin" style="display:inline-block;padding:12px 28px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;text-decoration:none;font-weight:600;font-size:14px;">Sign In to VuriumBook&trade;</a>
           <p style="margin:20px 0 0;font-size:12px;opacity:.5;">If you didn't expect this email, you can safely ignore it. Use "Forgot password" on the sign-in page if you need to reset your password.</p>`;
         sendEmail(doc.email, `Your ${cfg.shopName || 'VuriumBook'} Account`, vuriumEmailTemplate('Welcome to the Team!', bodyHtml, cfg.shopName, cfg.logoUrl, cfg.template), cfg.shopName);
       }).catch(() => {});
