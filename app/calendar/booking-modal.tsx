@@ -614,6 +614,7 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
   const [polling, setPolling] = useState(false)
   const [activeCheckoutId, setActiveCheckoutId] = useState<string|null>(null)
   const [shopSettings, setShopSettings] = useState<any>(null)
+  const [manualAmount, setManualAmount] = useState<number | null>(null)
   const [isOwnerOrAdmin] = useState(() => {
     try { const u = JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}'); return u.role === 'owner' || u.role === 'admin' } catch { return false }
   })
@@ -821,15 +822,21 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
   async function handleManual() {
     const backendId = ev?._raw?.id
     const tip = tipYes ? tipAmt : 0
+    // Use manual amount if service has no price set
+    const effectiveBase = basePrice > 0 ? basePrice : (manualAmount || 0)
+    const effectiveTotal = basePrice > 0 ? priceCalc.total : (manualAmount || 0)
+    const effectiveTax = basePrice > 0 ? priceCalc.tax : 0
+    const effectiveFees = basePrice > 0 ? priceCalc.fees : 0
+    if (effectiveTotal <= 0 && tip <= 0) { setHint('Enter an amount'); setHintType('error'); return }
     setHint('Saving…')
     try {
       await apiFetch('/api/payments/terminal', {
         method: 'POST',
-        body: JSON.stringify({ booking_id: backendId ? String(backendId) : '', amount: priceCalc.total, tip, tip_amount: tip, source: method, payment_method: method, currency: 'USD', client_name: ev?._raw?.client_name || '', service_name: evSvcs.map(s => s.name).join(' + ') || '', service_amount: basePrice, tax_amount: priceCalc.tax, fee_amount: priceCalc.fees })
+        body: JSON.stringify({ booking_id: backendId ? String(backendId) : '', amount: effectiveTotal, tip, tip_amount: tip, source: method, payment_method: method, currency: 'USD', client_name: ev?._raw?.client_name || '', service_name: evSvcs.map(s => s.name).join(' + ') || '', service_amount: effectiveBase, tax_amount: effectiveTax, fee_amount: effectiveFees })
       })
       if (backendId) {
         await apiFetch('/api/bookings/' + encodeURIComponent(String(backendId)), {
-          method: 'PATCH', body: JSON.stringify({ paid: true, payment_method: method, tip, service_amount: basePrice, tax_amount: priceCalc.tax, fee_amount: priceCalc.fees, total_amount: priceCalc.total })
+          method: 'PATCH', body: JSON.stringify({ paid: true, payment_method: method, tip, service_amount: effectiveBase, tax_amount: effectiveTax, fee_amount: effectiveFees, total_amount: effectiveTotal })
         })
       }
       setHint(`${method} payment recorded ✓`); onPayment(method, tip)
@@ -881,8 +888,16 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
             </div>
           )}
 
-          {method === 'cash' && (
+          {method === 'cash' && basePrice > 0 && (
             <div style={{ padding: '6px 10px', borderRadius: 8, background: 'rgba(143,240,177,.04)', border: '1px solid rgba(143,240,177,.12)', fontSize: 11, color: 'rgba(130,220,170,.6)', marginBottom: 8 }}>Cash collected</div>
+          )}
+
+          {/* Manual amount input when service has no price */}
+          {basePrice <= 0 && method !== 'terminal' && (
+            <div style={{ marginBottom: 8 }}>
+              <input type="number" min="0" step="0.01" placeholder="Enter amount $" value={manualAmount || ''} onChange={e => setManualAmount(parseFloat(e.target.value) || 0)}
+                style={{ width: '100%', height: 36, borderRadius: 10, border: '1px solid rgba(255,207,63,.30)', background: 'rgba(255,207,63,.04)', color: '#fff', padding: '0 12px', outline: 'none', fontSize: 13, fontFamily: 'inherit' }} />
+            </div>
           )}
 
           {method !== 'terminal' && (
