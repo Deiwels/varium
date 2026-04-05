@@ -31,7 +31,7 @@ export default function PrivacyPage() {
 
         {/* Introduction */}
         <p style={text}>
-          Vurium Inc. (&quot;Vurium,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) operates the VuriumBook platform &mdash; a scheduling and business management service for barbershops, salons, and service businesses. This Privacy Policy describes how we collect, use, store, and protect your personal information when you use our website and services. This policy applies to all users worldwide, including residents of the European Economic Area (EEA), United Kingdom, and California.
+          Vurium Inc. (&quot;Vurium,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) operates the VuriumBook&trade; platform &mdash; a scheduling and business management service for barbershops, salons, and service businesses. This Privacy Policy describes how we collect, use, store, and protect your personal information when you use our website and services. This policy applies to all users worldwide, including residents of the European Economic Area (EEA), United Kingdom, and California.
         </p>
 
         {/* 1. Information We Collect */}

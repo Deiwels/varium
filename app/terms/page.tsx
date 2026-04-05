@@ -32,7 +32,7 @@ export default function TermsPage() {
         {/* 1. Acceptance */}
         <h2 style={heading}>1. Acceptance of Terms</h2>
         <p style={text}>
-          By accessing or using VuriumBook (the &quot;Service&quot;), operated by Vurium Inc. (&quot;Vurium,&quot; &quot;we,&quot; &quot;us&quot;), you agree to be bound by these Terms of Service and our <a href="/privacy" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Privacy Policy</a>. If you do not agree, do not use the Service.
+          By accessing or using VuriumBook&trade; (the &quot;Service&quot;), operated by Vurium Inc. (&quot;Vurium,&quot; &quot;we,&quot; &quot;us&quot;), you agree to be bound by these Terms of Service and our <a href="/privacy" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Privacy Policy</a>. If you do not agree, do not use the Service.
         </p>
 
         {/* 2. Service Description */}
@@ -103,7 +103,7 @@ export default function TermsPage() {
         {/* 8. Intellectual Property */}
         <h2 style={heading}>8. Intellectual Property</h2>
         <p style={text}>
-          The VuriumBook platform, including its design, code, trademarks, and branding, is owned by Vurium Inc. and protected by intellectual property laws. You retain ownership of all data you enter into the Service. By using the Service, you grant us a limited, non-exclusive license to process your data solely as necessary to provide the Service.
+          The VuriumBook&trade; platform, including its design, code, trademarks, and branding, is owned by Vurium&trade; Inc. and protected by intellectual property laws. You retain ownership of all data you enter into the Service. By using the Service, you grant us a limited, non-exclusive license to process your data solely as necessary to provide the Service.
         </p>
 
         {/* 9. Right of Withdrawal (EU/UK Consumers) */}

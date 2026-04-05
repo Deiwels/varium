@@ -30,7 +30,7 @@ export default function DpaPage() {
         </p>
 
         <p style={text}>
-          This Data Processing Agreement (&quot;DPA&quot;) forms part of the agreement between Vurium Inc. (&quot;Processor&quot; or &quot;Vurium&quot;) and the business customer (&quot;Controller&quot; or &quot;Customer&quot;) who uses the VuriumBook platform. This DPA governs the processing of personal data by Vurium on behalf of the Customer in compliance with the EU General Data Protection Regulation (GDPR), UK GDPR, and other applicable data protection laws.
+          This Data Processing Agreement (&quot;DPA&quot;) forms part of the agreement between Vurium Inc. (&quot;Processor&quot; or &quot;Vurium&quot;) and the business customer (&quot;Controller&quot; or &quot;Customer&quot;) who uses the VuriumBook&trade; platform. This DPA governs the processing of personal data by Vurium on behalf of the Customer in compliance with the EU General Data Protection Regulation (GDPR), UK GDPR, and other applicable data protection laws.
         </p>
 
         {/* 1. Definitions */}
