@@ -4084,7 +4084,7 @@ app.post('/api/payments/terminal', async (req, res) => {
       idempotency_key: idempotencyKey,
       checkout: {
         amount_money: { amount: amountCents, currency: 'USD' },
-        device_options: { device_id: deviceId, tip_settings: { allow_tipping: true }, show_receipt_screen: true },
+        device_options: { device_id: deviceId, tip_settings: { allow_tipping: true } },
         payment_type: 'CARD_PRESENT',
         note: b.note || `Booking ${bookingId}`,
         ...(squareCustomerId ? { customer_id: squareCustomerId } : {}),
