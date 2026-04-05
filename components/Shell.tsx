@@ -16,6 +16,7 @@ interface User {
 const NAV = [
   { id: 'dashboard', href: '/dashboard', label: 'Dashboard',  sub: 'Today overview' },
   { id: 'calendar',  href: '/calendar',  label: 'Calendar',   sub: 'Bookings grid' },
+  { id: 'history',   href: '/history',   label: 'History',    sub: 'Booking records' },
   { id: 'messages',  href: '/messages',  label: 'Messages',   sub: 'Team chat' },
   { id: 'waitlist',  href: '/waitlist',  label: 'Waitlist',   sub: 'Queue & notify' },
   { id: 'portfolio',  href: '/portfolio',  label: 'Portfolio',  sub: 'Work gallery' },
@@ -60,6 +61,13 @@ function Icon({ id, color }: { id: string; color: string }) {
         <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" {...s}/>
         <rect x="8" y="2" width="8" height="4" rx="1" ry="1" {...s}/>
         <line x1="9" y1="12" x2="15" y2="12" {...s}/><line x1="9" y1="16" x2="13" y2="16" {...s}/>
+      </svg>
+    case 'history':
+      return <svg width="17" height="17" viewBox="0 0 24 24" {...{}}>
+        <circle cx="12" cy="12" r="10" {...s}/>
+        <polyline points="12 6 12 12 16 14" {...s}/>
+        <path d="M1 4v6h6" {...s}/>
+        <path d="M3.51 15a9 9 0 1 0 .49-7.5" {...s}/>
       </svg>
     case 'clients':
       return <svg width="17" height="17" viewBox="0 0 24 24" {...{}}>

@@ -515,24 +515,13 @@ export default function MessagesPage() {
     return () => clearTimeout(t)
   }, [])
 
-  // Load staff list on mount — prefer /api/users (has user IDs matching chat system), fallback to /api/barbers
+  // Load staff list on mount — use /api/staff (returns user IDs for consistent DM chatTypes)
   useEffect(() => {
     async function loadStaff() {
-      // Try /api/users first (owner/admin have access)
       try {
-        const res = await apiFetch('/api/users')
-        const list = Array.isArray(res) ? res : Array.isArray(res?.users) ? res.users : []
-        if (list.length > 0) {
-          setStaffList(list.filter((u: any) => u.active !== false).map((u: any) => ({ id: u.id, name: u.name || u.username, photo_url: u.photo_url, role: u.role || 'barber' })))
-          return
-        }
-      } catch { /* barber/student can't access /api/users — fallback */ }
-
-      // Fallback: /api/barbers (available to all roles)
-      try {
-        const res = await apiFetch('/api/barbers')
-        const list = Array.isArray(res) ? res : Array.isArray(res?.barbers) ? res.barbers : []
-        setStaffList(list.map((b: any) => ({ id: b.id, name: b.name, photo_url: b.photo_url || b.photo, role: 'barber' })))
+        const res = await apiFetch('/api/staff')
+        const list = Array.isArray(res) ? res : []
+        setStaffList(list.map((u: any) => ({ id: u.id, name: u.name, photo_url: u.photo_url, role: u.role || 'barber' })))
       } catch { setStaffList([]) }
     }
     loadStaff()
@@ -622,7 +611,7 @@ export default function MessagesPage() {
         document.documentElement.scrollTop = 0
         document.body.scrollTop = 0
         const container = document.querySelector('.msg-container') as HTMLElement
-        if (container) container.style.height = 'calc(100dvh - 52px - 56px)'
+        if (container) container.style.height = '100%'
       }, 100)
     }
     document.addEventListener('focusout', onBlur)
@@ -865,6 +854,7 @@ export default function MessagesPage() {
         </div>
       )}
       <style>{`
+        .content { padding-bottom: 0 !important; overflow: hidden !important; }
         .msg-input:focus { border-color: rgba(255,255,255,.20) !important; box-shadow: 0 0 0 3px rgba(255,255,255,.04) !important; }
         .msg-list::-webkit-scrollbar { width: 4px; }
         .msg-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 2px; }
@@ -903,7 +893,7 @@ export default function MessagesPage() {
         .chat-list-item:active { background: rgba(255,255,255,.08) !important; }
       `}</style>
 
-      <div className="msg-container" style={{ height: 'calc(100dvh - 52px - 56px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Inter,sans-serif', color: '#e8e8ed' }}>
+      <div className="msg-container" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Inter,sans-serif', color: '#e8e8ed' }}>
         {/* Top tab bar — only show when NOT in conversation view */}
         {!(topTab === 'chat' && chatView === 'conversation') && (
           <div className="msg-tabs msg-tabs-scroll" style={{ display: 'flex', gap: 6, padding: '10px 18px', borderBottom: '1px solid rgba(255,255,255,.06)', overflowX: 'auto', flexShrink: 0 }}>
