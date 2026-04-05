@@ -20,8 +20,8 @@ interface PlanData {
 const defaultPlan: PlanData = {
   plan_type: 'individual',
   billing_status: 'inactive',
-  effective_plan: 'individual',
-  features: ['calendar', 'clients', 'payments', 'settings', 'booking_page'],
+  effective_plan: 'expired',
+  features: [],
   member_limit: 1,
   staff_limit: 0,
   is_unlimited: false,
@@ -57,7 +57,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
         setData({
           plan_type: d.plan_type || 'individual',
           billing_status: bs,
-          effective_plan: d.effective_plan || 'individual',
+          effective_plan: d.effective_plan || 'expired',
           features: d.features || defaultPlan.features,
           member_limit: d.member_limit ?? 1,
           staff_limit: d.staff_limit ?? 0,

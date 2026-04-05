@@ -846,10 +846,10 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
               </div>
               <h2 style={{ fontSize: 20, fontWeight: 600, color: '#e8e8ed', marginBottom: 8 }}>Your trial has ended</h2>
               <p style={{ fontSize: 14, color: 'rgba(255,255,255,.4)', maxWidth: 400, lineHeight: 1.6, marginBottom: 28 }}>
-                Subscribe to a plan to continue using VuriumBook. Your data is safe and will be available after subscribing.
+                To continue using Vurium, please subscribe to a plan. Your data is safe and will be available after subscribing. Online bookings are paused until you subscribe.
               </p>
               <a href="/billing" style={{ padding: '12px 32px', borderRadius: 12, fontSize: 15, fontWeight: 600, textDecoration: 'none', background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)', color: '#fff' }}>
-                Choose a Plan
+                Subscribe
               </a>
             </div>
           ) : children}

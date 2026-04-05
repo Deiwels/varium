@@ -167,11 +167,17 @@ async function resolveSlug(slugOrId) {
 
 // ============================================================
 // PLAN FEATURES — single source of truth
-// plan_type: individual | salon | custom
+// plan_type: individual ($29) | salon | custom
 // billing_status: trialing | active | past_due | canceled | inactive
-// effective_plan: during trial → purchased plan (minimum salon, 14-day trial)
+// effective_plan: during trial → custom (full access, 14 days)
+//                 active subscription → paid plan
+//                 expired / no subscription → 'expired' (no access, no bookings)
 // ============================================================
 const PLAN_FEATURES = {
+  expired: {
+    member_limit: 0, staff_limit: 0,
+    features: [],
+  },
   individual: {
     member_limit: 1, staff_limit: 0,
     features: ['calendar', 'clients', 'payments', 'settings', 'booking_page', 'analytics_basic'],
@@ -208,8 +214,8 @@ function getEffectivePlan(wsData) {
     return 'individual';
   }
 
-  // No active subscription / payment failed / canceled / expired → individual (free tier)
-  return 'individual';
+  // No active subscription / payment failed / canceled / expired trial → no access
+  return 'expired';
 }
 
 function getPlanDef(effectivePlan) {
@@ -4244,6 +4250,7 @@ app.get('/public/services/:workspace_id', async (req, res) => {
     const wsId = req.params.workspace_id;
     const wsDoc = await db.collection('workspaces').doc(wsId).get();
     if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    if (getEffectivePlan(wsDoc.data()) === 'expired') return res.status(403).json({ error: 'This business is not accepting bookings at this time.' });
     const snap = await db.collection('workspaces').doc(wsId).collection('services').orderBy('name').get();
     const services = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => s.active !== false);
     res.json({ services });
@@ -4255,6 +4262,7 @@ app.get('/public/barbers/:workspace_id', async (req, res) => {
     const wsId = req.params.workspace_id;
     const wsDoc = await db.collection('workspaces').doc(wsId).get();
     if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    if (getEffectivePlan(wsDoc.data()) === 'expired') return res.status(403).json({ error: 'This business is not accepting bookings at this time.' });
     const snap = await db.collection('workspaces').doc(wsId).collection('barbers').orderBy('name').get();
     const barbers = snap.docs.map(d => {
       const data = d.data() || {};
@@ -4312,6 +4320,10 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
     const wsId = req.params.workspace_id;
     const wsDoc = await db.collection('workspaces').doc(wsId).get();
     if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    // Block bookings if account expired (no active subscription or trial)
+    const wsData = wsDoc.data();
+    const effectivePlan = getEffectivePlan(wsData);
+    if (effectivePlan === 'expired') return res.status(403).json({ error: 'This business is not accepting bookings at this time.' });
     const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
     const booking = req.body || {};
     const startAt = parseIso(booking.start_at);
