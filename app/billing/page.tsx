@@ -89,17 +89,17 @@ interface PlanDef {
 const PLANS: PlanDef[] = [
   {
     id: 'individual', name: 'Individual', price: 29, period: '/mo',
-    features: ['1 user (owner only)', 'Calendar & Bookings', 'Client management', 'Payments', 'Basic analytics', '1 booking page'],
+    features: ['1 user (owner only)', 'Calendar & Bookings', 'Online booking page', 'Client management', 'Payments & tips', 'Basic analytics'],
     color: 'rgba(255,255,255,.4)',
   },
   {
     id: 'salon', name: 'Salon', price: 79, period: '/mo', featured: true,
-    features: ['Everything in Individual', 'Up to 10 team members', 'Team management & roles', 'Waitlist & Messages', 'Portfolio & Membership', 'Cash register', 'Attendance tracking', 'Advanced analytics'],
+    features: ['Everything in Individual', 'Up to 10 team members', 'Team management & roles', 'Waitlist & Messages', 'Portfolio', 'Cash register', 'Membership', 'Attendance tracking', 'Advanced analytics'],
     color: 'rgba(255,255,255,.5)',
   },
   {
     id: 'custom', name: 'Custom', price: 99, period: '/mo',
-    features: ['Everything in Salon', 'Custom booking site', '5 design templates', 'Unlimited team members', 'Expenses & Payroll', 'Dedicated support'],
+    features: ['Everything in Salon', 'Unlimited team members', 'Expenses & Payroll', 'Multi-location support', 'API access', 'Dedicated support'],
     color: 'rgba(255,255,255,.35)',
   },
 ]

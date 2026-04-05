@@ -144,9 +144,9 @@ export default function VuriumBook() {
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
           {[
-            { name: 'Individual', price: '$29', period: '/mo', desc: 'For solo specialists and freelancers', features: ['1 user — your own calendar', 'Online booking page', 'Client management', 'Payments', 'Basic analytics'], featured: false, plan: 'individual' },
-            { name: 'Salon', price: '$79', period: '/mo', desc: 'For teams, salons, and studios', features: ['Up to 10 team members', 'Team management & roles', 'Waitlist & Messages', 'Portfolio & Membership', 'Advanced analytics'], featured: true, plan: 'salon' },
-            { name: 'Custom', price: '$99', period: '/mo', desc: 'Full customizable site', features: ['Custom booking site', '5 design templates', 'Unlimited team members', 'Expenses & Payroll', 'Dedicated support'], featured: false, plan: 'custom' },
+            { name: 'Individual', price: '$29', period: '/mo', desc: 'For solo specialists and freelancers', features: ['1 user — your own calendar', 'Online booking page', 'Client management', 'Payments & tips', 'Basic analytics'], featured: false, plan: 'individual' },
+            { name: 'Salon', price: '$79', period: '/mo', desc: 'For teams, salons, and studios', features: ['Everything in Individual', 'Up to 10 team members', 'Team management & roles', 'Waitlist & Messages', 'Portfolio', 'Cash register', 'Membership', 'Attendance tracking', 'Advanced analytics'], featured: true, plan: 'salon' },
+            { name: 'Custom', price: '$99', period: '/mo', desc: 'For growing businesses', features: ['Everything in Salon', 'Unlimited team members', 'Expenses & Payroll', 'Multi-location support', 'API access', 'Dedicated support'], featured: false, plan: 'custom' },
           ].map((p, i) => (
             <div key={i} className="glass-card" style={{ borderColor: p.featured ? 'rgba(130,150,220,.2)' : undefined, background: p.featured ? 'rgba(130,150,220,.03)' : undefined }}>
               {p.featured && <div style={{ position: 'absolute', top: 14, right: 18, fontSize: 9, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(130,150,220,.7)', background: 'rgba(130,150,220,.1)', padding: '3px 10px', borderRadius: 999 }}>Popular</div>}
@@ -183,8 +183,8 @@ export default function VuriumBook() {
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>For teams. Add up to 10 members, manage schedules, track performance, handle waitlists and memberships.</p>
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8 }}>30-Day Trial</div>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>Every account starts with full Salon access for 30 days. No credit card required. Explore everything before you choose.</p>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8 }}>14-Day Free Trial</div>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>Every account starts with full access to all features for 14 days. Card required at signup, cancel anytime before trial ends.</p>
           </div>
         </div>
       </section>
