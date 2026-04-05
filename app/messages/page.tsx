@@ -480,6 +480,7 @@ export default function MessagesPage() {
   const [chatView, setChatView] = useState<'list' | 'conversation'>('list')
   const [chatTarget, setChatTarget] = useState<{ chatType: string; label: string; photo?: string } | null>(null)
   const [staffList, setStaffList] = useState<{id: string; name: string; photo_url?: string; role: string}[]>([])
+  const [dmPreviews, setDmPreviews] = useState<Record<string, { text: string; senderName: string; time: string }>>({})
   const [messages, setMessages] = useState<Message[]>([])
   const [requests, setRequests] = useState<Request[]>([])
   const [applications, setApplications] = useState<Application[]>([])
@@ -515,7 +516,7 @@ export default function MessagesPage() {
     return () => clearTimeout(t)
   }, [])
 
-  // Load staff list on mount — use /api/staff (returns user IDs for consistent DM chatTypes)
+  // Load staff list + DM previews on mount
   useEffect(() => {
     async function loadStaff() {
       try {
@@ -524,11 +525,18 @@ export default function MessagesPage() {
         setStaffList(list.map((u: any) => ({ id: u.id, name: u.name, photo_url: u.photo_url, role: u.role || 'barber' })))
       } catch { setStaffList([]) }
     }
+    async function loadDmPreviews() {
+      try {
+        const res = await apiFetch('/api/messages/dm-previews')
+        if (res && typeof res === 'object') setDmPreviews(res)
+      } catch {}
+    }
     loadStaff()
+    loadDmPreviews()
   }, [])
 
   const role = user?.role || 'barber'
-  const uid = user?.uid || ''
+  const uid = user?.uid || user?.id || ''
   const isOwnerOrAdmin = role === 'owner' || role === 'admin'
   const visibleTabs = TABS.filter(t => t.roles.includes(role))
 
@@ -649,6 +657,11 @@ export default function MessagesPage() {
       if (imagePreview) body.imageUrl = imagePreview
       if (filePreview) { body.fileUrl = filePreview.dataUrl; body.fileName = filePreview.name }
       await apiFetch('/api/messages', { method: 'POST', body: JSON.stringify(body) })
+      // Update DM preview locally
+      if (chatTarget.chatType.startsWith('dm_')) {
+        const previewText = input.trim() || (imagePreview ? '📷 Photo' : filePreview ? '📎 File' : '')
+        setDmPreviews(prev => ({ ...prev, [chatTarget.chatType]: { text: previewText, senderName: user?.name || '', senderId: uid, time: new Date().toISOString() } }))
+      }
       setInput(''); setImagePreview(''); setFilePreview(null)
       wasAtBottom.current = true
       await loadMessages()
@@ -1033,8 +1046,20 @@ export default function MessagesPage() {
                   const staffRole = s.role || 'barber'
                   const rc = ROLE_COLORS[staffRole] || 'rgba(255,255,255,.30)'
                   const rg = ROLE_GRADIENTS[staffRole] || 'rgba(255,255,255,.10)'
+                  const dmKey = dmChatType(uid, s.id)
+                  const preview = dmPreviews[dmKey]
+                  const previewText = preview ? (preview.senderId === uid ? `You: ${preview.text}` : preview.text) : ''
+                  const previewTime = preview?.time ? (() => {
+                    const d = new Date(preview.time)
+                    const now = new Date()
+                    const diff = now.getTime() - d.getTime()
+                    if (diff < 60000) return 'now'
+                    if (diff < 3600000) return `${Math.floor(diff / 60000)}m`
+                    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`
+                    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                  })() : ''
                   return (
-                    <button key={s.id} className="chat-list-item" onClick={() => openChat(dmChatType(uid, s.id), s.name, s.photo_url)}
+                    <button key={s.id} className="chat-list-item" onClick={() => openChat(dmKey, s.name, s.photo_url)}
                       style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 14, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)', cursor: 'pointer', marginBottom: 4, textAlign: 'left', fontFamily: 'inherit', color: 'inherit' }}>
                       {/* Avatar */}
                       {s.photo_url ? (
@@ -1045,9 +1070,16 @@ export default function MessagesPage() {
                         </div>
                       )}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#e8e8ed' }}>{s.name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: '#e8e8ed', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
+                          {previewTime && <span style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', flexShrink: 0 }}>{previewTime}</span>}
+                        </div>
+                        {previewText ? (
+                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{previewText}</div>
+                        ) : (
+                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.18)', marginTop: 2, fontStyle: 'italic' }}>No messages yet</div>
+                        )}
                       </div>
-                      <span style={{ fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: 999, border: `1px solid ${rc}`, color: rc, fontWeight: 700, opacity: .7, flexShrink: 0 }}>{staffRole}</span>
                     </button>
                   )
                 })}
