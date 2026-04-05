@@ -539,6 +539,26 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
       .catch(() => {})
   }, [])
 
+  // Periodically check session validity — show PIN overlay if expired
+  useEffect(() => {
+    if (status !== 'ok' || !user) return
+    const checkSession = () => {
+      const token = localStorage.getItem('VURIUMBOOK_TOKEN')
+      if (!token) { setShowPinOverlay(hasPinSetup()); return }
+      fetch(`${API}/api/auth/me`, { credentials: 'include', headers: { Authorization: `Bearer ${token}` } })
+        .then(r => {
+          if (r.status === 401) {
+            localStorage.removeItem('VURIUMBOOK_TOKEN')
+            if (hasPinSetup()) setShowPinOverlay(true)
+            else { localStorage.removeItem('VURIUMBOOK_USER'); window.location.href = '/signin' }
+          }
+        })
+        .catch(() => {})
+    }
+    const interval = setInterval(checkSession, 5 * 60 * 1000) // check every 5 minutes
+    return () => clearInterval(interval)
+  }, [status, user])
+
   useEffect(() => {
     if (status === 'noauth') {
       if (hasPinSetup()) setShowPinOverlay(true)
