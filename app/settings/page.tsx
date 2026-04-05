@@ -967,7 +967,7 @@ export default function SettingsPage() {
                       {squareDevices.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                           {squareDevices.map((dev: any) => {
-                            const codeId = dev.device_code_id || dev.id
+                            const codeId = dev.serial_number || dev.device_code_id || dev.id
                             return (
                             <button key={dev.id} onClick={() => saveTerminalDevice(codeId)}
                               style={{

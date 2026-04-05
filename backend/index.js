@@ -3971,10 +3971,12 @@ app.get('/api/payments/terminal/devices', requireRole('owner', 'admin'), async (
     const headers = await squareHeaders(req.ws);
     const r = await squareFetch('/v2/devices', { headers });
     const data = await r.json();
-    // Extract device_code_id from APPLICATION component for terminal checkouts
+    // Extract usable device IDs for terminal checkouts
     const devices = (data.devices || []).map(d => {
+      // device.id format is "device:SERIAL_NUMBER" — the serial number is used for terminal API
+      const serialNumber = d.id?.startsWith('device:') ? d.id.slice(7) : d.id || '';
       const appComponent = (d.components || []).find(c => c.type === 'APPLICATION' && c.application_details?.device_code_id);
-      return { ...d, device_code_id: appComponent?.application_details?.device_code_id || '' };
+      return { ...d, serial_number: serialNumber, device_code_id: appComponent?.application_details?.device_code_id || '' };
     });
     res.json({ devices });
   } catch (e) { res.status(500).json({ error: e?.message }); }
