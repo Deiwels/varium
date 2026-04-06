@@ -2968,8 +2968,8 @@ app.get('/api/payments', async (req, res) => {
       }
     }
     if (barberId) payments = payments.filter(p => p.barber_id === barberId);
-    if (from) payments = payments.filter(p => (p.created_at || '') >= from);
-    if (to) payments = payments.filter(p => (p.created_at || '') <= to);
+    if (from) payments = payments.filter(p => (p.created_at || '').slice(0, 10) >= from.slice(0, 10));
+    if (to) payments = payments.filter(p => (p.created_at || '').slice(0, 10) <= to.slice(0, 10));
     // Totals
     const totalGross = payments.reduce((s, p) => s + (Number(p.amount_cents || 0) / 100), 0);
     const totalTips = payments.reduce((s, p) => s + (Number(p.tip_cents || 0) / 100), 0);
