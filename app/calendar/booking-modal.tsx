@@ -640,8 +640,8 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
   const evDate = ev?._raw?.date || (ev?._raw?.start_at ? ev._raw.start_at.slice(0, 10) : '')
   const now = new Date()
   const localTodayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
-  // Only block checkout for same-day unresolved bookings on TODAY (not past days)
-  const blockingEvent = ev && allEvents && barberId && evDate >= localTodayStr
+  // Only block checkout for unresolved bookings earlier TODAY — not past or future days
+  const blockingEvent = ev && allEvents && barberId && evDate === localTodayStr
     ? allEvents.find(e =>
         e.id !== ev.id &&
         e.barberId === barberId &&
