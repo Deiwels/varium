@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { usePermissions } from '@/components/PermissionsProvider'
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
 
@@ -615,9 +616,11 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
   const [activeCheckoutId, setActiveCheckoutId] = useState<string|null>(null)
   const [shopSettings, setShopSettings] = useState<any>(null)
   const [manualAmount, setManualAmount] = useState<number | null>(null)
+  const { hasPerm: payHasPerm } = usePermissions()
   const [isOwnerOrAdmin] = useState(() => {
     try { const u = JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}'); return u.role === 'owner' || u.role === 'admin' } catch { return false }
   })
+  const canRefund = payHasPerm('financial', 'refund')
   const pollRef = useRef<any>(null)
   const mountedRef = useRef(true)
 
@@ -695,7 +698,7 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
             Send Receipt
           </button>
         )}
-        {isOwnerOrAdmin && ev._raw?.id && (
+        {(isOwnerOrAdmin || canRefund) && ev._raw?.id && (
           <button onClick={handleRefund} style={{ width: '100%', height: 36, borderRadius: 10, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.06)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', marginTop: 8 }}>
             Issue Refund
           </button>
@@ -966,6 +969,10 @@ export function BookingModal({
       if (calScroll) calScroll.scrollTop = savedCalScroll
     }
   }, [isOpen])
+
+  const { hasPerm } = usePermissions()
+  const canCheckout = hasPerm('financial', 'checkout_client')
+  const canTerminal = hasPerm('financial', 'access_terminal')
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [clientName, setClientName] = useState('')
@@ -1302,9 +1309,9 @@ export function BookingModal({
             {/* Upload reference photo */}
             <PhotoUpload value={photoUrl} onChange={(url) => setPhotoUrl(url)} />
 
-            {/* Payment — owner/admin only */}
-            {isOwnerOrAdmin && existingEvent && (
-              <PaymentPanel ev={existingEvent} services={services} onPayment={onPayment} allEvents={allEvents} barberId={barberId} terminalEnabled={terminalEnabled} />
+            {/* Payment — based on permissions */}
+            {(isOwnerOrAdmin || canCheckout) && existingEvent && (
+              <PaymentPanel ev={existingEvent} services={services} onPayment={onPayment} allEvents={allEvents} barberId={barberId} terminalEnabled={terminalEnabled && canTerminal} />
             )}
 
             {/* Footer */}
