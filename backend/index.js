@@ -666,7 +666,32 @@ app.get('/api/push/status', (req, res) => {
   const keyPath = process.env.APNS_KEY_PATH || '';
   const env = process.env.APNS_ENVIRONMENT || process.env.APNS_ENV || 'sandbox';
   const bundleId = process.env.APNS_BUNDLE_ID || 'com.vurium.VuriumBook';
-  const jwt = getApnsJwt();
+
+  let jwtValid = false;
+  let jwtError = null;
+  let keyInfo = {};
+  try {
+    let key;
+    if (keyP8) {
+      key = keyP8.replace(/\\n/g, '\n');
+      keyInfo.hasBeginHeader = key.includes('-----BEGIN');
+      keyInfo.length = key.length;
+      keyInfo.first20 = key.substring(0, 20).replace(/[^\x20-\x7E]/g, '?');
+      if (!key.includes('-----BEGIN')) {
+        try { const decoded = Buffer.from(key, 'base64').toString('utf8'); if (decoded.includes('-----BEGIN')) key = decoded; keyInfo.base64Decoded = decoded.includes('-----BEGIN'); } catch {}
+      }
+      if (!key.includes('-----BEGIN')) {
+        key = '-----BEGIN PRIVATE KEY-----\n' + key + '\n-----END PRIVATE KEY-----';
+        keyInfo.wrapped = true;
+      }
+    }
+    const testJwt = require('jsonwebtoken');
+    testJwt.sign({}, key || 'none', { algorithm: 'ES256', keyid: keyId, issuer: teamId, expiresIn: '1h' });
+    jwtValid = true;
+  } catch (e) {
+    jwtError = e?.message;
+  }
+
   res.json({
     configured: !!(keyId && teamId && (keyP8 || keyPath)),
     env,
@@ -674,7 +699,10 @@ app.get('/api/push/status', (req, res) => {
     keyId: keyId ? keyId.slice(0,4) + '...' : 'MISSING',
     teamId: teamId ? teamId.slice(0,4) + '...' : 'MISSING',
     keySource: keyP8 ? 'ENV_VAR' : keyPath ? 'FILE' : 'MISSING',
-    jwtValid: !!jwt,
+    keyP8Length: keyP8.length,
+    keyInfo,
+    jwtValid,
+    jwtError,
   });
 });
 
