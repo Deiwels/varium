@@ -1224,7 +1224,7 @@ async function resetRateLimit(ip) {
 // GENERAL API RATE LIMITING (in-memory, per IP)
 // ============================================================
 const _apiRateBuckets = new Map();
-const API_RATE_LIMIT = 120;       // max requests per window
+const API_RATE_LIMIT = 300;       // max requests per window
 const API_RATE_WINDOW = 60 * 1000; // 1 minute window
 
 function checkApiRateLimit(ip) {
