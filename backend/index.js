@@ -605,24 +605,27 @@ function sendApnsPush(deviceToken, title, body, data = {}, bundleId) {
   });
 }
 
-// Helper: get user notification prefs
-async function getUserNotifPrefs(wsCol, userId) {
+// Helper: get workspace push notification settings (from Settings → Booking)
+let _wsPushPrefsCache = {};
+let _wsPushPrefsCacheTime = 0;
+async function getWorkspacePushPrefs(wsCol) {
+  const now = Date.now();
+  if (_wsPushPrefsCache && now - _wsPushPrefsCacheTime < 30000) return _wsPushPrefsCache;
   try {
-    const snap = await wsCol('users').where('__name__', '==', userId).limit(1).get();
-    if (snap.empty) {
-      // Try finding by iterating (uid might not be doc id)
-      const allUsers = await wsCol('users').get();
-      for (const u of allUsers.docs) { if (u.id === userId) return u.data().notification_prefs || {}; }
-      return {};
-    }
-    return snap.docs[0].data().notification_prefs || {};
+    const snap = await wsCol('settings').doc('config').get();
+    const data = snap.exists ? snap.data() : {};
+    const booking = data.booking || {};
+    _wsPushPrefsCache = booking;
+    _wsPushPrefsCacheTime = now;
+    return booking;
   } catch { return {}; }
 }
 
-// Helper: check if user allows this push type
-function userAllowsPush(prefs, prefKey) {
-  if (!prefKey) return true; // no preference key = always send
-  return prefs[prefKey] !== false; // default true if not explicitly disabled
+// Helper: check if workspace allows this push type
+function workspaceAllowsPush(bookingSettings, prefKey) {
+  if (!prefKey) return true;
+  // Settings keys: push_confirm, push_reminder_24, push_reminder_2, push_reschedule, push_cancel, push_waitlist
+  return bookingSettings[prefKey] !== false; // default true if not set
 }
 
 async function getCrmDeviceTokens(wsCol, userId) {
@@ -634,8 +637,8 @@ async function getCrmDeviceTokens(wsCol, userId) {
 
 async function sendCrmPush(wsCol, userId, title, body, data = {}, prefKey = null) {
   if (prefKey) {
-    const prefs = await getUserNotifPrefs(wsCol, userId);
-    if (!userAllowsPush(prefs, prefKey)) { console.log('🔔 [APNs] Skipped push to user=' + userId + ' (pref ' + prefKey + '=off)'); return; }
+    const wsPrefs = await getWorkspacePushPrefs(wsCol);
+    if (!workspaceAllowsPush(wsPrefs, prefKey)) { console.log('🔔 [APNs] Skipped push (workspace pref ' + prefKey + '=off)'); return; }
   }
   const tokens = await getCrmDeviceTokens(wsCol, userId);
   console.log('🔔 [APNs] sendCrmPush to user=' + userId + ' tokens=' + tokens.length + ' title=' + title);
@@ -644,42 +647,36 @@ async function sendCrmPush(wsCol, userId, title, body, data = {}, prefKey = null
 
 async function sendCrmPushToRoles(wsCol, roles, title, body, data = {}, excludeUserId = null, prefKey = null) {
   try {
+    if (prefKey) {
+      const wsPrefs = await getWorkspacePushPrefs(wsCol);
+      if (!workspaceAllowsPush(wsPrefs, prefKey)) { console.log('🔔 [APNs] Skipped role push (workspace pref ' + prefKey + '=off)'); return; }
+    }
     const snap = await wsCol('crm_push_tokens').get();
-    let count = 0, skipped = 0;
+    let count = 0;
     for (const d of snap.docs) {
       const td = d.data();
       if (roles.includes(td.role) && td.user_id !== excludeUserId) {
-        if (prefKey) {
-          const prefs = await getUserNotifPrefs(wsCol, td.user_id);
-          if (!userAllowsPush(prefs, prefKey)) { skipped++; continue; }
-        }
         count++;
         sendApnsPush(td.device_token, title, body, data).catch(e => console.error('🔔 [APNs] role push error:', e?.message));
       }
     }
-    console.log('🔔 [APNs] sendCrmPushToRoles roles=' + roles.join(',') + ' sent=' + count + ' skipped=' + skipped + ' title=' + title);
+    console.log('🔔 [APNs] sendCrmPushToRoles roles=' + roles.join(',') + ' sent=' + count + ' title=' + title);
   } catch (e) { console.error('🔔 [APNs] sendCrmPushToRoles error:', e?.message); }
 }
 
 async function sendCrmPushToBarber(wsCol, barberId, title, body, data = {}, prefKey = null) {
   try {
-    const snap = await wsCol('crm_push_tokens').where('barber_id', '==', barberId).get();
-    let count = 0, skipped = 0;
-    for (const d of snap.docs) {
-      const td = d.data();
-      if (prefKey) {
-        const prefs = await getUserNotifPrefs(wsCol, td.user_id);
-        if (!userAllowsPush(prefs, prefKey)) { skipped++; continue; }
-      }
-      count++;
-      sendApnsPush(td.device_token, title, body, data).catch(e => console.error('🔔 [APNs] barber push error:', e?.message));
+    if (prefKey) {
+      const wsPrefs = await getWorkspacePushPrefs(wsCol);
+      if (!workspaceAllowsPush(wsPrefs, prefKey)) { console.log('🔔 [APNs] Skipped barber push (workspace pref ' + prefKey + '=off)'); return; }
     }
-    console.log('🔔 [APNs] sendCrmPushToBarber barber=' + barberId + ' sent=' + count + ' skipped=' + skipped + ' title=' + title);
+    const snap = await wsCol('crm_push_tokens').where('barber_id', '==', barberId).get();
+    console.log('🔔 [APNs] sendCrmPushToBarber barber=' + barberId + ' tokens=' + snap.size + ' title=' + title);
+    for (const d of snap.docs) sendApnsPush(d.data().device_token, title, body, data).catch(e => console.error('🔔 [APNs] barber push error:', e?.message));
   } catch (e) { console.error('🔔 [APNs] sendCrmPushToBarber error:', e?.message); }
 }
 
 async function sendCrmPushToStaff(wsCol, barberId, title, body, data = {}, prefKey = null, excludeUserId = null) {
-  // Only send to the specific barber who the booking is for — not all owners/admins
   if (barberId) sendCrmPushToBarber(wsCol, barberId, title, body, data, prefKey).catch(e => console.error('🔔 [APNs] staff barber error:', e?.message));
 }
 

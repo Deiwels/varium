@@ -1030,12 +1030,10 @@ export default function SettingsPage() {
                   <Toggle checked={!!booking.sms_on_cancel} onChange={v => setNested('booking','sms_on_cancel',v)} label="Cancellation notification" sub="When appointment is cancelled" />
                 </SectionCard>
                 <SectionCard title="Push notifications">
-                  <Toggle checked={booking.push_confirm !== false} onChange={v => setNested('booking','push_confirm',v)} label="Booking confirmation" sub="Push when appointment is booked" />
-                  <Toggle checked={booking.push_reminder_24 !== false} onChange={v => setNested('booking','push_reminder_24',v)} label="24h reminder push" sub="Day before appointment" />
-                  <Toggle checked={booking.push_reminder_2 !== false} onChange={v => setNested('booking','push_reminder_2',v)} label="2h reminder push" sub="2 hours before" />
-                  <Toggle checked={booking.push_reschedule !== false} onChange={v => setNested('booking','push_reschedule',v)} label="Reschedule push" sub="When time changes" />
-                  <Toggle checked={booking.push_cancel !== false} onChange={v => setNested('booking','push_cancel',v)} label="Cancellation push" sub="When appointment cancelled" />
-                  <Toggle checked={booking.push_waitlist !== false} onChange={v => setNested('booking','push_waitlist',v)} label="Waitlist push" sub="When spot opens up" />
+                  <Toggle checked={booking.push_confirm !== false} onChange={v => setNested('booking','push_confirm',v)} label="Booking confirmation" sub="Push to barber when appointment is booked" />
+                  <Toggle checked={booking.push_reschedule !== false} onChange={v => setNested('booking','push_reschedule',v)} label="Reschedule push" sub="Push to barber when time changes" />
+                  <Toggle checked={booking.push_cancel !== false} onChange={v => setNested('booking','push_cancel',v)} label="Cancellation push" sub="Push to barber when appointment cancelled" />
+                  <Toggle checked={booking.push_waitlist !== false} onChange={v => setNested('booking','push_waitlist',v)} label="Waitlist push" sub="Push when spot opens up" />
                 </SectionCard>
                 <SectionCard title="Booking page">
                   <Field label="Cancellation window (hours)">
