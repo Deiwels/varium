@@ -1159,7 +1159,15 @@ export function BookingModal({
                 {selDate} · {barbers.find(b => b.id === selBarberId)?.name || barberName} · {minToHHMM(selStartMin)}
               </div>
             </div>
-            <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontFamily: 'inherit' }}>✕</button>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              {!isNew && (
+                <button onClick={() => { setRescheduleOpen(!rescheduleOpen); if (!rescheduleOpen) setReschMonth(() => { const d = new Date(selDate + 'T00:00:00'); d.setDate(1); return d }) }}
+                  style={{ height: 28, padding: '0 10px', borderRadius: 8, border: `1px solid ${rescheduleOpen ? 'rgba(130,150,220,.30)' : 'rgba(255,255,255,.10)'}`, background: rescheduleOpen ? 'rgba(130,150,220,.10)' : 'rgba(255,255,255,.04)', color: rescheduleOpen ? 'rgba(130,150,220,.9)' : 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: 10, fontWeight: 700, fontFamily: 'inherit', letterSpacing: '.02em' }}>
+                  {rescheduleOpen ? 'Cancel' : 'Reschedule'}
+                </button>
+              )}
+              <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontFamily: 'inherit' }}>✕</button>
+            </div>
           </div>
 
           <div style={{ padding: '14px 18px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1477,9 +1485,6 @@ export function BookingModal({
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)', flexWrap: 'wrap' }}>
                 {!isNew && (
                   <button onClick={() => setDeleteConfirm(true)} style={{ height: 36, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,107,107,.20)', background: 'rgba(255,107,107,.04)', color: 'rgba(255,107,107,.6)', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', fontSize: 12 }}>Cancel appt</button>
-                )}
-                {!isNew && !rescheduleOpen && (
-                  <button onClick={() => { setRescheduleOpen(true); setReschMonth(() => { const d = new Date(selDate + 'T00:00:00'); d.setDate(1); return d }) }} style={{ height: 36, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(130,150,220,.20)', background: 'rgba(130,150,220,.04)', color: 'rgba(130,150,220,.7)', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', fontSize: 12 }}>Reschedule</button>
                 )}
                 <div style={{ flex: 1 }} />
                 <button onClick={onClose} style={{ height: 36, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', fontSize: 12 }}>Close</button>
