@@ -169,6 +169,9 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState<Period>('30d')
   const abortRef = useRef<AbortController | null>(null)
+  const [user] = useState(() => { try { return JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}') } catch { return {} } })
+  const role = user?.role || ''
+  const allowed = role === 'owner' || role === 'admin'
 
   const load = useCallback(async () => {
     abortRef.current?.abort()
@@ -196,6 +199,16 @@ export default function AnalyticsPage() {
   const avgDaily = data ? avg(data.total, data.days) : '0'
 
   const panelStyle: React.CSSProperties = { fontSize: 13, color: 'rgba(255,255,255,.7)', lineHeight: 1.5 }
+
+  if (!allowed) {
+    return (
+      <Shell page="analytics">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'rgba(255,255,255,.3)', fontSize: 14 }}>
+          Access restricted to owners and admins
+        </div>
+      </Shell>
+    )
+  }
 
   return (
     <Shell page="analytics">

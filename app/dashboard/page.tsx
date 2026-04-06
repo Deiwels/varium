@@ -369,8 +369,8 @@ export default function DashboardPage() {
   const loadAll = useCallback(async () => {
     const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
     const headers: Record<string,string> = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
-    // Load workspace timezone first
-    try { const tz = await fetch(`${API}/api/settings/timezone`, { headers }).then(r => r.json()); if (tz?.timezone) _dashTz = tz.timezone } catch {}
+    // Load workspace timezone + clock_in_enabled (available to all users)
+    try { const tz = await fetch(`${API}/api/settings/timezone`, { headers }).then(r => r.json()); if (tz?.timezone) _dashTz = tz.timezone; if (tz?.clock_in_enabled !== undefined) setDashSettings(prev => ({ ...prev, clock_in_enabled: tz.clock_in_enabled })) } catch {}
     const today = isoToday()
     const range = getDateRange(earningsPeriod, earningsOffset)
     if (!bookings.length && !myPayroll) setLoading(true) // only show loading on first load
@@ -720,7 +720,7 @@ export default function DashboardPage() {
           { id: 'w_newclients', type: 'widget-s', label: 'New Clients', cols: 2 },
           { id: 'w_expenses', type: 'widget-s', label: 'Expenses', cols: 2 },
           { id: 'w_quickbook', type: 'widget-s', label: 'Quick Book', cols: 2 },
-          { id: 'w_visits', type: 'widget-m', label: 'Site Visits', cols: 4 },
+          ...(isOwnerOrAdmin ? [{ id: 'w_visits', type: 'widget-m' as const, label: 'Site Visits', cols: 4 }] : []),
           { id: 'w_bookings', type: 'widget-s', label: 'Bookings', cols: 2 },
           { id: 'w_paid', type: 'widget-s', label: isBarber ? 'Earnings' : 'Paid', cols: 2 },
           { id: 'w_noshows', type: 'widget-s', label: 'No-shows', cols: 2 },
@@ -1349,7 +1349,7 @@ export default function DashboardPage() {
                 </div>
               )
             }
-            if (wId === 'site-analytics') {
+            if (wId === 'site-analytics' && isOwnerOrAdmin) {
               const a = widgetData.analytics || { total: 0, by_source: {}, by_day: [] }
               const sources = Object.entries(a.by_source || {}).sort((x: any, y: any) => y[1] - x[1])
               const _si = { stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' }
@@ -1449,7 +1449,7 @@ export default function DashboardPage() {
               { id: 'team-on-duty', label: 'On Duty' },
               { id: 'expenses-month', label: 'Expenses' },
               { id: 'mini-calendar', label: 'Schedule' },
-              { id: 'site-analytics', label: 'Site Visits' },
+              ...(isOwnerOrAdmin ? [{ id: 'site-analytics', label: 'Site Visits' }] : []),
               // Team member widgets
               ...(isOwnerOrAdmin ? barbers.map((b: any) => ({ id: 'team-' + b.id, label: b.name })) : []),
             ]
