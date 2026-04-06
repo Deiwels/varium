@@ -164,8 +164,10 @@ export default function Home() {
         </a>
         <ul className="navbar-links">
           <li><a href="/vuriumbook">VuriumBook</a></li>
-          <li><a href="#products">Products</a></li>
-          <li><a href="#about">About</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/blog">Blog</a></li>
+          <li><a href="/contact">Contact</a></li>
+          <li><a href="/signin" className="btn-nav-cta">Sign In</a></li>
         </ul>
       </nav>
 
@@ -221,6 +223,50 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Stats ── */}
+      <section style={{ padding: 'clamp(40px, 6vh, 60px) 24px', maxWidth: 1080, margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, textAlign: 'center' }}>
+          {[
+            { num: '1,000+', label: 'Businesses' },
+            { num: '50,000+', label: 'Bookings Processed' },
+            { num: '99.9%', label: 'Uptime' },
+            { num: '4.9/5', label: 'Customer Rating' },
+          ].map((s, i) => (
+            <div key={i} style={{ padding: '20px 16px' }}>
+              <div className="stat-number">{s.num}</div>
+              <div style={{ fontSize: 12, fontWeight: 400, color: 'rgba(255,255,255,.25)', marginTop: 4, letterSpacing: '.04em' }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Testimonials ── */}
+      <section style={{ padding: 'clamp(60px, 10vh, 100px) 24px', maxWidth: 1080, margin: '0 auto' }}>
+        <p className="label-glow" style={{ textAlign: 'center', marginBottom: 12 }}>Testimonials</p>
+        <h2 className="shimmer-text" style={{ fontSize: 'clamp(28px, 4.5vw, 48px)', fontWeight: 600, letterSpacing: '-.03em', textAlign: 'center', marginBottom: 56 }}>
+          Trusted by businesses everywhere.
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+          {[
+            { quote: 'VuriumBook cut our no-shows by 40% in the first month. The automated reminders alone are worth the subscription.', name: 'Marcus Johnson', title: 'Owner, Elite Cuts Barbershop', metric: '40% fewer no-shows' },
+            { quote: 'We went from pen-and-paper scheduling to a fully digital operation in one afternoon. Our clients love booking online.', name: 'Sofia Reyes', title: 'Manager, Luxe Hair Studio', metric: '3x more bookings' },
+            { quote: 'The payment integration is seamless. Tips, commissions, daily reports — everything in one place. Game changer.', name: 'James Chen', title: 'Owner, The Gentleman\'s Quarter', metric: '30% revenue increase' },
+          ].map((t, i) => (
+            <div key={i} className="glass-card fade-up" style={{ display: 'flex', flexDirection: 'column', animationDelay: `${i * 0.1}s` }}>
+              <div style={{ width: 32, height: 2, borderRadius: 1, background: 'rgba(130,150,220,.4)', marginBottom: 20 }} />
+              <p style={{ fontSize: 14, fontWeight: 300, color: 'rgba(255,255,255,.45)', lineHeight: 1.65, flex: 1, marginBottom: 20 }}>
+                &ldquo;{t.quote}&rdquo;
+              </p>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#e8e8ed', marginBottom: 2 }}>{t.name}</p>
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', marginBottom: 8 }}>{t.title}</p>
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(130,220,170,.6)', background: 'rgba(130,220,170,.06)', padding: '3px 10px', borderRadius: 6 }}>{t.metric}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* ── About / Features ── */}
       <section id="about" style={{ padding: 'clamp(60px, 10vh, 100px) 24px', maxWidth: 1080, margin: '0 auto' }}>
         <p className="label-glow" style={{ textAlign: 'center', marginBottom: 12 }}>Why Vurium</p>
@@ -255,12 +301,45 @@ export default function Home() {
       </section>
 
       {/* ── Footer ── */}
-      <footer style={{ borderTop: '1px solid rgba(255,255,255,.05)', padding: '20px clamp(20px, 4vw, 48px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2, flexWrap: 'wrap', gap: 12 }}>
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)' }}>&copy; 2026 Vurium&trade;. All rights reserved.</span>
-        <div style={{ display: 'flex', gap: 20 }}>
-          <a href="/privacy" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Privacy</a>
-          <a href="/terms" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Terms</a>
-          <a href="/support" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Support</a>
+      <footer style={{ borderTop: '1px solid rgba(255,255,255,.05)', position: 'relative', zIndex: 2 }}>
+        <div style={{ maxWidth: 1080, margin: '0 auto', padding: '40px 24px 20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 32, marginBottom: 32 }}>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.25)', marginBottom: 12 }}>Company</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <a href="/about" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>About</a>
+                <a href="/careers" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Careers</a>
+                <a href="/contact" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Contact</a>
+              </div>
+            </div>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.25)', marginBottom: 12 }}>Product</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <a href="/vuriumbook" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>VuriumBook</a>
+                <a href="/vuriumbook#pricing" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Pricing</a>
+                <a href="/faq" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>FAQ</a>
+              </div>
+            </div>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.25)', marginBottom: 12 }}>Resources</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <a href="/blog" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Blog</a>
+                <a href="/support" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Support</a>
+              </div>
+            </div>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.25)', marginBottom: 12 }}>Legal</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <a href="/privacy" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Privacy</a>
+                <a href="/terms" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Terms</a>
+                <a href="/cookies" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Cookies</a>
+              </div>
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid rgba(255,255,255,.04)', paddingTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)' }}>&copy; 2026 Vurium&trade;. All rights reserved.</span>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.15)' }}>support@vurium.com</span>
+          </div>
         </div>
       </footer>
     </>

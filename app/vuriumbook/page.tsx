@@ -1,6 +1,23 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 
+function PricingFaqItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="faq-item">
+      <button className="faq-question" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span>{q}</span>
+        <svg className="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      <div className={`faq-answer${open ? ' open' : ''}`}>
+        <div className="faq-answer-inner">{a}</div>
+      </div>
+    </div>
+  )
+}
+
 export default function VuriumBook() {
   const spaceRef = useRef<HTMLDivElement>(null)
   const [isMobile, setIsMobile] = useState(false)
@@ -110,9 +127,11 @@ export default function VuriumBook() {
           VuriumBook
         </a>
         <ul className="navbar-links">
-          <li><a href="/#products">Products</a></li>
-          <li><a href="/#about">About</a></li>
-          <li><a href="/signin">Sign In</a></li>
+          <li><a href="/vuriumbook">VuriumBook</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/blog">Blog</a></li>
+          <li><a href="/contact">Contact</a></li>
+          <li><a href="/signin" className="btn-nav-cta">Sign In</a></li>
         </ul>
       </nav>
 
@@ -125,8 +144,8 @@ export default function VuriumBook() {
         <h1 className="shimmer-text fade-up fade-up-d1" style={{ fontSize: 'clamp(36px, 7vw, 68px)', fontWeight: 600, letterSpacing: '-.04em', lineHeight: 1.08, maxWidth: 780 }}>
           VuriumBook
         </h1>
-        <p className="fade-up fade-up-d2" style={{ fontSize: 'clamp(15px, 2vw, 18px)', fontWeight: 300, color: 'rgba(255,255,255,.4)', maxWidth: 560, marginTop: 24, lineHeight: 1.6 }}>
-          The all-in-one booking system for barbershops, salons, and service businesses. Manage appointments, team schedules, payments, and clients.
+        <p className="fade-up fade-up-d2" style={{ fontSize: 'clamp(15px, 2vw, 18px)', fontWeight: 300, color: 'rgba(255,255,255,.4)', maxWidth: 580, marginTop: 24, lineHeight: 1.6 }}>
+          Managing appointments shouldn&apos;t mean missed calls, double bookings, and spreadsheet chaos. VuriumBook replaces it all with one beautiful platform — scheduling, payments, team management, and client CRM.
         </p>
         <div className="fade-up fade-up-d3" style={{ marginTop: 40, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
           <a href="/signup?plan=salon" className="btn-primary">Start 14-Day Free Trial</a>
@@ -159,7 +178,7 @@ export default function VuriumBook() {
       </section>
 
       {/* ── Pricing ── */}
-      <section style={{ padding: 'clamp(60px, 10vh, 100px) 24px', maxWidth: 960, margin: '0 auto' }}>
+      <section id="pricing" style={{ padding: 'clamp(60px, 10vh, 100px) 24px', maxWidth: 960, margin: '0 auto' }}>
         <p className="label-glow" style={{ textAlign: 'center', marginBottom: 12 }}>Pricing</p>
         <h2 className="shimmer-text" style={{ fontSize: 'clamp(28px, 4.5vw, 48px)', fontWeight: 600, letterSpacing: '-.03em', textAlign: 'center', marginBottom: 56 }}>
           Simple, transparent pricing.
@@ -211,13 +230,132 @@ export default function VuriumBook() {
         </div>
       </section>
 
+      {/* ── Integrations ── */}
+      <section style={{ padding: 'clamp(40px, 8vh, 80px) 24px', maxWidth: 800, margin: '0 auto' }}>
+        <p className="label-glow" style={{ textAlign: 'center', marginBottom: 12 }}>Integrations</p>
+        <h2 className="shimmer-text" style={{ fontSize: 'clamp(24px, 3.5vw, 36px)', fontWeight: 600, letterSpacing: '-.03em', textAlign: 'center', marginBottom: 16 }}>
+          Works with your stack.
+        </h2>
+        <p style={{ fontSize: 14, fontWeight: 300, color: 'rgba(255,255,255,.35)', textAlign: 'center', maxWidth: 480, margin: '0 auto 40px', lineHeight: 1.6 }}>
+          VuriumBook connects with the tools you already use, so you can focus on what matters — your clients.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+          {[
+            { name: 'Stripe', desc: 'Secure payments' },
+            { name: 'Google Calendar', desc: 'Sync schedules' },
+            { name: 'Square', desc: 'POS & terminals' },
+            { name: 'Twilio', desc: 'SMS reminders' },
+          ].map((integ, i) => (
+            <div key={i} className="glass-card" style={{ textAlign: 'center', padding: '20px 16px' }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 16, color: 'rgba(130,150,220,.5)' }}>{integ.name[0]}</span>
+              </div>
+              <h3 style={{ fontSize: 13, fontWeight: 600, color: '#e8e8ed', marginBottom: 4 }}>{integ.name}</h3>
+              <p style={{ fontSize: 11, fontWeight: 300, color: 'rgba(255,255,255,.25)' }}>{integ.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Testimonials ── */}
+      <section style={{ padding: 'clamp(60px, 10vh, 100px) 24px', maxWidth: 800, margin: '0 auto' }}>
+        <p className="label-glow" style={{ textAlign: 'center', marginBottom: 12 }}>What customers say</p>
+        <h2 className="shimmer-text" style={{ fontSize: 'clamp(24px, 3.5vw, 36px)', fontWeight: 600, letterSpacing: '-.03em', textAlign: 'center', marginBottom: 48 }}>
+          Real results, real businesses.
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+          {[
+            { quote: 'We switched from a pen-and-paper system to VuriumBook. Within a week, our no-shows dropped and clients started booking online at 2am.', name: 'Alex Rivera', title: 'Owner, Precision Barbershop' },
+            { quote: 'The team management features are exactly what we needed. I can see every barber\'s schedule, earnings, and client feedback in one dashboard.', name: 'Priya Sharma', title: 'Manager, The Style Collective' },
+          ].map((t, i) => (
+            <div key={i} className="glass-card">
+              <div style={{ width: 32, height: 2, borderRadius: 1, background: 'rgba(130,150,220,.4)', marginBottom: 20 }} />
+              <p style={{ fontSize: 14, fontWeight: 300, color: 'rgba(255,255,255,.45)', lineHeight: 1.65, marginBottom: 20 }}>
+                &ldquo;{t.quote}&rdquo;
+              </p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#e8e8ed', marginBottom: 2 }}>{t.name}</p>
+              <p style={{ fontSize: 12, color: 'rgba(255,255,255,.25)' }}>{t.title}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Pricing FAQ ── */}
+      <section id="pricing-faq" style={{ padding: 'clamp(40px, 8vh, 80px) 24px', maxWidth: 700, margin: '0 auto' }}>
+        <p className="label-glow" style={{ textAlign: 'center', marginBottom: 12 }}>FAQ</p>
+        <h2 className="shimmer-text" style={{ fontSize: 'clamp(24px, 3.5vw, 36px)', fontWeight: 600, letterSpacing: '-.03em', textAlign: 'center', marginBottom: 40 }}>
+          Common questions.
+        </h2>
+        {[
+          { q: 'Is there a free trial?', a: 'Yes — every plan includes a 14-day free trial with all features. No credit card required to start.' },
+          { q: 'Can I switch plans later?', a: 'Absolutely. Upgrade, downgrade, or cancel anytime from your billing settings. Changes are prorated.' },
+          { q: 'What happens after the trial?', a: 'Your account converts to the plan you selected. All your data, clients, and settings are preserved.' },
+          { q: 'Do you offer annual billing?', a: 'Yes. Annual plans save you ~20% compared to monthly billing. Contact us for details.' },
+          { q: 'What payment methods do you accept?', a: 'Visa, Mastercard, American Express, and more — processed securely through Stripe.' },
+        ].map((item, i) => (
+          <PricingFaqItem key={i} q={item.q} a={item.a} />
+        ))}
+        <div style={{ textAlign: 'center', marginTop: 32 }}>
+          <a href="/faq" style={{ fontSize: 14, color: 'rgba(130,150,220,.7)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            View all FAQs <span>&rarr;</span>
+          </a>
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section style={{ padding: 'clamp(60px, 10vh, 100px) 24px clamp(80px, 12vh, 120px)', textAlign: 'center' }}>
+        <h2 className="shimmer-text" style={{ fontSize: 'clamp(28px, 4.5vw, 42px)', fontWeight: 600, letterSpacing: '-.03em', marginBottom: 16 }}>
+          Ready to grow your business?
+        </h2>
+        <p style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', fontWeight: 300, color: 'rgba(255,255,255,.35)', maxWidth: 440, margin: '0 auto 36px', lineHeight: 1.6 }}>
+          Join 1,000+ businesses already using VuriumBook to manage their day.
+        </p>
+        <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <a href="/signup?plan=salon" className="btn-primary">Start Free Trial</a>
+          <a href="/contact" className="btn-secondary">Contact Sales</a>
+        </div>
+      </section>
+
       {/* ── Footer ── */}
-      <footer style={{ borderTop: '1px solid rgba(255,255,255,.05)', padding: '20px clamp(20px, 4vw, 48px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2, flexWrap: 'wrap', gap: 12 }}>
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)' }}>&copy; 2026 Vurium&trade;. All rights reserved.</span>
-        <div style={{ display: 'flex', gap: 20 }}>
-          <a href="/privacy" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Privacy</a>
-          <a href="/terms" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Terms</a>
-          <a href="/support" style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textDecoration: 'none' }}>Support</a>
+      <footer style={{ borderTop: '1px solid rgba(255,255,255,.05)', position: 'relative', zIndex: 2 }}>
+        <div style={{ maxWidth: 1080, margin: '0 auto', padding: '40px 24px 20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 32, marginBottom: 32 }}>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.25)', marginBottom: 12 }}>Company</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <a href="/about" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>About</a>
+                <a href="/careers" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Careers</a>
+                <a href="/contact" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Contact</a>
+              </div>
+            </div>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.25)', marginBottom: 12 }}>Product</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <a href="/vuriumbook" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>VuriumBook</a>
+                <a href="/vuriumbook#pricing" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Pricing</a>
+                <a href="/faq" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>FAQ</a>
+              </div>
+            </div>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.25)', marginBottom: 12 }}>Resources</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <a href="/blog" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Blog</a>
+                <a href="/support" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Support</a>
+              </div>
+            </div>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.25)', marginBottom: 12 }}>Legal</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <a href="/privacy" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Privacy</a>
+                <a href="/terms" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Terms</a>
+                <a href="/cookies" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Cookies</a>
+              </div>
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid rgba(255,255,255,.04)', paddingTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)' }}>&copy; 2026 Vurium&trade;. All rights reserved.</span>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.15)' }}>support@vurium.com</span>
+          </div>
         </div>
       </footer>
     </>

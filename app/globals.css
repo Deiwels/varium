@@ -806,6 +806,51 @@ section { position: relative; z-index: 2; }
   }
 }
 
+/* ── FAQ Accordion ── */
+.faq-item { border-bottom: 1px solid rgba(255,255,255,.05); }
+.faq-question {
+  width: 100%; background: none; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 20px 0; font-size: 15px; font-weight: 500; color: rgba(255,255,255,.7);
+  text-align: left; transition: color .2s;
+}
+.faq-question:hover { color: rgba(255,255,255,.9); }
+.faq-question .faq-chevron {
+  flex-shrink: 0; width: 16px; height: 16px; transition: transform .3s ease;
+  color: rgba(130,150,220,.5);
+}
+.faq-question[aria-expanded="true"] .faq-chevron { transform: rotate(180deg); }
+.faq-answer {
+  max-height: 0; overflow: hidden; transition: max-height .35s ease, opacity .25s ease;
+  opacity: 0;
+}
+.faq-answer.open { max-height: 400px; opacity: 1; }
+.faq-answer-inner {
+  padding: 0 0 20px; font-size: 14px; font-weight: 300;
+  color: rgba(255,255,255,.35); line-height: 1.7;
+}
+
+/* ── Form Inputs ── */
+.form-input, .form-textarea {
+  width: 100%; padding: 14px 18px; border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.06); background: rgba(255,255,255,.02);
+  color: rgba(255,255,255,.8); font-size: 14px; font-family: inherit;
+  outline: none; transition: border-color .2s, background .2s;
+}
+.form-input::placeholder, .form-textarea::placeholder { color: rgba(255,255,255,.2); }
+.form-input:focus, .form-textarea:focus {
+  border-color: rgba(130,150,220,.3); background: rgba(255,255,255,.03);
+}
+.form-textarea { min-height: 120px; resize: vertical; }
+
+/* ── Stat Number ── */
+.stat-number {
+  font-size: clamp(28px, 4vw, 40px); font-weight: 600; letter-spacing: -.03em;
+  background: linear-gradient(135deg, rgba(130,150,220,.9), rgba(130,220,170,.7));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
