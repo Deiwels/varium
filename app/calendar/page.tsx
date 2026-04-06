@@ -85,10 +85,10 @@ const STATUS_COLORS: Record<string, { border: string; bg: string; color: string 
 
 // ─── Reusable style constants (avoid recreating objects on every render) ──────
 // Use opaque background instead of backdrop-filter for always-visible elements (much cheaper)
-const OFFHOURS_GLASS: React.CSSProperties = {}
-const OFFHOURS_BG = 'rgba(0,0,0,.15)'
-const OFFHOURS_BORDER = 'rgba(255,255,255,.12)'
-const OFFHOURS_TIME_PILL: React.CSSProperties = { fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 999, background: 'rgba(0,0,0,.50)', border: '1px solid rgba(255,255,255,.18)', color: 'rgba(255,255,255,.55)', letterSpacing: '.04em', fontFamily: 'Inter,sans-serif' }
+const OFFHOURS_GLASS: React.CSSProperties = { backdropFilter: 'blur(6px) saturate(120%)', WebkitBackdropFilter: 'blur(6px) saturate(120%)' }
+const OFFHOURS_BG = 'rgba(0,0,0,.45)'
+const OFFHOURS_BORDER = 'rgba(255,255,255,.06)'
+const OFFHOURS_TIME_PILL: React.CSSProperties = { fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 999, background: 'rgba(0,0,0,.60)', border: '1px solid rgba(255,255,255,.10)', color: 'rgba(255,255,255,.40)', letterSpacing: '.04em', fontFamily: 'Inter,sans-serif' }
 
 function Chip({ label, type }: { label: string; type: string }) {
   const s = STATUS_COLORS[type] || STATUS_COLORS.booked
