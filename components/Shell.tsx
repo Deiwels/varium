@@ -409,7 +409,22 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
   const [pinInput, setPinInput] = useState('')
   const [pinError, setPinError] = useState('')
   const [pinLoading, setPinLoading] = useState(false)
+  const [keyboardOpen, setKeyboardOpen] = useState(false)
   const pathname = usePathname()
+
+  // Detect virtual keyboard open/close
+  useEffect(() => {
+    if (typeof visualViewport === 'undefined') return
+    const vv = visualViewport!
+    const check = () => {
+      // If viewport height is significantly less than window height, keyboard is open
+      const diff = window.innerHeight - vv.height
+      setKeyboardOpen(diff > 120)
+    }
+    vv.addEventListener('resize', check)
+    vv.addEventListener('scroll', check)
+    return () => { vv.removeEventListener('resize', check); vv.removeEventListener('scroll', check) }
+  }, [])
 
   // Listen for PIN-required events from api.ts
   useEffect(() => {
@@ -827,6 +842,10 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
           padding:6px 16px max(6px, env(safe-area-inset-bottom, 6px));
           background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(1,1,1,.9) 60%);
           pointer-events:none;
+          transition:opacity .2s, transform .2s;
+        }
+        .pill-bar.keyboard-open{
+          opacity:0;pointer-events:none!important;transform:translateY(20px);
         }
         @keyframes navBreathe {
           0%, 100% { box-shadow: 0 0 12px 2px rgba(255,255,255,0), 0 2px 16px rgba(0,0,0,.35); border-color: rgba(255,255,255,.04); }
@@ -936,7 +955,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         </div>
 
         {/* ── Bottom Pill Navigation ── */}
-        <div className="pill-bar">
+        <div className={`pill-bar${keyboardOpen ? ' keyboard-open' : ''}`}>
           <div className="pill-inner">
             {[
               { id: 'dashboard', href: '/dashboard', label: 'Home' },
