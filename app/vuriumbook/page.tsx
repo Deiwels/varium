@@ -123,8 +123,8 @@ export default function VuriumBook() {
       {/* ── Navbar ── */}
       <nav className="navbar">
         <a href="/" className="navbar-logo">
-          <img src="/logo.jpg" alt="VuriumBook" />
-          VuriumBook
+          <img src="/logo.jpg" alt="Vurium" />
+          Vurium
         </a>
         <ul className="navbar-links">
           <li><a href="/vuriumbook">VuriumBook</a></li>
