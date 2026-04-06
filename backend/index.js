@@ -740,6 +740,12 @@ const PERMISSIONS = {
     canManageClients: false, canViewAllBookings: false, canManageBookings: false,
     canChangePassword: true, canManageUsers: false, canViewMentorBookings: true,
   },
+  guest: {
+    canViewAll: false, canViewPayroll: false, canViewSettings: false,
+    canViewPayments: false, canManageBarbers: false, canManageServices: false,
+    canManageClients: true, canViewAllBookings: true, canManageBookings: true,
+    canChangePassword: true, canManageUsers: false,
+  },
 };
 
 function hasPermission(session, perm) {
@@ -833,7 +839,7 @@ const ChangePasswordSchema = z.object({
 const UserCreateSchema = z.object({
   username: z.string().min(2).max(80).trim(),
   password: z.string().min(8).max(200),
-  role: z.enum(['owner', 'admin', 'barber', 'student']).optional().default('barber'),
+  role: z.enum(['owner', 'admin', 'barber', 'student', 'guest']).optional().default('barber'),
   name: z.string().max(120).optional(),
   email: z.string().email().max(254),
   barber_id: z.string().max(80).optional(),
@@ -855,7 +861,7 @@ const NotificationPrefsSchema = z.object({
 const UserPatchSchema = z.object({
   name: z.string().max(120).optional(),
   email: z.string().email().max(254).optional().or(z.literal('')),
-  role: z.enum(['owner', 'admin', 'barber', 'student']).optional(),
+  role: z.enum(['owner', 'admin', 'barber', 'student', 'guest']).optional(),
   active: z.boolean().optional(),
   barber_id: z.string().max(80).optional(),
   password: z.string().min(8).max(200).optional(),
@@ -3326,8 +3332,9 @@ app.get('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
 app.get('/api/settings/timezone', async (req, res) => {
   try {
     const doc = await req.ws('settings').doc('config').get();
-    res.json({ timezone: doc.exists ? (doc.data()?.timezone || 'America/Chicago') : 'America/Chicago' });
-  } catch (e) { res.status(500).json({ timezone: 'America/Chicago' }); }
+    const data = doc.exists ? doc.data() : {};
+    res.json({ timezone: data?.timezone || 'America/Chicago', clock_in_enabled: !!data?.clock_in_enabled });
+  } catch (e) { res.status(500).json({ timezone: 'America/Chicago', clock_in_enabled: false }); }
 });
 
 app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {

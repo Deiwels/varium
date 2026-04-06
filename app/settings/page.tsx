@@ -68,7 +68,7 @@ function UsersTab() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<'admin'|'barber'>('barber')
+  const [role, setRole] = useState<'admin'|'barber'|'guest'>('barber')
   const [barberId, setBarberId] = useState('')
   const [barbers, setBarbers] = useState<Barber[]>([])
   const [creating, setCreating] = useState(false)
@@ -145,9 +145,10 @@ function UsersTab() {
             <Field label="Email (login)"><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@business.com" style={inp} /></Field>
             <Field label="Password"><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 8 chars, letter + number" style={inp} /></Field>
             <Field label="Role">
-              <select value={role} onChange={e => { setRole(e.target.value as any); if (e.target.value === 'admin') setBarberId('') }} style={inp}>
+              <select value={role} onChange={e => { setRole(e.target.value as any); if (e.target.value !== 'barber') setBarberId('') }} style={inp}>
                 <option value="admin">Admin — manage everything</option>
                 <option value="barber">Team member — own bookings</option>
+                <option value="guest">Guest — calendar & clients only</option>
               </select>
             </Field>
             {role === 'barber' && barbers.length > 0 && (

@@ -13,6 +13,7 @@ const PUBLIC_PATHS = ['/', '/signin', '/signup', '/vuriumbook', '/booking', '/bo
 // Routes restricted by role
 const OWNER_ADMIN_ONLY = ['/settings', '/payroll', '/billing', '/payments', '/attendance', '/expenses', '/membership']
 const STUDENT_BLOCKED  = ['/settings', '/payroll', '/billing', '/payments', '/clients', '/dashboard', '/attendance', '/expenses', '/membership']
+const GUEST_BLOCKED    = ['/settings', '/payroll', '/billing', '/payments', '/dashboard', '/attendance', '/expenses', '/membership', '/messages', '/waitlist', '/portfolio', '/history']
 const BARBER_REDIRECT  = '/calendar'
 
 // Cookie format: "role:uid" — set from JS after login
@@ -23,7 +24,7 @@ function parseRoleCookie(value: string): { role: string; uid: string } | null {
   const parts = value.split(':')
   if (parts.length < 1) return null
   const role = parts[0]
-  if (!['owner', 'admin', 'barber', 'student'].includes(role)) return null
+  if (!['owner', 'admin', 'barber', 'student', 'guest'].includes(role)) return null
   return { role, uid: parts[1] || '' }
 }
 
@@ -94,10 +95,17 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Guest can only access calendar + clients
+  if (role === 'guest' && GUEST_BLOCKED.some(p => pathname.startsWith(p))) {
+    const url = req.nextUrl.clone()
+    url.pathname = '/calendar'
+    return NextResponse.redirect(url)
+  }
+
   // Authenticated user going to /signin → redirect to their home
   if (pathname.startsWith('/signin')) {
     const url = req.nextUrl.clone()
-    url.pathname = (role === 'barber' || role === 'student') ? '/calendar' : '/dashboard'
+    url.pathname = (role === 'barber' || role === 'student' || role === 'guest') ? '/calendar' : '/dashboard'
     return NextResponse.redirect(url)
   }
 

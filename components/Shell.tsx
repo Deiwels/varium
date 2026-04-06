@@ -661,12 +661,15 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
   const role = user?.role || 'barber'
   const isBarber = role === 'barber'
   const isStudent = role === 'student'
+  const isGuest = role === 'guest'
   const visibleNav = NAV.filter(item => {
     if ((item as any).ownerOnly && role !== 'owner') return false
-    if ((item as any).ownerAdmin && (isBarber || isStudent)) return false
+    if ((item as any).ownerAdmin && (isBarber || isStudent || isGuest)) return false
     if ((item as any).barberOnly && !isBarber) return false
-    // Student sees ONLY calendar
+    // Student sees ONLY calendar + messages
     if (isStudent && item.id !== 'calendar' && item.id !== 'messages') return false
+    // Guest sees ONLY calendar + clients
+    if (isGuest && item.id !== 'calendar' && item.id !== 'clients') return false
     return true
   })
   const initials = (n: string) => { const p = (n || '').split(' '); return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() }
@@ -937,6 +940,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
             ].filter(item => {
               if (isStudent && item.id !== 'calendar' && item.id !== 'messages') return false
               if (isBarber && (item.id === 'clients' || item.id === 'settings')) return false
+              if (isGuest && item.id !== 'calendar' && item.id !== 'clients') return false
               // Plan-based: hide items whose feature is not in current plan
               if ((item as any).feature && !planHasFeature((item as any).feature)) return false
               return true
