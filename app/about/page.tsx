@@ -4,7 +4,7 @@ const heading: React.CSSProperties = { fontSize: 20, fontWeight: 600, color: 'rg
 const text: React.CSSProperties = { fontSize: 15, fontWeight: 300, color: 'rgba(255,255,255,.45)', lineHeight: 1.8, marginBottom: 16 }
 
 const TEAM = [
-  { name: 'Nazarii Demediuk', role: 'Founder & CEO', bio: 'Full-stack engineer with a passion for building products that simplify business operations. Previously led engineering teams at enterprise SaaS companies.' },
+  { name: 'Nazarii Mykhailiuk', role: 'Founder & CEO', bio: 'Full-stack engineer with a passion for building products that simplify business operations. Previously led engineering teams at enterprise SaaS companies.' },
 ]
 
 const VALUES = [

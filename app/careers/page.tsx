@@ -1,4 +1,88 @@
 'use client'
+import { useState } from 'react'
+
+const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
+
+function ApplyModal({ position, onClose }: { position: string; onClose: () => void }) {
+  const [form, setForm] = useState({ name: '', email: '', phone: '', linkedin: '', message: '' })
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    setSending(true)
+    try {
+      const res = await fetch(`${API}/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          company: `Application: ${position}`,
+          message: `Position: ${position}\nPhone: ${form.phone || 'N/A'}\nLinkedIn: ${form.linkedin || 'N/A'}\n\n${form.message}`,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Something went wrong')
+      setSent(true)
+    } catch (err: any) {
+      setError(err.message || 'Failed to send application.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.7)', backdropFilter: 'blur(8px)' }} />
+      <div className="glass-card" style={{ position: 'relative', maxWidth: 480, width: '100%', padding: 'clamp(28px, 4vw, 40px)', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'rgba(255,255,255,.3)', fontSize: 20, cursor: 'pointer' }}>&times;</button>
+        {sent ? (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(130,220,170,.08)', border: '1px solid rgba(130,220,170,.15)', margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(130,220,170,.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+            </div>
+            <h3 style={{ fontSize: 18, fontWeight: 600, color: '#e8e8ed', marginBottom: 8 }}>Application sent!</h3>
+            <p style={{ fontSize: 14, fontWeight: 300, color: 'rgba(255,255,255,.35)', lineHeight: 1.6 }}>Thank you for your interest. We&apos;ll review your application and get back to you soon.</p>
+          </div>
+        ) : (
+          <>
+            <h3 style={{ fontSize: 18, fontWeight: 600, color: '#e8e8ed', marginBottom: 4 }}>Apply for {position}</h3>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', marginBottom: 24 }}>Fill in your details and we&apos;ll be in touch.</p>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.3)', marginBottom: 6, display: 'block' }}>Full Name *</label>
+                <input className="form-input" placeholder="Your name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.3)', marginBottom: 6, display: 'block' }}>Email *</label>
+                <input className="form-input" type="email" placeholder="you@email.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.3)', marginBottom: 6, display: 'block' }}>Phone</label>
+                <input className="form-input" placeholder="+1 (555) 000-0000" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.3)', marginBottom: 6, display: 'block' }}>LinkedIn Profile</label>
+                <input className="form-input" placeholder="https://linkedin.com/in/..." value={form.linkedin} onChange={e => setForm(f => ({ ...f, linkedin: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.3)', marginBottom: 6, display: 'block' }}>Why do you want to join Vurium? *</label>
+                <textarea className="form-textarea" placeholder="Tell us about yourself and what excites you about this role..." value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))} required />
+              </div>
+              {error && <p style={{ fontSize: 13, color: 'rgba(220,130,130,.8)', margin: 0 }}>{error}</p>}
+              <button type="submit" className="btn-primary" disabled={sending} style={{ marginTop: 4, border: 'none', cursor: sending ? 'wait' : 'pointer', fontSize: 14, fontFamily: 'inherit', opacity: sending ? 0.6 : 1 }}>
+                {sending ? 'Sending...' : 'Submit Application'}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
 
 const PERKS = [
   { title: 'Remote First', desc: 'Work from anywhere in the world. We\'re a distributed team that values output over hours in a seat.', color: 'rgba(130,220,170,.5)', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4' },
@@ -15,6 +99,8 @@ const POSITIONS = [
 ]
 
 export default function CareersPage() {
+  const [applyingFor, setApplyingFor] = useState<string | null>(null)
+
   return (
     <>
       <nav className="navbar">
@@ -83,9 +169,9 @@ export default function CareersPage() {
                   </div>
                   <p style={{ fontSize: 13, fontWeight: 300, color: 'rgba(255,255,255,.35)', lineHeight: 1.6 }}>{p.desc}</p>
                 </div>
-                <a href={`mailto:careers@vurium.com?subject=Application: ${p.title}`} className="btn-secondary" style={{ fontSize: 13, padding: '10px 24px', height: 'auto', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                <button onClick={() => setApplyingFor(p.title)} className="btn-secondary" style={{ fontSize: 13, padding: '10px 24px', height: 'auto', flexShrink: 0, whiteSpace: 'nowrap', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
                   Apply Now
-                </a>
+                </button>
               </div>
             ))}
           </div>
@@ -99,9 +185,11 @@ export default function CareersPage() {
           <p style={{ fontSize: 15, fontWeight: 300, color: 'rgba(255,255,255,.35)', maxWidth: 440, margin: '0 auto 32px', lineHeight: 1.6 }}>
             We&apos;re always looking for talented people. Send us your resume and tell us how you&apos;d contribute.
           </p>
-          <a href="mailto:careers@vurium.com" className="btn-primary">careers@vurium.com</a>
+          <button onClick={() => setApplyingFor('General Application')} className="btn-primary" style={{ border: 'none', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>Send Your Application</button>
         </section>
       </main>
+
+      {applyingFor && <ApplyModal position={applyingFor} onClose={() => setApplyingFor(null)} />}
 
       {/* Footer */}
       <footer style={{ borderTop: '1px solid rgba(255,255,255,.05)', position: 'relative', zIndex: 2 }}>
