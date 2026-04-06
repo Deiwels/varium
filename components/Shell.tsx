@@ -354,11 +354,30 @@ function ProfileModal({ user, onClose, onUpdated }: {
 
           {/* Sign Out */}
           <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', marginTop: 8, paddingTop: 14 }}>
-            <button onClick={() => {
+            <button onClick={async () => {
               if (!confirm('Sign out of VuriumBook?')) return
+              // Unregister push token before logout
+              try {
+                const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
+                if (token && (window as any).__VURIUM_IS_NATIVE) {
+                  const pushToken = (window as any).__VURIUM_PUSH_TOKEN || ''
+                  if (pushToken) {
+                    await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app') + '/api/push/unregister', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                      body: JSON.stringify({ device_token: pushToken })
+                    })
+                  }
+                }
+              } catch {}
               localStorage.removeItem('VURIUMBOOK_TOKEN')
               localStorage.removeItem('VURIUMBOOK_USER')
+              localStorage.removeItem('VURIUMBOOK_PIN_HASH')
               document.cookie = 'VURIUMBOOK_TOKEN=; path=/; max-age=0; SameSite=Lax'
+              // Clear native stored token
+              if ((window as any).__VURIUM_IS_NATIVE) {
+                try { (window as any).webkit?.messageHandlers?.logout?.postMessage('logout') } catch {}
+              }
               window.location.href = '/signin'
             }} style={{
               width: '100%', height: 42, borderRadius: 12,
