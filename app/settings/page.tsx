@@ -467,6 +467,7 @@ function PermissionsTab() {
             merged[role] = {
               pages: { ...DEFAULT_PERMS[role].pages, ...(saved.pages || {}) },
               bookings: { ...DEFAULT_PERMS[role].bookings, ...(saved.bookings || {}) },
+              calendar_settings: { ...DEFAULT_PERMS[role].calendar_settings, ...(saved.calendar_settings || {}) },
               clients: { ...DEFAULT_PERMS[role].clients, ...(saved.clients || {}) },
               schedule: { ...DEFAULT_PERMS[role].schedule, ...(saved.schedule || {}) },
               financial: { ...DEFAULT_PERMS[role].financial, ...(saved.financial || {}) },
