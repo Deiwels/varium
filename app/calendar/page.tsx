@@ -2584,7 +2584,7 @@ export default function CalendarPage() {
             <>
             {/* Date dots + Gear/Plus — all portaled to body so they escape .content stacking context */}
             {typeof document !== 'undefined' && createPortal(
-            <div className="date-dot-wrap" style={{ position: 'fixed', bottom: 68, left: 0, right: 0, zIndex: 10001, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 5, padding: '3px 0', pointerEvents: 'auto' }}>
+            <div className="date-dot-wrap" style={{ position: 'fixed', bottom: 74, left: 0, right: 0, zIndex: 10001, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 5, padding: '3px 0', pointerEvents: 'auto' }}>
               {dots.slice(1, -1).map((dot, i, arr) => {
                 const distFromCenter = Math.abs(i - Math.floor(arr.length / 2))
                 const dotSize = dot.isCurrent ? 0 : distFromCenter <= 0 ? 22 : distFromCenter === 1 ? 18 : 15
@@ -2622,7 +2622,7 @@ export default function CalendarPage() {
             </div>, document.body)}
             {/* Gear left + Plus right — portaled to body */}
             {typeof document !== 'undefined' && createPortal(
-            <div style={{ position: 'fixed', bottom: 65, left: 0, right: 0, zIndex: 10002, padding: '0 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none' }}>
+            <div style={{ position: 'fixed', bottom: 71, left: 0, right: 0, zIndex: 10002, padding: '0 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none' }}>
               <button onClick={() => setSettingsOpen(true)} style={{ width: 32, height: 32, borderRadius: 10, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.35)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               </button>
