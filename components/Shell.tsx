@@ -667,8 +667,12 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
   const isBarber = role === 'barber'
   const isStudent = role === 'student'
   const isGuest = role === 'guest'
+  // Check if user has any settings_access permission
+  const hasAnySettingsAccess = role === 'owner' || ['general', 'booking', 'site_builder', 'fees_tax', 'integrations'].some(k => hasPerm('settings_access', k))
   const visibleNav = NAV.filter(item => {
     if ((item as any).ownerOnly && role !== 'owner') return false
+    // Settings: show if user has any settings_access permission
+    if (item.id === 'settings') return hasAnySettingsAccess
     // For non-owner roles, check permissions
     if (role !== 'owner') {
       if (!hasPerm('pages', item.id)) return false
@@ -945,8 +949,8 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
               if (role !== 'owner' && item.id !== 'settings') {
                 if (!hasPerm('pages', item.id)) return false
               }
-              // Settings only for owner
-              if (item.id === 'settings' && role !== 'owner') return false
+              // Settings: show if user has any settings_access permission
+              if (item.id === 'settings') return hasAnySettingsAccess
               // Plan-based: hide items whose feature is not in current plan
               if ((item as any).feature && !planHasFeature((item as any).feature)) return false
               return true

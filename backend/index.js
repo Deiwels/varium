@@ -3468,7 +3468,7 @@ app.post('/api/payroll/rules/:id', requireRole('owner'), async (req, res) => {
 // ============================================================
 // SETTINGS
 // ============================================================
-app.get('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
+app.get('/api/settings', async (req, res) => {
   try {
     const doc = await req.ws('settings').doc('config').get();
     res.json(doc.exists ? { id: 'config', ...doc.data() } : {});
