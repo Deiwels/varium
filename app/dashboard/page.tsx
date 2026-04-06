@@ -734,10 +734,10 @@ export default function DashboardPage() {
 
         // Determine active layout
         const lockedIds = ALL_ITEMS.filter(i => i.locked).map(i => i.id)
-        const defaultOrder = ['w_clock', 'w_earnings', 'w_schedule', 'w_revenue', 'w_newclients', 'w_expenses', 'w_visits', ...actions.map(a => `i_${a.label}`)]
+        const defaultOrder = [...(showClockIn ? ['w_clockin'] : []), 'w_clock', 'w_earnings', 'w_schedule', 'w_revenue', 'w_newclients', 'w_expenses', 'w_visits', ...actions.map(a => `i_${a.label}`)]
         const userLayout = homeLayout.length > 0 ? homeLayout.filter(id => ALL_ITEMS.some(i => i.id === id)) : defaultOrder
-        // Inject locked items at the top (they can't be removed by user)
-        const layout = [...lockedIds.filter(id => !userLayout.includes(id)), ...userLayout]
+        // Ensure locked items are in layout (add at end if user somehow removed them)
+        const layout = [...userLayout, ...lockedIds.filter(id => !userLayout.includes(id))]
         const activeItems = layout.map(id => ALL_ITEMS.find(i => i.id === id)!).filter(Boolean)
         const hiddenItems = ALL_ITEMS.filter(i => !i.locked && !layout.includes(i.id))
 
@@ -746,24 +746,16 @@ export default function DashboardPage() {
           const ws = { borderRadius: 16, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)', padding: '12px 12px 10px', minHeight: 76 } as React.CSSProperties
           const wl: React.CSSProperties = { fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }
           switch (item.id) {
-            case 'w_clockin': {
-              const cBorder = clockedIn ? 'rgba(143,240,177,.25)' : 'rgba(255,255,255,.06)'
-              const cBg = clockedIn ? 'linear-gradient(180deg,rgba(143,240,177,.08),rgba(143,240,177,.02))' : ws.background
-              const statusColor = clockedIn ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.45)'
-              return (
-                <div onClick={e => { if (jiggleMode) return; e.stopPropagation(); handleClockAction() }} style={{...ws, border: `1px solid ${cBorder}`, background: cBg, cursor: clockLoading ? 'wait' : 'pointer', opacity: clockLoading ? .7 : 1, transition: 'all .3s' }}>
-                  <div style={wl}>{clockedIn ? 'Clocked In' : 'Clock In'}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {clockedIn && <span style={{ width: 6, height: 6, borderRadius: 999, background: 'rgba(130,220,170,.8)', animation: 'clockDot 2s ease-in-out infinite' }} />}
-                    <span style={{ fontSize: 18, fontWeight: 600, color: statusColor }}>
-                      {clockLoading ? '...' : clockedIn ? (elapsedStr || fmtMins(todayMinutes)) : 'Off'}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,.3)', marginTop: 3 }}>{clockedIn ? 'tap to clock out' : 'tap to start'}</div>
-                  {clockError && <div style={{ fontSize: 8, color: '#ff6b6b', marginTop: 2 }}>{clockError}</div>}
+            case 'w_clockin': return (
+              <div onClick={e => { if (jiggleMode) return; e.stopPropagation(); handleClockAction() }} style={{...ws, cursor: clockLoading ? 'wait' : 'pointer', opacity: clockLoading ? .7 : 1 }}>
+                <div style={wl}>{clockedIn ? 'Clocked In' : 'Clock In'}</div>
+                <div style={{ fontSize: 22, fontWeight: 600, color: clockedIn ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.7)', lineHeight: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {clockedIn && <span style={{ width: 6, height: 6, borderRadius: 999, background: 'rgba(130,220,170,.8)', animation: 'clockDot 2s ease-in-out infinite', flexShrink: 0 }} />}
+                  {clockLoading ? '...' : clockedIn ? (elapsedStr || fmtMins(todayMinutes)) : 'Off'}
                 </div>
-              )
-            }
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,.3)', marginTop: 3 }}>{clockError || (clockedIn ? 'tap to clock out' : 'tap to start')}</div>
+              </div>
+            )
             case 'w_clock': return <div style={{...ws, display: 'flex', alignItems: 'center', justifyContent: 'center'}}><ClockWidget /></div>
             case 'w_earnings': return <div style={ws}><div style={wl}>Earnings</div><div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(130,220,170,.8)' }}>{money(widgetData.todaysEarnings || 0)}</div><div style={{ fontSize: 9, color: 'rgba(255,255,255,.3)', marginTop: 3 }}>{total} bookings</div></div>
             case 'w_schedule': {
