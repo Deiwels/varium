@@ -89,7 +89,7 @@ export default function ResetPasswordPage() {
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
-            <img src="/logo.jpg" alt="" style={{ width: 28, height: 28, borderRadius: 7, filter: 'invert(1)', opacity: 0.5 }} />
+            <img src="/logo-white.jpg" alt="" style={{ width: 28, height: 28, borderRadius: 7, opacity: 0.7 }} />
             <span style={{ fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,.5)', letterSpacing: '-.02em' }}>VuriumBook</span>
           </div>
         </div>
