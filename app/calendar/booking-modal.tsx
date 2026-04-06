@@ -1371,7 +1371,7 @@ export function BookingModal({
                 )}
                 <div style={{ flex: 1 }} />
                 <button onClick={onClose} style={{ height: 36, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', fontSize: 12 }}>Close</button>
-                <button onClick={handleSave} disabled={saving} style={{ height: 36, padding: '0 18px', borderRadius: 10, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(255,255,255,.08)', color: '#e8e8ed', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', fontSize: 12, opacity: saving ? .5 : 1 }}>
+                <button onClick={() => handleSave()} disabled={saving} style={{ height: 36, padding: '0 18px', borderRadius: 10, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(255,255,255,.08)', color: '#e8e8ed', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', fontSize: 12, opacity: saving ? .5 : 1 }}>
                   {saving ? 'Saving…' : 'Save'}
                 </button>
               </div>
