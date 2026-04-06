@@ -605,6 +605,26 @@ function sendApnsPush(deviceToken, title, body, data = {}, bundleId) {
   });
 }
 
+// Helper: get user notification prefs
+async function getUserNotifPrefs(wsCol, userId) {
+  try {
+    const snap = await wsCol('users').where('__name__', '==', userId).limit(1).get();
+    if (snap.empty) {
+      // Try finding by iterating (uid might not be doc id)
+      const allUsers = await wsCol('users').get();
+      for (const u of allUsers.docs) { if (u.id === userId) return u.data().notification_prefs || {}; }
+      return {};
+    }
+    return snap.docs[0].data().notification_prefs || {};
+  } catch { return {}; }
+}
+
+// Helper: check if user allows this push type
+function userAllowsPush(prefs, prefKey) {
+  if (!prefKey) return true; // no preference key = always send
+  return prefs[prefKey] !== false; // default true if not explicitly disabled
+}
+
 async function getCrmDeviceTokens(wsCol, userId) {
   try {
     const snap = await wsCol('crm_push_tokens').where('user_id', '==', userId).get();
@@ -612,35 +632,55 @@ async function getCrmDeviceTokens(wsCol, userId) {
   } catch (e) { console.error('🔔 [APNs] getCrmDeviceTokens error:', e?.message); return []; }
 }
 
-async function sendCrmPush(wsCol, userId, title, body, data = {}) {
+async function sendCrmPush(wsCol, userId, title, body, data = {}, prefKey = null) {
+  if (prefKey) {
+    const prefs = await getUserNotifPrefs(wsCol, userId);
+    if (!userAllowsPush(prefs, prefKey)) { console.log('🔔 [APNs] Skipped push to user=' + userId + ' (pref ' + prefKey + '=off)'); return; }
+  }
   const tokens = await getCrmDeviceTokens(wsCol, userId);
   console.log('🔔 [APNs] sendCrmPush to user=' + userId + ' tokens=' + tokens.length + ' title=' + title);
   for (const t of tokens) sendApnsPush(t, title, body, data).catch(e => console.error('🔔 [APNs] sendCrmPush error:', e?.message));
 }
 
-async function sendCrmPushToRoles(wsCol, roles, title, body, data = {}, excludeUserId = null) {
+async function sendCrmPushToRoles(wsCol, roles, title, body, data = {}, excludeUserId = null, prefKey = null) {
   try {
     const snap = await wsCol('crm_push_tokens').get();
-    let count = 0;
+    let count = 0, skipped = 0;
     for (const d of snap.docs) {
       const td = d.data();
-      if (roles.includes(td.role) && td.user_id !== excludeUserId) { count++; sendApnsPush(td.device_token, title, body, data).catch(e => console.error('🔔 [APNs] role push error:', e?.message)); }
+      if (roles.includes(td.role) && td.user_id !== excludeUserId) {
+        if (prefKey) {
+          const prefs = await getUserNotifPrefs(wsCol, td.user_id);
+          if (!userAllowsPush(prefs, prefKey)) { skipped++; continue; }
+        }
+        count++;
+        sendApnsPush(td.device_token, title, body, data).catch(e => console.error('🔔 [APNs] role push error:', e?.message));
+      }
     }
-    console.log('🔔 [APNs] sendCrmPushToRoles roles=' + roles.join(',') + ' sent=' + count + ' title=' + title);
+    console.log('🔔 [APNs] sendCrmPushToRoles roles=' + roles.join(',') + ' sent=' + count + ' skipped=' + skipped + ' title=' + title);
   } catch (e) { console.error('🔔 [APNs] sendCrmPushToRoles error:', e?.message); }
 }
 
-async function sendCrmPushToBarber(wsCol, barberId, title, body, data = {}) {
+async function sendCrmPushToBarber(wsCol, barberId, title, body, data = {}, prefKey = null) {
   try {
     const snap = await wsCol('crm_push_tokens').where('barber_id', '==', barberId).get();
-    console.log('🔔 [APNs] sendCrmPushToBarber barber=' + barberId + ' tokens=' + snap.size + ' title=' + title);
-    for (const d of snap.docs) sendApnsPush(d.data().device_token, title, body, data).catch(e => console.error('🔔 [APNs] barber push error:', e?.message));
+    let count = 0, skipped = 0;
+    for (const d of snap.docs) {
+      const td = d.data();
+      if (prefKey) {
+        const prefs = await getUserNotifPrefs(wsCol, td.user_id);
+        if (!userAllowsPush(prefs, prefKey)) { skipped++; continue; }
+      }
+      count++;
+      sendApnsPush(td.device_token, title, body, data).catch(e => console.error('🔔 [APNs] barber push error:', e?.message));
+    }
+    console.log('🔔 [APNs] sendCrmPushToBarber barber=' + barberId + ' sent=' + count + ' skipped=' + skipped + ' title=' + title);
   } catch (e) { console.error('🔔 [APNs] sendCrmPushToBarber error:', e?.message); }
 }
 
-async function sendCrmPushToStaff(wsCol, barberId, title, body, data = {}) {
-  sendCrmPushToRoles(wsCol, ['owner', 'admin'], title, body, data).catch(e => console.error('🔔 [APNs] staff roles error:', e?.message));
-  if (barberId) sendCrmPushToBarber(wsCol, barberId, title, body, data).catch(e => console.error('🔔 [APNs] staff barber error:', e?.message));
+async function sendCrmPushToStaff(wsCol, barberId, title, body, data = {}, prefKey = null) {
+  sendCrmPushToRoles(wsCol, ['owner', 'admin'], title, body, data, null, prefKey).catch(e => console.error('🔔 [APNs] staff roles error:', e?.message));
+  if (barberId) sendCrmPushToBarber(wsCol, barberId, title, body, data, prefKey).catch(e => console.error('🔔 [APNs] staff barber error:', e?.message));
 }
 
 // Startup APNs check
@@ -2503,7 +2543,7 @@ app.post('/api/bookings', async (req, res) => {
         scheduleReminders(req.ws, bookingRef.id, doc, tz, shopName).catch(() => {});
       }
     }
-    sendCrmPushToStaff(req.ws, doc.barber_id, 'New Booking', `${doc.client_name || 'Client'} booked for ${doc.start_at?.slice(0, 10)}`, { type: 'booking_confirmed' }).catch(() => {});
+    sendCrmPushToStaff(req.ws, doc.barber_id, 'New Booking', `${doc.client_name || 'Client'} booked for ${doc.start_at?.slice(0, 10)}`, { type: 'booking_confirmed' }, 'push_booking_confirm').catch(() => {});
     // Email confirmation
     if (doc.client_email) {
       const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
@@ -2654,7 +2694,7 @@ app.delete('/api/bookings/:id', async (req, res) => {
         sendSms(bookingData.client_phone, `${cancelPrefix}Your appointment with ${bookingData.barber_name || 'your specialist'} has been cancelled. Reply STOP to opt out, HELP for help.`).catch(() => {});
       }
     }
-    sendCrmPushToBarber(req.ws, bookingData.barber_id, 'Booking Cancelled', `${bookingData.client_name || 'Client'} cancelled`, { type: 'booking_cancelled' }).catch(() => {});
+    sendCrmPushToBarber(req.ws, bookingData.barber_id, 'Booking Cancelled', `${bookingData.client_name || 'Client'} cancelled`, { type: 'booking_cancelled' }, 'push_cancel').catch(() => {});
     // Email cancellation notification
     if (bookingData.client_email) {
       const cfg = await getWorkspaceEmailConfig(req.wsId);
@@ -3288,11 +3328,11 @@ app.post('/api/messages', requirePlanFeature('messages'), async (req, res) => {
       // DM: push only to the other user
       const parts = doc.chatType.split('_');
       const otherUid = parts[1] === req.user.uid ? parts[2] : parts[1];
-      sendCrmPush(req.ws, otherUid, pushTitle, pushBody, pushData).catch(() => {});
+      sendCrmPush(req.ws, otherUid, pushTitle, pushBody, pushData, 'push_chat_messages').catch(() => {});
     } else {
       const chatRoleMap = { general: ['owner', 'admin', 'barber'], team: ['owner', 'admin', 'barber'], barbers: ['barber'], admins: ['owner', 'admin'], students: ['student'] };
       const targetRoles = chatRoleMap[doc.chatType] || ['owner', 'admin', 'barber'];
-      sendCrmPushToRoles(req.ws, targetRoles, pushTitle, pushBody, pushData, req.user.uid).catch(() => {});
+      sendCrmPushToRoles(req.ws, targetRoles, pushTitle, pushBody, pushData, req.user.uid, 'push_chat_messages').catch(() => {});
     }
     res.status(201).json({ id: ref.id, ...doc });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -3602,7 +3642,7 @@ app.post('/api/waitlist', requirePlanFeature('waitlist'), async (req, res) => {
     };
     if (!doc.barber_id || !doc.date) return res.status(400).json({ error: 'barber_id and date required' });
     const ref = await req.ws('waitlist').add(doc);
-    sendCrmPushToStaff(req.ws, doc.barber_id, 'Waitlist', `${doc.client_name || 'Client'} wants ${doc.date}`, { type: 'waitlist' }).catch(() => {});
+    sendCrmPushToStaff(req.ws, doc.barber_id, 'Waitlist', `${doc.client_name || 'Client'} wants ${doc.date}`, { type: 'waitlist' }, 'push_waitlist').catch(() => {});
     res.status(201).json({ ok: true, id: ref.id, ...doc });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -3743,7 +3783,7 @@ app.post('/api/requests', async (req, res) => {
       updatedAt: toIso(new Date()),
     };
     const ref = await req.ws('requests').add(doc);
-    sendCrmPushToRoles(req.ws, ['owner', 'admin'], 'New Request', `${doc.barberName} submitted a ${doc.type} request`, { type: 'request' }).catch(() => {});
+    sendCrmPushToRoles(req.ws, ['owner', 'admin'], 'New Request', `${doc.barberName} submitted a ${doc.type} request`, { type: 'request' }, null, 'push_booking_confirm').catch(() => {});
     res.status(201).json({ id: ref.id, ...doc });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -3779,7 +3819,7 @@ app.patch('/api/requests/:id', requireRole('owner', 'admin'), async (req, res) =
     }
     await ref.update(patch);
     // Notify barber
-    sendCrmPushToBarber(req.ws, requestData.barberId, `Request ${status}`, `Your ${requestData.type} request was ${status}`, { type: 'request_update' }).catch(() => {});
+    sendCrmPushToBarber(req.ws, requestData.barberId, `Request ${status}`, `Your ${requestData.type} request was ${status}`, { type: 'request_update' }, 'push_booking_confirm').catch(() => {});
     res.json({ ok: true, status });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -4948,7 +4988,7 @@ app.post('/public/waitlist/:workspace_id', async (req, res) => {
       notified: false, created_at: toIso(new Date()),
     };
     const ref = await wsCol('waitlist').add(doc);
-    sendCrmPushToStaff(wsCol, barberId, 'Waitlist', `${clientName || 'Client'} wants ${date}`, { type: 'waitlist' }).catch(() => {});
+    sendCrmPushToStaff(wsCol, barberId, 'Waitlist', `${clientName || 'Client'} wants ${date}`, { type: 'waitlist' }, 'push_waitlist').catch(() => {});
     res.status(201).json({ ok: true, id: ref.id });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
