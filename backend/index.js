@@ -22,7 +22,7 @@ const PORT = process.env.PORT || 8080;
 // CONFIG
 // ============================================================
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
-const TOKEN_TTL = '90d';
+const TOKEN_TTL = '24h';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 if (NODE_ENV === 'production' && JWT_SECRET === 'dev-secret-change-in-production') {
