@@ -524,7 +524,7 @@ async function scheduleReminders(wsCol, bookingId, booking, timeZone, shopName) 
     if (!phone) return;
     const reminderPhoneNorm = normPhone(phone);
     const clientName = booking.client_name || 'Client';
-    const barberName = booking.barber_name || 'your barber';
+    const barberName = booking.barber_name || 'your specialist';
     const prefix = shopName ? `${shopName}: ` : '';
     const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: timeZone || 'America/Chicago' });
     const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: timeZone || 'America/Chicago' });
@@ -550,23 +550,31 @@ let _apnsJwtTime = 0;
 function getApnsJwt() {
   const keyId = process.env.APNS_KEY_ID || '';
   const teamId = process.env.APNS_TEAM_ID || '';
+  const keyP8 = process.env.APNS_KEY_P8 || '';
   const keyPath = process.env.APNS_KEY_PATH || '';
-  if (!keyId || !teamId || !keyPath) return null;
+  if (!keyId || !teamId || (!keyP8 && !keyPath)) return null;
   const now = Math.floor(Date.now() / 1000);
   if (_apnsJwt && now - _apnsJwtTime < 3000) return _apnsJwt;
   try {
-    const fs = require('fs');
-    const key = fs.readFileSync(keyPath, 'utf8');
+    let key;
+    if (keyP8) {
+      key = keyP8.replace(/\\n/g, '\n');
+    } else {
+      const fs = require('fs');
+      key = fs.readFileSync(keyPath, 'utf8');
+    }
     _apnsJwt = jwt.sign({}, key, { algorithm: 'ES256', keyid: keyId, issuer: teamId, expiresIn: '1h' });
     _apnsJwtTime = now;
     return _apnsJwt;
   } catch (e) { console.warn('getApnsJwt error:', e?.message); return null; }
 }
 
-function sendApnsPush(deviceToken, title, body, data = {}, bundleId = 'com.vurium.VuriumBook') {
+function sendApnsPush(deviceToken, title, body, data = {}, bundleId) {
+  bundleId = bundleId || process.env.APNS_BUNDLE_ID || 'com.vurium.VuriumBook';
   const apnsJwt = getApnsJwt();
   if (!apnsJwt || !deviceToken) { console.warn('🔔 [APNs] Skip push: jwt=' + !!apnsJwt + ' token=' + !!deviceToken); return Promise.resolve(null); }
-  const host = (process.env.APNS_ENV || 'sandbox') === 'sandbox' ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
+  const env = process.env.APNS_ENVIRONMENT || process.env.APNS_ENV || 'sandbox';
+  const host = env === 'sandbox' ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
   return new Promise((resolve) => {
     try {
       const client = http2.connect(`https://${host}`);
@@ -629,12 +637,13 @@ async function sendCrmPushToStaff(wsCol, barberId, title, body, data = {}) {
   const keyId = process.env.APNS_KEY_ID || '';
   const teamId = process.env.APNS_TEAM_ID || '';
   const keyPath = process.env.APNS_KEY_PATH || '';
-  const env = process.env.APNS_ENV || 'sandbox';
-  if (!keyId || !teamId || !keyPath) {
+  const keyP8 = process.env.APNS_KEY_P8 || '';
+  const env = process.env.APNS_ENVIRONMENT || process.env.APNS_ENV || 'sandbox';
+  if (!keyId || !teamId || (!keyP8 && !keyPath)) {
     console.warn('⚠️  [APNs] Push notifications DISABLED — missing env vars: ' +
-      (!keyId ? 'APNS_KEY_ID ' : '') + (!teamId ? 'APNS_TEAM_ID ' : '') + (!keyPath ? 'APNS_KEY_PATH' : ''));
+      (!keyId ? 'APNS_KEY_ID ' : '') + (!teamId ? 'APNS_TEAM_ID ' : '') + (!keyP8 && !keyPath ? 'APNS_KEY_P8/APNS_KEY_PATH' : ''));
   } else {
-    console.log('🔔 [APNs] Push enabled — env=' + env + ' keyId=' + keyId + ' teamId=' + teamId);
+    console.log('🔔 [APNs] Push enabled — env=' + env + ' keyId=' + keyId + ' teamId=' + teamId + ' key=' + (keyP8 ? 'P8_ENV' : 'FILE'));
   }
 })();
 
@@ -2428,7 +2437,7 @@ app.post('/api/bookings', async (req, res) => {
         const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
         const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
         const prefix = shopName ? `${shopName}: ` : '';
-        sendSms(doc.client_phone, `${prefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your barber'}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`).catch(() => {});
+        sendSms(doc.client_phone, `${prefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your specialist'}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`).catch(() => {});
         scheduleReminders(req.ws, bookingRef.id, doc, tz, shopName).catch(() => {});
       }
     }
@@ -2580,7 +2589,7 @@ app.delete('/api/bookings/:id', async (req, res) => {
         const cancelSettings = await req.ws('settings').doc('config').get();
         const cancelShopName = cancelSettings.exists ? safeStr(cancelSettings.data()?.shop_name || '') : '';
         const cancelPrefix = cancelShopName ? `${cancelShopName}: ` : '';
-        sendSms(bookingData.client_phone, `${cancelPrefix}Your appointment with ${bookingData.barber_name || 'your barber'} has been cancelled. Reply STOP to opt out, HELP for help.`).catch(() => {});
+        sendSms(bookingData.client_phone, `${cancelPrefix}Your appointment with ${bookingData.barber_name || 'your specialist'} has been cancelled. Reply STOP to opt out, HELP for help.`).catch(() => {});
       }
     }
     sendCrmPushToBarber(req.ws, bookingData.barber_id, 'Booking Cancelled', `${bookingData.client_name || 'Client'} cancelled`, { type: 'booking_cancelled' }).catch(() => {});
@@ -3394,6 +3403,10 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
         }
       }
     }
+    // Sync business_type to workspace doc (used in /public/resolve and /api/account/limits)
+    if (b.business_type !== undefined) {
+      await req.wsDoc().update({ business_type: sanitizeHtml(b.business_type), updated_at: toIso(new Date()) });
+    }
     // Nested objects — stored on settings doc
     if (b.tax !== undefined && typeof b.tax === 'object') patch.tax = b.tax;
     if (b.payroll !== undefined && typeof b.payroll === 'object') patch.payroll = b.payroll;
@@ -3565,7 +3578,7 @@ app.get('/api/admin/waitlist/check', requireRole('owner', 'admin'), async (req, 
         const wlSettings = await req.ws('settings').doc('config').get();
         const wlShopName = wlSettings.exists ? safeStr(wlSettings.data()?.shop_name || '') : '';
         const wlPrefix = wlShopName || 'VuriumBook';
-        const msg = `${wlPrefix}: A spot opened up for ${svcText} with ${w.barber_name || 'your barber'} on ${w.date} at ${slotTime}. Book now! Reply STOP to opt out, HELP for help.`;
+        const msg = `${wlPrefix}: A spot opened up for ${svcText} with ${w.barber_name || 'your specialist'} on ${w.date} at ${slotTime}. Book now! Reply STOP to opt out, HELP for help.`;
         // Check SMS opt-out before sending waitlist notification
         const wlPhoneNorm = normPhone(w.phone_raw || w.phone_norm);
         if (wlPhoneNorm) {
@@ -3710,7 +3723,7 @@ app.post('/api/receipts/send', async (req, res) => {
     const lines = [
       `${shopName} — Receipt`,
       `Date: ${date}`,
-      barberName ? `Barber: ${barberName}` : '',
+      barberName ? `Specialist: ${barberName}` : '',
       `Service: ${serviceName}`,
       `Amount: $${amount.toFixed(2)}`,
       tip > 0 ? `Tip: $${tip.toFixed(2)}` : '',
@@ -4621,7 +4634,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
       const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
       const pubPrefix = pubShopName ? `${pubShopName}: ` : '';
-      sendSms(clientPhone, `${pubPrefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your barber'}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`).catch(() => {});
+      sendSms(clientPhone, `${pubPrefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your specialist'}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`).catch(() => {});
       scheduleReminders(wsCol, bookingRef.id, doc, tz, pubShopName).catch(() => {});
     }
     // Email confirmation
