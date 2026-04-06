@@ -258,6 +258,7 @@ export default function DashboardPage() {
   // Widgets
   const [dashWidgets, setDashWidgets] = useState<string[]>(['clock', 'todays-earnings', 'mini-calendar', 'weekly-chart', 'new-clients', 'expenses-month', 'site-analytics'])
   const [editingWidgets, setEditingWidgets] = useState(false)
+  const widgetSettingsLoaded = useRef(false) // true once API settings have been applied
   const [widgetData, setWidgetData] = useState<Record<string, any>>({})
   const [widgetLoading, setWidgetLoading] = useState(true)
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -269,6 +270,7 @@ export default function DashboardPage() {
       const saved = d?.dash_shortcuts
       setDashShortcuts(saved && saved.length ? saved : ['/payments', '/waitlist', '/portfolio', '/cash', '/membership'])
       const savedW = d?.dash_widgets
+      if (savedW && savedW.length) widgetSettingsLoaded.current = true
       setDashWidgets(savedW && savedW.length ? savedW : ['clock', 'todays-earnings', 'mini-calendar', 'weekly-chart', 'new-clients', 'expenses-month', 'site-analytics'])
     }).catch(() => {})
     apiFetch('/api/account/limits').then(d => { if (d?.slug) setSlug(d.slug) }).catch(() => {})
@@ -435,14 +437,18 @@ export default function DashboardPage() {
       })
       setBarbers(parsedBarbers)
 
-      // Auto-add new team member widgets if user has no saved widget prefs yet
-      // (so all barbers are visible by default)
-      setDashWidgets(prev => {
-        const hasAnyTeam = prev.some(w => w.startsWith('team-'))
-        if (hasAnyTeam) return prev // user already has team widget prefs, don't touch
-        const teamIds = parsedBarbers.map((b: any) => 'team-' + b.id)
-        return [...prev, ...teamIds]
-      })
+      // Auto-add team member widgets only on first-ever use (no saved dash_widgets in API)
+      if (!widgetSettingsLoaded.current) {
+        setDashWidgets(prev => {
+          const teamIds = parsedBarbers.map((b: any) => 'team-' + b.id).filter((id: string) => !prev.includes(id))
+          if (!teamIds.length) return prev
+          const next = [...prev, ...teamIds]
+          // Persist so next reload won't re-add
+          apiFetch('/api/settings', { method: 'POST', body: JSON.stringify({ dash_widgets: next }) }).catch(() => {})
+          widgetSettingsLoaded.current = true
+          return next
+        })
+      }
 
       // Settings
       if (data.settings) {
