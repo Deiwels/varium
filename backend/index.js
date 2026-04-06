@@ -572,7 +572,7 @@ function getApnsJwt() {
       const fs = require('fs');
       key = fs.readFileSync(keyPath, 'utf8');
     }
-    console.log('🔔 [APNs] Key format check: starts with', key.substring(0, 30) + '...');
+    console.log('🔔 [APNs] Key parsed: len=' + key.length + ' hasPEM=' + key.includes('-----BEGIN'));
     _apnsJwt = jwt.sign({}, key, { algorithm: 'ES256', keyid: keyId, issuer: teamId, expiresIn: '1h' });
     _apnsJwtTime = now;
     console.log('🔔 [APNs] JWT created successfully');
