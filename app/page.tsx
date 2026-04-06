@@ -182,7 +182,7 @@ export default function Home() {
         </p>
         <div className="fade-up fade-up-d3" style={{ marginTop: 40, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
           <a href="#products" className="btn-primary">Explore Products</a>
-          <a href="#contact" className="btn-secondary">Get in Touch</a>
+          <a href="/contact" className="btn-secondary">Get in Touch</a>
         </div>
       </section>
 
@@ -286,18 +286,6 @@ export default function Home() {
             </div>
           ))}
         </div>
-      </section>
-
-      {/* ── Contact ── */}
-      <section id="contact" style={{ padding: 'clamp(60px, 10vh, 100px) 24px clamp(80px, 12vh, 120px)', textAlign: 'center' }}>
-        <p className="label-glow" style={{ marginBottom: 12 }}>Contact</p>
-        <h2 className="shimmer-text" style={{ fontSize: 'clamp(28px, 4.5vw, 48px)', fontWeight: 600, letterSpacing: '-.03em', marginBottom: 20 }}>
-          Let&apos;s talk.
-        </h2>
-        <p style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', fontWeight: 300, color: 'rgba(255,255,255,.35)', maxWidth: 440, margin: '0 auto 36px', lineHeight: 1.6 }}>
-          Interested in our products? We&apos;d love to hear from you.
-        </p>
-        <a href="mailto:support@vurium.com" className="btn-primary">support@vurium.com</a>
       </section>
 
       {/* ── Footer ── */}
