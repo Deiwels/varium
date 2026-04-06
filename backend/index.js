@@ -558,15 +558,26 @@ function getApnsJwt() {
   try {
     let key;
     if (keyP8) {
+      // Handle various formats: literal \n, base64, or raw PEM
       key = keyP8.replace(/\\n/g, '\n');
+      if (!key.includes('-----BEGIN')) {
+        // Might be base64 encoded
+        try { key = Buffer.from(key, 'base64').toString('utf8'); } catch {}
+      }
+      if (!key.includes('-----BEGIN')) {
+        // Raw key material — wrap in PEM
+        key = '-----BEGIN PRIVATE KEY-----\n' + key + '\n-----END PRIVATE KEY-----';
+      }
     } else {
       const fs = require('fs');
       key = fs.readFileSync(keyPath, 'utf8');
     }
+    console.log('🔔 [APNs] Key format check: starts with', key.substring(0, 30) + '...');
     _apnsJwt = jwt.sign({}, key, { algorithm: 'ES256', keyid: keyId, issuer: teamId, expiresIn: '1h' });
     _apnsJwtTime = now;
+    console.log('🔔 [APNs] JWT created successfully');
     return _apnsJwt;
-  } catch (e) { console.warn('getApnsJwt error:', e?.message); return null; }
+  } catch (e) { console.error('🔔 [APNs] getApnsJwt error:', e?.message); return null; }
 }
 
 function sendApnsPush(deviceToken, title, body, data = {}, bundleId) {
@@ -574,7 +585,7 @@ function sendApnsPush(deviceToken, title, body, data = {}, bundleId) {
   const apnsJwt = getApnsJwt();
   if (!apnsJwt || !deviceToken) { console.warn('🔔 [APNs] Skip push: jwt=' + !!apnsJwt + ' token=' + !!deviceToken); return Promise.resolve(null); }
   const env = process.env.APNS_ENVIRONMENT || process.env.APNS_ENV || 'sandbox';
-  const host = env === 'sandbox' ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
+  const host = (env === 'sandbox' || env === 'development') ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
   return new Promise((resolve) => {
     try {
       const client = http2.connect(`https://${host}`);
