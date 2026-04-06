@@ -679,7 +679,7 @@ async function sendCrmPushToBarber(wsCol, barberId, title, body, data = {}, pref
 }
 
 async function sendCrmPushToStaff(wsCol, barberId, title, body, data = {}, prefKey = null, excludeUserId = null) {
-  sendCrmPushToRoles(wsCol, ['owner', 'admin'], title, body, data, excludeUserId, prefKey).catch(e => console.error('🔔 [APNs] staff roles error:', e?.message));
+  // Only send to the specific barber who the booking is for — not all owners/admins
   if (barberId) sendCrmPushToBarber(wsCol, barberId, title, body, data, prefKey).catch(e => console.error('🔔 [APNs] staff barber error:', e?.message));
 }
 
