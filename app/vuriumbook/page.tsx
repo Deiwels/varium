@@ -244,7 +244,7 @@ export default function VuriumBook() {
             { name: 'Stripe', desc: 'Secure payments' },
             { name: 'Google Calendar', desc: 'Sync schedules' },
             { name: 'Square', desc: 'POS & terminals' },
-            { name: 'Twilio', desc: 'SMS reminders' },
+            { name: 'Telnyx', desc: 'SMS reminders' },
           ].map((integ, i) => (
             <div key={i} className="glass-card" style={{ textAlign: 'center', padding: '20px 16px' }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
