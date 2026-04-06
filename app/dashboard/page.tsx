@@ -1245,7 +1245,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Barber earnings now rendered as a widget inside the grid below */}
+        {/* Barber earnings rendered as my-earnings widget in the grid below */}
 
         {/* ── ALL WIDGETS + SHORTCUTS + TEAM — single centered flex grid ── */}
         {(() => {
