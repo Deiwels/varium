@@ -1470,7 +1470,10 @@ export default function DashboardPage() {
               '/expenses': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M21 4H3v16h18V4z"/><path d="M3 10h18"/><path d="M9 4v16"/></svg>,
               '/payroll': <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 0 0-8 0v2"/></svg>,
             }
-            return actions.filter(item => item.label !== 'Settings').map(item => {
+            const visibleActions = editingWidgets
+              ? actions.filter(item => item.label !== 'Settings')
+              : actions.filter(item => item.label !== 'Settings' && ((item as any).core || dashShortcuts.includes(item.href)))
+            return visibleActions.map(item => {
               const isActive = dashShortcuts.includes(item.href)
               const isEditing = editingWidgets
               return (
