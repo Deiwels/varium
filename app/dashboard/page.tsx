@@ -913,7 +913,7 @@ export default function DashboardPage() {
         }
 
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', width: '100%', height: '100%', touchAction: jiggleMode ? 'none' : 'pan-x' }}
+          <div style={{ display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', width: '100%', height: '100%', touchAction: jiggleMode ? 'none' : 'pan-x', WebkitUserSelect: jiggleMode ? 'none' : undefined, userSelect: jiggleMode ? 'none' : undefined, WebkitTouchCallout: jiggleMode ? 'none' : undefined } as React.CSSProperties}
             onClick={() => { if (jiggleMode) { setJiggleMode(false); setDragId(null); setDragPos(null); setDragOverIdx(null) } }}
             onTouchStart={e => {
               homeSwipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY }
@@ -938,8 +938,9 @@ export default function DashboardPage() {
                 0%, 100% { box-shadow: 0 0 8px 2px rgba(255,255,255,.06), 0 0 18px 4px rgba(255,255,255,.02); }
                 50% { box-shadow: 0 0 14px 4px rgba(255,255,255,.14), 0 0 28px 8px rgba(255,255,255,.05); }
               }
-              .edit-glow { animation: editBreathe 2.5s ease-in-out infinite; border-radius: 16px; }
-              .edit-glow-icon { animation: editBreathe 2.5s ease-in-out infinite; border-radius: 16px; }
+              .edit-glow { animation: editBreathe 2.5s ease-in-out infinite; border-radius: 16px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+              .edit-glow-icon { animation: editBreathe 2.5s ease-in-out infinite; border-radius: 16px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+              .edit-glow a, .edit-glow-icon a { -webkit-user-drag: none; user-drag: none; pointer-events: none; }
               .edit-glow-icon:nth-child(even) { animation-delay: .4s; }
               .edit-glow:nth-child(even) { animation-delay: .6s; }
               html, body { overflow: hidden !important; }
@@ -967,6 +968,7 @@ export default function DashboardPage() {
                               className={jiggleMode && !isDragging ? (c.item.type === 'icon' ? 'edit-glow-icon' : 'edit-glow') : ''}
                               style={{ gridColumn: `span ${c.item.cols}`, width: '100%', position: 'relative', opacity: isDragging ? 0.25 : 1, transition: isDragging ? 'none' : 'opacity .2s, transform .2s', transform: isDropTarget ? 'scale(1.05)' : 'scale(1)' }}
                               onTouchStart={jiggleMode ? (e) => {
+                                e.preventDefault() // prevent link drag / text selection
                                 const t = e.touches[0]
                                 dragStartPos.current = { x: t.clientX, y: t.clientY }
                                 dragActive.current = false
