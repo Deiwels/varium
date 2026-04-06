@@ -506,6 +506,7 @@ export default function DashboardPage() {
   // Default 4 core always shown, extras only if enabled in settings
   const allActions = [
     { label: 'Calendar', desc: 'Bookings & schedule', href: '/calendar', dashKey: 'dash_calendar', core: true },
+    { label: 'History', desc: 'Booking records', href: '/history', dashKey: 'dash_history', core: true },
     { label: 'Clients', desc: 'Your client base', href: '/clients', dashKey: 'dash_clients', core: true },
     { label: 'Payments', desc: 'Transactions', href: '/payments', dashKey: 'dash_payments', core: true },
     { label: 'Waitlist', desc: 'Queue & notify', href: '/waitlist', dashKey: 'dash_waitlist' },
@@ -676,6 +677,7 @@ export default function DashboardPage() {
         // All possible items with icons, widgets, sizes
         const iconSvgs: Record<string,React.ReactNode> = {
           Calendar: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
+          History: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 .49-7.5"/></svg>,
           Clients: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
           Payments: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
           Waitlist: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,

@@ -930,10 +930,9 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
           <div className="pill-inner">
             {[
               { id: 'dashboard', href: '/dashboard', label: 'Home' },
-              { id: 'calendar', href: '/calendar', label: 'Calendar' },
               { id: 'history', href: '/history', label: 'History' },
+              { id: 'calendar', href: '/calendar', label: 'Calendar' },
               { id: 'messages', href: '/messages', label: 'Messages', feature: 'messages' },
-              { id: 'clients', href: '/clients', label: 'Clients' },
               { id: 'settings', href: '/settings', label: 'Settings' },
             ].filter(item => {
               if (isStudent && item.id !== 'calendar' && item.id !== 'messages') return false
