@@ -1090,9 +1090,22 @@ app.post('/api/webhooks/square', async (req, res) => {
           if (checkout.payment_ids?.length) patch.payment_id = checkout.payment_ids[0];
           if (status === 'COMPLETED') {
             patch.completed_at = toIso(new Date());
-            const tipCents = checkout.tip_money?.amount || 0;
+            let tipCents = checkout.tip_money?.amount || 0;
+            let totalCents = checkout.amount_money?.amount || 0;
+            // If tip not in checkout, fetch from the actual payment object
+            if (!tipCents && checkout.payment_ids?.length) {
+              try {
+                const payHeaders = await squareHeaders(wsCol);
+                const pr = await squareFetch(`/v2/payments/${checkout.payment_ids[0]}`, { headers: payHeaders });
+                if (pr.ok) {
+                  const pd = await pr.json();
+                  const payment = pd.payment || {};
+                  tipCents = payment.tip_money?.amount || 0;
+                  if (payment.total_money?.amount) totalCents = payment.total_money.amount;
+                }
+              } catch {}
+            }
             patch.tip_cents = tipCents;
-            const totalCents = checkout.amount_money?.amount || 0;
             // Update booking
             const prData = prDoc.data();
             if (prData.booking_id) {
@@ -4327,9 +4340,22 @@ app.get('/api/payments/terminal/status/:checkoutId', async (req, res) => {
       if (checkout.payment_ids?.length) patch.payment_id = checkout.payment_ids[0];
       if (checkout.status === 'COMPLETED') {
         patch.completed_at = toIso(new Date());
-        const tipCents = checkout.tip_money?.amount || 0;
+        let tipCents = checkout.tip_money?.amount || 0;
+        let totalCents = checkout.amount_money?.amount || 0;
+        // If tip not in checkout, fetch from the actual payment object
+        if (!tipCents && checkout.payment_ids?.length) {
+          try {
+            const payHeaders = await squareHeaders(req.ws);
+            const pr = await squareFetch(`/v2/payments/${checkout.payment_ids[0]}`, { headers: payHeaders });
+            if (pr.ok) {
+              const pd = await pr.json();
+              const payment = pd.payment || {};
+              tipCents = payment.tip_money?.amount || 0;
+              if (payment.total_money?.amount) totalCents = payment.total_money.amount;
+            }
+          } catch {}
+        }
         patch.tip_cents = tipCents;
-        const totalCents = checkout.amount_money?.amount || 0;
         const prData = prSnap.docs[0].data();
         if (prData.booking_id) {
           const bPatch = {
@@ -4517,6 +4543,32 @@ app.post('/api/payroll/backfill-tips', requireRole('owner'), async (req, res) =>
       const tipAmount = pr.tip_cents / 100;
       await req.ws('bookings').doc(pr.booking_id).update({ tip: tipAmount, tip_amount: tipAmount, updated_at: toIso(new Date()) }).catch(() => {});
       updated++;
+    }
+    res.json({ ok: true, updated });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+app.post('/api/payroll/sync-tips-from-square', requireRole('owner'), async (req, res) => {
+  try {
+    const headers = await squareHeaders(req.ws, {});
+    const snap = await req.ws('payment_requests').where('status', '==', 'completed').where('payment_method', '==', 'card').get();
+    let updated = 0;
+    for (const d of snap.docs) {
+      const pr = d.data();
+      if (!pr.booking_id || !pr.payment_id) continue;
+      if (pr.tip_cents > 0) continue; // already has tip
+      try {
+        const r = await squareFetch(`/v2/payments/${pr.payment_id}`, { headers });
+        if (r.ok) {
+          const pd = await r.json();
+          const tipCents = pd.payment?.tip_money?.amount || 0;
+          if (tipCents > 0) {
+            await d.ref.update({ tip_cents: tipCents, updated_at: toIso(new Date()) });
+            await req.ws('bookings').doc(pr.booking_id).update({ tip: tipCents / 100, tip_amount: tipCents / 100, updated_at: toIso(new Date()) }).catch(() => {});
+            updated++;
+          }
+        }
+      } catch {}
     }
     res.json({ ok: true, updated });
   } catch (e) { res.status(500).json({ error: e?.message }); }
