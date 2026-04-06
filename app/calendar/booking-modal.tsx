@@ -987,6 +987,7 @@ export function BookingModal({
   const [serviceIds, setServiceIds] = useState<string[]>([])
   const [servicesOpen, setServicesOpen] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [overlapWarning, setOverlapWarning] = useState<string | null>(null)
   const [selStartMin, setSelStartMin] = useState(startMin)
   const [status, setStatus] = useState('booked')
   const [notes, setNotes] = useState('')
@@ -1046,9 +1047,32 @@ export function BookingModal({
   const slots: number[] = []
   for (let m = 9 * 60; m <= 21 * 60 - 5; m += 5) slots.push(m)
 
-  async function handleSave() {
+  function checkOverlap(force?: boolean): boolean {
+    const selSvcs = services.filter(s => serviceIds.includes(s.id))
+    const totalDur = selSvcs.reduce((sum, s) => sum + (s.durationMin || 30), 0) || 30
+    const endMin = selStartMin + totalDur
+    if (!allEvents || force) return true
+    const currentId = existingEvent?.id || ''
+    const conflicts = allEvents.filter(e =>
+      e.barberId === selBarberId &&
+      e.id !== currentId &&
+      e.status !== 'cancelled' && e.status !== 'noshow' &&
+      (e.date ? e.date === date : true) &&
+      e.startMin < endMin && (e.startMin + e.durMin) > selStartMin
+    )
+    if (conflicts.length > 0) {
+      const names = conflicts.map(e => `${e.clientName} (${minToHHMM(e.startMin)}–${minToHHMM(e.startMin + e.durMin)})`).join(', ')
+      setOverlapWarning(`Not enough time — overlaps with: ${names}. Save anyway?`)
+      return false
+    }
+    return true
+  }
+
+  async function handleSave(force?: boolean) {
     if (!clientName.trim()) { alert('Enter client name'); return }
     if (!serviceIds.length) { alert('Choose at least one service'); return }
+    if (!force && !checkOverlap()) return
+    setOverlapWarning(null)
     setSaving(true)
     const selSvcs = services.filter(s => serviceIds.includes(s.id))
     const totalDur = selSvcs.reduce((sum, s) => sum + (s.durationMin || 30), 0) || 30
@@ -1318,6 +1342,17 @@ export function BookingModal({
             {/* Payment — based on permissions */}
             {(isOwnerOrAdmin || canCheckout) && existingEvent && (
               <PaymentPanel ev={existingEvent} services={services} onPayment={onPayment} allEvents={allEvents} barberId={barberId} terminalEnabled={terminalEnabled && canTerminal} />
+            )}
+
+            {/* Overlap warning */}
+            {overlapWarning && (
+              <div style={{ padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(255,180,60,.20)', background: 'rgba(255,180,60,.05)', marginBottom: 4 }}>
+                <div style={{ fontSize: 12, color: 'rgba(255,200,100,.8)', marginBottom: 8, lineHeight: 1.4 }}>{overlapWarning}</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setOverlapWarning(null)} style={{ flex: 1, height: 36, borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', fontSize: 12 }}>Cancel</button>
+                  <button onClick={() => handleSave(true)} style={{ flex: 1, height: 36, borderRadius: 10, border: '1px solid rgba(255,180,60,.30)', background: 'rgba(255,180,60,.08)', color: 'rgba(255,200,100,.9)', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 12 }}>Save anyway</button>
+                </div>
+              </div>
             )}
 
             {/* Footer */}
