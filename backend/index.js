@@ -4394,14 +4394,41 @@ app.post('/api/push/register', async (req, res) => {
   try {
     const deviceToken = safeStr(req.body?.device_token);
     const platform = safeStr(req.body?.platform || 'ios');
-    const app = safeStr(req.body?.app || 'crm');
+    const appName = safeStr(req.body?.app || 'crm');
     if (!deviceToken) return res.status(400).json({ error: 'device_token required' });
+
+    // Remove this device token from ALL other workspaces first
+    try {
+      const allWs = await db.collection('workspaces').get();
+      for (const ws of allWs.docs) {
+        if (ws.id === req.workspaceId) continue; // skip current workspace
+        const tokenDoc = ws.ref.collection('crm_push_tokens').doc(deviceToken);
+        const exists = await tokenDoc.get();
+        if (exists.exists) {
+          await tokenDoc.delete();
+          console.log('🔔 [PUSH] Removed token from old workspace: ' + ws.id);
+        }
+      }
+    } catch (e) { console.warn('🔔 [PUSH] Cleanup error:', e?.message); }
+
+    // Register in current workspace
     await req.ws('crm_push_tokens').doc(deviceToken).set({
-      device_token: deviceToken, platform, app,
+      device_token: deviceToken, platform, app: appName,
       user_id: req.user.uid, user_name: safeStr(req.user.name || req.user.username),
       role: safeStr(req.user.role), barber_id: safeStr(req.user.barber_id || ''),
       updated_at: toIso(new Date()),
     }, { merge: true });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Unregister push token (on logout)
+app.post('/api/push/unregister', async (req, res) => {
+  try {
+    const deviceToken = safeStr(req.body?.device_token);
+    if (!deviceToken) return res.status(400).json({ error: 'device_token required' });
+    await req.ws('crm_push_tokens').doc(deviceToken).delete();
+    console.log('🔔 [PUSH] Unregistered token: ' + deviceToken.slice(0, 10) + '...');
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
