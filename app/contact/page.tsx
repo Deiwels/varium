@@ -1,13 +1,32 @@
 'use client'
 import { useState } from 'react'
 
+const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
+
 export default function ContactPage() {
   const [sent, setSent] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
   const [form, setForm] = useState({ name: '', email: '', company: '', message: '' })
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSent(true)
+    setError('')
+    setSending(true)
+    try {
+      const res = await fetch(`${API}/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Something went wrong')
+      setSent(true)
+    } catch (err: any) {
+      setError(err.message || 'Failed to send message. Please try again.')
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -74,8 +93,9 @@ export default function ContactPage() {
                   <label style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.3)', marginBottom: 6, display: 'block' }}>Message</label>
                   <textarea className="form-textarea" placeholder="How can we help?" value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))} required />
                 </div>
-                <button type="submit" className="btn-primary" style={{ marginTop: 8, border: 'none', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>
-                  Send Message
+                {error && <p style={{ fontSize: 13, color: 'rgba(220,130,130,.8)', margin: 0 }}>{error}</p>}
+                <button type="submit" className="btn-primary" disabled={sending} style={{ marginTop: 8, border: 'none', cursor: sending ? 'wait' : 'pointer', fontSize: 14, fontFamily: 'inherit', opacity: sending ? 0.6 : 1 }}>
+                  {sending ? 'Sending...' : 'Send Message'}
                 </button>
               </form>
             )}

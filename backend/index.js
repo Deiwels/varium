@@ -1118,6 +1118,41 @@ app.post('/api/webhooks/telnyx', async (req, res) => {
   }
 });
 
+// ─── Contact Form (public, no auth) ─────────────────────────────────────────
+const CONTACT_RATE = {};
+app.post('/contact', (req, res) => {
+  const ip = getClientIp(req);
+  const now = Date.now();
+  if (CONTACT_RATE[ip] && now - CONTACT_RATE[ip] < 60000) {
+    return res.status(429).json({ error: 'Please wait before submitting again.' });
+  }
+  CONTACT_RATE[ip] = now;
+
+  const name = sanitizeHtml(safeStr(req.body.name));
+  const email = sanitizeHtml(safeStr(req.body.email));
+  const company = sanitizeHtml(safeStr(req.body.company));
+  const message = sanitizeHtml(safeStr(req.body.message));
+
+  if (!name || !email || !message) {
+    return res.status(400).json({ error: 'Name, email, and message are required.' });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Invalid email address.' });
+  }
+
+  const html = vuriumEmailTemplate('New Contact Form Submission', `
+    <p style="margin:0 0 12px;"><strong>Name:</strong> ${name}</p>
+    <p style="margin:0 0 12px;"><strong>Email:</strong> <a href="mailto:${email}" style="color:rgba(130,150,220,.8);text-decoration:none;">${email}</a></p>
+    ${company ? `<p style="margin:0 0 12px;"><strong>Company:</strong> ${company}</p>` : ''}
+    <p style="margin:0 0 4px;"><strong>Message:</strong></p>
+    <p style="margin:0;white-space:pre-wrap;">${message}</p>
+  `, 'Vurium', null, 'modern');
+
+  sendEmail('support@vurium.com', `[Contact] ${name} — ${company || 'No company'}`, html, 'Vurium Contact')
+    .then(() => res.json({ ok: true }))
+    .catch((e) => { console.warn('Contact email error:', e?.message); res.status(500).json({ error: 'Failed to send message.' }); });
+});
+
 // Apply auth + workspace for all /api/ routes
 // API rate limiting middleware (120 req/min per IP)
 app.use('/api', (req, res, next) => {
