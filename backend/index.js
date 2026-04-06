@@ -3751,7 +3751,7 @@ app.get('/api/square/oauth/url', requireRole('owner'), async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.get('/api/square/oauth/status', requireRole('owner', 'admin'), async (req, res) => {
+app.get('/api/square/oauth/status', async (req, res) => {
   try {
     const doc = await req.ws('settings').doc('square_oauth').get();
     if (!doc.exists || !doc.data()?.access_token) return res.json({ connected: false });
@@ -3812,7 +3812,7 @@ app.get('/api/stripe-connect/oauth/url', requireRole('owner'), async (req, res) 
 });
 
 // Check Stripe Connect status
-app.get('/api/stripe-connect/status', requireRole('owner', 'admin'), async (req, res) => {
+app.get('/api/stripe-connect/status', async (req, res) => {
   try {
     const doc = await req.ws('settings').doc('stripe_connect').get();
     if (!doc.exists || !doc.data()?.account_id) {
