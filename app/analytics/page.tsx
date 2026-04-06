@@ -17,9 +17,21 @@ interface AnalyticsData {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-const SOURCE_ICONS: Record<string, string> = {
-  instagram: '📸', google: '🔍', facebook: '📘', tiktok: '🎵',
-  twitter: '𝕏', direct: '🔗', other: '🌐', email: '📧', yelp: '⭐',
+const _i = { stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' }
+function SourceIcon({ name, size = 14 }: { name: string; size?: number }) {
+  const s = { ..._i }
+  const v = `0 0 24 24`
+  switch (name) {
+    case 'instagram': return <svg width={size} height={size} viewBox={v}><rect x="2" y="2" width="20" height="20" rx="5" {...s}/><circle cx="12" cy="12" r="5" {...s}/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg>
+    case 'google': return <svg width={size} height={size} viewBox={v}><circle cx="11" cy="11" r="7" {...s}/><line x1="16.5" y1="16.5" x2="21" y2="21" {...s}/></svg>
+    case 'facebook': return <svg width={size} height={size} viewBox={v}><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" {...s}/></svg>
+    case 'tiktok': return <svg width={size} height={size} viewBox={v}><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" {...s}/></svg>
+    case 'twitter': return <svg width={size} height={size} viewBox={v}><path d="M4 4l6.5 8L4 20h2l5.1-6.3L15 20h5l-6.8-8.4L19.5 4H17.5l-4.8 5.9L9 4H4z" {...s}/></svg>
+    case 'direct': return <svg width={size} height={size} viewBox={v}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" {...s}/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" {...s}/></svg>
+    case 'email': return <svg width={size} height={size} viewBox={v}><rect x="2" y="4" width="20" height="16" rx="2" {...s}/><polyline points="22,6 12,13 2,6" {...s}/></svg>
+    case 'yelp': return <svg width={size} height={size} viewBox={v}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" {...s}/></svg>
+    default: return <svg width={size} height={size} viewBox={v}><circle cx="12" cy="12" r="10" {...s}/><line x1="2" y1="12" x2="22" y2="12" {...s}/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" {...s}/></svg>
+  }
 }
 const SOURCE_COLORS: Record<string, string> = {
   instagram: 'rgba(220,130,200,.7)', google: 'rgba(100,180,255,.7)',
@@ -125,7 +137,7 @@ function HBarList({ items, colorMap }: { items: [string, number][]; colorMap?: R
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {items.map(([name, count]) => (
         <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 12, width: 20, textAlign: 'center', flexShrink: 0 }}>{SOURCE_ICONS[name] || '🌐'}</span>
+          <span style={{ width: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: colorMap?.[name] || 'rgba(255,255,255,.35)' }}><SourceIcon name={name} size={14} /></span>
           <span style={{ fontSize: 12, color: 'rgba(255,255,255,.65)', width: 90, textTransform: 'capitalize', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
           <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'rgba(255,255,255,.04)', overflow: 'hidden' }}>
             <div style={{ height: 8, borderRadius: 4, background: colorMap?.[name] || 'rgba(255,255,255,.18)', width: `${(count / max) * 100}%`, transition: 'width .3s' }} />

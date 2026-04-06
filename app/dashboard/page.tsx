@@ -1376,7 +1376,19 @@ export default function DashboardPage() {
             if (wId === 'site-analytics') {
               const a = widgetData.analytics || { total: 0, by_source: {}, by_day: [] }
               const sources = Object.entries(a.by_source || {}).sort((x: any, y: any) => y[1] - x[1])
-              const sourceIcons: Record<string, string> = { instagram: '📸', google: '🔍', facebook: '📘', tiktok: '🎵', twitter: '𝕏', direct: '🔗', other: '🌐' }
+              const _si = { stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' }
+              const srcIcon = (name: string) => {
+                const p = { width: 10, height: 10, viewBox: '0 0 24 24' }
+                switch (name) {
+                  case 'instagram': return <svg {...p}><rect x="2" y="2" width="20" height="20" rx="5" {..._si}/><circle cx="12" cy="12" r="5" {..._si}/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg>
+                  case 'google': return <svg {...p}><circle cx="11" cy="11" r="7" {..._si}/><line x1="16.5" y1="16.5" x2="21" y2="21" {..._si}/></svg>
+                  case 'facebook': return <svg {...p}><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" {..._si}/></svg>
+                  case 'tiktok': return <svg {...p}><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" {..._si}/></svg>
+                  case 'twitter': return <svg {...p}><path d="M4 4l6.5 8L4 20h2l5.1-6.3L15 20h5l-6.8-8.4L19.5 4H17.5l-4.8 5.9L9 4H4z" {..._si}/></svg>
+                  case 'direct': return <svg {...p}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" {..._si}/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" {..._si}/></svg>
+                  default: return <svg {...p}><circle cx="12" cy="12" r="10" {..._si}/><line x1="2" y1="12" x2="22" y2="12" {..._si}/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" {..._si}/></svg>
+                }
+              }
               const maxS = Math.max(...sources.map((s: any) => s[1]), 1)
               const days = a.by_day || []
               const maxD = Math.max(...days.map((d: any) => d.count), 1)
@@ -1392,7 +1404,7 @@ export default function DashboardPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 8 }}>
                     {sources.slice(0, 5).map(([src, cnt]: any) => (
                       <div key={src} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 10, width: 14, textAlign: 'center' }}>{sourceIcons[src] || '🌐'}</span>
+                        <span style={{ width: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.35)' }}>{srcIcon(src)}</span>
                         <span style={{ fontSize: 9, color: 'rgba(255,255,255,.5)', width: 55, textTransform: 'capitalize' }}>{src}</span>
                         <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(255,255,255,.06)' }}>
                           <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,.2)', width: `${(cnt / maxS) * 100}%` }} />
