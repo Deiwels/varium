@@ -772,8 +772,10 @@ export default function CalendarPage() {
 
   // Pinch zoom
   const lastPinchDist = useRef(0)
+  const isPinching = useRef(false)
   const onPinchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
+      isPinching.current = true
       const dx = e.touches[0].clientX - e.touches[1].clientX
       const dy = e.touches[0].clientY - e.touches[1].clientY
       lastPinchDist.current = Math.sqrt(dx*dx + dy*dy)
@@ -781,6 +783,9 @@ export default function CalendarPage() {
   }
   const onPinchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
+      isPinching.current = true
+      e.preventDefault() // Block scroll during pinch
+      e.stopPropagation()
       const dx = e.touches[0].clientX - e.touches[1].clientX
       const dy = e.touches[0].clientY - e.touches[1].clientY
       const dist = Math.sqrt(dx*dx + dy*dy)
@@ -791,7 +796,20 @@ export default function CalendarPage() {
       lastPinchDist.current = dist
     }
   }
-  const onPinchEnd = () => { lastPinchDist.current = 0 }
+  const onPinchEnd = () => { lastPinchDist.current = 0; isPinching.current = false }
+
+  // Attach non-passive touchmove to block scroll during pinch zoom
+  useEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    const handler = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault()
+      }
+    }
+    el.addEventListener('touchmove', handler, { passive: false })
+    return () => el.removeEventListener('touchmove', handler)
+  }, [])
 
   // Work hours per barber: { barberId -> { startMin, endMin } }
   // Default: 10:00–20:00 if no schedule loaded
@@ -2033,7 +2051,7 @@ export default function CalendarPage() {
             : COL_MIN
           const colMin = isMobile ? mobileColMin : COL_MIN
           return (
-        <div className={`cal-container${dayTransition === 'out' ? ' day-transition-out' : dayTransition === 'in' ? ' day-transition-in' : ''}`} style={{ flex: 1, position: 'relative', overflowY: (drag || blockDrag) ? 'hidden' : 'auto', overflowX: 'hidden', touchAction: (drag || blockDrag) ? 'none' : 'pan-x pan-y', transformOrigin: 'center 40%' }} ref={scrollContainerRef} onTouchStart={onPinchStart} onTouchMove={onPinchMove} onTouchEnd={onPinchEnd}>
+        <div className={`cal-container${dayTransition === 'out' ? ' day-transition-out' : dayTransition === 'in' ? ' day-transition-in' : ''}`} style={{ flex: 1, position: 'relative', overflowY: (drag || blockDrag) ? 'hidden' : 'auto', overflowX: 'hidden', touchAction: (drag || blockDrag) ? 'none' : 'pan-y', transformOrigin: 'center 40%' }} ref={scrollContainerRef} onTouchStart={onPinchStart} onTouchEnd={onPinchEnd}>
           <div style={{ minWidth: timeColW + pageBarbers.length * colMin }}>
             {/* Header */}
             <div style={{ display: 'grid', gridTemplateColumns: `${timeColW}px repeat(${pageBarbers.length}, minmax(${colMin}px,1fr))`, borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(8,8,12,.92)', position: 'sticky', top: 0, zIndex: 10 }}>
