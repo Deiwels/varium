@@ -678,8 +678,8 @@ async function sendCrmPushToBarber(wsCol, barberId, title, body, data = {}, pref
   } catch (e) { console.error('🔔 [APNs] sendCrmPushToBarber error:', e?.message); }
 }
 
-async function sendCrmPushToStaff(wsCol, barberId, title, body, data = {}, prefKey = null) {
-  sendCrmPushToRoles(wsCol, ['owner', 'admin'], title, body, data, null, prefKey).catch(e => console.error('🔔 [APNs] staff roles error:', e?.message));
+async function sendCrmPushToStaff(wsCol, barberId, title, body, data = {}, prefKey = null, excludeUserId = null) {
+  sendCrmPushToRoles(wsCol, ['owner', 'admin'], title, body, data, excludeUserId, prefKey).catch(e => console.error('🔔 [APNs] staff roles error:', e?.message));
   if (barberId) sendCrmPushToBarber(wsCol, barberId, title, body, data, prefKey).catch(e => console.error('🔔 [APNs] staff barber error:', e?.message));
 }
 
@@ -2543,7 +2543,7 @@ app.post('/api/bookings', async (req, res) => {
         scheduleReminders(req.ws, bookingRef.id, doc, tz, shopName).catch(() => {});
       }
     }
-    sendCrmPushToStaff(req.ws, doc.barber_id, 'New Booking', `${doc.client_name || 'Client'} booked for ${doc.start_at?.slice(0, 10)}`, { type: 'booking_confirmed' }, 'push_booking_confirm').catch(() => {});
+    sendCrmPushToStaff(req.ws, doc.barber_id, 'New Booking', `${doc.client_name || 'Client'} booked for ${doc.start_at?.slice(0, 10)}`, { type: 'booking_confirmed' }, 'push_booking_confirm', req.user.uid).catch(() => {});
     // Email confirmation
     if (doc.client_email) {
       const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
