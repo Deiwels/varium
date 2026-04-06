@@ -480,20 +480,23 @@ function PermissionsTab() {
       .finally(() => setLoading(false))
   }, [])
 
+  const latestPerms = useRef(perms)
+  latestPerms.current = perms
+
   function toggle(role: string, category: PermCategory, key: string) {
     setPerms(prev => {
       const updated = { ...prev }
       updated[role] = { ...updated[role], [category]: { ...updated[role][category], [key]: !updated[role][category][key] } }
-      // Auto-save with debounce
-      if (saveTimer.current) clearTimeout(saveTimer.current)
-      saveTimer.current = setTimeout(() => {
-        setSaving(true)
-        apiFetch('/api/settings/permissions', { method: 'POST', body: JSON.stringify({ role_permissions: updated }) })
-          .catch(() => {})
-          .finally(() => setSaving(false))
-      }, 800)
       return updated
     })
+    // Auto-save with debounce — always saves latest state
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      setSaving(true)
+      apiFetch('/api/settings/permissions', { method: 'POST', body: JSON.stringify({ role_permissions: latestPerms.current }) })
+        .catch(() => {})
+        .finally(() => setSaving(false))
+    }, 800)
   }
 
   function resetToDefaults() {
