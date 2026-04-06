@@ -1082,10 +1082,13 @@ export function BookingModal({
     return true
   }
 
-  async function handleSave(force?: boolean) {
-    if (!clientName.trim()) { alert('Enter client name'); return }
-    if (!serviceIds.length) { alert('Choose at least one service'); return }
-    if (!force && !checkOverlap()) return
+  async function handleSave(force?: boolean, statusOverride?: string) {
+    const saveStatus = statusOverride || status
+    if (saveStatus !== 'cancelled') {
+      if (!clientName.trim()) { alert('Enter client name'); return }
+      if (!serviceIds.length) { alert('Choose at least one service'); return }
+      if (!force && !checkOverlap()) return
+    }
     setOverlapWarning(null)
     setSaving(true)
     const selSvcs = services.filter(s => serviceIds.includes(s.id))
@@ -1103,7 +1106,7 @@ export function BookingModal({
         startMin: selStartMin,
         durMin: totalDur,
         duration_minutes: totalDur,
-        status,
+        status: saveStatus,
         notes,
         photoUrl,
       } as any)
@@ -1188,7 +1191,7 @@ export function BookingModal({
                 <div>
                   <label style={lbl}>Status</label>
                   <select value={status} onChange={e => setStatus(e.target.value)} style={inp}>
-                    {['booked','arrived','done','noshow','cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
+                    {['booked','arrived','done','noshow'].map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
               )}
@@ -1379,16 +1382,16 @@ export function BookingModal({
             {/* Footer */}
             {deleteConfirm ? (
               <div style={{ paddingTop: 8, borderTop: '1px solid rgba(255,107,107,.12)' }}>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.65)', marginBottom: 10, textAlign: 'center' }}>Delete this booking?</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.65)', marginBottom: 10, textAlign: 'center' }}>Cancel this appointment?</div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => setDeleteConfirm(false)} style={{ flex: 1, height: 40, borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
-                  <button onClick={() => { setDeleteConfirm(false); onDelete() }} style={{ flex: 1, height: 40, borderRadius: 10, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.08)', color: 'rgba(255,107,107,.8)', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 13 }}>Delete</button>
+                  <button onClick={() => setDeleteConfirm(false)} style={{ flex: 1, height: 40, borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', fontSize: 13 }}>Back</button>
+                  <button onClick={() => { setDeleteConfirm(false); handleSave(true, 'cancelled') }} style={{ flex: 1, height: 40, borderRadius: 10, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.08)', color: 'rgba(255,107,107,.8)', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 13 }}>Cancel appointment</button>
                 </div>
               </div>
             ) : (
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
                 {!isNew && (
-                  <button onClick={() => setDeleteConfirm(true)} style={{ height: 36, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,107,107,.20)', background: 'rgba(255,107,107,.04)', color: 'rgba(255,107,107,.6)', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', fontSize: 12 }}>Delete</button>
+                  <button onClick={() => setDeleteConfirm(true)} style={{ height: 36, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,107,107,.20)', background: 'rgba(255,107,107,.04)', color: 'rgba(255,107,107,.6)', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', fontSize: 12 }}>Cancel appt</button>
                 )}
                 <div style={{ flex: 1 }} />
                 <button onClick={onClose} style={{ height: 36, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', fontSize: 12 }}>Close</button>
