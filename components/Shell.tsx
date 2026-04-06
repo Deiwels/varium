@@ -538,6 +538,15 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         }
         setUser(userData)
         localStorage.setItem('VURIUMBOOK_USER', JSON.stringify(userData))
+        // Auto-register push token for current account (native iOS only)
+        if ((window as any).__VURIUM_IS_NATIVE && (window as any).__VURIUM_PUSH_TOKEN) {
+          const pushToken = (window as any).__VURIUM_PUSH_TOKEN
+          fetch(`${API}/api/push/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ device_token: pushToken, platform: 'ios', app: 'vuriumbook' })
+          }).then(() => console.log('[PUSH] Re-registered token for current account')).catch(() => {})
+        }
       })
       .catch(() => {})
   }, [])
