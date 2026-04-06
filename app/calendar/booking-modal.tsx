@@ -684,9 +684,20 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
   if (ev?.paid) {
     return (
       <div>
-        <div style={{ padding: '10px 14px', borderRadius: 14, border: '1px solid rgba(143,240,177,.30)', background: 'rgba(143,240,177,.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(130,220,170,.8)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-          <span style={{ fontSize: 13, color: 'rgba(130,220,170,.5)', fontWeight: 700 }}>Paid via {ev.paymentMethod || '—'}</span>
+        <div style={{ padding: '10px 14px', borderRadius: 14, border: '1px solid rgba(143,240,177,.30)', background: 'rgba(143,240,177,.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(130,220,170,.8)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span style={{ fontSize: 13, color: 'rgba(130,220,170,.5)', fontWeight: 700 }}>Paid via {ev.paymentMethod || '—'}</span>
+          </div>
+          <div style={{ display: 'flex', gap: 16, marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(143,240,177,.12)', fontSize: 12 }}>
+            {(ev._raw?.amount || ev._raw?.service_amount) ? (
+              <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Amount: </span><span style={{ color: 'rgba(255,255,255,.65)', fontWeight: 600 }}>${Number(ev._raw?.amount || ev._raw?.service_amount || 0).toFixed(2)}</span></div>
+            ) : null}
+            <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Tip: </span><span style={{ color: Number(ev._raw?.tip || ev._raw?.tip_amount || 0) > 0 ? 'rgba(130,220,170,.7)' : 'rgba(255,255,255,.35)', fontWeight: 600 }}>${Number(ev._raw?.tip || ev._raw?.tip_amount || 0).toFixed(2)}</span></div>
+            {(ev._raw?.amount || ev._raw?.service_amount) && Number(ev._raw?.tip || ev._raw?.tip_amount || 0) > 0 ? (
+              <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Total: </span><span style={{ color: 'rgba(255,255,255,.65)', fontWeight: 600 }}>${(Number(ev._raw?.amount || ev._raw?.service_amount || 0) + Number(ev._raw?.tip || ev._raw?.tip_amount || 0)).toFixed(2)}</span></div>
+            ) : null}
+          </div>
         </div>
         {ev._raw?.client_phone && (
           <button onClick={async () => {
