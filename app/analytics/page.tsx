@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import Shell from '@/components/Shell'
 import { apiFetch } from '@/lib/api'
 
@@ -161,6 +161,40 @@ function Section({ title, children, style }: { title: string; children: React.Re
   )
 }
 
+// ─── Day of Week Heatmap ───────────────────────────────────────────────────
+const DOW_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+function DowHeatmap({ days }: { days: DayData[] }) {
+  const { byDow, maxDow } = useMemo(() => {
+    const byDow: Record<string, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 }
+    days.forEach(d => {
+      try {
+        const dow = new Date(d.day + 'T12:00').toLocaleDateString('en-US', { weekday: 'short' })
+        if (byDow[dow] !== undefined) byDow[dow] += d.count
+      } catch {}
+    })
+    return { byDow, maxDow: Math.max(...Object.values(byDow), 1) }
+  }, [days])
+
+  return (
+    <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
+      {DOW_ORDER.map(d => (
+        <div key={d} style={{ flex: 1, textAlign: 'center' }}>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginBottom: 6 }}>{d}</div>
+          <div style={{
+            height: 40, borderRadius: 8,
+            background: `rgba(100,180,255,${0.05 + (byDow[d] / maxDow) * 0.35})`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 13, fontWeight: 600, color: byDow[d] > 0 ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.15)',
+            border: '1px solid rgba(255,255,255,.04)',
+          }}>
+            {byDow[d]}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // Main Page
 // ═════════════════════════════════════════════════════════════════════════════
@@ -188,15 +222,15 @@ export default function AnalyticsPage() {
 
   useEffect(() => { load() }, [load])
 
-  // Derived
-  const sources = data ? Object.entries(data.by_source).sort((a, b) => b[1] - a[1]) : []
-  const referrers = data ? Object.entries(data.by_referrer).sort((a, b) => b[1] - a[1]).slice(0, 10) : []
-  const dayChart = (data?.by_day || []).map(d => ({ label: fmtDay(d.day), value: d.count }))
-  const hourChart = (data?.by_hour || []).map(d => ({ label: `${String(d.hour).padStart(2, '0')}:00`, value: d.count }))
-  const trendPct = data?.trend ? (data.trend.previous === 0 ? (data.trend.current > 0 ? 100 : 0) : Math.round(((data.trend.current - data.trend.previous) / data.trend.previous) * 100)) : 0
-  const peakHour = data?.by_hour ? data.by_hour.reduce((best, h) => h.count > best.count ? h : best, { hour: 0, count: 0 }) : null
-  const peakDay = data?.by_day ? data.by_day.reduce((best, d) => d.count > best.count ? d : best, { day: '', count: 0 }) : null
-  const avgDaily = data ? avg(data.total, data.days) : '0'
+  // Derived — memoized to avoid recalculating on every render
+  const sources = useMemo(() => data ? Object.entries(data.by_source).sort((a, b) => b[1] - a[1]) : [], [data])
+  const referrers = useMemo(() => data ? Object.entries(data.by_referrer).sort((a, b) => b[1] - a[1]).slice(0, 10) : [], [data])
+  const dayChart = useMemo(() => (data?.by_day || []).map(d => ({ label: fmtDay(d.day), value: d.count })), [data])
+  const hourChart = useMemo(() => (data?.by_hour || []).map(d => ({ label: `${String(d.hour).padStart(2, '0')}:00`, value: d.count })), [data])
+  const trendPct = useMemo(() => data?.trend ? (data.trend.previous === 0 ? (data.trend.current > 0 ? 100 : 0) : Math.round(((data.trend.current - data.trend.previous) / data.trend.previous) * 100)) : 0, [data])
+  const peakHour = useMemo(() => data?.by_hour ? data.by_hour.reduce((best, h) => h.count > best.count ? h : best, { hour: 0, count: 0 }) : null, [data])
+  const peakDay = useMemo(() => data?.by_day ? data.by_day.reduce((best, d) => d.count > best.count ? d : best, { day: '', count: 0 }) : null, [data])
+  const avgDaily = useMemo(() => data ? avg(data.total, data.days) : '0', [data])
 
   const panelStyle: React.CSSProperties = { fontSize: 13, color: 'rgba(255,255,255,.7)', lineHeight: 1.5 }
 
@@ -290,35 +324,7 @@ export default function AnalyticsPage() {
 
             {/* Day of week heatmap */}
             <Section title="Day of Week Breakdown">
-              {(() => {
-                const byDow: Record<string, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 }
-                const dowOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-                ;(data.by_day || []).forEach(d => {
-                  try {
-                    const dow = new Date(d.day + 'T12:00').toLocaleDateString('en-US', { weekday: 'short' })
-                    if (byDow[dow] !== undefined) byDow[dow] += d.count
-                  } catch {}
-                })
-                const maxDow = Math.max(...Object.values(byDow), 1)
-                return (
-                  <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
-                    {dowOrder.map(d => (
-                      <div key={d} style={{ flex: 1, textAlign: 'center' }}>
-                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginBottom: 6 }}>{d}</div>
-                        <div style={{
-                          height: 40, borderRadius: 8,
-                          background: `rgba(100,180,255,${0.05 + (byDow[d] / maxDow) * 0.35})`,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 13, fontWeight: 600, color: byDow[d] > 0 ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.15)',
-                          border: '1px solid rgba(255,255,255,.04)',
-                        }}>
-                          {byDow[d]}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )
-              })()}
+              <DowHeatmap days={data.by_day || []} />
             </Section>
 
             {/* Empty state */}
