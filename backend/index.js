@@ -1080,14 +1080,17 @@ app.post('/auth/reset-password', async (req, res) => {
     const data = userDoc.data();
     if (data.reset_token !== token) return res.status(400).json({ error: 'Invalid or expired token' });
     if (data.reset_token_expires && new Date(data.reset_token_expires) < new Date()) return res.status(400).json({ error: 'Token expired' });
+    const newHash = hashPassword(password);
     await userRef.update({
-      password_hash: hashPassword(password),
+      password_hash: newHash,
       reset_token: null,
       reset_token_expires: null,
       updated_at: toIso(new Date()),
     });
+    console.log(`Password reset successful for user ${uid} in workspace ${ws}`);
+    writeAuditLog(ws, { action: 'user.password_reset', resource_id: uid, data: { method: 'email_link' } }).catch(() => {});
     res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: e?.message }); }
+  } catch (e) { console.error('Password reset error:', e?.message); res.status(500).json({ error: e?.message }); }
 });
 
 // ============================================================
