@@ -647,6 +647,26 @@ async function sendCrmPushToStaff(wsCol, barberId, title, body, data = {}) {
   }
 })();
 
+// Diagnostic: check APNs config (temporary)
+app.get('/api/push/status', (req, res) => {
+  const keyId = process.env.APNS_KEY_ID || '';
+  const teamId = process.env.APNS_TEAM_ID || '';
+  const keyP8 = process.env.APNS_KEY_P8 || '';
+  const keyPath = process.env.APNS_KEY_PATH || '';
+  const env = process.env.APNS_ENVIRONMENT || process.env.APNS_ENV || 'sandbox';
+  const bundleId = process.env.APNS_BUNDLE_ID || 'com.vurium.VuriumBook';
+  const jwt = getApnsJwt();
+  res.json({
+    configured: !!(keyId && teamId && (keyP8 || keyPath)),
+    env,
+    bundleId,
+    keyId: keyId ? keyId.slice(0,4) + '...' : 'MISSING',
+    teamId: teamId ? teamId.slice(0,4) + '...' : 'MISSING',
+    keySource: keyP8 ? 'ENV_VAR' : keyPath ? 'FILE' : 'MISSING',
+    jwtValid: !!jwt,
+  });
+});
+
 // ============================================================
 // SQUARE PAYMENT HELPERS
 // ============================================================
