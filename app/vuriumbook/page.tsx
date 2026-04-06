@@ -127,10 +127,8 @@ export default function VuriumBook() {
           Vurium
         </a>
         <ul className="navbar-links">
-          <li><a href="/vuriumbook">VuriumBook</a></li>
-          <li><a href="/about">About</a></li>
-          <li><a href="/blog">Blog</a></li>
-          <li><a href="/contact">Contact</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#pricing">Pricing</a></li>
           <li><a href="/signin">Sign In</a></li>
         </ul>
       </nav>
