@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { usePermissions } from '@/components/PermissionsProvider'
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
@@ -1000,6 +1001,7 @@ export function BookingModal({
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [overlapWarning, setOverlapWarning] = useState<string | null>(null)
   const [selStartMin, setSelStartMin] = useState(startMin)
+  const [selDate, setSelDate] = useState(date)
   const [status, setStatus] = useState('booked')
   const [notes, setNotes] = useState('')
   const [photoUrl, setPhotoUrl] = useState('')
@@ -1016,6 +1018,7 @@ export function BookingModal({
     if (!isOpen) return
     setSelBarberId(barberId)
     setSelStartMin(startMin)
+    setSelDate(date)
     setModalKey(k => k + 1)  // remount ClientSearch
     if (existingEvent) {
       setClientName(existingEvent.clientName || '')
@@ -1068,7 +1071,7 @@ export function BookingModal({
       e.barberId === selBarberId &&
       e.id !== currentId &&
       e.status !== 'cancelled' && e.status !== 'noshow' &&
-      (e.date ? e.date === date : true) &&
+      (e.date ? e.date === selDate : true) &&
       e.startMin < endMin && (e.startMin + e.durMin) > selStartMin
     )
     if (conflicts.length > 0) {
@@ -1096,7 +1099,7 @@ export function BookingModal({
         serviceId: serviceIds[0] || '',
         service_ids: serviceIds,
         service_name: selSvcs.map(s => s.name).join(' + '),
-        date,
+        date: selDate,
         startMin: selStartMin,
         durMin: totalDur,
         duration_minutes: totalDur,
@@ -1113,12 +1116,12 @@ export function BookingModal({
   const inp: React.CSSProperties = { width: '100%', height: 44, borderRadius: 12, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.06)', color: '#fff', padding: '0 12px', outline: 'none', fontSize: 13, fontFamily: 'inherit' }
   const lbl: React.CSSProperties = { fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.50)', display: 'block', marginBottom: 5 }
 
-  return (
+  return createPortal(
     <>
       <style>{`
         @keyframes slideDown { from { opacity:0; transform:translateY(-8px) } to { opacity:1; transform:translateY(0) } }
         @keyframes spin { to { transform:rotate(360deg) } }
-        .bm-scroll::-webkit-scrollbar { width:5px } 
+        .bm-scroll::-webkit-scrollbar { width:5px }
         .bm-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,.15); border-radius:3px }
         select option { background:#111 }
       `}</style>
@@ -1135,7 +1138,7 @@ export function BookingModal({
                 {isNew ? 'New appointment' : existingEvent?.clientName || 'Edit'}
               </div>
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 2 }}>
-                {date} · {barberName} · {minToHHMM(selStartMin)}
+                {selDate} · {barbers.find(b => b.id === selBarberId)?.name || barberName} · {minToHHMM(selStartMin)}
               </div>
             </div>
             <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontFamily: 'inherit' }}>✕</button>
@@ -1174,6 +1177,13 @@ export function BookingModal({
                   {slots.map(m => <option key={m} value={m}>{minToHHMM(m)}</option>)}
                 </select>
               </div>
+              {!isNew && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={lbl}>Reschedule date</label>
+                  <input type="date" value={selDate} onChange={e => setSelDate(e.target.value)}
+                    style={{ ...inp, colorScheme: 'dark' }} />
+                </div>
+              )}
               {!isNew && (
                 <div>
                   <label style={lbl}>Status</label>
@@ -1390,6 +1400,7 @@ export function BookingModal({
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   )
 }
