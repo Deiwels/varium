@@ -172,119 +172,77 @@ export default function Home() {
       </nav>
 
       {/* ── Hero ── */}
-      <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 'clamp(100px, 15vh, 140px) 24px 80px' }}>
-        <p className="label-glow fade-up">Software Company</p>
-        <h1 className="shimmer-text fade-up fade-up-d1" style={{ fontSize: 'clamp(30px, 5vw, 56px)', fontWeight: 600, letterSpacing: '-.04em', lineHeight: 1.08, maxWidth: 820, marginTop: 16 }}>
-          We build software<br />that works.
+      <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 'clamp(100px, 15vh, 160px) 24px 60px' }}>
+        <p className="label-glow fade-up" style={{ marginBottom: 16 }}>Vurium</p>
+        <h1 className="shimmer-text fade-up fade-up-d1" style={{ fontSize: 'clamp(36px, 6vw, 72px)', fontWeight: 600, letterSpacing: '-.05em', lineHeight: 1.04, maxWidth: 900, marginTop: 0 }}>
+          Software that just works.
         </h1>
-        <p className="fade-up fade-up-d2" style={{ fontSize: 'clamp(15px, 2vw, 18px)', fontWeight: 300, color: 'rgba(255,255,255,.4)', maxWidth: 520, marginTop: 24, lineHeight: 1.6 }}>
-          Modern tools for modern businesses. Elegant, reliable, and built to scale.
+        <p className="fade-up fade-up-d2" style={{ fontSize: 'clamp(16px, 2.2vw, 20px)', fontWeight: 300, color: 'rgba(255,255,255,.35)', maxWidth: 520, marginTop: 28, lineHeight: 1.6 }}>
+          We build tools for businesses that value simplicity, reliability, and beautiful design.
         </p>
-        <div className="fade-up fade-up-d3" style={{ marginTop: 40, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <a href="#products" className="btn-primary">Explore Products</a>
-          <a href="/contact" className="btn-secondary">Get in Touch</a>
-        </div>
       </section>
 
-      {/* ── Products ── */}
-      <section id="products" style={{ padding: 'clamp(60px, 10vh, 100px) 24px', maxWidth: 1080, margin: '0 auto' }}>
-        <p className="label-glow" style={{ textAlign: 'center', marginBottom: 12 }}>Products</p>
-        <h2 className="shimmer-text" style={{ fontSize: 'clamp(28px, 4.5vw, 48px)', fontWeight: 600, letterSpacing: '-.03em', textAlign: 'center', marginBottom: 56 }}>
-          What we&apos;re building
+      {/* ── Product Intro: VuriumBook ── */}
+      <section id="products" style={{ padding: 'clamp(80px, 12vh, 140px) 24px', textAlign: 'center' }}>
+        <p className="label-glow fade-up" style={{ marginBottom: 12 }}>Introducing</p>
+        <h2 className="shimmer-text fade-up fade-up-d1" style={{ fontSize: 'clamp(32px, 5.5vw, 64px)', fontWeight: 600, letterSpacing: '-.04em', lineHeight: 1.06, marginBottom: 20 }}>
+          VuriumBook
         </h2>
-
-        <div className="glass-card" style={{ maxWidth: 800, margin: '0 auto', padding: 'clamp(28px, 4vw, 48px) clamp(24px, 4vw, 44px)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(130,150,220,.7)', display: 'inline-block' }} />
-            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(130,150,220,.7)' }}>Available Now</span>
-          </div>
-          <h3 style={{ fontSize: 'clamp(24px, 3.5vw, 36px)', fontWeight: 600, letterSpacing: '-.02em', marginBottom: 14, color: '#f0f0f5' }}>
-            VuriumBook
-          </h3>
-          <p style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', fontWeight: 300, color: 'rgba(255,255,255,.4)', maxWidth: 520, lineHeight: 1.65, marginBottom: 28 }}>
-            A complete appointment scheduling platform for barbershops, salons, and service businesses. Online booking, team management, payments, and client CRM.
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 28 }}>
-            {[
-              { label: 'Online Booking', desc: 'Clients book 24/7' },
-              { label: 'Team Calendar', desc: 'Manage all schedules' },
-              { label: 'Payments', desc: 'Card, Apple Pay, cash' },
-              { label: 'Client CRM', desc: 'Track everything' },
-            ].map((f, i) => (
-              <div key={i} style={{ padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.015)' }}>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>{f.label}</div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', lineHeight: 1.4 }}>{f.desc}</div>
-              </div>
-            ))}
-          </div>
-          <a href="/vuriumbook" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 500, color: 'rgba(130,150,220,.8)', textDecoration: 'none', transition: 'color .2s' }}>
-            Learn more <span style={{ fontSize: 16 }}>&rarr;</span>
+        <p className="fade-up fade-up-d2" style={{ fontSize: 'clamp(15px, 2vw, 18px)', fontWeight: 300, color: 'rgba(255,255,255,.35)', maxWidth: 540, margin: '0 auto 16px', lineHeight: 1.65 }}>
+          The all-in-one platform for barbershops, salons, and service businesses. Scheduling, payments, team management, and client CRM — in one place.
+        </p>
+        <div className="fade-up fade-up-d3" style={{ marginBottom: 0 }}>
+          <a href="/vuriumbook" style={{ fontSize: 14, fontWeight: 500, color: 'rgba(130,150,220,.8)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            Learn more <span>&rarr;</span>
           </a>
         </div>
       </section>
 
-      {/* ── Stats ── */}
-      <section style={{ padding: 'clamp(40px, 6vh, 60px) 24px', maxWidth: 1080, margin: '0 auto' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, textAlign: 'center' }}>
-          {[
-            { num: '1,000+', label: 'Businesses' },
-            { num: '50,000+', label: 'Bookings Processed' },
-            { num: '99.9%', label: 'Uptime' },
-            { num: '4.9/5', label: 'Customer Rating' },
-          ].map((s, i) => (
-            <div key={i} style={{ padding: '20px 16px' }}>
-              <div className="stat-number">{s.num}</div>
-              <div style={{ fontSize: 12, fontWeight: 400, color: 'rgba(255,255,255,.25)', marginTop: 4, letterSpacing: '.04em' }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
+      {/* ── Feature: Dashboard ── */}
+      <section style={{ padding: 'clamp(40px, 8vh, 80px) 24px clamp(80px, 12vh, 140px)', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+        <img src="/screenshots/dashboard.jpg" alt="VuriumBook Dashboard — Your business. Your control." style={{ width: '100%', height: 'auto', display: 'block' }} />
       </section>
 
-      {/* ── Testimonials ── */}
-      <section style={{ padding: 'clamp(60px, 10vh, 100px) 24px', maxWidth: 1080, margin: '0 auto' }}>
-        <p className="label-glow" style={{ textAlign: 'center', marginBottom: 12 }}>Testimonials</p>
-        <h2 className="shimmer-text" style={{ fontSize: 'clamp(28px, 4.5vw, 48px)', fontWeight: 600, letterSpacing: '-.03em', textAlign: 'center', marginBottom: 56 }}>
-          Trusted by businesses everywhere.
-        </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-          {[
-            { quote: 'VuriumBook cut our no-shows by 40% in the first month. The automated reminders alone are worth the subscription.', name: 'Marcus Johnson', title: 'Owner, Elite Cuts Barbershop', metric: '40% fewer no-shows' },
-            { quote: 'We went from pen-and-paper scheduling to a fully digital operation in one afternoon. Our clients love booking online.', name: 'Sofia Reyes', title: 'Manager, Luxe Hair Studio', metric: '3x more bookings' },
-            { quote: 'The payment integration is seamless. Tips, commissions, daily reports — everything in one place. Game changer.', name: 'James Chen', title: 'Owner, The Gentleman\'s Quarter', metric: '30% revenue increase' },
-          ].map((t, i) => (
-            <div key={i} className="glass-card fade-up" style={{ display: 'flex', flexDirection: 'column', animationDelay: `${i * 0.1}s` }}>
-              <div style={{ width: 32, height: 2, borderRadius: 1, background: 'rgba(130,150,220,.4)', marginBottom: 20 }} />
-              <p style={{ fontSize: 14, fontWeight: 300, color: 'rgba(255,255,255,.45)', lineHeight: 1.65, flex: 1, marginBottom: 20 }}>
-                &ldquo;{t.quote}&rdquo;
-              </p>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#e8e8ed', marginBottom: 2 }}>{t.name}</p>
-                <p style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', marginBottom: 8 }}>{t.title}</p>
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(130,220,170,.6)', background: 'rgba(130,220,170,.06)', padding: '3px 10px', borderRadius: 6 }}>{t.metric}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* ── Feature: Calendar ── */}
+      <section style={{ padding: 'clamp(40px, 8vh, 80px) 24px clamp(80px, 12vh, 140px)', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+        <img src="/screenshots/calendar.jpg" alt="VuriumBook Calendar — Control your schedule." style={{ width: '100%', height: 'auto', display: 'block' }} />
       </section>
 
-      {/* ── About / Features ── */}
-      <section id="about" style={{ padding: 'clamp(60px, 10vh, 100px) 24px', maxWidth: 1080, margin: '0 auto' }}>
-        <p className="label-glow" style={{ textAlign: 'center', marginBottom: 12 }}>Why Vurium</p>
-        <h2 className="shimmer-text" style={{ fontSize: 'clamp(28px, 4.5vw, 48px)', fontWeight: 600, letterSpacing: '-.03em', textAlign: 'center', marginBottom: 56 }}>
-          Built different.
-        </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
+      {/* ── Feature: Analytics ── */}
+      <section style={{ padding: 'clamp(40px, 8vh, 80px) 24px clamp(80px, 12vh, 140px)', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+        <img src="/screenshots/analytics.jpg" alt="VuriumBook Analytics — Simple, clear insights to grow your business." style={{ width: '100%', height: 'auto', display: 'block' }} />
+      </section>
+
+      {/* ── Capabilities Strip ── */}
+      <section style={{ padding: 'clamp(60px, 10vh, 100px) 24px', maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 1, borderRadius: 20, overflow: 'hidden', border: '1px solid rgba(255,255,255,.05)' }}>
           {[
-            { title: 'Reliability First', desc: 'Built to work — no crashes, no downtime. Your business depends on it.', color: 'rgba(130,220,170,.5)' },
-            { title: 'Beautiful by Default', desc: 'Every interface is crafted with attention to detail. Modern and intuitive.', color: 'rgba(130,150,220,.5)' },
-            { title: 'Built to Scale', desc: 'From a single chair to a franchise. Grows with your business.', color: 'rgba(220,170,100,.5)' },
+            { label: 'Client CRM', desc: 'Visit history, preferences, notes, and contact info for every client.' },
+            { label: 'Team Management', desc: 'Roles, schedules, attendance, and performance — all in one place.' },
+            { label: 'Waitlist & Membership', desc: 'Queue management, recurring subscriptions, and automated reminders.' },
+            { label: 'Analytics', desc: 'Revenue, bookings, sources, and trends — know your numbers.' },
+            { label: 'Cash Register', desc: 'Track daily cash, expenses, and generate end-of-day reports.' },
+            { label: 'Portfolio', desc: 'Showcase your team\'s work to attract new clients.' },
           ].map((f, i) => (
-            <div key={i} className="glass-card">
-              <div style={{ width: 32, height: 2, borderRadius: 1, background: f.color, marginBottom: 20 }} />
-              <h3 style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-.01em', marginBottom: 10, color: '#e8e8ed' }}>{f.title}</h3>
-              <p style={{ fontSize: 14, fontWeight: 300, color: 'rgba(255,255,255,.35)', lineHeight: 1.6 }}>{f.desc}</p>
+            <div key={i} style={{ padding: 'clamp(20px, 3vw, 28px)', background: 'rgba(255,255,255,.015)', borderRight: '1px solid rgba(255,255,255,.04)', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.6)', marginBottom: 6, letterSpacing: '-.01em' }}>{f.label}</div>
+              <p style={{ fontSize: 12, fontWeight: 300, color: 'rgba(255,255,255,.25)', lineHeight: 1.55, margin: 0 }}>{f.desc}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section style={{ padding: 'clamp(80px, 14vh, 160px) 24px', textAlign: 'center' }}>
+        <h2 className="shimmer-text" style={{ fontSize: 'clamp(28px, 5vw, 52px)', fontWeight: 600, letterSpacing: '-.04em', lineHeight: 1.08, marginBottom: 24 }}>
+          Try VuriumBook free<br />for 14 days.
+        </h2>
+        <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', fontWeight: 300, color: 'rgba(255,255,255,.3)', maxWidth: 440, margin: '0 auto 40px', lineHeight: 1.6 }}>
+          No credit card required. Set up in minutes.
+        </p>
+        <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <a href="/signup?plan=salon" className="btn-primary">Start Free Trial</a>
+          <a href="/vuriumbook" className="btn-secondary">Learn More</a>
         </div>
       </section>
 
