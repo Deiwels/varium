@@ -186,7 +186,7 @@ export default function AnalyticsPage() {
   const panelStyle: React.CSSProperties = { fontSize: 13, color: 'rgba(255,255,255,.7)', lineHeight: 1.5 }
 
   return (
-    <Shell>
+    <Shell page="analytics">
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px 80px' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
