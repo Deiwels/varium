@@ -885,7 +885,13 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
 
           {/* Payment methods */}
           <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-            {(['terminal','cash','zelle','other'] as const).filter(m => m !== 'terminal' || terminalEnabled).map(m => (
+            {(['terminal','cash','zelle','other'] as const).filter(m => {
+              if (m === 'terminal') return terminalEnabled
+              if (m === 'cash') return isOwnerOrAdmin || payHasPerm('financial', 'pay_cash')
+              if (m === 'zelle') return isOwnerOrAdmin || payHasPerm('financial', 'pay_zelle')
+              if (m === 'other') return isOwnerOrAdmin || payHasPerm('financial', 'pay_other')
+              return true
+            }).map(m => (
               <button key={m} onClick={() => { setMethod(m); setHint(''); if (m === 'terminal') handleTerminal() }} disabled={polling} style={methodStyle(m)}>
                 {m === 'terminal' && polling ? 'Waiting…' : m.charAt(0).toUpperCase() + m.slice(1)}
               </button>

@@ -7,6 +7,7 @@ const BookingModal = dynamic(() => import('@/app/calendar/booking-modal').then(m
 const ImageCropper = dynamic(() => import('@/components/ImageCropper'), { ssr: false })
 
 import { apiFetch, API } from '@/lib/api'
+import { usePermissions } from '@/components/PermissionsProvider'
 import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -967,18 +968,21 @@ export default function CalendarPage() {
   const isOwnerOrAdmin = currentUser?.role === 'owner' || currentUser?.role === 'admin'
   const myBarberId = currentUser?.barber_id || ''
   const mentorBarberIds: string[] = currentUser?.mentor_barber_ids || []
+  const { hasPerm } = usePermissions()
   const [terminalEnabled, setTerminalEnabled] = useState(false)
 
   // Check if Square or Stripe is connected (for showing Terminal button)
+  // Now also runs for roles with checkout_client or access_terminal permission
+  const canCheckoutOrTerminal = isOwnerOrAdmin || hasPerm('financial', 'checkout_client') || hasPerm('financial', 'access_terminal')
   useEffect(() => {
-    if (!isOwnerOrAdmin) return
+    if (!canCheckoutOrTerminal) return
     Promise.all([
       apiFetch('/api/square/oauth/status').catch(() => ({ connected: false })),
       apiFetch('/api/stripe-connect/status').catch(() => ({ connected: false })),
     ]).then(([sq, st]) => {
       setTerminalEnabled(sq?.connected || st?.connected || false)
     })
-  }, [isOwnerOrAdmin])
+  }, [canCheckoutOrTerminal])
 
   // Load student schedule from API on mount
   useEffect(() => {
@@ -1326,7 +1330,7 @@ export default function CalendarPage() {
   const todayEvents = useMemo(() => events.filter(e => {
     if (e.date !== todayStr) return false
     if (e.status === 'cancelled') return false
-    if (isBarber && myBarberId && e.type !== 'block' && e.barberId !== myBarberId) return false
+    if (isBarber && myBarberId && !hasPerm('bookings', 'view_all') && e.type !== 'block' && e.barberId !== myBarberId) return false
     if (isStudent) return e._raw?.booking_type === 'model' || e._raw?.booking_type === 'training'
     return true
   }), [events, todayStr, isBarber, myBarberId, isStudent])
@@ -2111,7 +2115,7 @@ export default function CalendarPage() {
                       if (e.button !== 0) return
                       if ((e.target as HTMLElement).closest('.cal-event')) return
                       if (isStudent) return
-                      const canBlock = isOwnerOrAdmin || (isBarber && barber.id === myBarberId)
+                      const canBlock = isOwnerOrAdmin || hasPerm('bookings', 'block_time') || (isBarber && barber.id === myBarberId && hasPerm('bookings', 'block_time'))
                       if (!canBlock) return
                       const min = Math.round((e.clientY - (e.currentTarget as HTMLElement).getBoundingClientRect().top) / slotH) * 5 + START_HOUR * 60
                       const bId = barber.id
@@ -2175,7 +2179,7 @@ export default function CalendarPage() {
                       }, 200)
                       // 600ms — block drag (if finger didn't move)
                       if (!isStudent) {
-                        const canBlock = isOwnerOrAdmin || (isBarber && barber.id === myBarberId)
+                        const canBlock = isOwnerOrAdmin || hasPerm('bookings', 'block_time') || (isBarber && barber.id === myBarberId && hasPerm('bookings', 'block_time'))
                         if (canBlock && e.touches.length === 1) {
                           const bId = barber.id
                           blockLongPressTimer.current = setTimeout(() => {
@@ -2371,7 +2375,7 @@ export default function CalendarPage() {
                           onClick={e => {
                             e.stopPropagation()
                             if (drag || blockDragJustEnded.current) return
-                            const canDelete = isOwnerOrAdmin || (isBarber && ev.barberId === myBarberId)
+                            const canDelete = isOwnerOrAdmin || hasPerm('bookings', 'delete') || (isBarber && ev.barberId === myBarberId && hasPerm('bookings', 'edit'))
                             if (!canDelete) return
                             setBlockConfirm({ action: 'delete', barberId: ev.barberId, startMin: ev.startMin, endMin: ev.startMin + ev.durMin, evId: ev.id, rawId: ev._raw?.id ? String(ev._raw.id) : undefined })
                           }}>

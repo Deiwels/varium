@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 
 import { apiFetch } from '@/lib/api'
 import { getTimezoneList } from '@/lib/timezones'
+import { getStaffLabel } from '@/lib/terminology'
 import { usePlan } from '@/components/PlanProvider'
 import { DEFAULT_PERMS, type RolePerms, type PermCategory } from '@/components/PermissionsProvider'
 import { hasPinSetup, clearPin } from '@/lib/pin'
@@ -421,13 +422,13 @@ const PERM_SECTIONS: { category: PermCategory; label: string; items: { key: stri
   { category: 'bookings', label: 'Bookings', items: [
     { key: 'create', label: 'Create bookings' }, { key: 'edit', label: 'Edit bookings' },
     { key: 'delete', label: 'Delete / cancel' }, { key: 'block_time', label: 'Block time slots' },
-    { key: 'view_all', label: 'View all barbers' },
+    { key: 'view_all', label: 'View all team members' },
   ]},
   { category: 'calendar_settings', label: 'Calendar Settings', items: [
     { key: 'open_settings', label: 'Open settings panel' },
     { key: 'manage_team', label: 'Add / edit team members' },
     { key: 'manage_services', label: 'Add / edit services' },
-    { key: 'edit_schedule', label: 'Edit barber schedules' },
+    { key: 'edit_schedule', label: 'Edit team schedules' },
     { key: 'edit_own_profile', label: 'Edit own profile' },
   ]},
   { category: 'clients', label: 'Clients', items: [
@@ -442,6 +443,8 @@ const PERM_SECTIONS: { category: PermCategory; label: string; items: { key: stri
   { category: 'financial', label: 'Financial', items: [
     { key: 'mark_paid', label: 'Mark as paid' }, { key: 'checkout_client', label: 'Checkout / charge client' },
     { key: 'refund', label: 'Issue refund' }, { key: 'access_terminal', label: 'Access payment terminal' },
+    { key: 'pay_cash', label: 'Accept cash payments' }, { key: 'pay_zelle', label: 'Accept Zelle payments' },
+    { key: 'pay_other', label: 'Accept other payments' },
     { key: 'view_earnings', label: 'View own earnings' }, { key: 'view_all_earnings', label: 'View all earnings' },
   ]},
 ]
@@ -886,6 +889,13 @@ export default function SettingsPage() {
                     <select value={s.timezone || 'America/Chicago'} onChange={e => set('timezone', e.target.value)} style={inp}>
                       {getTimezoneList().map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
                     </select>
+                  </Field>
+                  <Field label="Business Type">
+                    <select value={s.business_type || ''} onChange={e => set('business_type', e.target.value)} style={inp}>
+                      <option value="">Not set</option>
+                      {['Barbershop', 'Hair Salon', 'Nail Studio', 'Beauty Salon', 'Spa & Wellness', 'Tattoo Studio', 'Lash & Brow Bar', 'Other'].map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Affects staff terminology across the app (e.g. Barber, Stylist, Master)</div>
                   </Field>
                   <Field label="Currency">
                     <select value={s.currency || 'USD'} onChange={e => set('currency', e.target.value)} style={inp}>
