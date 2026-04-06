@@ -2310,8 +2310,8 @@ app.get('/api/bookings', async (req, res) => {
   try {
     const statusFilter = safeStr(req.query?.status || '');
     const barberId = safeStr(req.query?.barber_id || '');
-    const startFrom = safeStr(req.query?.start_from || '');
-    const startTo = safeStr(req.query?.start_to || '');
+    const startFrom = safeStr(req.query?.start_from || req.query?.from || '');
+    const startTo = safeStr(req.query?.start_to || req.query?.to || '');
     let query = req.ws('bookings').orderBy('start_at', 'desc').limit(500);
     if (barberId) query = req.ws('bookings').where('barber_id', '==', barberId).orderBy('start_at', 'desc').limit(500);
     const snap = await query.get();

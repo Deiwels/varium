@@ -1189,15 +1189,17 @@ export default function CalendarPage() {
       const isModelOrTraining = b.booking_type === 'model' || b.booking_type === 'training'
       let rawServiceIds: string[] = (Array.isArray(b.service_ids) && b.service_ids.length > 0) ? b.service_ids.map(String) : b.service_id ? String(b.service_id).split(',').map((s: string) => s.trim()).filter(Boolean) : []
       let svcs = servicesArg.filter(s => rawServiceIds.includes(s.id))
-      // Fallback: if only 1 service found but service_name has " + ", resolve by name
-      if (svcs.length <= 1 && b.service_name && String(b.service_name).includes(' + ')) {
-        const names = String(b.service_name).split(' + ').map((n: string) => n.trim().toLowerCase())
+      // Fallback: if service_name has " + " but we don't have all services resolved, try by name
+      const svcNameStr = String(b.service_name || '')
+      if (svcNameStr.includes(' + ') && svcs.length < svcNameStr.split(' + ').length) {
+        const names = svcNameStr.split(' + ').map((n: string) => n.trim().toLowerCase())
         const byName = names.map(n => servicesArg.find(s => s.name.toLowerCase() === n)).filter(Boolean) as typeof servicesArg
-        if (byName.length > 1) {
+        if (byName.length > svcs.length) {
           svcs = byName
           rawServiceIds = byName.map(s => s.id)
         }
       }
+      // Fallback: if duration is much longer than found services, try matching by combined service name
       const svc = svcs[0] || servicesArg.find(s => s.id === String(b.service_id || ''))
       const barber = barbersArg.find(br => br.id === String(b.barber_id || ''))
       // Duration: prefer end_at - start_at (handles multi-service), fallback to duration_minutes, then service durations sum
