@@ -137,7 +137,7 @@ function ProfileModal({ user, onClose, onUpdated }: {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
-  const [tab, setTab] = useState<'profile' | 'password' | 'notifications'>('profile')
+  const [tab, setTab] = useState<'profile' | 'password'>('profile')
   const [notifPrefs, setNotifPrefs] = useState({
     push_booking_confirm: true,
     push_reminder_24h: true,
@@ -304,10 +304,10 @@ function ProfileModal({ user, onClose, onUpdated }: {
         </div>
 
         <div style={{ display: 'flex', gap: 6, padding: '12px 18px 0' }}>
-          {(['profile', 'notifications'] as const).map(t => (
+          {(['profile'] as const).map(t => (
             <button key={t} onClick={() => { setTab(t as any); setMsg(''); setErr('') }}
               style={{ height: 30, padding: '0 12px', borderRadius: 999, cursor: 'pointer', fontWeight: tab === t ? 600 : 400, fontSize: 11, fontFamily: 'inherit', border: `1px solid ${tab === t ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.06)'}`, background: tab === t ? 'rgba(255,255,255,.08)' : 'transparent', color: tab === t ? '#e8e8ed' : 'rgba(255,255,255,.35)', transition: 'all .2s' }}>
-              {t === 'profile' ? 'Profile' : 'Notifications'}
+              Profile
             </button>
           ))}
         </div>
@@ -348,31 +348,6 @@ function ProfileModal({ user, onClose, onUpdated }: {
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Password change and account deletion available in Settings → Accounts</div>
           </>}
 
-          {tab === 'notifications' && <>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.50)', marginBottom: 4 }}>Choose which push notifications you receive in the Element Team app.</div>
-            {([
-              { key: 'push_booking_confirm', label: 'Booking confirmation', sub: 'When a new appointment is booked' },
-              { key: 'push_reschedule', label: 'Reschedule', sub: 'When appointment time changes' },
-              { key: 'push_cancel', label: 'Cancellation', sub: 'When appointment is cancelled' },
-              { key: 'push_waitlist', label: 'Waitlist', sub: 'When a spot opens up' },
-              { key: 'push_arrived', label: 'Client arrived', sub: 'When a client checks in' },
-              { key: 'push_chat_messages', label: 'Chat messages', sub: 'New messages in team chat' },
-            ] as { key: keyof typeof notifPrefs; label: string; sub: string }[]).map(item => (
-              <div key={item.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#e8e8ed' }}>{item.label}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 2 }}>{item.sub}</div>
-                </div>
-                <button onClick={() => setNotifPrefs(prev => ({ ...prev, [item.key]: !prev[item.key] }))}
-                  style={{ width: 44, height: 26, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 2, transition: 'background .2s', background: notifPrefs[item.key] ? 'rgba(143,240,177,.35)' : 'rgba(255,255,255,.10)', position: 'relative', flexShrink: 0 }}>
-                  <div style={{ width: 22, height: 22, borderRadius: 999, background: notifPrefs[item.key] ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.30)', transition: 'transform .2s, background .2s', transform: notifPrefs[item.key] ? 'translateX(18px)' : 'translateX(0)' }} />
-                </button>
-              </div>
-            ))}
-            <button onClick={saveNotifications} disabled={saving} style={{ height: 42, borderRadius: 12, border: '1px solid rgba(255,255,255,.20)', background: 'rgba(255,255,255,.10)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 13, fontFamily: 'inherit', opacity: saving ? .5 : 1, marginTop: 4 }}>
-              {saving ? 'Saving…' : 'Save preferences'}
-            </button>
-          </>}
 
           {msg && <div style={{ fontSize: 12, color: 'rgba(130,220,170,.5)', padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(143,240,177,.22)', background: 'rgba(143,240,177,.06)' }}>{msg}</div>}
           {err && <div style={{ fontSize: 12, color: 'rgba(220,130,160,.5)', padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(255,107,107,.22)', background: 'rgba(255,107,107,.06)' }}>{err}</div>}
