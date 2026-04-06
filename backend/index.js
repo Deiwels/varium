@@ -1063,7 +1063,7 @@ app.post('/auth/forgot-password', async (req, res) => {
         <a href="${resetUrl}" style="display:inline-block;padding:14px 32px;border-radius:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#e8e8ed;text-decoration:none;font-weight:600;font-size:14px;">Reset Password</a>
       </div>
       <p style="font-size:12px;color:rgba(255,255,255,.3);">This link expires in 1 hour. If you didn't request this, ignore this email.</p>
-    `)).catch(() => {});
+    `, 'VuriumBook', null, 'modern')).catch(() => {});
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
