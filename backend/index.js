@@ -3337,6 +3337,26 @@ app.get('/api/settings/timezone', async (req, res) => {
   } catch (e) { res.status(500).json({ timezone: 'America/Chicago', clock_in_enabled: false }); }
 });
 
+// Role permissions — available to all authenticated users (they need to know their own permissions)
+app.get('/api/settings/permissions', async (req, res) => {
+  try {
+    const doc = await req.ws('settings').doc('config').get();
+    const data = doc.exists ? doc.data() : {};
+    res.json({ role_permissions: data?.role_permissions || null });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Save role permissions — owner only
+app.post('/api/settings/permissions', requireRole('owner'), async (req, res) => {
+  try {
+    const { role_permissions } = req.body || {};
+    if (!role_permissions || typeof role_permissions !== 'object') return res.status(400).json({ error: 'role_permissions required' });
+    await req.ws('settings').doc('config').set({ role_permissions, updated_at: toIso(new Date()) }, { merge: true });
+    writeAuditLog(req.wsId, { action: 'settings.permissions.update', data: { roles: Object.keys(role_permissions) }, req }).catch(() => {});
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
 app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
   try {
     const b = req.body || {};

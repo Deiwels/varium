@@ -4,6 +4,7 @@ import './globals.css'
 import { DialogWrapper } from './DialogWrapper'
 import CosmosParallax from '@/components/CosmosParallax'
 import { PlanProvider } from '@/components/PlanProvider'
+import { PermissionsProvider } from '@/components/PermissionsProvider'
 import CookieBanner from '@/components/CookieBanner'
 
 const inter = Inter({
@@ -149,7 +150,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         <CosmosParallax />
         <PlanProvider>
-          <DialogWrapper>{children}</DialogWrapper>
+          <PermissionsProvider>
+            <DialogWrapper>{children}</DialogWrapper>
+          </PermissionsProvider>
         </PlanProvider>
         <CookieBanner />
       </body>

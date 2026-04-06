@@ -6,6 +6,7 @@ import Link from 'next/link'
 import ImageCropper from '@/components/ImageCropper'
 import { hasPinSetup, verifyPin, getCredentials, getPinUsername } from '@/lib/pin'
 import { usePlan } from '@/components/PlanProvider'
+import { usePermissions } from '@/components/PermissionsProvider'
 import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
@@ -658,18 +659,17 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
   }
 
   const { hasFeature: planHasFeature, expired: planExpired, trial_days_left } = usePlan()
+  const { hasPerm } = usePermissions()
   const role = user?.role || 'barber'
   const isBarber = role === 'barber'
   const isStudent = role === 'student'
   const isGuest = role === 'guest'
   const visibleNav = NAV.filter(item => {
     if ((item as any).ownerOnly && role !== 'owner') return false
-    if ((item as any).ownerAdmin && (isBarber || isStudent || isGuest)) return false
-    if ((item as any).barberOnly && !isBarber) return false
-    // Student sees ONLY calendar + messages
-    if (isStudent && item.id !== 'calendar' && item.id !== 'messages') return false
-    // Guest sees ONLY calendar + clients
-    if (isGuest && item.id !== 'calendar' && item.id !== 'clients') return false
+    // For non-owner roles, check permissions
+    if (role !== 'owner') {
+      if (!hasPerm('pages', item.id)) return false
+    }
     return true
   })
   const initials = (n: string) => { const p = (n || '').split(' '); return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() }
@@ -938,9 +938,12 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
               { id: 'messages', href: '/messages', label: 'Messages', feature: 'messages' },
               { id: 'settings', href: '/settings', label: 'Settings' },
             ].filter(item => {
-              if (isStudent && item.id !== 'calendar' && item.id !== 'messages') return false
-              if (isBarber && (item.id === 'clients' || item.id === 'settings')) return false
-              if (isGuest && item.id !== 'calendar' && item.id !== 'clients') return false
+              // Permissions-based nav filtering
+              if (role !== 'owner' && item.id !== 'settings') {
+                if (!hasPerm('pages', item.id)) return false
+              }
+              // Settings only for owner
+              if (item.id === 'settings' && role !== 'owner') return false
               // Plan-based: hide items whose feature is not in current plan
               if ((item as any).feature && !planHasFeature((item as any).feature)) return false
               return true

@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { apiFetch } from '@/lib/api'
 import { getTimezoneList } from '@/lib/timezones'
 import { usePlan } from '@/components/PlanProvider'
+import { DEFAULT_PERMS, type RolePerms, type PermCategory } from '@/components/PermissionsProvider'
 import { hasPinSetup, clearPin } from '@/lib/pin'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -407,11 +408,159 @@ function BillingSection() {
   )
 }
 
+// ─── Permissions Tab ─────────────────────────────────────────────────────────
+const PERM_SECTIONS: { category: PermCategory; label: string; items: { key: string; label: string }[] }[] = [
+  { category: 'pages', label: 'Pages & Navigation', items: [
+    { key: 'dashboard', label: 'Dashboard' }, { key: 'calendar', label: 'Calendar' },
+    { key: 'history', label: 'History' }, { key: 'clients', label: 'Clients' },
+    { key: 'messages', label: 'Messages' }, { key: 'waitlist', label: 'Waitlist' },
+    { key: 'portfolio', label: 'Portfolio' }, { key: 'payments', label: 'Payments' },
+    { key: 'attendance', label: 'Attendance' }, { key: 'cash', label: 'Cash Register' },
+    { key: 'membership', label: 'Membership' }, { key: 'analytics', label: 'Analytics' },
+  ]},
+  { category: 'bookings', label: 'Bookings', items: [
+    { key: 'create', label: 'Create bookings' }, { key: 'edit', label: 'Edit bookings' },
+    { key: 'delete', label: 'Delete / cancel' }, { key: 'block_time', label: 'Block time slots' },
+    { key: 'view_all', label: 'View all barbers' },
+  ]},
+  { category: 'clients', label: 'Clients', items: [
+    { key: 'view', label: 'View clients' }, { key: 'add', label: 'Add clients' },
+    { key: 'edit', label: 'Edit client info' }, { key: 'view_phone', label: 'View phone number' },
+    { key: 'delete', label: 'Delete clients' }, { key: 'view_all', label: 'View all clients' },
+  ]},
+  { category: 'schedule', label: 'Schedule & Approvals', items: [
+    { key: 'change_own', label: 'Change own schedule' }, { key: 'change_others', label: 'Change others\' schedule' },
+    { key: 'needs_approval', label: 'Needs owner approval' },
+  ]},
+  { category: 'financial', label: 'Financial', items: [
+    { key: 'mark_paid', label: 'Mark as paid' }, { key: 'refund', label: 'Issue refund' },
+    { key: 'view_earnings', label: 'View own earnings' }, { key: 'view_all_earnings', label: 'View all earnings' },
+  ]},
+]
+
+const ROLES = [
+  { id: 'admin', label: 'Admin', color: 'rgba(130,220,170,.6)' },
+  { id: 'barber', label: 'Team Member', color: 'rgba(130,150,220,.6)' },
+  { id: 'guest', label: 'Guest', color: 'rgba(220,190,130,.6)' },
+] as const
+
+function PermissionsTab() {
+  const [perms, setPerms] = useState<Record<string, RolePerms>>(DEFAULT_PERMS)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    apiFetch('/api/settings/permissions')
+      .then((d: any) => {
+        if (d?.role_permissions) {
+          const merged: Record<string, RolePerms> = {}
+          for (const role of Object.keys(DEFAULT_PERMS)) {
+            const saved = d.role_permissions[role] || {}
+            merged[role] = {
+              pages: { ...DEFAULT_PERMS[role].pages, ...(saved.pages || {}) },
+              bookings: { ...DEFAULT_PERMS[role].bookings, ...(saved.bookings || {}) },
+              clients: { ...DEFAULT_PERMS[role].clients, ...(saved.clients || {}) },
+              schedule: { ...DEFAULT_PERMS[role].schedule, ...(saved.schedule || {}) },
+              financial: { ...DEFAULT_PERMS[role].financial, ...(saved.financial || {}) },
+            }
+          }
+          setPerms(merged)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  function toggle(role: string, category: PermCategory, key: string) {
+    setPerms(prev => {
+      const updated = { ...prev }
+      updated[role] = { ...updated[role], [category]: { ...updated[role][category], [key]: !updated[role][category][key] } }
+      // Auto-save with debounce
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      saveTimer.current = setTimeout(() => {
+        setSaving(true)
+        apiFetch('/api/settings/permissions', { method: 'POST', body: JSON.stringify({ role_permissions: updated }) })
+          .catch(() => {})
+          .finally(() => setSaving(false))
+      }, 800)
+      return updated
+    })
+  }
+
+  function resetToDefaults() {
+    if (!window.confirm('Reset all permissions to defaults?')) return
+    setPerms(DEFAULT_PERMS)
+    setSaving(true)
+    apiFetch('/api/settings/permissions', { method: 'POST', body: JSON.stringify({ role_permissions: DEFAULT_PERMS }) })
+      .catch(() => {})
+      .finally(() => setSaving(false))
+  }
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.3)' }}>Loading...</div>
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 800 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)' }}>Configure what each role can see and do</div>
+          {saving && <span style={{ fontSize: 10, color: 'rgba(130,220,170,.5)', marginTop: 4, display: 'block' }}>Saving...</span>}
+        </div>
+        <button onClick={resetToDefaults} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.35)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+          Reset to defaults
+        </button>
+      </div>
+
+      {/* Role column headers */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr repeat(3, 80px)', gap: 8, padding: '0 12px', position: 'sticky', top: 0, zIndex: 2, background: 'rgba(0,0,0,.8)', backdropFilter: 'blur(10px)', borderRadius: 10, paddingTop: 8, paddingBottom: 8 }}>
+        <div />
+        {ROLES.map(r => (
+          <div key={r.id} style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: r.color }}>{r.label}</div>
+        ))}
+      </div>
+
+      {PERM_SECTIONS.map(section => (
+        <div key={section.category} style={{ borderRadius: 16, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)', overflow: 'hidden' }}>
+          <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.12)' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.5)' }}>{section.label}</span>
+          </div>
+          {section.items.map((item, idx) => (
+            <div key={item.key} style={{ display: 'grid', gridTemplateColumns: '1fr repeat(3, 80px)', gap: 8, alignItems: 'center', padding: '8px 16px', borderBottom: idx < section.items.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none' }}>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,.6)' }}>{item.label}</span>
+              {ROLES.map(r => {
+                const checked = !!perms[r.id]?.[section.category]?.[item.key]
+                return (
+                  <div key={r.id} style={{ display: 'flex', justifyContent: 'center' }}>
+                    <button onClick={() => toggle(r.id, section.category, item.key)}
+                      style={{
+                        width: 38, height: 22, borderRadius: 999, border: 'none',
+                        background: checked ? 'rgba(130,150,220,.35)' : 'rgba(255,255,255,.08)',
+                        cursor: 'pointer', position: 'relative', transition: 'background .2s',
+                      }}>
+                      <div style={{
+                        width: 16, height: 16, borderRadius: '50%',
+                        background: checked ? '#fff' : 'rgba(255,255,255,.25)',
+                        position: 'absolute', top: 3,
+                        left: checked ? 19 : 3,
+                        transition: 'left .2s, background .2s',
+                      }} />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ─── Main Settings Page ───────────────────────────────────────────────────────
 export default function SettingsPage() {
   const { effective_plan: currentPlan } = usePlan()
   const canChangeDesign = currentPlan === 'salon' || currentPlan === 'custom'
-  const [tab, setTab] = useState<'shop'|'site'|'fees'|'booking'|'payroll'|'square'|'users'|'billing'>('shop')
+  const [tab, setTab] = useState<'shop'|'site'|'fees'|'booking'|'payroll'|'square'|'users'|'permissions'|'billing'>('shop')
   const [settings, setSettings] = useState<any>({})
   const [fees, setFees] = useState<Fee[]>([])
   const [charges, setCharges] = useState<Charge[]>([])
@@ -622,6 +771,7 @@ export default function SettingsPage() {
     { id: 'payroll', label: 'Payroll', ownerOnly: true },
     { id: 'square', label: 'Integrations', ownerOnly: false },
     { id: 'users', label: 'Accounts', ownerOnly: true },
+    { id: 'permissions', label: 'Permissions', ownerOnly: true },
     { id: 'billing', label: 'Billing', ownerOnly: true },
   ] as const
   const TABS = ALL_TABS.filter(t => !t.ownerOnly || userRole === 'owner')
@@ -1061,6 +1211,9 @@ export default function SettingsPage() {
 
             {/* ── USERS ── */}
             {tab === 'users' && <UsersTab />}
+
+            {/* ── PERMISSIONS ── */}
+            {tab === 'permissions' && <PermissionsTab />}
 
             {/* ── SITE BUILDER ── */}
             {tab === 'site' && (
