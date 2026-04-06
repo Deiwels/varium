@@ -18,10 +18,13 @@ export default function SignInPage() {
   const [pinError, setPinError] = useState('')
 
   useEffect(() => {
+    // Hide global cosmos — this page has its own .space-bg starfield
+    const cosmos = document.getElementById('vurium-cosmos')
+    if (cosmos) cosmos.style.display = 'none'
     // Hide "Back to Vurium" in native iOS app
     const isNative = (navigator as any).standalone || (window as any).webkit?.messageHandlers?.purchase
     if (isNative) { const el = document.getElementById('back-to-vurium'); if (el) el.style.display = 'none' }
-    // Parallax handled by global CosmosParallax component — no duplicate rAF needed
+    return () => { if (cosmos) cosmos.style.display = '' }
   }, [])
 
   async function handleLogin(e: React.FormEvent) {
