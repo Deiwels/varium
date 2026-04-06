@@ -423,6 +423,13 @@ const PERM_SECTIONS: { category: PermCategory; label: string; items: { key: stri
     { key: 'delete', label: 'Delete / cancel' }, { key: 'block_time', label: 'Block time slots' },
     { key: 'view_all', label: 'View all barbers' },
   ]},
+  { category: 'calendar_settings', label: 'Calendar Settings', items: [
+    { key: 'open_settings', label: 'Open settings panel' },
+    { key: 'manage_team', label: 'Add / edit team members' },
+    { key: 'manage_services', label: 'Add / edit services' },
+    { key: 'edit_schedule', label: 'Edit barber schedules' },
+    { key: 'edit_own_profile', label: 'Edit own profile' },
+  ]},
   { category: 'clients', label: 'Clients', items: [
     { key: 'view', label: 'View clients' }, { key: 'add', label: 'Add clients' },
     { key: 'edit', label: 'Edit client info' }, { key: 'view_phone', label: 'View phone number' },
