@@ -637,10 +637,11 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
 
   // Find blocking event — same barber, same day, earlier start, not resolved
   const RESOLVED = ['paid', 'done', 'cancelled', 'noshow', 'no_show', 'refunded', 'partially_refunded']
-  const evDate = ev?._raw?.start_at ? ev._raw.start_at.slice(0, 10) : ''
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const evDate = ev?._raw?.date || (ev?._raw?.start_at ? ev._raw.start_at.slice(0, 10) : '')
+  const now = new Date()
+  const localTodayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
   // Only block checkout for same-day unresolved bookings on TODAY (not past days)
-  const blockingEvent = ev && allEvents && barberId && evDate >= todayStr
+  const blockingEvent = ev && allEvents && barberId && evDate >= localTodayStr
     ? allEvents.find(e =>
         e.id !== ev.id &&
         e.barberId === barberId &&
@@ -653,8 +654,9 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
     : null
 
   const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [skipBlocking, setSkipBlocking] = useState(false)
 
-  if (blockingEvent) {
+  if (blockingEvent && !skipBlocking) {
     if (!checkoutOpen) {
       return (
         <button onClick={() => setCheckoutOpen(true)}
@@ -676,10 +678,16 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
             <br />Please resolve them first.
           </div>
         </div>
-        <button onClick={() => setCheckoutOpen(false)}
-          style={{ width: '100%', height: 32, borderRadius: 8, border: 'none', background: 'transparent', color: 'rgba(255,255,255,.35)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit', marginTop: 6 }}>
-          Hide
-        </button>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button onClick={() => setCheckoutOpen(false)}
+            style={{ flex: 1, height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.35)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+            Hide
+          </button>
+          <button onClick={() => { setSkipBlocking(true); setCheckoutOpen(false) }}
+            style={{ flex: 1, height: 32, borderRadius: 8, border: '1px solid rgba(255,207,63,.20)', background: 'rgba(255,207,63,.04)', color: 'rgba(255,207,63,.6)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'inherit' }}>
+            Charge anyway
+          </button>
+        </div>
       </div>
     )
   }
