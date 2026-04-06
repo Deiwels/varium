@@ -781,30 +781,27 @@ export default function CalendarPage() {
       lastPinchDist.current = Math.sqrt(dx*dx + dy*dy)
     }
   }
-  const onPinchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      isPinching.current = true
-      e.preventDefault() // Block scroll during pinch
-      e.stopPropagation()
-      const dx = e.touches[0].clientX - e.touches[1].clientX
-      const dy = e.touches[0].clientY - e.touches[1].clientY
-      const dist = Math.sqrt(dx*dx + dy*dy)
-      if (lastPinchDist.current > 0) {
-        const scale = dist / lastPinchDist.current
-        setSlotH(prev => Math.round(Math.max(3, Math.min(22, prev * scale))))
-      }
-      lastPinchDist.current = dist
-    }
-  }
   const onPinchEnd = () => { lastPinchDist.current = 0; isPinching.current = false }
 
-  // Attach non-passive touchmove to block scroll during pinch zoom
+  // Attach non-passive touchmove for pinch zoom (React onTouchMove is passive, can't preventDefault)
+  const slotHRef = useRef(slotH)
+  slotHRef.current = slotH
   useEffect(() => {
     const el = scrollContainerRef.current
     if (!el) return
     const handler = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         e.preventDefault()
+        isPinching.current = true
+        const dx = e.touches[0].clientX - e.touches[1].clientX
+        const dy = e.touches[0].clientY - e.touches[1].clientY
+        const dist = Math.sqrt(dx*dx + dy*dy)
+        if (lastPinchDist.current > 0) {
+          const scale = dist / lastPinchDist.current
+          const next = Math.round(Math.max(3, Math.min(22, slotHRef.current * scale)))
+          if (next !== slotHRef.current) setSlotH(next)
+        }
+        lastPinchDist.current = dist
       }
     }
     el.addEventListener('touchmove', handler, { passive: false })
