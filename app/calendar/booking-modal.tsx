@@ -638,11 +638,13 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
   // Find blocking event — same barber, same day, earlier start, not resolved
   const RESOLVED = ['paid', 'done', 'cancelled', 'noshow', 'no_show', 'refunded', 'partially_refunded']
   const evDate = ev?._raw?.start_at ? ev._raw.start_at.slice(0, 10) : ''
-  const blockingEvent = ev && allEvents && barberId
+  const todayStr = new Date().toISOString().slice(0, 10)
+  // Only block checkout for same-day unresolved bookings on TODAY (not past days)
+  const blockingEvent = ev && allEvents && barberId && evDate >= todayStr
     ? allEvents.find(e =>
         e.id !== ev.id &&
         e.barberId === barberId &&
-        e.date === evDate && // same day only
+        e.date === evDate &&
         e.startMin < (ev._raw?.start_min ?? 0) &&
         !e.paid &&
         e.paymentStatus !== 'refunded' &&
