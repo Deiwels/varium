@@ -7,16 +7,8 @@ import FeatureGate from '@/components/FeatureGate'
 import { apiFetch } from '@/lib/api'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type TopTab = 'chat' | 'requests' | 'applications'
+type TopTab = 'chat' | 'requests'
 
-interface Application {
-  id: string; type: string; role: string; name: string; phone: string; email: string
-  instagram: string; experience: string; english: string; fulltime: string
-  portfolio: string; motivation: string; status: string; created_at: string
-  license?: string; fade_level?: string; medium_hair?: string; beard?: string; barber_notes?: string
-  admin_experience?: string; pos?: string; typing?: string; multitask?: string; admin_notes?: string
-  schedule?: string; message?: string; lang?: string; notes?: string; reviewed_by?: string
-}
 
 interface Message {
   id: string
@@ -52,19 +44,17 @@ function TabIcon({ id, color }: { id: string; color: string }) {
   switch (id) {
     case 'chat': return <svg width="14" height="14" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" {...s}/></svg>
     case 'requests': return <svg width="14" height="14" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" {...s}/><path d="M9 12l2 2 4-4" {...s}/><line x1="9" y1="7" x2="15" y2="7" {...s}/><line x1="9" y1="17" x2="13" y2="17" {...s}/></svg>
-    case 'applications': return <svg width="14" height="14" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2" {...s}/><rect x="8" y="2" width="8" height="4" rx="1" {...s}/><path d="M9 14h6M9 18h4" {...s}/></svg>
     default: return null
   }
 }
 
 const TAB_COLORS: Record<string, string> = {
-  chat: 'rgba(130,150,220,.6)', requests: 'rgba(220,190,130,.5)', applications: 'rgba(220,130,160,.5)'
+  chat: 'rgba(130,150,220,.6)', requests: 'rgba(220,190,130,.5)'
 }
 
 const TABS: { id: TopTab; label: string; roles: string[] }[] = [
   { id: 'chat', label: 'Chat', roles: ['owner','admin','barber','student'] },
   { id: 'requests', label: 'Requests', roles: ['owner','admin','barber'] },
-  { id: 'applications', label: 'Applications', roles: ['owner','admin'] },
 ]
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
@@ -484,7 +474,6 @@ export default function MessagesPage() {
   const [dmPreviews, setDmPreviews] = useState<Record<string, { text: string; senderName: string; time: string; senderId?: string }>>({})
   const [messages, setMessages] = useState<Message[]>([])
   const [requests, setRequests] = useState<Request[]>([])
-  const [applications, setApplications] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -571,22 +560,12 @@ export default function MessagesPage() {
     } catch { /* ignore */ }
   }, [])
 
-  // Load applications
-  const loadApplications = useCallback(async () => {
-    try {
-      const data = await apiFetch('/api/applications')
-      setApplications(Array.isArray(data?.applications) ? data.applications : [])
-    } catch { /* ignore */ }
-  }, [])
-
   // Initial load
   useEffect(() => {
-    const hasData = messages.length > 0 || requests.length > 0 || applications.length > 0
+    const hasData = messages.length > 0 || requests.length > 0
     if (!hasData) setLoading(true)
     if (topTab === 'requests') {
       loadRequests().then(() => setLoading(false))
-    } else if (topTab === 'applications') {
-      loadApplications().then(() => setLoading(false))
     } else if (topTab === 'chat' && chatView === 'conversation' && chatTarget) {
       loadMessages().then(() => setLoading(false))
     } else {
@@ -598,9 +577,8 @@ export default function MessagesPage() {
   // Polling — only when tab is visible
   const pollMessages = useCallback(() => {
     if (topTab === 'requests') loadRequests()
-    else if (topTab === 'applications') loadApplications()
     else if (topTab === 'chat' && chatView === 'conversation' && chatTarget) loadMessages()
-  }, [topTab, chatView, chatTarget, loadMessages, loadRequests, loadApplications])
+  }, [topTab, chatView, chatTarget, loadMessages, loadRequests])
   useVisibilityPolling(pollMessages, 15000, [pollMessages])
 
   // Fix mobile keyboard pushing content
@@ -864,7 +842,7 @@ export default function MessagesPage() {
     <Shell page="Messages"><FeatureGate feature="messages" label="Messages" requiredPlan="salon">
 
       {/* Loading — inline spinner, no fullscreen overlay */}
-      {loading && messages.length === 0 && requests.length === 0 && applications.length === 0 && chatView === 'conversation' && (
+      {loading && messages.length === 0 && requests.length === 0 && chatView === 'conversation' && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(1,1,1,.8)' }}>
           <div style={{ width: 24, height: 24, border: '2px solid rgba(255,255,255,.10)', borderTop: '2px solid rgba(255,255,255,.50)', borderRadius: '50%', animation: 'msgLoadSpin .8s linear infinite' }} />
           <style>{`@keyframes msgLoadSpin { to { transform: rotate(360deg) } }`}</style>
@@ -936,70 +914,7 @@ export default function MessagesPage() {
 
         {/* ─── CONTENT ─── */}
 
-        {/* ─── Applications tab ─── */}
-        {topTab === 'applications' ? (
-          <div className="msg-list" style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
-            {loading && !messages.length && !requests.length && !applications.length && <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 40 }}><div style={{ width: 20, height: 20, border: '2px solid rgba(255,255,255,.08)', borderTop: '2px solid rgba(255,255,255,.40)', borderRadius: '50%', animation: 'msgSpin .8s linear infinite' }} /><style>{`@keyframes msgSpin{to{transform:rotate(360deg)}}`}</style></div>}
-            {!loading && applications.length === 0 && (
-              <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,.20)' }}>
-                <div style={{ marginBottom: 8 }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.15)" strokeWidth="1.5" strokeLinecap="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></div>
-                <div style={{ fontSize: 13 }}>No applications yet</div>
-              </div>
-            )}
-            {applications.map(app => {
-              const roleType = String(app.role || app.type || '').toLowerCase()
-              const isBarber = roleType.includes('barber') && !roleType.includes('academy')
-              const isAcademy = roleType.includes('academy')
-              const statusColors: Record<string,{bg:string;border:string;color:string}> = {
-                new:       { bg: 'rgba(255,255,255,.04)', border: 'rgba(255,255,255,.12)', color: 'rgba(130,150,220,.6)' },
-                reviewed:  { bg: 'rgba(255,207,63,.08)', border: 'rgba(255,207,63,.35)', color: 'rgba(220,190,130,.5)' },
-                interview: { bg: 'rgba(168,107,255,.08)', border: 'rgba(168,107,255,.35)', color: 'rgba(180,140,220,.6)' },
-                hired:     { bg: 'rgba(143,240,177,.08)', border: 'rgba(143,240,177,.35)', color: 'rgba(130,220,170,.5)' },
-                rejected:  { bg: 'rgba(255,107,107,.08)', border: 'rgba(255,107,107,.35)', color: 'rgba(220,130,160,.5)' },
-              }
-              const sc = statusColors[app.status] || statusColors.new
-              const roleBadge = isAcademy ? { bg: 'rgba(168,107,255,.12)', border: 'rgba(168,107,255,.40)', color: 'rgba(180,140,220,.6)', label: 'ACADEMY' } : isBarber ? { bg: 'rgba(255,255,255,.06)', border: 'rgba(255,255,255,.12)', color: 'rgba(130,150,220,.6)', label: 'TEAM MEMBER' } : { bg: 'rgba(143,240,177,.12)', border: 'rgba(143,240,177,.40)', color: 'rgba(130,220,170,.5)', label: 'ADMIN' }
-              return (
-                <div key={app.id} style={{ padding: '14px 16px', borderRadius: 16, border: `1px solid ${sc.border}`, background: sc.bg, marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 900, fontSize: 15 }}>{app.name}</span>
-                      <span style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: 999, border: `1px solid ${roleBadge.border}`, background: roleBadge.bg, color: roleBadge.color, fontWeight: 900 }}>{roleBadge.label}</span>
-                      <span style={{ fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: 999, border: `1px solid ${sc.border}`, color: sc.color, fontWeight: 700 }}>{app.status}</span>
-                    </div>
-                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,.30)' }}>{app.created_at?.slice(0, 10)}</span>
-                  </div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.60)', lineHeight: 1.6, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '4px 16px' }}>
-                    {app.phone && <div><b style={{ color: 'rgba(255,255,255,.40)' }}>Phone:</b> {app.phone}</div>}
-                    {app.email && <div><b style={{ color: 'rgba(255,255,255,.40)' }}>Email:</b> {app.email}</div>}
-                    {app.instagram && <div><b style={{ color: 'rgba(255,255,255,.40)' }}>IG:</b> {app.instagram}</div>}
-                    {app.experience && <div><b style={{ color: 'rgba(255,255,255,.40)' }}>Experience:</b> {app.experience}</div>}
-                    {app.english && app.english !== 'N/A' && <div><b style={{ color: 'rgba(255,255,255,.40)' }}>English:</b> {app.english}</div>}
-                    {app.fulltime && <div><b style={{ color: 'rgba(255,255,255,.40)' }}>Availability:</b> {app.fulltime}</div>}
-                    {isBarber && app.license && <div><b style={{ color: 'rgba(255,255,255,.40)' }}>License:</b> {app.license}</div>}
-                    {isBarber && app.fade_level && <div><b style={{ color: 'rgba(255,255,255,.40)' }}>Fade:</b> {app.fade_level}</div>}
-                    {isBarber && app.beard && <div><b style={{ color: 'rgba(255,255,255,.40)' }}>Beard:</b> {app.beard}</div>}
-                    {!isBarber && !isAcademy && app.admin_experience && <div><b style={{ color: 'rgba(255,255,255,.40)' }}>Clients:</b> {app.admin_experience}</div>}
-                    {!isBarber && !isAcademy && app.multitask && <div><b style={{ color: 'rgba(255,255,255,.40)' }}>Multitask:</b> {app.multitask}</div>}
-                    {isAcademy && app.schedule && <div><b style={{ color: 'rgba(255,255,255,.40)' }}>Schedule:</b> {app.schedule}</div>}
-                  </div>
-                  {(app.motivation || app.message || app.barber_notes || app.admin_notes) && (
-                    <div style={{ marginTop: 6, fontSize: 12, color: 'rgba(255,255,255,.50)', fontStyle: 'italic' }}>{app.motivation || app.message || app.barber_notes || app.admin_notes}</div>
-                  )}
-                  {isOwnerOrAdmin && app.status === 'new' && (
-                    <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-                      {['reviewed', 'interview', 'hired', 'rejected'].map(s => (
-                        <button key={s} onClick={async () => { try { await apiFetch(`/api/applications/${app.id}`, { method: 'PATCH', body: JSON.stringify({ status: s }) }); loadApplications() } catch (e: any) { alert(e.message) } }}
-                          style={{ height: 28, padding: '0 10px', borderRadius: 8, border: `1px solid ${(statusColors[s] || statusColors.new).border}`, background: (statusColors[s] || statusColors.new).bg, color: (statusColors[s] || statusColors.new).color, cursor: 'pointer', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', fontFamily: 'inherit' }}>{s}</button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-        ) : topTab === 'requests' ? (
+        {topTab === 'requests' ? (
           /* ─── Requests tab ─── */
           <div className="msg-list" style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
             {(role === 'barber') && (
@@ -1008,7 +923,7 @@ export default function MessagesPage() {
                 Requests are created automatically when you change your schedule, photo, or profile in Calendar Settings.
               </div>
             )}
-            {loading && !messages.length && !requests.length && !applications.length && <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 40 }}><div style={{ width: 20, height: 20, border: '2px solid rgba(255,255,255,.08)', borderTop: '2px solid rgba(255,255,255,.40)', borderRadius: '50%', animation: 'msgSpin .8s linear infinite' }} /><style>{`@keyframes msgSpin{to{transform:rotate(360deg)}}`}</style></div>}
+            {loading && !messages.length && !requests.length && <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 40 }}><div style={{ width: 20, height: 20, border: '2px solid rgba(255,255,255,.08)', borderTop: '2px solid rgba(255,255,255,.40)', borderRadius: '50%', animation: 'msgSpin .8s linear infinite' }} /><style>{`@keyframes msgSpin{to{transform:rotate(360deg)}}`}</style></div>}
             {!loading && requests.length === 0 && (
               <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,.20)' }}>
                 <div style={{ marginBottom: 8 }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.15)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="17" x2="13" y2="17"/></svg></div>
