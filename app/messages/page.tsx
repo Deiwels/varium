@@ -584,31 +584,48 @@ export default function MessagesPage() {
   }, [topTab, chatView, chatTarget, loadMessages, loadRequests])
   useVisibilityPolling(pollMessages, 15000, [pollMessages])
 
-  // Fix mobile keyboard pushing content
+  // Fix iOS keyboard — prevent page scroll and keep input visible
   useEffect(() => {
     const vv = window.visualViewport
     if (!vv) return
-    function onResize() {
+    let ticking = false
+    function update() {
+      ticking = false
       const container = document.querySelector('.msg-container') as HTMLElement
       if (!container) return
+      // On iOS, visualViewport shrinks when keyboard opens; offset accounts for scroll
+      const offsetTop = vv!.offsetTop || 0
       container.style.height = `${vv!.height}px`
-      window.scrollTo(0, 0)
-      document.documentElement.scrollTop = 0
-      document.body.scrollTop = 0
+      container.style.transform = `translateY(${offsetTop}px)`
     }
-    vv.addEventListener('resize', onResize)
-    vv.addEventListener('scroll', onResize)
+    function onViewportChange() {
+      if (!ticking) { ticking = true; requestAnimationFrame(update) }
+    }
+    vv.addEventListener('resize', onViewportChange)
+    vv.addEventListener('scroll', onViewportChange)
+    // Prevent iOS body scroll when keyboard opens
+    function preventScroll(e: Event) {
+      const target = e.target as HTMLElement
+      if (target?.closest?.('.msg-list')) return // allow message list scroll
+      if (target?.closest?.('.msg-tabs-scroll')) return
+      const container = document.querySelector('.msg-container')
+      if (container?.contains(target)) e.preventDefault()
+    }
+    document.addEventListener('touchmove', preventScroll, { passive: false })
     function onBlur() {
       setTimeout(() => {
-        window.scrollTo(0, 0)
-        document.documentElement.scrollTop = 0
-        document.body.scrollTop = 0
         const container = document.querySelector('.msg-container') as HTMLElement
-        if (container) container.style.height = '100%'
+        if (container) { container.style.height = '100%'; container.style.transform = 'none' }
+        window.scrollTo(0, 0)
       }, 100)
     }
     document.addEventListener('focusout', onBlur)
-    return () => { vv.removeEventListener('resize', onResize); vv.removeEventListener('scroll', onResize); document.removeEventListener('focusout', onBlur) }
+    return () => {
+      vv.removeEventListener('resize', onViewportChange)
+      vv.removeEventListener('scroll', onViewportChange)
+      document.removeEventListener('touchmove', preventScroll)
+      document.removeEventListener('focusout', onBlur)
+    }
   }, [])
 
   // Auto-scroll to bottom
@@ -856,7 +873,9 @@ export default function MessagesPage() {
         </div>
       )}
       <style>{`
-        .content { overflow: hidden !important; }
+        .content { overflow: hidden !important; position: relative !important; }
+        html, body { overflow: hidden !important; height: 100% !important; position: fixed !important; width: 100% !important; }
+        .shell { overflow: hidden !important; }
         .msg-input:focus { border-color: rgba(255,255,255,.20) !important; box-shadow: 0 0 0 3px rgba(255,255,255,.04) !important; }
         .msg-list::-webkit-scrollbar { width: 4px; }
         .msg-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 2px; }
@@ -895,7 +914,7 @@ export default function MessagesPage() {
         .chat-list-item:active { background: rgba(255,255,255,.08) !important; }
       `}</style>
 
-      <div className="msg-container" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Inter,sans-serif', color: '#e8e8ed' }}>
+      <div className="msg-container" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Inter,sans-serif', color: '#e8e8ed', willChange: 'height, transform' }}>
         {/* Top tab bar — only show when NOT in conversation view */}
         {!(topTab === 'chat' && chatView === 'conversation') && (
           <div className="msg-tabs msg-tabs-scroll" style={{ display: 'flex', gap: 6, padding: '10px 18px', borderBottom: '1px solid rgba(255,255,255,.06)', overflowX: 'auto', flexShrink: 0 }}>
@@ -1139,7 +1158,7 @@ export default function MessagesPage() {
                       }
                     }}
                     placeholder="Type a message..."
-                    style={{ flex: 1, height: 36, borderRadius: 18, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.06)', color: '#fff', padding: '0 14px', outline: 'none', fontSize: 13, fontFamily: 'inherit', transition: 'border-color .2s, box-shadow .2s' }} />
+                    style={{ flex: 1, height: 36, borderRadius: 18, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.06)', color: '#fff', padding: '0 14px', outline: 'none', fontSize: 16, fontFamily: 'inherit', transition: 'border-color .2s, box-shadow .2s' }} />
                   {hasContent ? (
                     <button onClick={sendMessage} disabled={sending}
                       className="msg-send-glow"
