@@ -435,6 +435,15 @@ export default function DashboardPage() {
       })
       setBarbers(parsedBarbers)
 
+      // Auto-add new team member widgets if user has no saved widget prefs yet
+      // (so all barbers are visible by default)
+      setDashWidgets(prev => {
+        const hasAnyTeam = prev.some(w => w.startsWith('team-'))
+        if (hasAnyTeam) return prev // user already has team widget prefs, don't touch
+        const teamIds = parsedBarbers.map((b: any) => 'team-' + b.id)
+        return [...prev, ...teamIds]
+      })
+
       // Settings
       if (data.settings) {
         if (data.settings.shopStatusMode) setShopStatus(data.settings.shopStatusMode)
@@ -692,8 +701,11 @@ export default function DashboardPage() {
         }
 
         // All available home screen items: widgets (span 2 or 4 cols) + icons (span 1)
-        type HItem = { id: string; type: 'icon' | 'widget-s' | 'widget-m'; label: string; href?: string; cols: number }
+        type HItem = { id: string; type: 'icon' | 'widget-s' | 'widget-m'; label: string; href?: string; cols: number; locked?: boolean }
+        const showClockIn = dashSettings.clock_in_enabled && role !== 'owner'
         const ALL_ITEMS: HItem[] = [
+          // Clock-in widget — non-removable, only for staff/admin when enabled
+          ...(showClockIn ? [{ id: 'w_clockin', type: 'widget-m' as const, label: 'Clock In', cols: 4, locked: true }] : []),
           // Widgets — small (2 cols), medium (4 cols)
           { id: 'w_clock', type: 'widget-s', label: 'Clock', cols: 2 },
           { id: 'w_earnings', type: 'widget-s', label: 'Earnings', cols: 2 },
@@ -715,16 +727,47 @@ export default function DashboardPage() {
         ]
 
         // Determine active layout
+        const lockedIds = ALL_ITEMS.filter(i => i.locked).map(i => i.id)
         const defaultOrder = ['w_clock', 'w_earnings', 'w_schedule', 'w_revenue', 'w_newclients', 'w_expenses', 'w_visits', ...actions.map(a => `i_${a.label}`)]
-        const layout = homeLayout.length > 0 ? homeLayout.filter(id => ALL_ITEMS.some(i => i.id === id)) : defaultOrder
+        const userLayout = homeLayout.length > 0 ? homeLayout.filter(id => ALL_ITEMS.some(i => i.id === id)) : defaultOrder
+        // Inject locked items at the top (they can't be removed by user)
+        const layout = [...lockedIds.filter(id => !userLayout.includes(id)), ...userLayout]
         const activeItems = layout.map(id => ALL_ITEMS.find(i => i.id === id)!).filter(Boolean)
-        const hiddenItems = ALL_ITEMS.filter(i => !layout.includes(i.id))
+        const hiddenItems = ALL_ITEMS.filter(i => !i.locked && !layout.includes(i.id))
 
         // Render widget content
         const renderWidget = (item: HItem) => {
           const ws = { borderRadius: 16, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)', padding: '12px 12px 10px', minHeight: 76 } as React.CSSProperties
           const wl: React.CSSProperties = { fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }
           switch (item.id) {
+            case 'w_clockin': {
+              const cBorder = clockSuccess === 'in' ? 'rgba(143,240,177,.50)' : clockedIn ? 'rgba(143,240,177,.25)' : 'rgba(255,255,255,.10)'
+              const cBg = clockSuccess === 'in' ? 'linear-gradient(180deg,rgba(143,240,177,.14),rgba(143,240,177,.04))' : clockedIn ? 'linear-gradient(180deg,rgba(143,240,177,.06),rgba(143,240,177,.01))' : ws.background
+              return (
+                <div onClick={e => { if (jiggleMode) return; e.stopPropagation(); handleClockAction() }} style={{...ws, border: `1px solid ${cBorder}`, background: cBg, display: 'flex', alignItems: 'center', gap: 12, cursor: clockLoading ? 'wait' : 'pointer', opacity: clockLoading ? .7 : 1, transition: 'all .3s', minHeight: 56, padding: '10px 14px' }}>
+                  {clockSuccess === 'in' ? (
+                    <svg width="28" height="28" viewBox="0 0 60 60">
+                      <circle cx="30" cy="30" r="24" fill="none" stroke="rgba(143,240,177,.70)" strokeWidth="2.5" strokeDasharray="160" strokeDashoffset="160" strokeLinecap="round" style={{ animation: 'clockRingDraw .5s ease-out .1s forwards' }} />
+                      <polyline points="20,32 27,39 40,24" fill="none" stroke="rgba(130,220,170,.8)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="32" strokeDashoffset="32" style={{ animation: 'clockCheckDraw .3s ease-out .35s forwards' }} />
+                    </svg>
+                  ) : (
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: clockedIn ? 'rgba(143,240,177,.12)' : 'rgba(255,255,255,.06)', border: `1px solid ${clockedIn ? 'rgba(143,240,177,.30)' : 'rgba(255,255,255,.12)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={clockedIn ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.45)'} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {clockedIn && !clockSuccess && <span style={{ width: 6, height: 6, borderRadius: 999, background: 'rgba(130,220,170,.8)', display: 'inline-block', animation: 'clockDot 2s ease-in-out infinite' }} />}
+                      <span style={{ fontWeight: 700, fontSize: 12, color: clockSuccess === 'in' ? 'rgba(130,220,170,.8)' : clockedIn ? 'rgba(130,220,170,.5)' : 'rgba(255,255,255,.70)' }}>
+                        {clockLoading ? 'Locating…' : clockSuccess === 'in' ? 'Clocked in!' : clockedIn ? `Clocked in · ${elapsedStr || fmtMins(todayMinutes)}` : 'Tap to clock in'}
+                      </span>
+                    </div>
+                    {clockedIn && <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 1 }}>Today: {fmtMins(todayMinutes)} · tap to clock out</div>}
+                    {clockError && <div style={{ fontSize: 10, color: '#ff6b6b', marginTop: 2 }}>{clockError}</div>}
+                  </div>
+                </div>
+              )
+            }
             case 'w_clock': return <div style={{...ws, display: 'flex', alignItems: 'center', justifyContent: 'center'}}><ClockWidget /></div>
             case 'w_earnings': return <div style={ws}><div style={wl}>Earnings</div><div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(130,220,170,.8)' }}>{money(widgetData.todaysEarnings || 0)}</div><div style={{ fontSize: 9, color: 'rgba(255,255,255,.3)', marginTop: 3 }}>{total} bookings</div></div>
             case 'w_schedule': {
@@ -891,8 +934,8 @@ export default function DashboardPage() {
                           const isWidget = c.item.type !== 'icon'
                           return (
                             <div key={c.item.id} className={jiggleMode ? (c.item.type === 'icon' ? 'edit-glow-icon' : 'edit-glow') : ''} style={{ gridColumn: `span ${c.item.cols}`, width: '100%', position: 'relative' }}>
-                              {/* Remove button in jiggle mode */}
-                              {jiggleMode && (
+                              {/* Remove button in jiggle mode — not shown for locked items */}
+                              {jiggleMode && !c.item.locked && (
                                 <button onClick={e => { e.stopPropagation(); e.preventDefault(); removeItem(c.item.id) }} style={{ position: 'absolute', top: -6, left: isWidget ? -4 : 6, zIndex: 10, width: 20, height: 20, borderRadius: 999, background: 'rgba(60,60,60,.95)', border: '1px solid rgba(255,255,255,.15)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>−</button>
                               )}
                               {isWidget ? renderWidget(c.item) : (
@@ -1050,92 +1093,6 @@ export default function DashboardPage() {
             .dash-container { padding: 12px 10px 40px !important; }
           }
         `}</style>
-        {/* Clock in/out — shown only for admin/barber when clock_in_enabled */}
-        {dashSettings.clock_in_enabled && role !== 'owner' && (
-        <div className="clock-section">
-        {clockOutSummary && !clockedIn ? (
-          <div className={clockSuccess === 'out' ? 'clock-out-success-card' : ''} style={{ borderRadius: 18, border: '1px solid rgba(143,240,177,.20)', background: 'linear-gradient(180deg,rgba(143,240,177,.06),rgba(0,0,0,.30))', boxShadow: '0 10px 40px rgba(0,0,0,.35)', padding: '18px 16px', marginBottom: 14 }}>
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(143,240,177,.10)', border: '1px solid rgba(143,240,177,.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(130,220,170,.8)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </div>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: 14, color: 'rgba(130,220,170,.5)' }}>Clocked out</div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', marginTop: 1 }}>{clockOutSummary.hours} <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.40)' }}>today</span></div>
-              </div>
-            </div>
-            {/* Stats grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <div className="clock-summary-item" style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)' }}>
-                <div style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>Earnings</div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: 'rgba(130,220,170,.8)' }}>{clockOutSummary.earnings}</div>
-              </div>
-              <div className="clock-summary-item" style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)' }}>
-                <div style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>Tips</div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: 'rgba(220,190,100,.8)' }}>{clockOutSummary.tips}</div>
-              </div>
-              <div className="clock-summary-item" style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)' }}>
-                <div style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>Services</div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: 'rgba(255,255,255,.6)' }}>{clockOutSummary.services}</div>
-              </div>
-              <div className="clock-summary-item" style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.06)' }}>
-                <div style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 4 }}>Clients</div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: '#fff' }}>{clockOutSummary.clients}</div>
-              </div>
-            </div>
-          </div>
-        ) : (
-        <div className={clockSuccess === 'in' ? 'clock-success-card' : ''} style={{ borderRadius: 18, border: `1px solid ${clockSuccess === 'in' ? 'rgba(143,240,177,.50)' : clockedIn ? 'rgba(143,240,177,.25)' : 'rgba(255,255,255,.10)'}`, background: clockSuccess === 'in' ? 'linear-gradient(180deg,rgba(143,240,177,.14),rgba(143,240,177,.04))' : clockedIn ? 'linear-gradient(180deg,rgba(143,240,177,.06),rgba(143,240,177,.01))' : 'linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02))', boxShadow: '0 10px 40px rgba(0,0,0,.35)', padding: '14px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', transition: 'border-color .4s, background .4s' }}>
-          {/* Status icon / Success checkmark */}
-          {clockSuccess === 'in' ? (
-            <div style={{ width: 44, height: 44, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="32" height="32" viewBox="0 0 60 60">
-                <circle cx="30" cy="30" r="24" fill="none" stroke="rgba(143,240,177,.70)" strokeWidth="2.5" strokeDasharray="160" strokeDashoffset="160" strokeLinecap="round" style={{ animation: 'clockRingDraw .5s ease-out .1s forwards' }} />
-                <polyline points="20,32 27,39 40,24" fill="none" stroke="rgba(130,220,170,.8)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="32" strokeDashoffset="32" style={{ animation: 'clockCheckDraw .3s ease-out .35s forwards' }} />
-              </svg>
-            </div>
-          ) : (
-            <div style={{ width: 44, height: 44, borderRadius: 14, background: clockedIn ? 'rgba(143,240,177,.12)' : 'rgba(255,255,255,.06)', border: `1px solid ${clockedIn ? 'rgba(143,240,177,.30)' : 'rgba(255,255,255,.12)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .4s' }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={clockedIn ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.45)'} strokeWidth="2" strokeLinecap="round">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
-            </div>
-          )}
-          {/* Text */}
-          <div style={{ flex: 1, minWidth: 120 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {clockedIn && !clockSuccess && <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(130,220,170,.8)', display: 'inline-block', animation: 'clockDot 2s ease-in-out infinite' }} />}
-              <span style={{ fontWeight: 800, fontSize: 14, color: clockSuccess === 'in' ? 'rgba(130,220,170,.8)' : clockedIn ? 'rgba(130,220,170,.5)' : 'rgba(255,255,255,.70)', transition: 'color .3s' }}>
-                {clockSuccess === 'in' ? 'Clocked in!' : clockedIn ? `Clocked in since ${clockInSince}` : 'Not clocked in'}
-              </span>
-            </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginTop: 2 }}>
-              Today: {fmtMins(todayMinutes)}
-            </div>
-            {clockError && <div style={{ fontSize: 11, color: '#ff6b6b', marginTop: 4 }}>{clockError}</div>}
-          </div>
-          {/* Button */}
-          {!clockSuccess && (
-            <button onClick={handleClockAction} disabled={clockLoading} className="clock-btn-morph"
-              style={{
-                height: 44, padding: '0 22px', borderRadius: 999, cursor: clockLoading ? 'wait' : 'pointer',
-                fontWeight: 900, fontSize: 13, fontFamily: 'inherit', letterSpacing: '.04em', textTransform: 'uppercase',
-                border: `1px solid ${clockedIn ? 'rgba(255,107,107,.45)' : 'rgba(143,240,177,.45)'}`,
-                background: clockedIn ? 'rgba(255,107,107,.12)' : 'rgba(143,240,177,.12)',
-                color: clockedIn ? 'rgba(220,130,160,.5)' : 'rgba(130,220,170,.5)',
-                opacity: clockLoading ? .5 : 1,
-                animation: !clockLoading && !clockedIn ? 'clockPulse 2.6s ease-in-out infinite' : 'none',
-                flexShrink: 0,
-              }}>
-              {clockLoading ? 'Locating…' : clockedIn ? 'Clock Out' : 'Clock In'}
-            </button>
-          )}
-        </div>
-        )}
-
-        </div>
-        )}
 
         {/* Radar error overlay */}
         {clockErrorAnim && (
@@ -1433,8 +1390,8 @@ export default function DashboardPage() {
           })}
 
 
-          {/* ── Team member widgets (in widget section) ── */}
-          {isOwnerOrAdmin && barbers.map((b: any) => {
+          {/* ── Team member widgets (toggleable) ── */}
+          {isOwnerOrAdmin && barbers.filter((b: any) => dashWidgets.includes('team-' + b.id)).map((b: any) => {
             const sched = b.schedule
             const workDays: number[] = Array.isArray(sched?.days) ? sched.days : [1,2,3,4,5,6]
             const fmtM = (m: number) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
@@ -1442,6 +1399,9 @@ export default function DashboardPage() {
             const em = sched?.endMin ?? 1200
             return (
               <div key={'team-'+b.id} {...longPress} style={{ ...wBox, width: 190, textAlign: 'center' as const }}>
+                {editingWidgets && (
+                  <button onClick={() => toggleWidget('team-' + b.id)} style={{ position: 'absolute', top: -4, right: -4, width: 20, height: 20, borderRadius: 999, background: 'rgba(255,107,107,.8)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>−</button>
+                )}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 6 }}>
                   {b.photo_url
                     ? <img src={b.photo_url} alt={b.name} style={{ width: 24, height: 24, borderRadius: 7, objectFit: 'cover', border: '1px solid rgba(255,255,255,.08)' }} onError={(e: any) => (e.currentTarget.style.display='none')} />
@@ -1461,7 +1421,7 @@ export default function DashboardPage() {
 
           {/* Available widgets in edit mode */}
           {editingWidgets && (() => {
-            const ALL_WIDGETS = [
+            const ALL_WIDGETS: { id: string; label: string }[] = [
               { id: 'clock', label: 'Clock' },
               { id: 'todays-earnings', label: 'Earnings' },
               { id: 'weekly-chart', label: 'Revenue' },
@@ -1473,6 +1433,8 @@ export default function DashboardPage() {
               { id: 'expenses-month', label: 'Expenses' },
               { id: 'mini-calendar', label: 'Schedule' },
               { id: 'site-analytics', label: 'Site Visits' },
+              // Team member widgets
+              ...(isOwnerOrAdmin ? barbers.map((b: any) => ({ id: 'team-' + b.id, label: b.name })) : []),
             ]
             const available = ALL_WIDGETS.filter(w => !dashWidgets.includes(w.id))
             return available.map(w => (
