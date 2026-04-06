@@ -259,6 +259,7 @@ export default function DashboardPage() {
   const [dashWidgets, setDashWidgets] = useState<string[]>(['clock', 'todays-earnings', 'mini-calendar', 'weekly-chart', 'new-clients', 'expenses-month', 'site-analytics'])
   const [editingWidgets, setEditingWidgets] = useState(false)
   const widgetSettingsLoaded = useRef(false) // true once API settings have been applied
+  const myEarningsInjected = useRef(false)
   const [widgetData, setWidgetData] = useState<Record<string, any>>({})
   const [widgetLoading, setWidgetLoading] = useState(true)
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -275,6 +276,19 @@ export default function DashboardPage() {
     }).catch(() => {})
     apiFetch('/api/account/limits').then(d => { if (d?.slug) setSlug(d.slug) }).catch(() => {})
   }, [])
+
+  // Auto-add my-earnings widget for barbers (once)
+  useEffect(() => {
+    if (isBarber && !myEarningsInjected.current && !dashWidgets.includes('my-earnings')) {
+      myEarningsInjected.current = true
+      setDashWidgets(prev => {
+        if (prev.includes('my-earnings')) return prev
+        const next = ['my-earnings', ...prev]
+        apiFetch('/api/settings', { method: 'POST', body: JSON.stringify({ dash_widgets: next }) }).catch(() => {})
+        return next
+      })
+    }
+  }, [isBarber, dashWidgets])
 
   // Load widget-specific data
   useEffect(() => {
@@ -1152,47 +1166,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Barber: earnings breakdown — right after clock in/out */}
-        {isBarber ? (
-              <div style={{ borderRadius: 18, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.025)', padding: 14, marginBottom: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.60)' }}>My earnings</div>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {(['today', 'week', 'month'] as EarningsPeriod[]).map(p => (
-                      <button key={p} onClick={() => { setEarningsPeriod(p); setEarningsOffset(0) }} style={{
-                        height: 24, padding: '0 8px', borderRadius: 6, border: `1px solid ${earningsPeriod === p ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.10)'}`,
-                        background: earningsPeriod === p ? 'rgba(255,255,255,.06)' : 'transparent',
-                        color: earningsPeriod === p ? 'rgba(130,150,220,.6)' : 'rgba(255,255,255,.35)', fontSize: 9, fontWeight: 700,
-                        cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '.06em', textTransform: 'uppercase',
-                      }}>{p === 'today' ? 'Day' : p === 'week' ? 'Week' : 'Month'}</button>
-                    ))}
-                  </div>
-                </div>
-                {/* Period navigation */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 10 }}>
-                  <button onClick={() => setEarningsOffset(o => o - 1)} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.50)', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&lsaquo;</button>
-                  <div style={{ fontSize: 12, color: earningsOffset === 0 ? 'rgba(255,255,255,.60)' : 'rgba(130,150,220,.6)', fontWeight: 600, minWidth: 120, textAlign: 'center' }}>
-                    {getDateRange(earningsPeriod, earningsOffset).label}
-                  </div>
-                  <button onClick={() => setEarningsOffset(o => Math.min(0, o + 1))} disabled={earningsOffset >= 0} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: earningsOffset >= 0 ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.50)', cursor: earningsOffset >= 0 ? 'not-allowed' : 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&rsaquo;</button>
-                </div>
-                {loading && !myPayroll ? <div style={{ color: 'rgba(255,255,255,.35)', fontSize: 12 }}>Loading…</div> : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {[
-                      { label: 'Services', value: money(myPayroll?.barber_service_share || 0), color: 'rgba(255,255,255,.6)' },
-                      { label: 'Tips', value: money(barberTips), color: 'rgba(130,220,170,.8)' },
-                      { label: 'Total payout', value: money(barberEarnings), color: '#fff', big: true },
-                    ].map(row => (
-                      <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: row.big ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.14)', borderColor: row.big ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.08)' }}>
-                        <span style={{ fontSize: 12, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,.55)' }}>{row.label}</span>
-                        <span style={{ fontWeight: 900, fontSize: row.big ? 18 : 14, color: row.color }}>{row.value}</span>
-                      </div>
-                    ))}
-                    {!myPayroll && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.30)', marginTop: 4 }}>Updates every 2 minutes</div>}
-                  </div>
-                )}
-          </div>
-        ) : null}
+        {/* Barber earnings now rendered as a widget inside the grid below */}
 
         {/* ── ALL WIDGETS + SHORTCUTS + TEAM — single centered flex grid ── */}
         {(() => {
@@ -1229,6 +1203,48 @@ export default function DashboardPage() {
                   <div style={wTitle}>Earnings</div>
                   <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(130,220,170,.8)', letterSpacing: '-.02em' }}>{widgetLoading ? '—' : money(widgetData.todaysEarnings || 0)}</div>
                   <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>{total} bookings · {paid} paid</div>
+                </div>
+              )
+            }
+            if (wId === 'my-earnings' && isBarber) {
+              const periodLabel = earningsPeriod === 'today' ? 'Day' : earningsPeriod === 'week' ? 'Week' : 'Month'
+              return (
+                <div key={wId} {...longPress} style={{ ...wBox, width: 350 }}>
+                  {removeBtn}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={wTitle}>My Earnings</div>
+                    <div style={{ display: 'flex', gap: 3 }}>
+                      {(['today', 'week', 'month'] as EarningsPeriod[]).map(p => (
+                        <button key={p} onClick={() => { setEarningsPeriod(p); setEarningsOffset(0) }} style={{
+                          height: 20, padding: '0 6px', borderRadius: 5, border: `1px solid ${earningsPeriod === p ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.06)'}`,
+                          background: earningsPeriod === p ? 'rgba(255,255,255,.06)' : 'transparent',
+                          color: earningsPeriod === p ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.25)', fontSize: 8, fontWeight: 600,
+                          cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '.06em', textTransform: 'uppercase',
+                        }}>{p === 'today' ? 'Day' : p === 'week' ? 'Week' : 'Mo'}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 6 }}>
+                    <button onClick={() => setEarningsOffset(o => o - 1)} style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.4)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&lsaquo;</button>
+                    <div style={{ fontSize: 10, color: earningsOffset === 0 ? 'rgba(255,255,255,.5)' : 'rgba(130,150,220,.6)', fontWeight: 600, minWidth: 80, textAlign: 'center' }}>
+                      {getDateRange(earningsPeriod, earningsOffset).label}
+                    </div>
+                    <button onClick={() => setEarningsOffset(o => Math.min(0, o + 1))} disabled={earningsOffset >= 0} style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: earningsOffset >= 0 ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.4)', cursor: earningsOffset >= 0 ? 'not-allowed' : 'pointer', fontSize: 12, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&rsaquo;</button>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ flex: 1, padding: '8px 10px', borderRadius: 10, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.12)' }}>
+                      <div style={{ fontSize: 7, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 3 }}>Services</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,.6)' }}>{money(myPayroll?.barber_service_share || 0)}</div>
+                    </div>
+                    <div style={{ flex: 1, padding: '8px 10px', borderRadius: 10, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.12)' }}>
+                      <div style={{ fontSize: 7, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 3 }}>Tips</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: 'rgba(130,220,170,.8)' }}>{money(barberTips)}</div>
+                    </div>
+                    <div style={{ flex: 1, padding: '8px 10px', borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.03)' }}>
+                      <div style={{ fontSize: 7, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)', marginBottom: 3 }}>Total</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{money(barberEarnings)}</div>
+                    </div>
+                  </div>
                 </div>
               )
             }
@@ -1423,6 +1439,7 @@ export default function DashboardPage() {
             const ALL_WIDGETS: { id: string; label: string }[] = [
               { id: 'clock', label: 'Clock' },
               { id: 'todays-earnings', label: 'Earnings' },
+              ...(isBarber ? [{ id: 'my-earnings', label: 'My Earnings' }] : []),
               { id: 'weekly-chart', label: 'Revenue' },
               { id: 'new-clients', label: 'New Clients' },
               { id: 'quick-book', label: 'Quick Book' },
