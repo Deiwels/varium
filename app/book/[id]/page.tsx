@@ -198,67 +198,57 @@ export default function PublicBookingPage() {
   const [paymentLoading, setPaymentLoading] = useState(false)
   const [paymentBookingId, setPaymentBookingId] = useState('')
 
-  // Parallax stars — targets both global (#v-stars-*) and page-level (.stars-*) stars
+  // Parallax stars — idle/visibility optimized
   useEffect(() => {
-    const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window
+    // Hide global cosmos when page has own .space-bg to avoid double rendering
+    const cosmos = document.getElementById('vurium-cosmos')
+    if (cosmos) cosmos.style.display = 'none'
 
+    const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window
     let tx = 0, ty = 0, cx = 0, cy = 0
-    let raf: number
+    let raf = 0, running = false
+    let idleTimer: ReturnType<typeof setTimeout> | null = null
+
+    // Cache DOM refs once
+    const pf = document.querySelector('.stars-far') as HTMLElement
+    const pm = document.querySelector('.stars-mid') as HTMLElement
+    const pn = document.querySelector('.stars-near') as HTMLElement
 
     function tick() {
-      cx += (tx - cx) * 0.02
-      cy += (ty - cy) * 0.02
-
-      // Global stars from layout (Vurium template uses these)
-      const gf = document.getElementById('v-stars-far')
-      const gm = document.getElementById('v-stars-mid')
-      const gn = document.getElementById('v-stars-near')
-      if (gf) gf.style.transform = `translate(${cx * 8}px, ${cy * 8}px)`
-      if (gm) gm.style.transform = `translate(${cx * 20}px, ${cy * 20}px)`
-      if (gn) gn.style.transform = `translate(${cx * 35}px, ${cy * 35}px)`
-
-      // Page-level stars (bold/dark-luxury templates)
-      const pf = document.querySelector('.stars-far') as HTMLElement
-      const pm = document.querySelector('.stars-mid') as HTMLElement
-      const pn = document.querySelector('.stars-near') as HTMLElement
+      if (!running) return
+      cx += (tx - cx) * 0.02; cy += (ty - cy) * 0.02
+      if (Math.abs(tx - cx) < 0.001 && Math.abs(ty - cy) < 0.001) { running = false; return }
       if (pf) pf.style.transform = `translate(${cx * 8}px, ${cy * 8}px)`
       if (pm) pm.style.transform = `translate(${cx * 20}px, ${cy * 20}px)`
       if (pn) pn.style.transform = `translate(${cx * 35}px, ${cy * 35}px)`
-
       raf = requestAnimationFrame(tick)
     }
+    function startLoop() { if (!running) { running = true; raf = requestAnimationFrame(tick) } }
+    function onVisibility() { if (document.hidden) { running = false; cancelAnimationFrame(raf) } }
+    document.addEventListener('visibilitychange', onVisibility)
 
     if (isMobile) {
       function onOrientation(e: DeviceOrientationEvent) {
         const gamma = Math.max(-15, Math.min(15, e.gamma || 0))
         const beta  = Math.max(-15, Math.min(15, (e.beta || 0) - 45))
-        tx = gamma / 15 * 4
-        ty = beta  / 15 * 4
+        tx = gamma / 15 * 4; ty = beta / 15 * 4; startLoop()
       }
       const doe = DeviceOrientationEvent as any
       if (typeof doe.requestPermission === 'function') {
-        function reqGyro() {
-          doe.requestPermission().then((s: string) => {
-            if (s === 'granted') window.addEventListener('deviceorientation', onOrientation, { passive: true })
-          }).catch(() => {})
-          document.removeEventListener('click', reqGyro)
-        }
+        function reqGyro() { doe.requestPermission().then((s: string) => { if (s === 'granted') window.addEventListener('deviceorientation', onOrientation, { passive: true }) }).catch(() => {}); document.removeEventListener('click', reqGyro) }
         document.addEventListener('click', reqGyro, { once: true })
-      } else {
-        window.addEventListener('deviceorientation', onOrientation, { passive: true })
-      }
-      raf = requestAnimationFrame(tick)
-      return () => { window.removeEventListener('deviceorientation', onOrientation); cancelAnimationFrame(raf) }
+      } else { window.addEventListener('deviceorientation', onOrientation, { passive: true }) }
+      return () => { window.removeEventListener('deviceorientation', onOrientation); document.removeEventListener('visibilitychange', onVisibility); cancelAnimationFrame(raf); if (cosmos) cosmos.style.display = '' }
     }
 
     function onMouse(e: MouseEvent) {
-      tx = (e.clientX / window.innerWidth - 0.5) * 2
-      ty = (e.clientY / window.innerHeight - 0.5) * 2
+      tx = (e.clientX / window.innerWidth - 0.5) * 2; ty = (e.clientY / window.innerHeight - 0.5) * 2
+      startLoop()
+      if (idleTimer) clearTimeout(idleTimer)
+      idleTimer = setTimeout(() => { running = false }, 2000)
     }
-
     window.addEventListener('mousemove', onMouse, { passive: true })
-    raf = requestAnimationFrame(tick)
-    return () => { window.removeEventListener('mousemove', onMouse); cancelAnimationFrame(raf) }
+    return () => { window.removeEventListener('mousemove', onMouse); document.removeEventListener('visibilitychange', onVisibility); cancelAnimationFrame(raf); if (idleTimer) clearTimeout(idleTimer); if (cosmos) cosmos.style.display = '' }
   }, [])
 
   const isSolo = barbers.length <= 1
