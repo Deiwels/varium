@@ -4855,6 +4855,67 @@ app.get('/api/analytics/summary', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
+// ANALYTICS DETAILED — extended analytics for full page
+app.get('/api/analytics/detailed', async (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days) || 30, 90);
+    const now = new Date();
+    const from = new Date(now); from.setDate(from.getDate() - (days - 1));
+    const fromStr = from.toISOString().slice(0, 10);
+    const snap = await req.ws('analytics').where('date', '>=', fromStr).orderBy('date').get();
+    const docs = snap.docs.map(d => d.data());
+
+    const total = docs.length;
+
+    // By source
+    const bySource = {};
+    docs.forEach(d => { const s = d.source || 'direct'; bySource[s] = (bySource[s] || 0) + 1; });
+
+    // By day
+    const byDay = {};
+    for (let i = 0; i < days; i++) {
+      const dd = new Date(now); dd.setDate(dd.getDate() - (days - 1) + i);
+      byDay[dd.toISOString().slice(0, 10)] = 0;
+    }
+    docs.forEach(d => { if (byDay[d.date] !== undefined) byDay[d.date]++; });
+
+    // By hour (from created_at timestamps)
+    const byHour = {};
+    for (let h = 0; h < 24; h++) byHour[h] = 0;
+    docs.forEach(d => {
+      if (d.created_at) {
+        try { const h = new Date(d.created_at).getHours(); byHour[h]++; } catch {}
+      }
+    });
+
+    // By referrer domain
+    const byReferrer = {};
+    docs.forEach(d => {
+      if (d.referrer) {
+        try {
+          const host = new URL(d.referrer).hostname.replace(/^www\./, '');
+          byReferrer[host] = (byReferrer[host] || 0) + 1;
+        } catch { byReferrer[d.referrer.slice(0, 60)] = (byReferrer[d.referrer.slice(0, 60)] || 0) + 1; }
+      }
+    });
+
+    // Week-over-week comparison
+    const midpoint = new Date(now); midpoint.setDate(midpoint.getDate() - Math.floor(days / 2));
+    const midStr = midpoint.toISOString().slice(0, 10);
+    let periodA = 0, periodB = 0;
+    docs.forEach(d => { if (d.date < midStr) periodA++; else periodB++; });
+
+    res.json({
+      total, days,
+      by_source: bySource,
+      by_day: Object.entries(byDay).map(([day, count]) => ({ day, count })),
+      by_hour: Object.entries(byHour).map(([hour, count]) => ({ hour: parseInt(hour), count })),
+      by_referrer: byReferrer,
+      trend: { previous: periodA, current: periodB },
+    });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
 // ============================================================
 // BACKGROUND JOBS (multi-tenant)
 // ============================================================

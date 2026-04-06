@@ -1381,9 +1381,12 @@ export default function DashboardPage() {
               const days = a.by_day || []
               const maxD = Math.max(...days.map((d: any) => d.count), 1)
               return (
-                <div key={wId} {...longPress} style={{ ...wBox, width: 350 }}>
+                <div key={wId} {...longPress} onClick={() => { if (!editingWidgets) window.location.href = '/analytics' }} style={{ ...wBox, width: 350, cursor: editingWidgets ? 'default' : 'pointer' }}>
                   {removeBtn}
-                  <div style={wTitle}>Site Visits</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={wTitle}>Site Visits</div>
+                    {!editingWidgets && <span style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: -2 }}>→</span>}
+                  </div>
                   <div style={{ fontSize: 22, fontWeight: 600, color: '#e8e8ed', marginBottom: 8 }}>{a.total}</div>
                   {/* Sources */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 8 }}>
