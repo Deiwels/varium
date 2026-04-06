@@ -1804,7 +1804,7 @@ app.post('/auth/login', async (req, res) => {
       ok: true,
       token,
       user: {
-        id: userDoc.id, username: user.username, name: user.name,
+        id: userDoc.id, uid: userDoc.id, username: user.username, name: user.name,
         role: user.role, workspace_id, barber_id: user.barber_id || null,
         permissions: PERMISSIONS[user.role] || {},
       },
@@ -3167,6 +3167,27 @@ app.get('/api/messages/dm-previews', requirePlanFeature('messages'), async (req,
       };
     }
     res.json(previews);
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Fix broken DM chatTypes where uid was empty (dm__recipientId -> dm_senderId_recipientId)
+app.post('/api/messages/fix-dm', requireRole('owner'), async (req, res) => {
+  try {
+    const snap = await req.ws('messages').where('chatType', '>=', 'dm__').where('chatType', '<=', 'dm__\uf8ff').get();
+    let fixed = 0;
+    for (const d of snap.docs) {
+      const data = d.data();
+      const senderId = data.sender_id;
+      if (!senderId) continue;
+      // chatType is dm__recipientId — extract recipientId
+      const recipientId = data.chatType.replace('dm__', '');
+      if (!recipientId) continue;
+      // Build correct chatType with sorted IDs
+      const correctChatType = 'dm_' + [senderId, recipientId].sort().join('_');
+      await d.ref.update({ chatType: correctChatType });
+      fixed++;
+    }
+    res.json({ ok: true, fixed, total: snap.size });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
