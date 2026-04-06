@@ -711,7 +711,7 @@ export default function DashboardPage() {
         const showClockIn = dashSettings.clock_in_enabled && role !== 'owner'
         const ALL_ITEMS: HItem[] = [
           // Clock-in widget — non-removable, only for staff/admin when enabled
-          ...(showClockIn ? [{ id: 'w_clockin', type: 'widget-m' as const, label: 'Clock In', cols: 4, locked: true }] : []),
+          ...(showClockIn ? [{ id: 'w_clockin', type: 'widget-s' as const, label: 'Clock In', cols: 2, locked: true }] : []),
           // Widgets — small (2 cols), medium (4 cols)
           { id: 'w_clock', type: 'widget-s', label: 'Clock', cols: 2 },
           { id: 'w_earnings', type: 'widget-s', label: 'Earnings', cols: 2 },
@@ -747,30 +747,20 @@ export default function DashboardPage() {
           const wl: React.CSSProperties = { fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }
           switch (item.id) {
             case 'w_clockin': {
-              const cBorder = clockSuccess === 'in' ? 'rgba(143,240,177,.50)' : clockedIn ? 'rgba(143,240,177,.25)' : 'rgba(255,255,255,.10)'
-              const cBg = clockSuccess === 'in' ? 'linear-gradient(180deg,rgba(143,240,177,.14),rgba(143,240,177,.04))' : clockedIn ? 'linear-gradient(180deg,rgba(143,240,177,.06),rgba(143,240,177,.01))' : ws.background
+              const cBorder = clockedIn ? 'rgba(143,240,177,.25)' : 'rgba(255,255,255,.06)'
+              const cBg = clockedIn ? 'linear-gradient(180deg,rgba(143,240,177,.08),rgba(143,240,177,.02))' : ws.background
+              const statusColor = clockedIn ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.45)'
               return (
-                <div onClick={e => { if (jiggleMode) return; e.stopPropagation(); handleClockAction() }} style={{...ws, border: `1px solid ${cBorder}`, background: cBg, display: 'flex', alignItems: 'center', gap: 12, cursor: clockLoading ? 'wait' : 'pointer', opacity: clockLoading ? .7 : 1, transition: 'all .3s', minHeight: 56, padding: '10px 14px' }}>
-                  {clockSuccess === 'in' ? (
-                    <svg width="28" height="28" viewBox="0 0 60 60">
-                      <circle cx="30" cy="30" r="24" fill="none" stroke="rgba(143,240,177,.70)" strokeWidth="2.5" strokeDasharray="160" strokeDashoffset="160" strokeLinecap="round" style={{ animation: 'clockRingDraw .5s ease-out .1s forwards' }} />
-                      <polyline points="20,32 27,39 40,24" fill="none" stroke="rgba(130,220,170,.8)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="32" strokeDashoffset="32" style={{ animation: 'clockCheckDraw .3s ease-out .35s forwards' }} />
-                    </svg>
-                  ) : (
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: clockedIn ? 'rgba(143,240,177,.12)' : 'rgba(255,255,255,.06)', border: `1px solid ${clockedIn ? 'rgba(143,240,177,.30)' : 'rgba(255,255,255,.12)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={clockedIn ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.45)'} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    </div>
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {clockedIn && !clockSuccess && <span style={{ width: 6, height: 6, borderRadius: 999, background: 'rgba(130,220,170,.8)', display: 'inline-block', animation: 'clockDot 2s ease-in-out infinite' }} />}
-                      <span style={{ fontWeight: 700, fontSize: 12, color: clockSuccess === 'in' ? 'rgba(130,220,170,.8)' : clockedIn ? 'rgba(130,220,170,.5)' : 'rgba(255,255,255,.70)' }}>
-                        {clockLoading ? 'Locating…' : clockSuccess === 'in' ? 'Clocked in!' : clockedIn ? `Clocked in · ${elapsedStr || fmtMins(todayMinutes)}` : 'Tap to clock in'}
-                      </span>
-                    </div>
-                    {clockedIn && <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 1 }}>Today: {fmtMins(todayMinutes)} · tap to clock out</div>}
-                    {clockError && <div style={{ fontSize: 10, color: '#ff6b6b', marginTop: 2 }}>{clockError}</div>}
+                <div onClick={e => { if (jiggleMode) return; e.stopPropagation(); handleClockAction() }} style={{...ws, border: `1px solid ${cBorder}`, background: cBg, cursor: clockLoading ? 'wait' : 'pointer', opacity: clockLoading ? .7 : 1, transition: 'all .3s' }}>
+                  <div style={wl}>{clockedIn ? 'Clocked In' : 'Clock In'}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {clockedIn && <span style={{ width: 6, height: 6, borderRadius: 999, background: 'rgba(130,220,170,.8)', animation: 'clockDot 2s ease-in-out infinite' }} />}
+                    <span style={{ fontSize: 18, fontWeight: 600, color: statusColor }}>
+                      {clockLoading ? '...' : clockedIn ? (elapsedStr || fmtMins(todayMinutes)) : 'Off'}
+                    </span>
                   </div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,.3)', marginTop: 3 }}>{clockedIn ? 'tap to clock out' : 'tap to start'}</div>
+                  {clockError && <div style={{ fontSize: 8, color: '#ff6b6b', marginTop: 2 }}>{clockError}</div>}
                 </div>
               )
             }

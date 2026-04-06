@@ -773,6 +773,8 @@ const SignupSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().max(30).optional(),
   timezone: z.string().max(60),
+  business_type: z.string().max(60).optional(),
+  shop_name: z.string().max(120).optional(),
 });
 
 const LoginSchema = z.object({
@@ -1550,7 +1552,7 @@ app.post('/auth/signup', async (req, res) => {
   try {
     const v = validate(SignupSchema, req.body || {});
     if (!v.ok) return res.status(400).json({ error: v.error });
-    const { workspace_name, username, password, name, email, phone, timezone } = v.data;
+    const { workspace_name, username, password, name, email, phone, timezone, business_type, shop_name } = v.data;
 
     // Check if username already used in any workspace
     const usernameLC = username.toLowerCase();
@@ -1576,6 +1578,7 @@ app.post('/auth/signup', async (req, res) => {
       trial_used: false,
       owner_username: usernameLC,
       timezone: timezone || 'America/Chicago',
+      business_type: business_type || null,
       created_at: toIso(new Date()),
       updated_at: toIso(new Date()),
     };
@@ -1600,6 +1603,8 @@ app.post('/auth/signup', async (req, res) => {
     // Create default settings doc
     await wsRef.collection('settings').doc('config').set({
       timezone: timezone || 'America/Chicago',
+      shop_name: sanitizeHtml(shop_name || workspace_name),
+      business_type: business_type || null,
       created_at: toIso(new Date()),
     });
 
@@ -3367,7 +3372,7 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
       'dash_calendar', 'dash_clients', 'dash_payments', 'dash_waitlist', 'dash_portfolio',
       'dash_cash', 'dash_membership', 'dash_attendance', 'dash_expenses', 'dash_payroll',
       'clock_in_enabled', 'waitlist_enabled', 'portfolio_enabled', 'membership_enabled', 'cash_register_enabled',
-      'dash_shortcuts', 'dash_widgets'];
+      'dash_shortcuts', 'dash_widgets', 'business_type'];
     const patch = { updated_at: toIso(new Date()) };
     for (const key of ALLOWED_SETTINGS) {
       if (b[key] !== undefined) patch[key] = typeof b[key] === 'string' ? sanitizeHtml(b[key]) : b[key];
@@ -4401,6 +4406,7 @@ app.get('/public/resolve/:slugOrId', async (req, res) => {
       plan_type: data.plan_type || 'individual',
       effective_plan: effectivePlan,
       site_config: data.site_config || null,
+      business_type: data.business_type || null,
       waitlist_enabled: planDef.features.includes('waitlist'),
     });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -5400,6 +5406,7 @@ app.get('/api/account/limits', async (req, res) => {
       trial_days_left: trialActive ? Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / 86400000)) : 0,
       slug: wsData.slug || null,
       site_config: wsData.site_config || null,
+      business_type: wsData.business_type || null,
     });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
