@@ -475,8 +475,11 @@ function PermissionsTab() {
       .then((d: any) => {
         if (d?.role_permissions) {
           const merged: Record<string, RolePerms> = {}
+          let needsMigration = false
           for (const role of Object.keys(DEFAULT_PERMS)) {
             const saved = d.role_permissions[role] || {}
+            // Check if any categories are missing (need migration)
+            if (!saved.settings_access || !saved.calendar_settings) needsMigration = true
             merged[role] = {
               pages: { ...DEFAULT_PERMS[role].pages, ...(saved.pages || {}) },
               bookings: { ...DEFAULT_PERMS[role].bookings, ...(saved.bookings || {}) },
@@ -488,6 +491,10 @@ function PermissionsTab() {
             }
           }
           setPerms(merged)
+          // Auto-save merged permissions if new categories were added
+          if (needsMigration) {
+            apiFetch('/api/settings/permissions', { method: 'POST', body: JSON.stringify({ role_permissions: merged }) }).catch(() => {})
+          }
         }
       })
       .catch(() => {})
