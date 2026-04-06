@@ -414,16 +414,41 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
 
   // Detect virtual keyboard open/close
   useEffect(() => {
-    if (typeof visualViewport === 'undefined') return
-    const vv = visualViewport!
+    // Method 1: visualViewport (works in most browsers)
+    const vv = typeof visualViewport !== 'undefined' ? visualViewport : null
     const check = () => {
-      // If viewport height is significantly less than window height, keyboard is open
-      const diff = window.innerHeight - vv.height
-      setKeyboardOpen(diff > 120)
+      if (vv) {
+        const diff = window.innerHeight - vv.height
+        setKeyboardOpen(diff > 120)
+      }
     }
-    vv.addEventListener('resize', check)
-    vv.addEventListener('scroll', check)
-    return () => { vv.removeEventListener('resize', check); vv.removeEventListener('scroll', check) }
+    if (vv) {
+      vv.addEventListener('resize', check)
+      vv.addEventListener('scroll', check)
+    }
+    // Method 2: focusin/focusout fallback for WKWebView
+    const onFocusIn = (e: FocusEvent) => {
+      const t = e.target as HTMLElement
+      if (t?.tagName === 'INPUT' || t?.tagName === 'TEXTAREA' || t?.isContentEditable) {
+        setKeyboardOpen(true)
+      }
+    }
+    const onFocusOut = () => {
+      // Delay to allow focus to move to another input
+      setTimeout(() => {
+        const a = document.activeElement as HTMLElement
+        if (!a || (a.tagName !== 'INPUT' && a.tagName !== 'TEXTAREA' && !a.isContentEditable)) {
+          setKeyboardOpen(false)
+        }
+      }, 100)
+    }
+    document.addEventListener('focusin', onFocusIn)
+    document.addEventListener('focusout', onFocusOut)
+    return () => {
+      if (vv) { vv.removeEventListener('resize', check); vv.removeEventListener('scroll', check) }
+      document.removeEventListener('focusin', onFocusIn)
+      document.removeEventListener('focusout', onFocusOut)
+    }
   }, [])
 
   // Listen for PIN-required events from api.ts
