@@ -23,6 +23,35 @@ interface Booking {
   created_by_role?: string
   source?: string
 }
+interface WaitlistEntry {
+  id: string
+  client_name?: string
+  phone_raw?: string
+  barber_id: string
+  barber_name?: string
+  date: string
+  service_names?: string[]
+  duration_minutes: number
+  notified: boolean
+  confirmed?: boolean
+  removed?: boolean
+  created_at: string
+}
+// Unified item for display
+interface HistoryItem {
+  id: string
+  type: 'booking' | 'waitlist'
+  client_name?: string
+  service_name?: string
+  barber_name?: string
+  barber_id?: string
+  date_iso: string // for sorting
+  status: string
+  duration_minutes?: number
+  amount?: number
+  tip_amount?: number
+  start_at?: string
+}
 interface Barber { id: string; name: string; color?: string }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -37,11 +66,14 @@ const STATUS_STYLE: Record<string, { border: string; bg: string; color: string }
   arrived:   { border: 'rgba(143,240,177,.40)', bg: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)' },
   noshow:    { border: 'rgba(255,107,107,.40)', bg: 'rgba(255,107,107,.10)', color: 'rgba(220,130,160,.5)' },
   cancelled: { border: 'rgba(255,107,107,.30)', bg: 'rgba(255,107,107,.07)', color: 'rgba(220,130,160,.5)' },
+  waitlist:  { border: 'rgba(255,207,63,.35)',  bg: 'rgba(255,207,63,.08)',  color: 'rgba(220,190,130,.5)' },
+  'waitlist-confirmed': { border: 'rgba(130,150,220,.35)', bg: 'rgba(130,150,220,.08)', color: 'rgba(130,150,220,.6)' },
+  'waitlist-removed':   { border: 'rgba(255,107,107,.30)', bg: 'rgba(255,107,107,.07)', color: 'rgba(220,130,160,.5)' },
 }
 
 const fmtDate = (iso: string) => {
   try {
-    const d = new Date(iso)
+    const d = new Date(iso.includes('T') ? iso : iso + 'T00:00:00')
     return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
   } catch { return iso }
 }
@@ -55,6 +87,7 @@ const fmtMoney = (n?: number) => n != null ? `$${n.toFixed(2)}` : '—'
 
 function StatusChip({ status }: { status: string }) {
   const st = STATUS_STYLE[status] || { border: 'rgba(255,255,255,.12)', bg: 'rgba(0,0,0,.12)', color: 'rgba(255,255,255,.70)' }
+  const label = status.startsWith('waitlist') ? status.replace('waitlist-', 'WL ').replace('waitlist', 'Waitlist') : status
   return (
     <span style={{
       fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase',
@@ -65,16 +98,17 @@ function StatusChip({ status }: { status: string }) {
       display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
     }}>
       <span style={{ width: 5, height: 5, borderRadius: 999, background: 'currentColor', flexShrink: 0 }} />
-      {status || '—'}
+      {label || '—'}
     </span>
   )
 }
 
 // ─── Filters ──────────────────────────────────────────────────────────────────
 type DateRange = 'today' | 'week' | 'month' | 'all'
+type TypeFilter = 'all' | 'booking' | 'waitlist'
 
 export default function HistoryPage() {
-  const [bookings, setBookings] = useState<Booking[]>([])
+  const [items, setItems] = useState<HistoryItem[]>([])
   const [barbers, setBarbers] = useState<Barber[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -84,18 +118,52 @@ export default function HistoryPage() {
   const [dateRange, setDateRange] = useState<DateRange>('month')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [barberFilter, setBarberFilter] = useState<string>('all')
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const [bk, br] = await Promise.all([
+      const [bk, wl, br] = await Promise.all([
         apiFetch('/api/bookings?limit=1000'),
+        apiFetch('/api/waitlist').catch(() => ({ waitlist: [] })),
         apiFetch('/api/barbers'),
       ])
-      const list: Booking[] = Array.isArray(bk) ? bk : bk?.bookings || []
+      const bookings: Booking[] = Array.isArray(bk) ? bk : bk?.bookings || []
+      const waitlist: WaitlistEntry[] = Array.isArray(wl) ? wl : wl?.waitlist || []
       const bList: Barber[] = Array.isArray(br) ? br : br?.barbers || []
-      setBookings(list)
+
+      // Convert bookings to unified items
+      const bookingItems: HistoryItem[] = bookings.map(b => ({
+        id: b.id,
+        type: 'booking' as const,
+        client_name: b.client_name,
+        service_name: b.service_name,
+        barber_name: b.barber_name,
+        barber_id: b.barber_id,
+        date_iso: b.start_at || '',
+        status: b.status || 'booked',
+        duration_minutes: b.duration_minutes,
+        amount: b.amount,
+        tip_amount: b.tip_amount,
+        start_at: b.start_at,
+      }))
+
+      // Convert waitlist entries to unified items
+      const waitlistItems: HistoryItem[] = waitlist.map(w => ({
+        id: `wl_${w.id}`,
+        type: 'waitlist' as const,
+        client_name: w.client_name,
+        service_name: w.service_names?.join(', '),
+        barber_name: w.barber_name,
+        barber_id: w.barber_id,
+        date_iso: w.created_at || w.date,
+        status: w.confirmed ? 'waitlist-confirmed' : w.removed ? 'waitlist-removed' : 'waitlist',
+        duration_minutes: w.duration_minutes,
+        start_at: w.created_at,
+      }))
+
+      setItems([...bookingItems, ...waitlistItems])
       setBarbers(bList)
     } catch (e: any) { setError(e.message) }
     setLoading(false)
@@ -104,10 +172,12 @@ export default function HistoryPage() {
   useEffect(() => { load() }, [load])
 
   // ─── Filter + sort ────────────────────────────────────────────────────────
-  const filtered = bookings.filter(b => {
+  const filtered = items.filter(b => {
+    // type
+    if (typeFilter !== 'all' && b.type !== typeFilter) return false
     // date range
-    if (dateRange !== 'all' && b.start_at) {
-      const d = new Date(b.start_at)
+    if (dateRange !== 'all' && b.date_iso) {
+      const d = new Date(b.date_iso.includes('T') ? b.date_iso : b.date_iso + 'T00:00:00')
       const now = new Date()
       if (dateRange === 'today') {
         if (d.toDateString() !== now.toDateString()) return false
@@ -128,21 +198,20 @@ export default function HistoryPage() {
       const q = search.toLowerCase()
       if (!(b.client_name || '').toLowerCase().includes(q) &&
           !(b.service_name || '').toLowerCase().includes(q) &&
-          !(b.barber_name || '').toLowerCase().includes(q) &&
-          !(b.client_phone || '').includes(q)) return false
+          !(b.barber_name || '').toLowerCase().includes(q)) return false
     }
     return true
   }).sort((a, b) => {
-    const da = new Date(a.start_at || 0).getTime()
-    const db = new Date(b.start_at || 0).getTime()
+    const da = new Date(a.date_iso || 0).getTime()
+    const db = new Date(b.date_iso || 0).getTime()
     return sortDir === 'desc' ? db - da : da - db
   })
 
   // Stats
   const totalRevenue = filtered.reduce((s, b) => s + (b.amount || 0), 0)
   const totalTips = filtered.reduce((s, b) => s + (b.tip_amount || 0), 0)
-  const completedCount = filtered.filter(b => ['done', 'completed', 'paid'].includes(b.status || '')).length
-  const cancelledCount = filtered.filter(b => ['cancelled', 'noshow'].includes(b.status || '')).length
+  const completedCount = filtered.filter(b => ['done', 'completed', 'paid'].includes(b.status)).length
+  const waitlistCount = filtered.filter(b => b.type === 'waitlist').length
 
   // ─── Styles ───────────────────────────────────────────────────────────────
   const lbl: React.CSSProperties = { fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)' }
@@ -174,17 +243,17 @@ export default function HistoryPage() {
             History
           </div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', letterSpacing: '.06em' }}>
-            Client booking records
+            Bookings & waitlist records
           </div>
         </div>
 
         {/* ─── Stats Row ───────────────────────────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
           {[
-            { label: 'Bookings', value: String(filtered.length), color: 'rgba(130,150,220,.6)' },
+            { label: 'Total', value: String(filtered.length), color: 'rgba(130,150,220,.6)' },
             { label: 'Completed', value: String(completedCount), color: 'rgba(130,220,170,.5)' },
             { label: 'Revenue', value: fmtMoney(totalRevenue), color: 'rgba(220,190,130,.5)' },
-            { label: 'Tips', value: fmtMoney(totalTips), color: 'rgba(180,140,220,.6)' },
+            { label: 'Waitlist', value: String(waitlistCount), color: 'rgba(180,140,220,.6)' },
           ].map((s, i) => (
             <div key={i} style={{ ...cardBg, textAlign: 'center', padding: '12px 8px' }}>
               <div style={{ fontSize: 18, fontWeight: 700, color: s.color, marginBottom: 4 }}>{s.value}</div>
@@ -213,6 +282,13 @@ export default function HistoryPage() {
             />
           </div>
 
+          {/* Type filter */}
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as TypeFilter)} style={selectStyle}>
+            <option value="all">All types</option>
+            <option value="booking">Bookings</option>
+            <option value="waitlist">Waitlist</option>
+          </select>
+
           {/* Date range */}
           <select value={dateRange} onChange={e => setDateRange(e.target.value as DateRange)} style={selectStyle}>
             <option value="today">Today</option>
@@ -232,6 +308,9 @@ export default function HistoryPage() {
             <option value="paid">Paid</option>
             <option value="cancelled">Cancelled</option>
             <option value="noshow">No-show</option>
+            <option value="waitlist">Waitlist (pending)</option>
+            <option value="waitlist-confirmed">Waitlist (confirmed)</option>
+            <option value="waitlist-removed">Waitlist (removed)</option>
           </select>
 
           {/* Barber */}
@@ -250,14 +329,14 @@ export default function HistoryPage() {
               display: 'flex', alignItems: 'center', gap: 4,
             }}
           >
-            {sortDir === 'desc' ? '↓ Newest' : '↑ Oldest'}
+            {sortDir === 'desc' ? '\u2193 Newest' : '\u2191 Oldest'}
           </button>
         </div>
 
         {/* ─── Loading / Error ─────────────────────────────────────────────── */}
         {loading && (
           <div style={{ textAlign: 'center', padding: 60, color: 'rgba(255,255,255,.30)', fontSize: 12 }}>
-            Loading bookings…
+            Loading history…
           </div>
         )}
         {error && (
@@ -270,11 +349,11 @@ export default function HistoryPage() {
         {!loading && !error && filtered.length === 0 && (
           <div style={{ textAlign: 'center', padding: 60 }}>
             <div style={{ fontSize: 32, marginBottom: 12, opacity: .2 }}>✦</div>
-            <div style={{ color: 'rgba(255,255,255,.35)', fontSize: 12 }}>No bookings found</div>
+            <div style={{ color: 'rgba(255,255,255,.35)', fontSize: 12 }}>No records found</div>
           </div>
         )}
 
-        {/* ─── Booking List ────────────────────────────────────────────────── */}
+        {/* ─── History List ────────────────────────────────────────────────── */}
         {!loading && filtered.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {filtered.map(b => (
@@ -283,11 +362,12 @@ export default function HistoryPage() {
                 padding: '12px 16px',
                 display: 'flex', alignItems: 'center', gap: 12,
                 transition: 'border-color .15s',
+                borderLeftColor: b.type === 'waitlist' ? 'rgba(255,207,63,.25)' : undefined,
               }}>
                 {/* Barber color dot */}
                 <div style={{
                   width: 4, minHeight: 36, borderRadius: 4,
-                  background: getBarberColor(b.barber_id),
+                  background: b.type === 'waitlist' ? 'rgba(255,207,63,.5)' : getBarberColor(b.barber_id),
                   flexShrink: 0, opacity: .7,
                 }} />
 
@@ -297,7 +377,7 @@ export default function HistoryPage() {
                     <span style={{ fontSize: 13, fontWeight: 600, color: '#e8e8ed', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {b.client_name || 'Walk-in'}
                     </span>
-                    <StatusChip status={b.status || ''} />
+                    <StatusChip status={b.status} />
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                     <span style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>
@@ -305,7 +385,7 @@ export default function HistoryPage() {
                     </span>
                     {b.barber_name && (
                       <>
-                        <span style={{ fontSize: 9, color: 'rgba(255,255,255,.15)' }}>•</span>
+                        <span style={{ fontSize: 9, color: 'rgba(255,255,255,.15)' }}>{'\u2022'}</span>
                         <span style={{ fontSize: 11, color: getBarberColor(b.barber_id), opacity: .8 }}>
                           {b.barber_name}
                         </span>
@@ -317,11 +397,11 @@ export default function HistoryPage() {
                 {/* Date + amount */}
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,.50)', marginBottom: 2 }}>
-                    {b.start_at ? fmtDate(b.start_at) : '—'}
+                    {b.date_iso ? fmtDate(b.date_iso) : '—'}
                   </div>
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,.30)' }}>
                     {b.start_at ? fmtTime(b.start_at) : ''}
-                    {b.duration_minutes ? ` · ${b.duration_minutes}m` : ''}
+                    {b.duration_minutes ? ` \u00b7 ${b.duration_minutes}m` : ''}
                   </div>
                   {(b.amount != null && b.amount > 0) && (
                     <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(130,220,170,.5)', marginTop: 2 }}>
@@ -342,8 +422,8 @@ export default function HistoryPage() {
         {/* ─── Footer count ────────────────────────────────────────────────── */}
         {!loading && filtered.length > 0 && (
           <div style={{ textAlign: 'center', padding: '16px 0', fontSize: 10, color: 'rgba(255,255,255,.20)', letterSpacing: '.08em' }}>
-            {filtered.length} booking{filtered.length !== 1 ? 's' : ''}
-            {cancelledCount > 0 && ` · ${cancelledCount} cancelled`}
+            {filtered.length} record{filtered.length !== 1 ? 's' : ''}
+            {waitlistCount > 0 && ` \u00b7 ${waitlistCount} waitlist`}
           </div>
         )}
       </div>
