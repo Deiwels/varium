@@ -1519,7 +1519,7 @@ export default function CalendarPage() {
   }
   async function _handleSaveInner(patch: any) {
     const ev = events.find(e => e.id === modal.eventId); if (!ev) return
-    const svcIds: string[] = patch.serviceIds || (patch.serviceId ? [patch.serviceId] : [])
+    const svcIds: string[] = patch.serviceIds || patch.service_ids || (patch.serviceId ? [patch.serviceId] : [])
     const svcNames = svcIds.map(id => services.find(s => s.id === id)?.name).filter(Boolean).join(' + ')
     const updated = { ...ev, ...patch, serviceIds: svcIds, serviceName: svcNames || ev.serviceName,
       // 1 no-show = immediately at_risk
