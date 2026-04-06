@@ -185,6 +185,13 @@ export default function DashboardPage() {
   const homeLayoutLoaded = useRef(false)
   const homeSwipeRef = useRef<{ startX: number; startY: number } | null>(null)
   const jiggleTimerRef = useRef<any>(null)
+  // Drag-to-reorder
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null)
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
+  const dragStartPos = useRef<{ x: number; y: number } | null>(null)
+  const dragActive = useRef(false)
+  const dragCloneRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
     check(); window.addEventListener('resize', check)
@@ -721,11 +728,11 @@ export default function DashboardPage() {
         }
 
         // All available home screen items: widgets (span 2 or 4 cols) + icons (span 1)
-        type HItem = { id: string; type: 'icon' | 'widget-s' | 'widget-m'; label: string; href?: string; cols: number; locked?: boolean }
+        type HItem = { id: string; type: 'icon' | 'widget-s' | 'widget-m'; label: string; href?: string; cols: number }
         const showClockIn = dashSettings.clock_in_enabled && role !== 'owner'
         const ALL_ITEMS: HItem[] = [
-          // Clock-in widget — non-removable, only for staff/admin when enabled
-          ...(showClockIn ? [{ id: 'w_clockin', type: 'widget-s' as const, label: 'Clock In', cols: 2, locked: true }] : []),
+          // Clock-in widget — for staff/admin when enabled
+          ...(showClockIn ? [{ id: 'w_clockin', type: 'widget-s' as const, label: 'Clock In', cols: 2 }] : []),
           // Widgets — small (2 cols), medium (4 cols)
           { id: 'w_clock', type: 'widget-s', label: 'Clock', cols: 2 },
           { id: 'w_earnings', type: 'widget-s', label: 'Earnings', cols: 2 },
@@ -747,13 +754,10 @@ export default function DashboardPage() {
         ]
 
         // Determine active layout
-        const lockedIds = ALL_ITEMS.filter(i => i.locked).map(i => i.id)
         const defaultOrder = [...(showClockIn ? ['w_clockin'] : []), 'w_clock', 'w_earnings', 'w_schedule', 'w_revenue', 'w_newclients', 'w_expenses', 'w_visits', ...actions.map(a => `i_${a.label}`)]
-        const userLayout = homeLayout.length > 0 ? homeLayout.filter(id => ALL_ITEMS.some(i => i.id === id)) : defaultOrder
-        // Ensure locked items are in layout (add at end if user somehow removed them)
-        const layout = [...userLayout, ...lockedIds.filter(id => !userLayout.includes(id))]
+        const layout = homeLayout.length > 0 ? homeLayout.filter(id => ALL_ITEMS.some(i => i.id === id)) : defaultOrder
         const activeItems = layout.map(id => ALL_ITEMS.find(i => i.id === id)!).filter(Boolean)
-        const hiddenItems = ALL_ITEMS.filter(i => !i.locked && !layout.includes(i.id))
+        const hiddenItems = ALL_ITEMS.filter(i => !layout.includes(i.id))
 
         // Render widget content
         const renderWidget = (item: HItem) => {
@@ -898,10 +902,19 @@ export default function DashboardPage() {
           setHomeLayout(newLayout)
           localStorage.setItem(HOME_LAYOUT_KEY, JSON.stringify(newLayout))
         }
+        const reorderItem = (fromId: string, toIdx: number) => {
+          const fromIdx = layout.indexOf(fromId)
+          if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return
+          const newLayout = [...layout]
+          const [item] = newLayout.splice(fromIdx, 1)
+          newLayout.splice(toIdx, 0, item)
+          setHomeLayout(newLayout)
+          localStorage.setItem(HOME_LAYOUT_KEY, JSON.stringify(newLayout))
+        }
 
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', width: '100%', height: '100%', touchAction: 'pan-x' }}
-            onClick={() => { if (jiggleMode) setJiggleMode(false) }}
+          <div style={{ display: 'flex', flexDirection: 'column', color: '#e8e8ed', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', width: '100%', height: '100%', touchAction: jiggleMode ? 'none' : 'pan-x' }}
+            onClick={() => { if (jiggleMode) { setJiggleMode(false); setDragId(null); setDragPos(null); setDragOverIdx(null) } }}
             onTouchStart={e => {
               homeSwipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY }
               if (!jiggleMode) {
@@ -911,6 +924,7 @@ export default function DashboardPage() {
             onTouchMove={() => { clearTimeout(jiggleTimerRef.current) }}
             onTouchEnd={e => {
               clearTimeout(jiggleTimerRef.current)
+              if (dragActive.current) return // don't swipe pages during drag
               if (!homeSwipeRef.current) return
               const dx = e.changedTouches[0].clientX - homeSwipeRef.current.startX
               const dy = e.changedTouches[0].clientY - homeSwipeRef.current.startY
@@ -945,10 +959,52 @@ export default function DashboardPage() {
                       <div key={r} style={{ display: 'grid', gridTemplateColumns: `repeat(${COLS}, 1fr)`, gap: GAP, justifyItems: 'center' }}>
                         {rowCells.map(c => {
                           const isWidget = c.item.type !== 'icon'
+                          const layoutIdx = layout.indexOf(c.item.id)
+                          const isDragging = dragId === c.item.id
+                          const isDropTarget = dragOverIdx === layoutIdx && dragId !== c.item.id
                           return (
-                            <div key={c.item.id} className={jiggleMode ? (c.item.type === 'icon' ? 'edit-glow-icon' : 'edit-glow') : ''} style={{ gridColumn: `span ${c.item.cols}`, width: '100%', position: 'relative' }}>
-                              {/* Remove button in jiggle mode — not shown for locked items */}
-                              {jiggleMode && !c.item.locked && (
+                            <div key={c.item.id} data-item-id={c.item.id} data-layout-idx={layoutIdx}
+                              className={jiggleMode && !isDragging ? (c.item.type === 'icon' ? 'edit-glow-icon' : 'edit-glow') : ''}
+                              style={{ gridColumn: `span ${c.item.cols}`, width: '100%', position: 'relative', opacity: isDragging ? 0.25 : 1, transition: isDragging ? 'none' : 'opacity .2s, transform .2s', transform: isDropTarget ? 'scale(1.05)' : 'scale(1)' }}
+                              onTouchStart={jiggleMode ? (e) => {
+                                const t = e.touches[0]
+                                dragStartPos.current = { x: t.clientX, y: t.clientY }
+                                dragActive.current = false
+                              } : undefined}
+                              onTouchMove={jiggleMode ? (e) => {
+                                const t = e.touches[0]
+                                if (!dragStartPos.current) return
+                                const dx = Math.abs(t.clientX - dragStartPos.current.x)
+                                const dy = Math.abs(t.clientY - dragStartPos.current.y)
+                                if (!dragActive.current && (dx > 8 || dy > 8)) {
+                                  dragActive.current = true
+                                  setDragId(c.item.id)
+                                }
+                                if (dragActive.current) {
+                                  e.preventDefault()
+                                  setDragPos({ x: t.clientX, y: t.clientY })
+                                  // Find drop target
+                                  const el = document.elementFromPoint(t.clientX, t.clientY) as HTMLElement | null
+                                  const target = el?.closest?.('[data-layout-idx]') as HTMLElement | null
+                                  if (target) {
+                                    const idx = parseInt(target.dataset.layoutIdx || '-1', 10)
+                                    if (idx >= 0) setDragOverIdx(idx)
+                                  }
+                                }
+                              } : undefined}
+                              onTouchEnd={jiggleMode ? () => {
+                                if (dragActive.current && dragId && dragOverIdx !== null) {
+                                  reorderItem(dragId, dragOverIdx)
+                                }
+                                dragStartPos.current = null
+                                dragActive.current = false
+                                setDragId(null)
+                                setDragPos(null)
+                                setDragOverIdx(null)
+                              } : undefined}
+                            >
+                              {/* Remove button in jiggle mode */}
+                              {jiggleMode && !isDragging && (
                                 <button onClick={e => { e.stopPropagation(); e.preventDefault(); removeItem(c.item.id) }} style={{ position: 'absolute', top: -6, left: isWidget ? -4 : 6, zIndex: 10, width: 20, height: 20, borderRadius: 999, background: 'rgba(60,60,60,.95)', border: '1px solid rgba(255,255,255,.15)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>−</button>
                               )}
                               {isWidget ? renderWidget(c.item) : (
@@ -972,9 +1028,30 @@ export default function DashboardPage() {
             {/* Done + Add buttons in jiggle mode — portaled to body to escape .content stacking context */}
             {jiggleMode && typeof document !== 'undefined' && createPortal(
               <div style={{ position: 'fixed', top: 'calc(var(--shell-top, 52px) + 12px)', left: 16, right: 16, zIndex: 99999, display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none' }}>
-                <button onClick={e => { e.stopPropagation(); setJiggleMode(false); setShowAddSheet(false) }} style={{ padding: '6px 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.20)', background: 'rgba(20,20,20,.55)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', pointerEvents: 'auto', boxShadow: '0 2px 12px rgba(0,0,0,.5)' }}>Done</button>
+                <button onClick={e => { e.stopPropagation(); setJiggleMode(false); setShowAddSheet(false); setDragId(null); setDragPos(null); setDragOverIdx(null) }} style={{ padding: '6px 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.20)', background: 'rgba(20,20,20,.55)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', pointerEvents: 'auto', boxShadow: '0 2px 12px rgba(0,0,0,.5)' }}>Done</button>
                 <button onClick={e => { e.stopPropagation(); if (hiddenItems.length > 0) setShowAddSheet(true) }} style={{ width: 34, height: 34, borderRadius: 999, border: '1px solid rgba(255,255,255,.20)', background: 'rgba(20,20,20,.55)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', color: '#fff', fontSize: 18, fontWeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1, pointerEvents: 'auto', boxShadow: '0 2px 12px rgba(0,0,0,.5)', opacity: hiddenItems.length > 0 ? 1 : 0.3 }}>+</button>
               </div>, document.body)}
+
+            {/* Floating drag clone */}
+            {dragId && dragPos && typeof document !== 'undefined' && createPortal(
+              (() => {
+                const dragItem = ALL_ITEMS.find(i => i.id === dragId)
+                if (!dragItem) return null
+                const isWidget = dragItem.type !== 'icon'
+                const w = isWidget ? (dragItem.cols === 4 ? 280 : 140) : 70
+                return (
+                  <div style={{ position: 'fixed', left: dragPos.x - w / 2, top: dragPos.y - 40, width: w, zIndex: 100000, pointerEvents: 'none', transform: 'scale(1.08)', opacity: 0.85, filter: 'drop-shadow(0 8px 24px rgba(0,0,0,.6))' }}>
+                    {isWidget ? renderWidget(dragItem) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '4px 0' }}>
+                        <div style={{ width: 60, height: 60, borderRadius: 15, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.55)' }}>
+                          {iconSvgs[dragItem.label] || iconSvgs.Calendar}
+                        </div>
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', textAlign: 'center', lineHeight: 1.1, fontWeight: 500 }}>{dragItem.label}</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })(), document.body)}
 
             {/* Add widget sheet */}
             {showAddSheet && hiddenItems.length > 0 && (
