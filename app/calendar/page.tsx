@@ -1589,7 +1589,6 @@ export default function CalendarPage() {
 
   async function handleDelete() {
     const ev = events.find(e => e.id === modal.eventId); if (!ev) return
-    if (!window.confirm('Delete this booking?')) return
     setEvents(prev => prev.filter(e => e.id !== ev.id))
     setModal({ open: false, eventId: null, isNew: false })
     if (ev._raw?.id) { try { await apiFetch(`/api/bookings/${encodeURIComponent(String(ev._raw.id))}`, { method: 'DELETE' }) } catch(e: any) { console.warn(e.message) } }

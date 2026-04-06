@@ -945,11 +945,25 @@ export function BookingModal({
   useEffect(() => {
     if (!isOpen) return
     const scrollEl = document.querySelector('.content') as HTMLElement
+    const calScroll = document.querySelector('.cal-container') as HTMLElement
+    // Save scroll positions before locking
+    const savedBodyScroll = window.scrollY
+    const savedCalScroll = calScroll?.scrollTop ?? 0
     if (scrollEl) scrollEl.style.overflow = 'hidden'
     document.body.style.overflow = 'hidden'
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${savedBodyScroll}px`
+    document.body.style.left = '0'
+    document.body.style.right = '0'
     return () => {
       if (scrollEl) scrollEl.style.overflow = ''
       document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.top = ''
+      document.body.style.left = ''
+      document.body.style.right = ''
+      window.scrollTo(0, savedBodyScroll)
+      if (calScroll) calScroll.scrollTop = savedCalScroll
     }
   }, [isOpen])
 
@@ -959,6 +973,7 @@ export function BookingModal({
   const [selBarberId, setSelBarberId] = useState(barberId)
   const [serviceIds, setServiceIds] = useState<string[]>([])
   const [servicesOpen, setServicesOpen] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [selStartMin, setSelStartMin] = useState(startMin)
   const [status, setStatus] = useState('booked')
   const [notes, setNotes] = useState('')
@@ -982,6 +997,7 @@ export function BookingModal({
       const initSvcIds = existingEvent.serviceIds?.length ? existingEvent.serviceIds : existingEvent.serviceId ? [existingEvent.serviceId] : []
       setServiceIds(initSvcIds)
       setServicesOpen(initSvcIds.length === 0)
+      setDeleteConfirm(false)
       setStatus(existingEvent.status || 'booked')
       setNotes(existingEvent.notes || '')
       setPhotoUrl('')
@@ -1292,16 +1308,26 @@ export function BookingModal({
             )}
 
             {/* Footer */}
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-              {!isNew && (
-                <button onClick={onDelete} style={{ height: 36, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,107,107,.20)', background: 'rgba(255,107,107,.04)', color: 'rgba(255,107,107,.6)', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', fontSize: 12 }}>Delete</button>
-              )}
-              <div style={{ flex: 1 }} />
-              <button onClick={onClose} style={{ height: 36, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', fontSize: 12 }}>Close</button>
-              <button onClick={handleSave} disabled={saving} style={{ height: 36, padding: '0 18px', borderRadius: 10, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(255,255,255,.08)', color: '#e8e8ed', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', fontSize: 12, opacity: saving ? .5 : 1 }}>
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
+            {deleteConfirm ? (
+              <div style={{ paddingTop: 8, borderTop: '1px solid rgba(255,107,107,.12)' }}>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.65)', marginBottom: 10, textAlign: 'center' }}>Delete this booking?</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setDeleteConfirm(false)} style={{ flex: 1, height: 40, borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
+                  <button onClick={() => { setDeleteConfirm(false); onDelete() }} style={{ flex: 1, height: 40, borderRadius: 10, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.08)', color: 'rgba(255,107,107,.8)', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 13 }}>Delete</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+                {!isNew && (
+                  <button onClick={() => setDeleteConfirm(true)} style={{ height: 36, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,107,107,.20)', background: 'rgba(255,107,107,.04)', color: 'rgba(255,107,107,.6)', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', fontSize: 12 }}>Delete</button>
+                )}
+                <div style={{ flex: 1 }} />
+                <button onClick={onClose} style={{ height: 36, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', fontSize: 12 }}>Close</button>
+                <button onClick={handleSave} disabled={saving} style={{ height: 36, padding: '0 18px', borderRadius: 10, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(255,255,255,.08)', color: '#e8e8ed', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', fontSize: 12, opacity: saving ? .5 : 1 }}>
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
