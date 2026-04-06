@@ -6,7 +6,7 @@ import { apiFetch } from '@/lib/api'
 import { getTimezoneList } from '@/lib/timezones'
 import { getStaffLabel } from '@/lib/terminology'
 import { usePlan } from '@/components/PlanProvider'
-import { DEFAULT_PERMS, type RolePerms, type PermCategory } from '@/components/PermissionsProvider'
+import { DEFAULT_PERMS, usePermissions, type RolePerms, type PermCategory } from '@/components/PermissionsProvider'
 import { hasPinSetup, clearPin } from '@/lib/pin'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -440,6 +440,15 @@ const PERM_SECTIONS: { category: PermCategory; label: string; items: { key: stri
     { key: 'change_own', label: 'Change own schedule' }, { key: 'change_others', label: 'Change others\' schedule' },
     { key: 'needs_approval', label: 'Needs owner approval' },
   ]},
+  { category: 'settings_access', label: 'Settings Access', items: [
+    { key: 'general', label: 'General settings' },
+    { key: 'booking', label: 'Booking settings' },
+    { key: 'site_builder', label: 'Site Builder' },
+    { key: 'fees_tax', label: 'Fees & Tax' },
+    { key: 'integrations', label: 'Integrations' },
+    { key: 'change_password', label: 'Change own password' },
+    { key: 'view_pin', label: 'Quick PIN setup' },
+  ]},
   { category: 'financial', label: 'Financial', items: [
     { key: 'mark_paid', label: 'Mark as paid' }, { key: 'checkout_client', label: 'Checkout / charge client' },
     { key: 'refund', label: 'Issue refund' }, { key: 'access_terminal', label: 'Access payment terminal' },
@@ -474,6 +483,7 @@ function PermissionsTab() {
               calendar_settings: { ...DEFAULT_PERMS[role].calendar_settings, ...(saved.calendar_settings || {}) },
               clients: { ...DEFAULT_PERMS[role].clients, ...(saved.clients || {}) },
               schedule: { ...DEFAULT_PERMS[role].schedule, ...(saved.schedule || {}) },
+              settings_access: { ...DEFAULT_PERMS[role].settings_access, ...(saved.settings_access || {}) },
               financial: { ...DEFAULT_PERMS[role].financial, ...(saved.financial || {}) },
             }
           }
@@ -778,6 +788,12 @@ export default function SettingsPage() {
     setGeocoding(false)
   }
 
+  const { hasPerm: settingsHasPerm } = usePermissions()
+  // Map tab ids to settings_access permission keys
+  const TAB_PERM_MAP: Record<string, string> = {
+    shop: 'general', booking: 'booking', site: 'site_builder',
+    fees: 'fees_tax', square: 'integrations',
+  }
   const ALL_TABS = [
     { id: 'shop', label: 'General', ownerOnly: false },
     { id: 'booking', label: 'Booking', ownerOnly: false },
@@ -789,7 +805,16 @@ export default function SettingsPage() {
     { id: 'permissions', label: 'Permissions', ownerOnly: true },
     { id: 'billing', label: 'Billing', ownerOnly: true },
   ] as const
-  const TABS = ALL_TABS.filter(t => !t.ownerOnly || userRole === 'owner')
+  const TABS = ALL_TABS.filter(t => {
+    // Owner sees everything
+    if (userRole === 'owner') return true
+    // These tabs are always owner-only (no permission toggle)
+    if (t.id === 'users' || t.id === 'permissions' || t.id === 'billing' || t.id === 'payroll') return false
+    // Check settings_access permission
+    const permKey = TAB_PERM_MAP[t.id]
+    if (permKey) return settingsHasPerm('settings_access', permKey)
+    return false
+  })
 
   return (
     <Shell page="settings">

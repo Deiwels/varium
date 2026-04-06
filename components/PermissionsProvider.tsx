@@ -10,6 +10,7 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     calendar_settings: { open_settings: true, manage_team: true, manage_services: true, edit_schedule: true, edit_own_profile: true },
     clients: { view: true, add: true, edit: true, view_phone: true, delete: false, view_all: true },
     schedule: { change_own: true, change_others: true, needs_approval: false },
+    settings_access: { general: true, booking: true, site_builder: true, fees_tax: false, integrations: true, change_password: true, view_pin: true },
     financial: { mark_paid: true, checkout_client: true, refund: false, access_terminal: true, pay_cash: true, pay_zelle: true, pay_other: true, view_earnings: true, view_all_earnings: true },
   },
   barber: {
@@ -18,6 +19,7 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     calendar_settings: { open_settings: true, manage_team: false, manage_services: false, edit_schedule: false, edit_own_profile: true },
     clients: { view: true, add: true, edit: false, view_phone: false, delete: false, view_all: false },
     schedule: { change_own: true, change_others: false, needs_approval: true },
+    settings_access: { general: false, booking: false, site_builder: false, fees_tax: false, integrations: false, change_password: true, view_pin: true },
     financial: { mark_paid: false, checkout_client: false, refund: false, access_terminal: false, pay_cash: false, pay_zelle: false, pay_other: false, view_earnings: true, view_all_earnings: false },
   },
   guest: {
@@ -26,6 +28,7 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     calendar_settings: { open_settings: false, manage_team: false, manage_services: false, edit_schedule: false, edit_own_profile: false },
     clients: { view: true, add: true, edit: false, view_phone: false, delete: false, view_all: true },
     schedule: { change_own: false, change_others: false, needs_approval: false },
+    settings_access: { general: false, booking: false, site_builder: false, fees_tax: false, integrations: false, change_password: true, view_pin: false },
     financial: { mark_paid: false, checkout_client: false, refund: false, access_terminal: false, pay_cash: false, pay_zelle: false, pay_other: false, view_earnings: false, view_all_earnings: false },
   },
   student: {
@@ -34,6 +37,7 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     calendar_settings: { open_settings: true, manage_team: false, manage_services: false, edit_schedule: false, edit_own_profile: false },
     clients: { view: false, add: false, edit: false, view_phone: false, delete: false, view_all: false },
     schedule: { change_own: false, change_others: false, needs_approval: false },
+    settings_access: { general: false, booking: false, site_builder: false, fees_tax: false, integrations: false, change_password: true, view_pin: false },
     financial: { mark_paid: false, checkout_client: false, refund: false, access_terminal: false, pay_cash: false, pay_zelle: false, pay_other: false, view_earnings: false, view_all_earnings: false },
   },
 }
@@ -44,6 +48,7 @@ export interface RolePerms {
   calendar_settings: Record<string, boolean>
   clients: Record<string, boolean>
   schedule: Record<string, boolean>
+  settings_access: Record<string, boolean>
   financial: Record<string, boolean>
 }
 
@@ -86,6 +91,7 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
               calendar_settings: { ...DEFAULT_PERMS[role].calendar_settings, ...(saved.calendar_settings || {}) },
               clients: { ...DEFAULT_PERMS[role].clients, ...(saved.clients || {}) },
               schedule: { ...DEFAULT_PERMS[role].schedule, ...(saved.schedule || {}) },
+              settings_access: { ...DEFAULT_PERMS[role].settings_access, ...(saved.settings_access || {}) },
               financial: { ...DEFAULT_PERMS[role].financial, ...(saved.financial || {}) },
             }
           }
