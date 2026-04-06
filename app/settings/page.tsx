@@ -440,7 +440,8 @@ const PERM_SECTIONS: { category: PermCategory; label: string; items: { key: stri
     { key: 'needs_approval', label: 'Needs owner approval' },
   ]},
   { category: 'financial', label: 'Financial', items: [
-    { key: 'mark_paid', label: 'Mark as paid' }, { key: 'refund', label: 'Issue refund' },
+    { key: 'mark_paid', label: 'Mark as paid' }, { key: 'checkout_client', label: 'Checkout / charge client' },
+    { key: 'refund', label: 'Issue refund' }, { key: 'access_terminal', label: 'Access payment terminal' },
     { key: 'view_earnings', label: 'View own earnings' }, { key: 'view_all_earnings', label: 'View all earnings' },
   ]},
 ]

@@ -10,7 +10,7 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     calendar_settings: { open_settings: true, manage_team: true, manage_services: true, edit_schedule: true, edit_own_profile: true },
     clients: { view: true, add: true, edit: true, view_phone: true, delete: false, view_all: true },
     schedule: { change_own: true, change_others: true, needs_approval: false },
-    financial: { mark_paid: true, refund: false, view_earnings: true, view_all_earnings: true },
+    financial: { mark_paid: true, checkout_client: true, refund: false, access_terminal: true, view_earnings: true, view_all_earnings: true },
   },
   barber: {
     pages: { dashboard: false, calendar: true, history: true, clients: false, messages: true, waitlist: true, portfolio: true, payments: false, attendance: false, cash: false, membership: false, analytics: false },
@@ -18,7 +18,7 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     calendar_settings: { open_settings: true, manage_team: false, manage_services: false, edit_schedule: false, edit_own_profile: true },
     clients: { view: true, add: true, edit: false, view_phone: false, delete: false, view_all: false },
     schedule: { change_own: true, change_others: false, needs_approval: true },
-    financial: { mark_paid: false, refund: false, view_earnings: true, view_all_earnings: false },
+    financial: { mark_paid: false, checkout_client: false, refund: false, access_terminal: false, view_earnings: true, view_all_earnings: false },
   },
   guest: {
     pages: { dashboard: false, calendar: true, history: false, clients: true, messages: false, waitlist: false, portfolio: false, payments: false, attendance: false, cash: false, membership: false, analytics: false },
@@ -26,7 +26,7 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     calendar_settings: { open_settings: false, manage_team: false, manage_services: false, edit_schedule: false, edit_own_profile: false },
     clients: { view: true, add: true, edit: false, view_phone: false, delete: false, view_all: true },
     schedule: { change_own: false, change_others: false, needs_approval: false },
-    financial: { mark_paid: false, refund: false, view_earnings: false, view_all_earnings: false },
+    financial: { mark_paid: false, checkout_client: false, refund: false, access_terminal: false, view_earnings: false, view_all_earnings: false },
   },
   student: {
     pages: { dashboard: false, calendar: true, history: false, clients: false, messages: true, waitlist: false, portfolio: false, payments: false, attendance: false, cash: false, membership: false, analytics: false },
@@ -34,7 +34,7 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     calendar_settings: { open_settings: true, manage_team: false, manage_services: false, edit_schedule: false, edit_own_profile: false },
     clients: { view: false, add: false, edit: false, view_phone: false, delete: false, view_all: false },
     schedule: { change_own: false, change_others: false, needs_approval: false },
-    financial: { mark_paid: false, refund: false, view_earnings: false, view_all_earnings: false },
+    financial: { mark_paid: false, checkout_client: false, refund: false, access_terminal: false, view_earnings: false, view_all_earnings: false },
   },
 }
 
