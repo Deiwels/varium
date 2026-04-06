@@ -535,11 +535,14 @@ export default function MessagesPage() {
     const chatType = ct || chatTarget?.chatType
     if (!chatType) return
     try {
+      console.log('[Messages] Loading chatType:', chatType)
       const res = await apiFetch(`/api/messages?chatType=${chatType}&limit=100`)
+      console.log('[Messages] API response:', res)
       const data = Array.isArray(res?.messages) ? res.messages : Array.isArray(res) ? res : []
+      console.log('[Messages] Parsed', data.length, 'messages')
       const mapped = data.map((m: any) => ({ ...m, text: m.content || m.text || '', senderId: m.sender_id || m.senderId, senderName: m.sender_name || m.senderName, senderRole: m.sender_role || m.senderRole, senderPhoto: m.senderPhoto || m.sender_photo }))
       setMessages(mapped)
-    } catch { /* ignore */ }
+    } catch (e: any) { console.error('[Messages] loadMessages error:', e.message) }
   }, [chatTarget?.chatType])
 
   // Toggle reaction on a message
@@ -636,6 +639,7 @@ export default function MessagesPage() {
       let userPhoto = user?.photo || ''
       try { const fresh = JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}'); userPhoto = fresh?.photo || userPhoto } catch {}
       const body: any = { chatType: chatTarget.chatType, text: input.trim(), senderPhoto: userPhoto }
+      console.log('[Messages] sendMessage uid:', uid, 'chatType:', chatTarget.chatType, 'text:', input.trim().slice(0, 50))
       if (imagePreview) body.imageUrl = imagePreview
       if (filePreview) { body.fileUrl = filePreview.dataUrl; body.fileName = filePreview.name }
       await apiFetch('/api/messages', { method: 'POST', body: JSON.stringify(body) })
@@ -803,13 +807,16 @@ export default function MessagesPage() {
 
   // Navigation helpers
   function openChat(chatType: string, label: string, photo?: string) {
+    console.log('[Messages] openChat uid:', uid, 'chatType:', chatType, 'label:', label)
     setChatTarget({ chatType, label, photo })
     setChatView('conversation')
     setMessages([])
     setLoading(true)
     // load messages for this chat
     apiFetch(`/api/messages?chatType=${chatType}&limit=100`).then(res => {
+      console.log('[Messages] openChat response:', typeof res, Array.isArray(res) ? res.length : JSON.stringify(res).slice(0, 200))
       const data = Array.isArray(res?.messages) ? res.messages : Array.isArray(res) ? res : []
+      console.log('[Messages] openChat parsed', data.length, 'messages')
       const mapped = data.map((m: any) => ({ ...m, text: m.content || m.text || '', senderId: m.sender_id || m.senderId, senderName: m.sender_name || m.senderName, senderRole: m.sender_role || m.senderRole, senderPhoto: m.senderPhoto || m.sender_photo }))
       setMessages(mapped)
       setLoading(false)
