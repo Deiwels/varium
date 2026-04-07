@@ -443,13 +443,22 @@ export default function SignupPage() {
 
               {/* Native iOS: skip Stripe, use Apple IAP later from /billing */}
               {typeof window !== 'undefined' && window.__VURIUM_IS_NATIVE ? (
-                <button type="button" onClick={() => setStep(2)} style={{
-                  width: '100%', height: 48, borderRadius: 999, border: '1px solid rgba(130,220,170,.25)',
-                  background: 'rgba(130,220,170,.1)', color: 'rgba(130,220,170,.85)', fontSize: 14, fontWeight: 600,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                }}>
-                  Start 14-Day Free Trial
-                </button>
+                <>
+                  <button type="button" onClick={() => setStep(2)} style={{
+                    width: '100%', height: 48, borderRadius: 999, border: '1px solid rgba(130,220,170,.25)',
+                    background: 'rgba(130,220,170,.1)', color: 'rgba(130,220,170,.85)', fontSize: 14, fontWeight: 600,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}>
+                    Start 14-Day Free Trial
+                  </button>
+                  <div style={{ textAlign: 'center', marginTop: 12, fontSize: 10, color: 'rgba(255,255,255,.12)', lineHeight: 1.6 }}>
+                    Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. You can manage and cancel your subscriptions in your Apple ID Settings.
+                  </div>
+                  <div style={{ textAlign: 'center', marginTop: 10, display: 'flex', justifyContent: 'center', gap: 16 }}>
+                    <a href="/privacy" style={{ fontSize: 11, color: 'rgba(255,255,255,.20)', textDecoration: 'none' }}>Privacy Policy</a>
+                    <a href="/terms" style={{ fontSize: 11, color: 'rgba(255,255,255,.20)', textDecoration: 'none' }}>Terms of Service</a>
+                  </div>
+                </>
               ) : (
                 <>
                   {/* Load Stripe Elements for selected plan */}
