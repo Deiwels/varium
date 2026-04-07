@@ -70,7 +70,8 @@ jobs:
             --set-env-vars "APNS_TEAM_ID=${{ secrets.APNS_TEAM_ID }}" \
             --set-env-vars "APNS_KEY_P8=${{ secrets.APNS_KEY_P8 }}" \
             --set-env-vars "APNS_BUNDLE_ID=${{ secrets.APNS_BUNDLE_ID }}" \
-            --set-env-vars "APNS_ENVIRONMENT=${{ secrets.APNS_ENVIRONMENT }}"
+            --set-env-vars "APNS_ENVIRONMENT=${{ secrets.APNS_ENVIRONMENT }}" \
+            --set-env-vars "APPLE_SHARED_SECRET=${{ secrets.APPLE_SHARED_SECRET }}"
 
       - name: Show URL
         run: |
