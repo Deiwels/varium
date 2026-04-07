@@ -466,12 +466,12 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
       if (!valid) { setPinError('Wrong PIN'); setPinLoading(false); setPinInput(''); return }
       const creds = await getCredentials(enteredPin)
       if (!creds) { setPinError('PIN data corrupted. Please login with password.'); setPinLoading(false); return }
-      // Re-login with saved credentials
-      const res = await fetch(`${API}/api/auth/login`, {
+      // Re-login with saved credentials (use login-email which doesn't need workspace_id)
+      const res = await fetch(`${API}/auth/login-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ username: creds.username, password: creds.password }),
+        body: JSON.stringify({ email: creds.username, password: creds.password }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Login failed')
