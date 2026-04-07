@@ -5560,10 +5560,6 @@ app.post('/api/billing/cancel', requireRole('owner'), async (req, res) => {
     const source = data.billing_source || (data.apple_transaction_id ? 'apple' : (data.stripe_subscription_id ? 'stripe' : null));
 
     if (source === 'apple') {
-      // Apple IAP subscriptions can only be cancelled by the user in iOS Settings.
-      // We mark the workspace as 'cancelling' locally and instruct the client to open
-      // the Apple subscription management URL. The App Store Server Notifications
-      // webhook will update billing_status → 'canceled' once Apple confirms.
       await req.wsDoc().update({ subscription_status: 'cancelling', billing_status: 'cancelling', updated_at: toIso(new Date()) });
       writeAuditLog(req.wsId, { action: 'billing.cancel.apple', req }).catch(() => {});
       return res.json({
@@ -5575,7 +5571,6 @@ app.post('/api/billing/cancel', requireRole('owner'), async (req, res) => {
       });
     }
 
-    // Stripe path
     if (!data.stripe_subscription_id) return res.status(400).json({ error: 'No active subscription found' });
     await stripeFetch(`/v1/subscriptions/${data.stripe_subscription_id}`, {
       method: 'POST',

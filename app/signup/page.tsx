@@ -84,8 +84,11 @@ function SignupCheckoutForm({ planId, planPrice, planName, onSuccess }: { planId
       }}>
         {processing ? 'Processing...' : `Start 14-Day Free Trial — then $${planPrice}/mo`}
       </button>
-      <div style={{ textAlign: 'center', marginTop: 12, fontSize: 11, color: 'rgba(255,255,255,.15)' }}>
+      <div style={{ textAlign: 'center', marginTop: 12, fontSize: 11, color: 'rgba(255,255,255,.15)', lineHeight: 1.6 }}>
         No charge for 14 days · Cancel anytime · Secured by Stripe
+      </div>
+      <div style={{ textAlign: 'center', marginTop: 8, fontSize: 10, color: 'rgba(255,255,255,.12)', lineHeight: 1.6 }}>
+        Subscription automatically renews unless cancelled at least 24 hours before the end of the current period.
       </div>
     </form>
   )
@@ -194,6 +197,8 @@ export default function SignupPage() {
           email: email.toLowerCase().trim(),
           phone: phone || undefined,
           timezone,
+          business_type: businessType || undefined,
+          shop_name: businessName,
         }),
       })
       const data = await res.json()

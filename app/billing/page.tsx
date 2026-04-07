@@ -67,7 +67,10 @@ const stripeAppearance: Appearance = {
 declare global {
   interface Window {
     __VURIUM_IS_NATIVE?: boolean
-    webkit?: { messageHandlers?: { purchase?: { postMessage: (msg: any) => void } } }
+    webkit?: { messageHandlers?: {
+      purchase?: { postMessage: (msg: any) => void }
+      restore?: { postMessage: (msg: any) => void }
+    } }
   }
 }
 
@@ -222,17 +225,32 @@ export default function BillingPage() {
 
   useEffect(() => { loadBilling() }, [loadBilling])
 
+  const [restoring, setRestoring] = useState(false)
+
   // Listen for Apple IAP purchase success/error from native app
   useEffect(() => {
     const onSuccess = () => { setCheckoutLoading(''); setTimeout(loadBilling, 1500) }
     const onError = () => { setCheckoutLoading('') }
+    const onRestoreSuccess = () => { setRestoring(false); setTimeout(loadBilling, 1500) }
+    const onRestoreError = () => { setRestoring(false) }
     window.addEventListener('vuriumPurchaseSuccess', onSuccess)
     window.addEventListener('vuriumPurchaseError', onError)
+    window.addEventListener('vuriumRestoreSuccess', onRestoreSuccess)
+    window.addEventListener('vuriumRestoreError', onRestoreError)
     return () => {
       window.removeEventListener('vuriumPurchaseSuccess', onSuccess)
       window.removeEventListener('vuriumPurchaseError', onError)
+      window.removeEventListener('vuriumRestoreSuccess', onRestoreSuccess)
+      window.removeEventListener('vuriumRestoreError', onRestoreError)
     }
   }, [loadBilling])
+
+  function handleRestore() {
+    if (window.__VURIUM_IS_NATIVE && window.webkit?.messageHandlers?.restore) {
+      setRestoring(true)
+      window.webkit.messageHandlers.restore.postMessage({})
+    }
+  }
 
   async function startCheckout(plan: PlanDef) {
     // Native iOS → trigger Apple In-App Purchase
@@ -305,7 +323,8 @@ export default function BillingPage() {
     }
     if (!confirm('Are you sure you want to cancel your subscription? You will lose access at the end of the billing period.')) return
     try {
-      await apiFetch('/api/billing/cancel', { method: 'POST' })
+      const data = await apiFetch('/api/billing/cancel', { method: 'POST' })
+      if (data.message) alert(data.message)
       loadBilling()
     } catch (e: any) { alert(e.message || 'Failed to cancel') }
   }
@@ -359,18 +378,17 @@ export default function BillingPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
                   {billing.stripe_subscription_id && (
-                    <>
-                      <button onClick={handlePortal} style={{
-                        padding: '10px 20px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer',
-                        background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)',
-                      }}>Manage Payment</button>
-                      {billing.subscription_status !== 'cancelling' && billing.subscription_status !== 'canceled' && (
-                        <button onClick={handleCancel} style={{
-                          padding: '10px 20px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer',
-                          background: 'rgba(220,80,80,.06)', border: '1px solid rgba(220,80,80,.15)', color: 'rgba(220,130,130,.7)',
-                        }}>Cancel</button>
-                      )}
-                    </>
+                    <button onClick={handlePortal} style={{
+                      padding: '10px 20px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer',
+                      background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)',
+                    }}>Manage Payment</button>
+                  )}
+                  {(billing.stripe_subscription_id || billing.subscription_status === 'active') &&
+                    billing.subscription_status !== 'cancelling' && billing.subscription_status !== 'canceled' && (
+                    <button onClick={handleCancel} style={{
+                      padding: '10px 20px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer',
+                      background: 'rgba(220,80,80,.06)', border: '1px solid rgba(220,80,80,.15)', color: 'rgba(220,130,130,.7)',
+                    }}>Cancel</button>
                   )}
                 </div>
               </div>
@@ -438,6 +456,26 @@ export default function BillingPage() {
                 You&apos;re on a free trial with full access to all features. Subscribe before the trial ends to keep your data and settings.
               </div>
             )}
+
+            {/* Auto-renewal disclaimer (Apple 3.1.2) */}
+            <div style={{ marginTop: 28, padding: '16px 20px', borderRadius: 14, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)', fontSize: 11, color: 'rgba(255,255,255,.25)', lineHeight: 1.7, textAlign: 'center' }}>
+              Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. You can manage and cancel your subscriptions in your Apple ID Settings or Google Play Store settings.
+            </div>
+
+            {/* Restore Purchases (Apple requirement) + Privacy/Terms */}
+            <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
+              {typeof window !== 'undefined' && window.__VURIUM_IS_NATIVE && (
+                <button onClick={handleRestore} disabled={restoring} style={{
+                  padding: '8px 18px', borderRadius: 999, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer',
+                  background: 'transparent', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.35)',
+                  opacity: restoring ? 0.5 : 1,
+                }}>
+                  {restoring ? 'Restoring...' : 'Restore Purchases'}
+                </button>
+              )}
+              <a href="/privacy" style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', textDecoration: 'none' }}>Privacy Policy</a>
+              <a href="/terms" style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', textDecoration: 'none' }}>Terms of Service</a>
+            </div>
           </>
         )}
       </div>
