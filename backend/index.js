@@ -1783,6 +1783,185 @@ app.post('/auth/setup-owner', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
+// ─── Sign in with Apple ─────────────────────────────────────────────────────
+// Apple JWKS cache
+let appleJWKSCache = null;
+let appleJWKSCacheTime = 0;
+const APPLE_JWKS_TTL = 24 * 60 * 60 * 1000; // 24h
+
+async function fetchAppleJWKS() {
+  if (appleJWKSCache && Date.now() - appleJWKSCacheTime < APPLE_JWKS_TTL) return appleJWKSCache;
+  return new Promise((resolve, reject) => {
+    https.get('https://appleid.apple.com/auth/keys', res => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          appleJWKSCache = JSON.parse(data);
+          appleJWKSCacheTime = Date.now();
+          resolve(appleJWKSCache);
+        } catch (e) { reject(e); }
+      });
+    }).on('error', reject);
+  });
+}
+
+function jwkToPem(jwk) {
+  const key = crypto.createPublicKey({ key: jwk, format: 'jwk' });
+  return key.export({ type: 'spki', format: 'pem' });
+}
+
+async function verifyAppleToken(identityToken) {
+  const header = JSON.parse(Buffer.from(identityToken.split('.')[0], 'base64url').toString());
+  const jwks = await fetchAppleJWKS();
+  const key = jwks.keys.find(k => k.kid === header.kid);
+  if (!key) throw new Error('Apple signing key not found');
+  const pem = jwkToPem(key);
+  const BUNDLE_ID = 'com.vurium.VuriumBook';
+  return jwt.verify(identityToken, pem, {
+    algorithms: ['RS256'],
+    issuer: 'https://appleid.apple.com',
+    audience: BUNDLE_ID,
+  });
+}
+
+app.post('/auth/apple-signin', async (req, res) => {
+  try {
+    const { identityToken, userIdentifier, fullName, email } = req.body || {};
+    if (!identityToken) return res.status(400).json({ error: 'Missing identityToken' });
+
+    // Verify Apple identity token
+    let applePayload;
+    try {
+      applePayload = await verifyAppleToken(identityToken);
+    } catch (e) {
+      console.error('[Apple SignIn] Token verification failed:', e.message);
+      return res.status(401).json({ error: 'Invalid Apple identity token' });
+    }
+
+    const appleUserId = applePayload.sub;
+    const appleEmail = (applePayload.email || email || '').toLowerCase().trim();
+    const userName = fullName?.givenName
+      ? `${fullName.givenName} ${fullName.familyName || ''}`.trim()
+      : appleEmail.split('@')[0];
+
+    if (!appleUserId) return res.status(400).json({ error: 'Invalid Apple user ID' });
+
+    // 1. Search for existing user by apple_user_id
+    const allWs = await db.collection('workspaces').get();
+    let foundUser = null, foundWsId = null;
+
+    for (const ws of allWs.docs) {
+      const snap = await ws.ref.collection('users')
+        .where('apple_user_id', '==', appleUserId).where('active', '==', true).limit(1).get();
+      if (!snap.empty) {
+        foundUser = { ...snap.docs[0].data(), uid: snap.docs[0].id };
+        foundWsId = ws.id;
+        break;
+      }
+    }
+
+    // 2. If not found by apple_user_id, search by email to link accounts
+    if (!foundUser && appleEmail) {
+      for (const ws of allWs.docs) {
+        const snap = await ws.ref.collection('users')
+          .where('username', '==', appleEmail).where('active', '==', true).limit(1).get();
+        if (!snap.empty) {
+          foundUser = { ...snap.docs[0].data(), uid: snap.docs[0].id };
+          foundWsId = ws.id;
+          // Link Apple ID to existing account
+          await ws.ref.collection('users').doc(foundUser.uid).update({
+            apple_user_id: appleUserId,
+            updated_at: toIso(new Date()),
+          });
+          console.log(`[Apple SignIn] Linked Apple ID to existing user ${foundUser.uid} in workspace ${ws.id}`);
+          break;
+        }
+      }
+    }
+
+    // 3. Found existing user — login
+    if (foundUser && foundWsId) {
+      const token = jwt.sign({
+        uid: foundUser.uid, username: foundUser.username, role: foundUser.role,
+        name: foundUser.name, workspace_id: foundWsId,
+        barber_id: foundUser.barber_id || null,
+        mentor_barber_ids: foundUser.mentor_barber_ids || [],
+        permissions: PERMISSIONS[foundUser.role] || {},
+      }, JWT_SECRET, { expiresIn: TOKEN_TTL });
+      setAuthCookie(res, token);
+      writeAuditLog(foundWsId, { action: 'user.login.apple', resource_id: foundUser.uid, data: { apple_user_id: appleUserId }, req }).catch(() => {});
+      return res.json({
+        ok: true, token,
+        user: {
+          id: foundUser.uid, uid: foundUser.uid, username: foundUser.username, name: foundUser.name,
+          role: foundUser.role, workspace_id: foundWsId, barber_id: foundUser.barber_id || null,
+          permissions: PERMISSIONS[foundUser.role] || {},
+        },
+      });
+    }
+
+    // 4. No existing user — create new workspace + owner (signup flow)
+    const wsRef = db.collection('workspaces').doc();
+    const workspaceName = userName || 'My Business';
+    const slug = await generateUniqueSlug(workspaceName);
+    const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    await wsRef.set({
+      name: sanitizeHtml(workspaceName),
+      slug,
+      plan_type: 'individual',
+      billing_status: 'trialing',
+      trial_ends_at: toIso(trialEnd),
+      trial_used: false,
+      owner_username: appleEmail || appleUserId,
+      timezone: 'America/Chicago',
+      created_at: toIso(new Date()),
+      updated_at: toIso(new Date()),
+    });
+    await registerSlug(slug, wsRef.id).catch(() => {});
+
+    const userRef = wsRef.collection('users').doc();
+    await userRef.set({
+      username: appleEmail || appleUserId,
+      name: sanitizeHtml(userName),
+      email: appleEmail || null,
+      role: 'owner',
+      password_hash: null, // Apple users don't have password
+      apple_user_id: appleUserId,
+      active: true,
+      created_at: toIso(new Date()),
+      updated_at: toIso(new Date()),
+    });
+
+    await wsRef.collection('settings').doc('config').set({
+      timezone: 'America/Chicago',
+      shop_name: sanitizeHtml(workspaceName),
+      created_at: toIso(new Date()),
+    });
+
+    const token = jwt.sign({
+      uid: userRef.id, username: appleEmail || appleUserId, role: 'owner',
+      name: sanitizeHtml(userName), workspace_id: wsRef.id,
+      permissions: PERMISSIONS.owner,
+    }, JWT_SECRET, { expiresIn: TOKEN_TTL });
+    setAuthCookie(res, token);
+
+    console.log(`[Apple SignIn] Created new workspace ${wsRef.id} for Apple user ${appleUserId}`);
+    res.status(201).json({
+      ok: true, token, isNewUser: true,
+      workspace_id: wsRef.id, slug,
+      user: {
+        id: userRef.id, uid: userRef.id, username: appleEmail || appleUserId,
+        name: sanitizeHtml(userName), role: 'owner', workspace_id: wsRef.id,
+        permissions: PERMISSIONS.owner,
+      },
+    });
+  } catch (e) {
+    console.error('[Apple SignIn] Error:', e);
+    res.status(500).json({ error: e?.message || 'Apple sign-in failed' });
+  }
+});
+
 // Login by email only — searches all workspaces
 app.post('/auth/login-email', async (req, res) => {
   try {
