@@ -17,7 +17,7 @@ async function getShopSettings() {
 }
 
 // ─── Price calculation ────────────────────────────────────────────────────────
-function calcTotal(basePrice: number, settings: any) {
+function calcTotal(basePrice: number, settings: any, paymentMethod?: string) {
   if (!basePrice) return { base: 0, tax: 0, fees: 0, total: 0, breakdown: [] }
   const breakdown: { label: string; amount: number; type: string }[] = []
 
@@ -35,9 +35,15 @@ function calcTotal(basePrice: number, settings: any) {
     breakdown.push({ label: tax.label || 'Tax', amount: taxAmount, type: 'tax' })
   }
 
-  // Fees
+  // Fees — filter by payment method via applies_to
   let feesTotal = 0
-  const fees: any[] = (settings?.fees || []).filter((f: any) => f.enabled !== false)
+  const fees: any[] = (settings?.fees || []).filter((f: any) => {
+    if (f.enabled === false) return false
+    const appliesTo = f.applies_to || 'all'
+    if (appliesTo === 'all') return true
+    if (!paymentMethod) return true // no method selected yet — show all
+    return appliesTo === paymentMethod
+  })
   for (const f of fees) {
     let amt = 0
     if (f.type === 'percent') amt = Math.round(basePrice * (Number(f.value||0)/100) * 100) / 100
@@ -632,7 +638,7 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
   const evSvcs = services.filter(s => evServiceIds.includes(s.id))
   const svc = evSvcs[0]
   const basePrice = evSvcs.reduce((sum, s) => sum + (s.price ? Number(String(s.price).replace(/[^\d.]/g, '')) : 0), 0)
-  const priceCalc = calcTotal(basePrice, shopSettings)
+  const priceCalc = calcTotal(basePrice, shopSettings, method)
   const price = priceCalc.total  // total with tax + fees
 
   // Find blocking event — same barber, same day, earlier start, not resolved

@@ -1026,9 +1026,11 @@ export default function SettingsPage() {
                         </select>
                         <input type="number" min={0} step={0.01} value={f.value||''} onChange={e => { const n=[...fees]; n[i]={...n[i],value:Number(e.target.value)}; setFees(n); setDirty(true) }} placeholder="Value" style={inpSm} />
                         <select value={f.applies_to} onChange={e => { const n=[...fees]; n[i]={...n[i],applies_to:e.target.value}; setFees(n); setDirty(true) }} style={inpSm}>
-                          <option value="all">All</option>
-                          <option value="services">Services</option>
-                          <option value="tips">Tips</option>
+                          <option value="all">All payments</option>
+                          <option value="terminal">Terminal only</option>
+                          <option value="cash">Cash only</option>
+                          <option value="zelle">Zelle only</option>
+                          <option value="other">Other only</option>
                         </select>
                         <button onClick={() => { setFees(fees.filter((_,j)=>j!==i)); setDirty(true) }} style={{ height: 34, width: 34, borderRadius: 10, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: '#ff6b6b', cursor: 'pointer', fontSize: 15 }}>✕</button>
                       </div>
