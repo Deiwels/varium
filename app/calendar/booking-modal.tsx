@@ -359,6 +359,13 @@ function ClientSearch({ onSelect, isOwnerOrAdmin, initialClient, initialName }: 
               </div>
             </div>
             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              {isOwnerOrAdmin && selected.phone && (
+                <a href={`tel:${selected.phone.replace(/[^\d+]/g, '')}`}
+                  title={`Call ${selected.name}`}
+                  style={{ height: 30, width: 30, borderRadius: 8, border: '1px solid rgba(130,220,170,.30)', background: 'rgba(130,220,170,.08)', color: 'rgba(130,220,170,.75)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', flexShrink: 0 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                </a>
+              )}
               <button onClick={() => setEditingInfo(true)} style={{ height: 30, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' }}>Edit</button>
               <button onClick={clear} style={{ height: 30, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' }}>Change</button>
             </div>
