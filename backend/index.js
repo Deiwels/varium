@@ -1087,10 +1087,10 @@ app.post('/api/webhooks/square', async (req, res) => {
           if (checkout.payment_ids?.length) patch.payment_id = checkout.payment_ids[0];
           if (status === 'COMPLETED') {
             patch.completed_at = toIso(new Date());
-            let tipCents = checkout.tip_money?.amount || 0;
+            let tipCents = 0;
             let totalCents = checkout.amount_money?.amount || 0;
-            // If tip not in checkout, fetch from the actual payment object
-            if (!tipCents && checkout.payment_ids?.length) {
+            // Always fetch tip from payment object (checkout.tip_money only set when allow_tipping=false)
+            if (checkout.payment_ids?.length) {
               try {
                 const payHeaders = await squareHeaders(wsCol);
                 const pr = await squareFetch(`/v2/payments/${checkout.payment_ids[0]}`, { headers: payHeaders });
@@ -1102,6 +1102,7 @@ app.post('/api/webhooks/square', async (req, res) => {
                 }
               } catch {}
             }
+            if (!tipCents) tipCents = checkout.tip_money?.amount || 0;
             patch.tip_cents = tipCents;
             // Update booking
             const prData = prDoc.data();
@@ -4531,10 +4532,10 @@ app.get('/api/payments/terminal/status/:checkoutId', async (req, res) => {
       if (checkout.payment_ids?.length) patch.payment_id = checkout.payment_ids[0];
       if (checkout.status === 'COMPLETED') {
         patch.completed_at = toIso(new Date());
-        let tipCents = checkout.tip_money?.amount || 0;
+        let tipCents = 0;
         let totalCents = checkout.amount_money?.amount || 0;
-        // If tip not in checkout, fetch from the actual payment object
-        if (!tipCents && checkout.payment_ids?.length) {
+        // Always fetch tip from the payment object (checkout.tip_money is only set when allow_tipping=false)
+        if (checkout.payment_ids?.length) {
           try {
             const payHeaders = await squareHeaders(req.ws);
             const pr = await squareFetch(`/v2/payments/${checkout.payment_ids[0]}`, { headers: payHeaders });
@@ -4546,6 +4547,8 @@ app.get('/api/payments/terminal/status/:checkoutId', async (req, res) => {
             }
           } catch {}
         }
+        // Fallback to checkout tip_money if payment fetch didn't work
+        if (!tipCents) tipCents = checkout.tip_money?.amount || 0;
         patch.tip_cents = tipCents;
         const prData = prSnap.docs[0].data();
         if (prData.booking_id) {
@@ -4565,7 +4568,8 @@ app.get('/api/payments/terminal/status/:checkoutId', async (req, res) => {
       }
       await prSnap.docs[0].ref.update(patch);
     }
-    res.json({ checkout_id: checkout.id, status: checkout.status, payment_ids: checkout.payment_ids || [], tip_money: checkout.tip_money || null });
+    const tipCentsResponse = patch?.tip_cents || checkout.tip_money?.amount || 0;
+    res.json({ checkout_id: checkout.id, status: checkout.status, payment_ids: checkout.payment_ids || [], tip_money: { amount: tipCentsResponse, currency: 'USD' }, tip_cents: tipCentsResponse });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
