@@ -1002,40 +1002,59 @@ export default function SettingsPage() {
             {/* ── FEES ── */}
             {tab === 'fees' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <SectionCard title="Tax">
-                  <Toggle checked={!!tax.enabled} onChange={v => setNested('tax','enabled',v)} label="Enable tax on services" sub="Added to invoice total" />
-                  {tax.enabled && <>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 10 }}>
-                      <Field label="Tax label"><input value={tax.label || ''} onChange={e => setNested('tax','label',e.target.value)} placeholder="Sales Tax" style={inp} /></Field>
-                      <Field label="Tax rate %"><input type="number" min={0} max={50} step={0.01} value={tax.rate || ''} onChange={e => setNested('tax','rate',Number(e.target.value))} placeholder="8.75" style={inp} /></Field>
+                <SectionCard title="Taxes & Fees"
+                  action={<SmBtn onClick={() => { setFees(f => [...f, { id: 'fee_'+Date.now(), label: '', type: 'percent', value: 0, applies_to: 'all', enabled: true }]); setDirty(true) }}>+ Add</SmBtn>}>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)', marginBottom: 6 }}>Add taxes, card surcharges, booking fees. Each can apply to specific payment methods.</div>
+
+                  {/* Tax row */}
+                  <div style={{ padding: '10px 12px', borderRadius: 12, border: `1px solid ${tax.enabled ? 'rgba(255,207,63,.20)' : 'rgba(255,255,255,.08)'}`, background: tax.enabled ? 'rgba(255,207,63,.04)' : 'rgba(0,0,0,.14)', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: tax.enabled ? 8 : 0 }}>
+                      <Toggle checked={!!tax.enabled} onChange={v => setNested('tax','enabled',v)} label="Sales Tax" sub="" />
                     </div>
-                    <Toggle checked={!!tax.included_in_price} onChange={v => setNested('tax','included_in_price',v)} label="Price includes tax" sub="Tax already built into service price" />
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', lineHeight: 1.5 }}>Example: $59.99 + 8.75% tax → client pays $65.24</div>
-                  </>}
-                </SectionCard>
-                <SectionCard title="Processing fees & surcharges"
-                  action={<SmBtn onClick={() => { setFees(f => [...f, { id: 'fee_'+Date.now(), label: '', type: 'percent', value: 0, applies_to: 'all', enabled: true }]); setDirty(true) }}>+ Add fee</SmBtn>}>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)' }}>Card surcharges, booking fees, processing fees</div>
-                  {fees.length === 0 ? <div style={{ color: 'rgba(255,255,255,.30)', fontSize: 12, padding: '8px 0' }}>No fees — services charged at face value</div> :
-                    fees.map((f, i) => (
-                      <div key={f.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 100px 36px', gap: 8, alignItems: 'center', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)' }}>
-                        <input value={f.label} onChange={e => { const n=[...fees]; n[i]={...n[i],label:e.target.value}; setFees(n); setDirty(true) }} placeholder="e.g. Card surcharge" style={{...inpSm,width:'100%'}} />
-                        <select value={f.type} onChange={e => { const n=[...fees]; n[i]={...n[i],type:e.target.value as any}; setFees(n); setDirty(true) }} style={inpSm}>
-                          <option value="percent">%</option>
-                          <option value="fixed">Fixed $</option>
-                        </select>
-                        <input type="number" min={0} step={0.01} value={f.value||''} onChange={e => { const n=[...fees]; n[i]={...n[i],value:Number(e.target.value)}; setFees(n); setDirty(true) }} placeholder="Value" style={inpSm} />
-                        <select value={f.applies_to} onChange={e => { const n=[...fees]; n[i]={...n[i],applies_to:e.target.value}; setFees(n); setDirty(true) }} style={inpSm}>
+                    {tax.enabled && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 120px', gap: 8, alignItems: 'center' }}>
+                        <input value={tax.label || ''} onChange={e => setNested('tax','label',e.target.value)} placeholder="Tax label" style={{...inpSm,width:'100%'}} />
+                        <div style={{ position: 'relative' }}>
+                          <input type="number" min={0} max={50} step={0.01} value={tax.rate || ''} onChange={e => setNested('tax','rate',Number(e.target.value))} placeholder="Rate" style={inpSm} />
+                        </div>
+                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>% rate</div>
+                        <select value={tax.applies_to || 'all'} onChange={e => setNested('tax','applies_to',e.target.value)} style={inpSm}>
                           <option value="all">All payments</option>
                           <option value="terminal">Terminal only</option>
                           <option value="cash">Cash only</option>
                           <option value="zelle">Zelle only</option>
                           <option value="other">Other only</option>
                         </select>
-                        <button onClick={() => { setFees(fees.filter((_,j)=>j!==i)); setDirty(true) }} style={{ height: 34, width: 34, borderRadius: 10, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: '#ff6b6b', cursor: 'pointer', fontSize: 15 }}>✕</button>
                       </div>
-                    ))
-                  }
+                    )}
+                    {tax.enabled && (
+                      <div style={{ marginTop: 6 }}>
+                        <Toggle checked={!!tax.included_in_price} onChange={v => setNested('tax','included_in_price',v)} label="Price includes tax" sub="" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Fee rows */}
+                  {fees.map((f, i) => (
+                    <div key={f.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 120px 36px', gap: 8, alignItems: 'center', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)', marginBottom: 6 }}>
+                      <input value={f.label} onChange={e => { const n=[...fees]; n[i]={...n[i],label:e.target.value}; setFees(n); setDirty(true) }} placeholder="e.g. Card surcharge" style={{...inpSm,width:'100%'}} />
+                      <select value={f.type} onChange={e => { const n=[...fees]; n[i]={...n[i],type:e.target.value as any}; setFees(n); setDirty(true) }} style={inpSm}>
+                        <option value="percent">%</option>
+                        <option value="fixed">Fixed $</option>
+                      </select>
+                      <input type="number" min={0} step={0.01} value={f.value||''} onChange={e => { const n=[...fees]; n[i]={...n[i],value:Number(e.target.value)}; setFees(n); setDirty(true) }} placeholder="Value" style={inpSm} />
+                      <select value={f.applies_to} onChange={e => { const n=[...fees]; n[i]={...n[i],applies_to:e.target.value}; setFees(n); setDirty(true) }} style={inpSm}>
+                        <option value="all">All payments</option>
+                        <option value="terminal">Terminal only</option>
+                        <option value="cash">Cash only</option>
+                        <option value="zelle">Zelle only</option>
+                        <option value="other">Other only</option>
+                      </select>
+                      <button onClick={() => { setFees(fees.filter((_,j)=>j!==i)); setDirty(true) }} style={{ height: 34, width: 34, borderRadius: 10, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: '#ff6b6b', cursor: 'pointer', fontSize: 15 }}>✕</button>
+                    </div>
+                  ))}
+
+                  {fees.length === 0 && !tax.enabled && <div style={{ color: 'rgba(255,255,255,.30)', fontSize: 12, padding: '4px 0' }}>No taxes or fees — services charged at face value</div>}
                 </SectionCard>
 
                 <SectionCard title="Custom charges & categories"

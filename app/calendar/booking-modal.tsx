@@ -21,10 +21,12 @@ function calcTotal(basePrice: number, settings: any, paymentMethod?: string) {
   if (!basePrice) return { base: 0, tax: 0, fees: 0, total: 0, breakdown: [] }
   const breakdown: { label: string; amount: number; type: string }[] = []
 
-  // Tax
+  // Tax — filter by payment method via applies_to
   let taxAmount = 0
   const tax = settings?.tax
-  if (tax?.enabled && tax?.rate) {
+  const taxApplies = tax?.applies_to || 'all'
+  const taxMatchesMethod = taxApplies === 'all' || !paymentMethod || taxApplies === paymentMethod
+  if (tax?.enabled && tax?.rate && taxMatchesMethod) {
     const rate = Number(tax.rate) / 100
     if (tax.included_in_price) {
       const base = basePrice / (1 + rate)
