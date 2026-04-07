@@ -8,7 +8,13 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 
 // ─── Native iOS detection ───────────────────────────────────────────────────
 declare global {
-  interface Window { __VURIUM_IS_NATIVE?: boolean }
+  interface Window {
+    __VURIUM_IS_NATIVE?: boolean
+    webkit?: { messageHandlers?: {
+      purchase?: { postMessage: (msg: any) => void }
+      restore?: { postMessage: (msg: any) => void }
+    } }
+  }
 }
 
 // ─── Stripe setup ───────────────────────────────────────────────────────────
@@ -112,12 +118,22 @@ export default function SignupPage() {
   const [selectedPlan, setSelectedPlan] = useState<string>('salon')
   const [clientSecret, setClientSecret] = useState('')
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [appleLoading, setAppleLoading] = useState(false)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const p = params.get('plan')
     if (p) setPlan(p)
     setTimezone(detectUserTimezone())
+  }, [])
+
+  // Listen for Apple IAP results
+  useEffect(() => {
+    const onSuccess = () => { setAppleLoading(false); setStep(2) }
+    const onError = (e: any) => { setAppleLoading(false); const msg = e?.detail?.error; if (msg && msg !== 'cancelled') setError('Purchase failed: ' + msg) }
+    window.addEventListener('vuriumPurchaseSuccess', onSuccess)
+    window.addEventListener('vuriumPurchaseError', onError)
+    return () => { window.removeEventListener('vuriumPurchaseSuccess', onSuccess); window.removeEventListener('vuriumPurchaseError', onError) }
   }, [])
 
   useEffect(() => {
@@ -448,17 +464,26 @@ export default function SignupPage() {
                 ))}
               </div>
 
-              {/* Native iOS: skip Stripe, use Apple IAP later from /billing */}
+              {/* Native iOS: trigger Apple IAP with free trial */}
               {typeof window !== 'undefined' && window.__VURIUM_IS_NATIVE ? (
                 <>
-                  <button type="button" onClick={() => setStep(2)} style={{
+                  <button type="button" disabled={appleLoading} onClick={() => {
+                    if (window.webkit?.messageHandlers?.purchase) {
+                      setAppleLoading(true); setError('')
+                      window.webkit.messageHandlers.purchase.postMessage({ plan: selectedPlan })
+                    }
+                  }} style={{
                     width: '100%', height: 48, borderRadius: 999, border: '1px solid rgba(130,220,170,.25)',
                     background: 'rgba(130,220,170,.1)', color: 'rgba(130,220,170,.85)', fontSize: 14, fontWeight: 600,
-                    cursor: 'pointer', fontFamily: 'inherit',
+                    cursor: appleLoading ? 'wait' : 'pointer', fontFamily: 'inherit',
+                    opacity: appleLoading ? 0.5 : 1,
                   }}>
-                    Start 14-Day Free Trial
+                    {appleLoading ? 'Processing...' : `Subscribe — ${SIGNUP_PLANS.find(p => p.id === selectedPlan)?.price ? '$' + SIGNUP_PLANS.find(p => p.id === selectedPlan)?.price + '/mo' : ''} with 14-Day Free Trial`}
                   </button>
-                  <div style={{ textAlign: 'center', marginTop: 12, fontSize: 10, color: 'rgba(255,255,255,.12)', lineHeight: 1.6 }}>
+                  <div style={{ textAlign: 'center', marginTop: 12, fontSize: 10, color: 'rgba(255,255,255,.15)', lineHeight: 1.6 }}>
+                    No charge for 14 days · Cancel anytime
+                  </div>
+                  <div style={{ textAlign: 'center', marginTop: 6, fontSize: 10, color: 'rgba(255,255,255,.12)', lineHeight: 1.6 }}>
                     Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. You can manage and cancel your subscriptions in your Apple ID Settings.
                   </div>
                   <div style={{ textAlign: 'center', marginTop: 10, display: 'flex', justifyContent: 'center', gap: 16 }}>
