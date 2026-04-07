@@ -258,8 +258,15 @@ export default function SignupPage() {
     'Spa & Wellness', 'Tattoo Studio', 'Lash & Brow Bar', 'Other',
   ]
 
+  const isNative = typeof window !== 'undefined' && (window as any).__VURIUM_IS_NATIVE
+
   return (
     <div style={{ overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
+      {/* Fix navbar + content safe area for native iOS */}
+      {isNative && <style>{`
+        .navbar { padding-top: env(safe-area-inset-top, 0px) !important; height: calc(56px + env(safe-area-inset-top, 0px)) !important; }
+        .signup-main { padding-top: calc(env(safe-area-inset-top, 0px) + clamp(100px, 12vh, 140px)) !important; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 60px) !important; }
+      `}</style>}
       <div className="space-bg" ref={spaceRef}>
         <div className="stars-wrap stars-wrap-far"><div className="stars stars-far" /></div>
         <div className="stars-wrap stars-wrap-mid"><div className="stars stars-mid" /></div>
@@ -283,7 +290,7 @@ export default function SignupPage() {
         </ul>
       </nav>
 
-      <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'clamp(100px, 12vh, 140px) 20px 60px', position: 'relative', zIndex: 2 }}>
+      <main className="signup-main" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'clamp(100px, 12vh, 140px) 20px 60px', position: 'relative', zIndex: 2 }}>
 
         {/* STEP 0: Registration Form */}
         {step === 0 && (
