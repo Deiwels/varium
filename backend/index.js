@@ -5780,6 +5780,147 @@ async function handleStripeEvent(wsId, type, obj) {
 }
 
 // ============================================================
+// APPLE APP STORE — receipt validation + server notifications webhook
+// ============================================================
+
+// Decode one segment of a JWS (App Store Server uses JWS-signed payloads).
+// NOTE: For production you should verify the JWS signature using Apple's
+// root certificates. Here we decode the payload to extract fields and rely
+// on the webhook URL being a secret endpoint + cross-checking the
+// originalTransactionId against our stored value.
+function decodeJWSPayload(jws) {
+  if (!jws || typeof jws !== 'string') return null;
+  const parts = jws.split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const payload = Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+    return JSON.parse(payload);
+  } catch { return null; }
+}
+
+// Validate an Apple receipt against Apple's verifyReceipt endpoint.
+// Requires APPLE_SHARED_SECRET env var (App Store Connect → App-Specific Shared Secret).
+async function verifyAppleReceipt(receiptData, { sandboxFallback = true } = {}) {
+  const sharedSecret = process.env.APPLE_SHARED_SECRET || '';
+  const body = JSON.stringify({
+    'receipt-data': receiptData,
+    'password': sharedSecret,
+    'exclude-old-transactions': true,
+  });
+  const prodUrl = 'https://buy.itunes.apple.com/verifyReceipt';
+  const sandboxUrl = 'https://sandbox.itunes.apple.com/verifyReceipt';
+  const r = await fetch(prodUrl, { method: 'POST', body });
+  const data = await r.json();
+  // 21007 = this receipt is from sandbox, retry on sandbox
+  if (data?.status === 21007 && sandboxFallback) {
+    const r2 = await fetch(sandboxUrl, { method: 'POST', body });
+    return await r2.json();
+  }
+  return data;
+}
+
+// Optional: validate receipt before accepting an Apple IAP purchase.
+// Clients can POST { receiptData } instead of raw transactionId.
+app.post('/api/billing/apple-validate-receipt', requireRole('owner'), async (req, res) => {
+  try {
+    const { receiptData } = req.body || {};
+    if (!receiptData) return res.status(400).json({ error: 'receiptData required' });
+    const result = await verifyAppleReceipt(receiptData);
+    if (result?.status !== 0) {
+      return res.status(400).json({ error: 'Invalid receipt', apple_status: result?.status });
+    }
+    const latest = (result.latest_receipt_info && result.latest_receipt_info[0]) || null;
+    if (!latest) return res.status(400).json({ error: 'No transaction info in receipt' });
+    const expiresMs = parseInt(latest.expires_date_ms || '0', 10);
+    const nowMs = Date.now();
+    const active = expiresMs > nowMs;
+    res.json({
+      ok: true,
+      active,
+      transaction_id: latest.transaction_id,
+      original_transaction_id: latest.original_transaction_id,
+      product_id: latest.product_id,
+      expires_at: expiresMs ? new Date(expiresMs).toISOString() : null,
+      environment: result.environment || null,
+    });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// App Store Server Notifications V2 webhook.
+// Configure this URL in App Store Connect → App Information → App Store
+// Server Notifications → Production Server URL.
+//   https://<your-api>/api/webhooks/apple
+app.post('/api/webhooks/apple', express.json({ limit: '1mb' }), async (req, res) => {
+  try {
+    const signedPayload = req.body?.signedPayload;
+    if (!signedPayload) { res.json({ ok: true }); return; }
+    const payload = decodeJWSPayload(signedPayload);
+    if (!payload) { res.json({ ok: true }); return; }
+
+    // payload has: notificationType, subtype, data.signedTransactionInfo, data.signedRenewalInfo
+    const notificationType = payload.notificationType;
+    const subtype = payload.subtype || '';
+    const txInfo = decodeJWSPayload(payload?.data?.signedTransactionInfo) || {};
+    const renewalInfo = decodeJWSPayload(payload?.data?.signedRenewalInfo) || {};
+
+    const originalTransactionId = txInfo.originalTransactionId || renewalInfo.originalTransactionId;
+    if (!originalTransactionId) { res.json({ ok: true }); return; }
+
+    // Find the workspace by original transaction id
+    const wsSnap = await db.collection('workspaces')
+      .where('apple_original_transaction_id', '==', String(originalTransactionId))
+      .limit(1).get();
+    if (wsSnap.empty) { res.json({ ok: true }); return; }
+    const wsRef = wsSnap.docs[0].ref;
+
+    const patch = { updated_at: toIso(new Date()), apple_last_notification: notificationType };
+    if (txInfo.expiresDate) patch.apple_expires_at = new Date(txInfo.expiresDate).toISOString();
+
+    switch (notificationType) {
+      case 'SUBSCRIBED':
+      case 'DID_RENEW':
+        patch.billing_status = 'active';
+        patch.subscription_status = 'active';
+        break;
+      case 'DID_CHANGE_RENEWAL_STATUS':
+        // subtype AUTO_RENEW_DISABLED → user cancelled auto-renew in Settings
+        if (subtype === 'AUTO_RENEW_DISABLED') {
+          patch.billing_status = 'cancelling';
+          patch.subscription_status = 'cancelling';
+        } else if (subtype === 'AUTO_RENEW_ENABLED') {
+          patch.billing_status = 'active';
+          patch.subscription_status = 'active';
+        }
+        break;
+      case 'EXPIRED':
+      case 'GRACE_PERIOD_EXPIRED':
+        patch.billing_status = 'canceled';
+        patch.subscription_status = 'canceled';
+        break;
+      case 'REFUND':
+      case 'REVOKE':
+        patch.billing_status = 'canceled';
+        patch.subscription_status = 'canceled';
+        break;
+      case 'DID_FAIL_TO_RENEW':
+        patch.billing_status = 'past_due';
+        patch.subscription_status = 'past_due';
+        break;
+      default:
+        // OFFER_REDEEMED, PRICE_INCREASE, RENEWAL_EXTENDED, etc. — just log
+        break;
+    }
+
+    await wsRef.update(patch).catch(() => {});
+    console.log(`[Apple Webhook] ${notificationType}${subtype ? '/' + subtype : ''} → workspace ${wsRef.id}`);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[Apple Webhook] error:', e);
+    res.json({ ok: true });
+  }
+});
+
+// ============================================================
 // MANAGE BOOKING (client-facing: cancel / reschedule via email link)
 // ============================================================
 
