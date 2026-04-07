@@ -655,7 +655,9 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
         e.startMin < (ev._raw?.start_min ?? 0) &&
         !e.paid &&
         e.paymentStatus !== 'refunded' &&
-        !RESOLVED.includes(e.status)
+        !RESOLVED.includes(e.status) &&
+        e.status !== 'block' &&
+        e.clientName !== 'BLOCKED'
       )
     : null
 
