@@ -5533,13 +5533,17 @@ app.get('/api/billing/status', async (req, res) => {
     const trialActive = trialEnd && trialEnd > now;
     const daysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / 86400000)) : 0;
     const effectivePlan = getEffectivePlan(data);
+    const billingSource = data.billing_source || (data.apple_transaction_id ? 'apple' : (data.stripe_subscription_id ? 'stripe' : null));
     res.json({
       plan_type: data.plan_type || data.plan || 'individual',
       billing_status: data.billing_status || data.subscription_status || (trialActive ? 'trialing' : 'inactive'),
       effective_plan: effectivePlan,
       plan: data.plan_type || data.plan || 'individual', // legacy compat
+      billing_source: billingSource,
       stripe_subscription_id: data.stripe_subscription_id || null,
       stripe_customer_id: data.stripe_customer_id || null,
+      apple_transaction_id: data.apple_transaction_id || null,
+      apple_expires_at: data.apple_expires_at || null,
       trial_active: !!trialActive,
       trial_ends_at: data.trial_ends_at || null,
       trial_days_left: daysLeft,
@@ -5548,18 +5552,38 @@ app.get('/api/billing/status', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-// Cancel subscription
+// Cancel subscription — routes to Stripe or Apple based on billing_source
 app.post('/api/billing/cancel', requireRole('owner'), async (req, res) => {
   try {
     const wsDoc = await req.wsDoc().get();
     const data = wsDoc.exists ? wsDoc.data() : {};
-    if (!data.stripe_subscription_id) return res.status(400).json({ error: 'No active subscription' });
+    const source = data.billing_source || (data.apple_transaction_id ? 'apple' : (data.stripe_subscription_id ? 'stripe' : null));
+
+    if (source === 'apple') {
+      // Apple IAP subscriptions can only be cancelled by the user in iOS Settings.
+      // We mark the workspace as 'cancelling' locally and instruct the client to open
+      // the Apple subscription management URL. The App Store Server Notifications
+      // webhook will update billing_status → 'canceled' once Apple confirms.
+      await req.wsDoc().update({ subscription_status: 'cancelling', billing_status: 'cancelling', updated_at: toIso(new Date()) });
+      writeAuditLog(req.wsId, { action: 'billing.cancel.apple', req }).catch(() => {});
+      return res.json({
+        ok: true,
+        status: 'cancelling',
+        source: 'apple',
+        manage_url: 'https://apps.apple.com/account/subscriptions',
+        message: 'Apple subscriptions must be cancelled in iOS Settings → Apple ID → Subscriptions.',
+      });
+    }
+
+    // Stripe path
+    if (!data.stripe_subscription_id) return res.status(400).json({ error: 'No active subscription found' });
     await stripeFetch(`/v1/subscriptions/${data.stripe_subscription_id}`, {
       method: 'POST',
       body: new URLSearchParams({ cancel_at_period_end: 'true' }).toString(),
     });
-    await req.wsDoc().update({ subscription_status: 'cancelling', updated_at: toIso(new Date()) });
-    res.json({ ok: true, status: 'cancelling' });
+    await req.wsDoc().update({ subscription_status: 'cancelling', billing_status: 'cancelling', updated_at: toIso(new Date()) });
+    writeAuditLog(req.wsId, { action: 'billing.cancel.stripe', req }).catch(() => {});
+    res.json({ ok: true, status: 'cancelling', source: 'stripe' });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 

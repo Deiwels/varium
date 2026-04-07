@@ -291,6 +291,18 @@ export default function BillingPage() {
   }
 
   async function handleCancel() {
+    const source = (billing as any)?.billing_source
+    if (source === 'apple') {
+      const ok = confirm('Your subscription was purchased through the Apple App Store.\n\nTo cancel, you must do it in iOS Settings → Apple ID → Subscriptions → Vurium.\n\nWe\'ll open the Apple subscription management page now.')
+      if (!ok) return
+      try {
+        const r: any = await apiFetch('/api/billing/cancel', { method: 'POST' })
+        loadBilling()
+        const url = r?.manage_url || 'https://apps.apple.com/account/subscriptions'
+        window.location.href = url
+      } catch (e: any) { alert(e.message || 'Failed to cancel') }
+      return
+    }
     if (!confirm('Are you sure you want to cancel your subscription? You will lose access at the end of the billing period.')) return
     try {
       await apiFetch('/api/billing/cancel', { method: 'POST' })
