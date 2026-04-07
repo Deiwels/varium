@@ -2784,8 +2784,8 @@ app.get('/api/users', requireRole('owner', 'admin'), async (req, res) => {
     const snap = await req.ws('users').get();
     const list = snap.docs.map(d => {
       const data = d.data();
-      return { id: d.id, username: data.username, name: data.name, role: data.role, active: data.active, barber_id: data.barber_id || null, phone: data.phone || null, photo_url: data.photo_url || null, schedule: data.schedule || null, created_at: data.created_at, updated_at: data.updated_at };
-    });
+      return { id: d.id, username: data.username, name: data.name, role: data.role, active: data.active, deleted: data.deleted || false, barber_id: data.barber_id || null, phone: data.phone || null, photo_url: data.photo_url || null, schedule: data.schedule || null, created_at: data.created_at, updated_at: data.updated_at };
+    }).filter(u => !u.deleted);
     res.json(list);
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -2907,11 +2907,26 @@ app.patch('/api/users/:id', async (req, res) => {
 
 app.delete('/api/users/:id', requireRole('owner'), async (req, res) => {
   try {
-    if (req.params.id === req.user.uid) return res.status(400).json({ error: 'Cannot delete yourself' });
+    if (req.params.id === req.user.uid) return res.status(400).json({ error: 'Cannot delete yourself — use Delete Account in Settings' });
     const ref = req.ws('users').doc(req.params.id);
-    if (!(await ref.get()).exists) return res.status(404).json({ error: 'User not found' });
-    await ref.update({ active: false, deleted: true, updated_at: toIso(new Date()) });
-    writeAuditLog(req.wsId, { action: 'user.delete', resource_id: req.params.id, req }).catch(() => {});
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ error: 'User not found' });
+    const userData = doc.data();
+    if (userData.role === 'owner') return res.status(400).json({ error: 'Cannot delete the owner account this way — owner must use Delete Account in Settings' });
+    const hard = String(req.query?.hard || '') === 'true';
+    if (hard) {
+      // Hard delete: remove the user document entirely + push tokens
+      await ref.delete();
+      try {
+        const tokSnap = await req.ws('crm_push_tokens').where('user_id', '==', req.params.id).get();
+        const batch = db.batch();
+        tokSnap.docs.forEach(d => batch.delete(d.ref));
+        if (tokSnap.docs.length) await batch.commit();
+      } catch {}
+    } else {
+      await ref.update({ active: false, deleted: true, updated_at: toIso(new Date()) });
+    }
+    writeAuditLog(req.wsId, { action: 'user.delete', resource_id: req.params.id, hard, req }).catch(() => {});
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });

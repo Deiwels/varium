@@ -114,12 +114,39 @@ function UsersTab() {
   }
 
   async function deleteUser(uid: string, uname: string) {
-    if (!window.confirm(`Remove "${uname}" from your team?`)) return
+    if (!window.confirm(`Permanently delete "${uname}"?\n\nThis removes the account and all access. This action cannot be undone.`)) return
     try { await apiFetch(`/api/users/${encodeURIComponent(uid)}?hard=true`, { method: 'DELETE' }); load() }
     catch (e: any) { alert(e?.message || 'Failed') }
   }
 
+  async function deleteOwnerAccount() {
+    const warning = `⚠ DELETE ENTIRE WORKSPACE\n\nThis will PERMANENTLY delete:\n• Your owner account\n• ALL team member accounts you created\n• All bookings, clients, payments, and business data\n• Your active subscription will also be cancelled\n\nThis action is IRREVERSIBLE.\n\nType DELETE to confirm:`
+    const confirmation = prompt(warning)
+    if (confirmation !== 'DELETE') {
+      if (confirmation !== null) alert('Cancelled — you must type DELETE exactly')
+      return
+    }
+    const pw = prompt('Enter your password to confirm:')
+    if (!pw) return
+    try {
+      const r = await apiFetch('/api/auth/delete-account', { method: 'DELETE', body: JSON.stringify({ password: pw }) })
+      if (r?.ok) {
+        localStorage.removeItem('VURIUMBOOK_TOKEN')
+        localStorage.removeItem('VURIUMBOOK_USER')
+        window.location.href = '/signin'
+      } else {
+        alert(r?.error || 'Error deleting account')
+      }
+    } catch (e: any) { alert(e?.message || 'Error deleting account') }
+  }
+
   const initials = (n: string) => (n || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  const sortedUsers = [...users].sort((a, b) => {
+    const order = (r: string) => r === 'owner' ? 0 : r === 'admin' ? 1 : 2
+    const d = order(a.role) - order(b.role)
+    if (d !== 0) return d
+    return (a.name || a.username || '').localeCompare(b.name || b.username || '')
+  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -173,7 +200,7 @@ function UsersTab() {
       {/* Team list */}
       {loading ? <div style={{ color: 'rgba(255,255,255,.25)', fontSize: 13, padding: 20, textAlign: 'center' }}>Loading...</div> :
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {users.map(u => (
+          {sortedUsers.map(u => (
             <div key={u.id} style={{
               padding: '14px 16px', borderRadius: 16,
               border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)',
@@ -228,6 +255,7 @@ function UsersTab() {
                   <SmBtn onClick={() => resetPw(u.id)}>Reset PW</SmBtn>
                   {u.role !== 'owner' && <SmBtn danger onClick={() => toggleActive(u.id, !u.active)}>{u.active ? 'Disable' : 'Enable'}</SmBtn>}
                   {u.role !== 'owner' && <SmBtn danger onClick={() => deleteUser(u.id, u.name || u.username)}>Remove</SmBtn>}
+                  {u.role === 'owner' && <SmBtn danger onClick={deleteOwnerAccount}>Delete Account</SmBtn>}
                 </div>
               </div>
             </div>
@@ -277,25 +305,14 @@ function UsersTab() {
 
       {/* ── DELETE ACCOUNT ── */}
       <div style={{ marginTop: 12, padding: '14px 16px', borderRadius: 16, border: '1px solid rgba(255,107,107,.12)', background: 'rgba(255,107,107,.03)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,107,107,.8)' }}>Delete Account</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 2 }}>Permanently delete your account and all data</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', marginTop: 4, lineHeight: 1.5 }}>
+              Permanently deletes your account, cancels your subscription, and removes <b>all team members you created</b> along with all bookings, clients, payments and business data. This cannot be undone.
+            </div>
           </div>
-          <button onClick={async () => {
-            const pw = prompt('Enter your password to confirm account deletion:')
-            if (!pw) return
-            if (!confirm('Are you sure? This action is irreversible and all your data will be permanently deleted.')) return
-            try {
-              const r = await apiFetch('/api/auth/delete-account', { method: 'DELETE', body: JSON.stringify({ password: pw }) })
-              if (r?.ok) {
-                localStorage.removeItem('VURIUMBOOK_TOKEN')
-                window.location.href = '/login'
-              } else {
-                alert(r?.error || 'Error deleting account')
-              }
-            } catch { alert('Error deleting account') }
-          }}
+          <button onClick={deleteOwnerAccount}
             style={{ height: 32, padding: '0 14px', borderRadius: 10, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.08)', color: 'rgba(255,107,107,.7)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
             Delete Account
           </button>
