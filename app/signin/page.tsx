@@ -243,52 +243,26 @@ export default function SignInPage() {
               setError(''); setLoading(true)
               try {
                 // Use Apple JS SDK popup flow
+                // Redirect to Apple OAuth — uses form_post as required by Apple when requesting name/email
+                const redirectUri = `${window.location.origin}/api/auth/apple-callback`
                 const params = new URLSearchParams({
                   client_id: 'com.vurium.VuriumBook',
-                  redirect_uri: `${window.location.origin}/signin`,
+                  redirect_uri: redirectUri,
                   response_type: 'code id_token',
-                  response_mode: 'fragment',
+                  response_mode: 'form_post',
                   scope: 'name email',
+                  state: 'signin',
                 })
-                const appleAuthUrl = `https://appleid.apple.com/auth/authorize?${params}`
-                const popup = window.open(appleAuthUrl, 'apple-signin', 'width=500,height=700')
-                if (!popup) { setError('Popup blocked. Please allow popups.'); setLoading(false); return }
-                // Poll for redirect
-                const pollTimer = setInterval(() => {
-                  try {
-                    if (popup.closed) { clearInterval(pollTimer); setLoading(false); return }
-                    const hash = popup.location.hash
-                    if (hash && hash.includes('id_token')) {
-                      clearInterval(pollTimer); popup.close()
-                      const fragParams = new URLSearchParams(hash.substring(1))
-                      const idToken = fragParams.get('id_token')
-                      if (!idToken) { setError('No token received'); setLoading(false); return }
-                      // Send to backend
-                      fetch(`${API}/auth/apple-signin`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ identityToken: idToken, userIdentifier: '' }),
-                      }).then(r => r.json()).then(data => {
-                        if (!data.ok) throw new Error(data.error || 'Failed')
-                        localStorage.setItem('VURIUMBOOK_TOKEN', data.token)
-                        localStorage.setItem('VURIUMBOOK_USER', JSON.stringify(data.user))
-                        setAuthCookie((data.user?.role || 'owner') + ':' + (data.user?.uid || ''))
-                        const dest = (data.user?.role === 'barber' || data.user?.role === 'student') ? '/calendar' : '/dashboard'
-                        window.location.replace(dest)
-                      }).catch(err => { setError(err.message); setLoading(false) })
-                    }
-                  } catch { /* cross-origin — keep polling */ }
-                }, 500)
+                window.location.href = `https://appleid.apple.com/auth/authorize?${params}`
               } catch (err: any) { setError(err.message || 'Apple Sign In failed'); setLoading(false) }
             }} disabled={loading} style={{
               width: '100%', height: 50, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)',
-              background: '#fff', color: '#000', fontSize: 15, fontWeight: 600,
+              background: '#000', color: '#fff', fontSize: 15, fontWeight: 600,
               cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               opacity: loading ? 0.5 : 1,
             }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="#000"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
               Sign in with Apple
             </button>
           </div>
