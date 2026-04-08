@@ -4534,9 +4534,21 @@ app.get('/api/payments/terminal/status/:checkoutId', async (req, res) => {
       if (checkout.payment_ids?.length) patch.payment_id = checkout.payment_ids[0];
       if (checkout.status === 'COMPLETED') {
         patch.completed_at = toIso(new Date());
+        // Mark as paid immediately — tip fetch is best-effort
+        const prData = prSnap.docs[0].data();
+        if (prData.booking_id) {
+          await req.ws('bookings').doc(prData.booking_id).update({
+            payment_status: 'paid', paid: true, payment_method: 'terminal',
+            ...(checkout.payment_ids?.length ? { payment_id: checkout.payment_ids[0] } : {}),
+            ...(prData.service_amount ? { service_amount: prData.service_amount } : {}),
+            ...(prData.tax_amount ? { tax_amount: prData.tax_amount } : {}),
+            ...(prData.fee_amount ? { fee_amount: prData.fee_amount } : {}),
+            updated_at: toIso(new Date()),
+          }).catch(() => {});
+        }
+        // Fetch tip from payment object (non-blocking for response)
         let tipCents = 0;
         let totalCents = checkout.amount_money?.amount || 0;
-        // Always fetch tip from the payment object (checkout.tip_money is only set when allow_tipping=false)
         if (checkout.payment_ids?.length) {
           try {
             const payHeaders = await squareHeaders(req.ws);
@@ -4549,29 +4561,22 @@ app.get('/api/payments/terminal/status/:checkoutId', async (req, res) => {
             }
           } catch {}
         }
-        // Fallback to checkout tip_money if payment fetch didn't work
         if (!tipCents) tipCents = checkout.tip_money?.amount || 0;
         patch.tip_cents = tipCents;
-        const prData = prSnap.docs[0].data();
-        if (prData.booking_id) {
-          const bPatch = {
-            payment_status: 'paid', paid: true, payment_method: 'terminal',
+        // Update booking with tip data
+        if (prData.booking_id && tipCents > 0) {
+          await req.ws('bookings').doc(prData.booking_id).update({
             tip: tipCents / 100, tip_amount: tipCents / 100,
             amount: totalCents / 100,
             updated_at: toIso(new Date()),
-          };
-          if (checkout.payment_ids?.length) bPatch.payment_id = checkout.payment_ids[0];
-          // Preserve service_amount/tax/fees from original payment request for payroll
-          if (prData.service_amount) bPatch.service_amount = prData.service_amount;
-          if (prData.tax_amount) bPatch.tax_amount = prData.tax_amount;
-          if (prData.fee_amount) bPatch.fee_amount = prData.fee_amount;
-          await req.ws('bookings').doc(prData.booking_id).update(bPatch).catch(() => {});
+          }).catch(() => {});
         }
       }
       await prSnap.docs[0].ref.update(patch);
     }
-    const tipCentsResponse = patch?.tip_cents || checkout.tip_money?.amount || 0;
-    res.json({ checkout_id: checkout.id, status: checkout.status, payment_ids: checkout.payment_ids || [], tip_money: { amount: tipCentsResponse, currency: 'USD' }, tip_cents: tipCentsResponse });
+    // Always return checkout status regardless of internal processing
+    const tipOut = checkout.tip_money?.amount || 0;
+    res.json({ checkout_id: checkout.id, status: checkout.status, payment_ids: checkout.payment_ids || [], tip_money: { amount: tipOut, currency: 'USD' }, tip_cents: tipOut });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
