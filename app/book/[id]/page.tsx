@@ -189,6 +189,7 @@ export default function PublicBookingPage() {
   const [waitlistEnabled, setWaitlistEnabled] = useState(false)
   const [showWaitlistForm, setShowWaitlistForm] = useState(false)
   const [waitlistEmail, setWaitlistEmail] = useState('')
+  const [waitlistPhone, setWaitlistPhone] = useState('')
   const [waitlistName, setWaitlistName] = useState('')
   const [waitlistSubmitting, setWaitlistSubmitting] = useState(false)
   const [waitlistDone, setWaitlistDone] = useState(false)
@@ -443,19 +444,29 @@ export default function PublicBookingPage() {
     setSelectedDate(''); setClientName(''); setClientPhone('')
     setClientNote(''); setReferencePhoto(null); setBooked(false); setError('')
     setPayOnline(false); setPaymentClientSecret(''); setPaymentBookingId('')
-    setShowWaitlistForm(false); setWaitlistDone(false); setWaitlistEmail(''); setWaitlistName(''); setWaitlistStartMin(9 * 60); setWaitlistEndMin(18 * 60)
+    setShowWaitlistForm(false); setWaitlistDone(false); setWaitlistEmail(''); setWaitlistPhone(''); setWaitlistName(''); setWaitlistStartMin(9 * 60); setWaitlistEndMin(18 * 60)
     if (!isSolo) setSelectedBarber(null)
+  }
+
+  function formatWaitlistPhone(raw: string) {
+    const d = raw.replace(/\D/g, '').replace(/^1/, '').slice(0, 10)
+    if (d.length === 0) return ''
+    if (d.length <= 3) return `(${d}`
+    if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`
+    return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`
   }
 
   async function handleJoinWaitlist() {
     if (!waitlistEmail || !selectedBarber || !selectedDate) return
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(waitlistEmail)) { setError('Please enter a valid email address'); return }
+    const phoneDigits = waitlistPhone.replace(/\D/g, '').replace(/^1/, '')
     setWaitlistSubmitting(true); setError('')
     try {
       const res = await api(`/public/waitlist/${resolvedWsId}`, {
         method: 'POST',
         body: JSON.stringify({
           email: waitlistEmail,
+          phone: phoneDigits.length >= 10 ? '+1' + phoneDigits : undefined,
           barber_id: selectedBarber.id,
           barber_name: selectedBarber.name,
           date: selectedDate,
@@ -912,12 +923,19 @@ export default function PublicBookingPage() {
                           <div style={{ padding: 20, borderRadius: 16, border: `1px solid ${isLightTheme ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.08)'}`, background: isLightTheme ? 'rgba(0,0,0,.02)' : 'rgba(255,255,255,.03)' }}>
                             <div style={{ fontSize: 14, fontWeight: 600, color: textHeading, marginBottom: 14 }}>Join the waitlist</div>
                             <div style={{ fontSize: 12, color: textMuted, marginBottom: 16, lineHeight: 1.5 }}>
-                              We&apos;ll email you if a slot opens up for {selectedBarber?.name} on {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}.
+                              We&apos;ll notify you if a slot opens up for {selectedBarber?.name} on {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}.
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                               <div>
                                 <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Email *</label>
                                 <input type="email" value={waitlistEmail} onChange={e => setWaitlistEmail(e.target.value)} placeholder="your@email.com" autoComplete="email" style={inp} />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Phone (optional)</label>
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                  <div style={{ position: 'absolute', left: 14, fontSize: 14, color: textMuted, pointerEvents: 'none', fontWeight: 600, zIndex: 1 }}>+1</div>
+                                  <input type="tel" value={waitlistPhone} onChange={e => setWaitlistPhone(formatWaitlistPhone(e.target.value))} placeholder="(___) ___-____" autoComplete="tel" style={{ ...inp, paddingLeft: 38 }} />
+                                </div>
                               </div>
                               <div>
                                 <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Name (optional)</label>
@@ -964,7 +982,7 @@ export default function PublicBookingPage() {
                       <div style={{ padding: 20, borderRadius: 16, border: '1px solid rgba(130,220,170,.15)', background: 'rgba(130,220,170,.04)', textAlign: 'center' }}>
                         <div style={{ width: 40, height: 40, borderRadius: 999, margin: '0 auto 12px', background: 'rgba(130,220,170,.1)', border: '1px solid rgba(130,220,170,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'rgba(130,220,170,.8)' }}>✓</div>
                         <div style={{ fontSize: 15, fontWeight: 600, color: textMain, marginBottom: 4 }}>You&apos;re on the waitlist!</div>
-                        <div style={{ fontSize: 13, color: textMuted, lineHeight: 1.5 }}>We&apos;ll email you if a spot opens up.</div>
+                        <div style={{ fontSize: 13, color: textMuted, lineHeight: 1.5 }}>We&apos;ll notify you if a spot opens up.</div>
                       </div>
                     )}
                   </div>
