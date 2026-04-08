@@ -368,7 +368,6 @@ export default function PublicBookingPage() {
     if (!clientName || !clientEmail || !clientPhone || !selectedBarber || !selectedSlot) return
     if (!isValidEmail(clientEmail)) { setError('Please enter a valid email address.'); return }
     if (!isValidPhone(clientPhone)) { setError('Please enter a valid phone number.'); return }
-    if (!smsConsent) { setError('Please agree to receive SMS notifications to continue.'); return }
     setBookLoading(true); setError('')
     try {
       const noteWithPhoto = referencePhoto
@@ -403,7 +402,6 @@ export default function PublicBookingPage() {
     if (!clientName || !clientEmail || !clientPhone || !selectedBarber || !selectedSlot || selectedServiceIds.length === 0) return
     if (!isValidEmail(clientEmail)) { setError('Please enter a valid email address.'); return }
     if (!isValidPhone(clientPhone)) { setError('Please enter a valid phone number.'); return }
-    if (!smsConsent) { setError('Please agree to receive SMS notifications to continue.'); return }
     setPaymentLoading(true); setError('')
     try {
       // 1. Create booking first
