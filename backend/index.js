@@ -3698,17 +3698,25 @@ app.get('/api/attendance/status', requirePlanFeature('attendance'), async (req, 
   try {
     const userId = req.user.uid;
     const today = new Date().toISOString().slice(0, 10);
+    // Get ALL today's records to find the latest one and sum total minutes
     const snap = await req.ws('attendance')
       .where('user_id', '==', userId)
       .where('date', '==', today)
-      .limit(1).get();
+      .get();
     if (snap.empty) return res.json({ clocked_in: false, today_minutes: 0 });
-    const data = snap.docs[0].data();
-    let todayMinutes = data.duration_minutes || 0;
+    // Find latest record (most recent clock_in)
+    let latest = snap.docs[0];
+    let totalMinutes = 0;
+    snap.docs.forEach(d => {
+      const dd = d.data();
+      if (dd.clock_in && (!latest.data().clock_in || dd.clock_in > latest.data().clock_in)) latest = d;
+      if (dd.duration_minutes) totalMinutes += dd.duration_minutes;
+    });
+    const data = latest.data();
     if (!data.clock_out && data.clock_in) {
-      todayMinutes = Math.round((Date.now() - new Date(data.clock_in).getTime()) / 60000);
+      totalMinutes += Math.round((Date.now() - new Date(data.clock_in).getTime()) / 60000);
     }
-    res.json({ clocked_in: !data.clock_out, today_minutes: todayMinutes, ...data, id: snap.docs[0].id });
+    res.json({ clocked_in: !data.clock_out, today_minutes: totalMinutes, clock_in: data.clock_in, ...data, id: latest.id });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
@@ -3717,6 +3725,13 @@ app.post('/api/attendance/clock-in', requirePlanFeature('attendance'), async (re
     const userId = req.user.uid;
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
+    // Prevent double clock-in — check if already clocked in today
+    const existing = await req.ws('attendance')
+      .where('user_id', '==', userId)
+      .where('date', '==', today)
+      .get();
+    const alreadyClockedIn = existing.docs.some(d => !d.data().clock_out);
+    if (alreadyClockedIn) return res.status(409).json({ error: 'Already clocked in' });
     // GPS geofence check
     const lat = Number(req.body?.lat);
     const lng = Number(req.body?.lng);
@@ -3759,10 +3774,13 @@ app.post('/api/attendance/clock-out', requirePlanFeature('attendance'), async (r
     const snap = await req.ws('attendance')
       .where('user_id', '==', userId)
       .where('date', '==', today)
-      .limit(1).get();
+      .get();
     if (snap.empty) return res.status(404).json({ error: 'No clock-in found for today' });
-    const docRef = snap.docs[0].ref;
-    const existing = snap.docs[0].data();
+    // Find the open record (no clock_out)
+    const openDoc = snap.docs.find(d => !d.data().clock_out);
+    if (!openDoc) return res.status(404).json({ error: 'No active clock-in found' });
+    const docRef = openDoc.ref;
+    const existing = openDoc.data();
     const clockOutTime = new Date();
     const durationMinutes = existing.clock_in ? Math.round((clockOutTime.getTime() - new Date(existing.clock_in).getTime()) / 60000) : null;
     await docRef.update({ clock_out: toIso(clockOutTime), duration_minutes: durationMinutes });

@@ -484,10 +484,17 @@ export default function DashboardPage() {
         setTodayMinutes(data.attStatus.today_minutes || 0)
       }
 
-      // Staff on clock
+      // Staff on clock — deduplicate by user_id, keep latest clock_in
       if (data.staff) {
         const records = data.staff?.attendance || []
-        setStaffOnClock(records.filter((r: any) => !r.clock_out))
+        const open = records.filter((r: any) => !r.clock_out)
+        const byUser: Record<string, any> = {}
+        open.forEach((r: any) => {
+          if (!byUser[r.user_id] || (r.clock_in && r.clock_in > (byUser[r.user_id].clock_in || ''))) {
+            byUser[r.user_id] = r
+          }
+        })
+        setStaffOnClock(Object.values(byUser))
       }
 
       // Phone access log
