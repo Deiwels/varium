@@ -1893,9 +1893,15 @@ app.post('/auth/apple-signin', async (req, res) => {
     let applePayload;
     try {
       applePayload = await verifyAppleToken(identityToken);
+      console.log('[Apple SignIn] Token verified, sub:', applePayload.sub, 'email:', applePayload.email, 'aud:', applePayload.aud);
     } catch (e) {
       console.error('[Apple SignIn] Token verification failed:', e.message);
-      return res.status(401).json({ error: 'Invalid Apple identity token' });
+      // Try to decode without verification for debugging
+      try {
+        const debugPayload = JSON.parse(Buffer.from(identityToken.split('.')[1], 'base64url').toString());
+        console.error('[Apple SignIn] Token aud:', debugPayload.aud, 'iss:', debugPayload.iss, 'sub:', debugPayload.sub);
+      } catch {}
+      return res.status(401).json({ error: 'Invalid Apple identity token: ' + e.message });
     }
 
     const appleUserId = applePayload.sub;

@@ -37,9 +37,11 @@ export async function POST(req: NextRequest) {
     })
 
     const data = await res.json()
+    console.log('[Apple Callback] Backend response:', res.status, JSON.stringify(data).substring(0, 200))
 
     if (!data.ok || !data.token) {
-      return NextResponse.redirect(new URL('/signin?error=apple_failed', req.url))
+      const errorMsg = encodeURIComponent(data.error || 'apple_failed')
+      return NextResponse.redirect(new URL(`/signin?error=${errorMsg}`, req.url))
     }
 
     // Return an HTML page that stores token in localStorage and redirects
