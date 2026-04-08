@@ -271,14 +271,14 @@ function ProfileModal({ user, onClose, onUpdated }: {
 
   const glassModal: React.CSSProperties = {
     position: 'fixed', inset: 0, zIndex: 200,
-    background: 'rgba(0,0,0,.50)',
-    backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+    background: 'rgba(0,0,0,.70)',
+    backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
   }
   const modalBox: React.CSSProperties = {
     width: 'min(420px,100%)', borderRadius: 24,
     border: '1px solid rgba(255,255,255,.10)',
-    background: 'rgba(0,0,0,.60)',
+    background: 'rgba(10,10,14,.92)',
     backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)',
     color: '#e8e8ed', fontFamily: 'Inter,sans-serif',
     boxShadow: '0 30px 80px rgba(0,0,0,.55), inset 0 0 0 0.5px rgba(255,255,255,.06)',
