@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><script>
       localStorage.setItem('VURIUMBOOK_TOKEN','${tokenEsc}');
       localStorage.setItem('VURIUMBOOK_USER','${userEsc}');
+      document.cookie='VURIUMBOOK_TOKEN=${role}:${data.user?.uid || ""};path=/;max-age=${7*24*60*60}';
       document.cookie='vuriumbook_auth=${role}:${data.user?.uid || ""};path=/;max-age=${7*24*60*60}';
       window.location.replace('${dest}');
     </script></body></html>`
