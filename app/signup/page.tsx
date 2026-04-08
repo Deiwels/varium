@@ -124,6 +124,9 @@ export default function SignupPage() {
     const params = new URLSearchParams(window.location.search)
     const p = params.get('plan')
     if (p) setPlan(p)
+    // If redirected from Google/Apple Sign In for new user — go straight to plan selection
+    const stepParam = params.get('step')
+    if (stepParam === 'plan') setStep(1)
     setTimezone(detectUserTimezone())
   }, [])
 

@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     // Return an HTML page that stores token in localStorage and redirects
     const role = data.user?.role || 'owner'
     const isNewUser = data.isNewUser === true
-    const dest = isNewUser ? '/billing' : (role === 'barber' || role === 'student') ? '/calendar' : '/dashboard'
+    const dest = isNewUser ? '/signup?step=plan' : (role === 'barber' || role === 'student') ? '/calendar' : '/dashboard'
     const tokenEsc = data.token.replace(/'/g, "\\'")
     const userEsc = JSON.stringify(data.user).replace(/'/g, "\\'")
 
