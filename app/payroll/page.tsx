@@ -877,7 +877,7 @@ export default function PayrollPage() {
                     {adminCalcs.length > 0 && (
                       <div style={{ ...card, padding: '12px 14px', border: '1px solid rgba(143,240,177,.18)', background: 'linear-gradient(180deg,rgba(143,240,177,.04),rgba(143,240,177,.01))' }}>
                         <div style={{ ...lbl, color: 'rgba(130,220,170,.6)', marginBottom: 8 }}>Admin payroll</div>
-                        {adminCalcs.map(({ u, r, hours, basePay, profitShare, feeShare, total, allFeeDays }) => (
+                        {adminCalcs.map(({ u, r, hours, basePay, profitShare, feeShare, total, allFeeDays, daysWorked, periodDays }) => (
                           <div key={u.id} style={{ padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
                             <div style={{ fontWeight: 700, fontSize: 13, color: '#e8e8ed' }}>{u.name || u.username}</div>
                             {(() => { const s = adminSchedules[u.id]; if (!Array.isArray(s)) return null; const ad = s.map((d, i) => d.enabled ? DAY_LABELS[i] : null).filter(Boolean); if (!ad.length) return null; const fe = s.find(d => d.enabled); return <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginBottom: 4 }}>{ad.join(', ')} · {fe ? `${minToTime(fe.startMin)}–${minToTime(fe.endMin)}` : ''}</div> })()}
