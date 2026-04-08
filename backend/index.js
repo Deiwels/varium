@@ -5953,14 +5953,15 @@ app.post('/api/billing/cancel', requireRole('owner'), async (req, res) => {
     const source = data.billing_source || (data.apple_transaction_id ? 'apple' : (data.stripe_subscription_id ? 'stripe' : null));
 
     if (source === 'apple') {
-      await req.wsDoc().update({ subscription_status: 'cancelling', billing_status: 'cancelling', updated_at: toIso(new Date()) });
-      writeAuditLog(req.wsId, { action: 'billing.cancel.apple', req }).catch(() => {});
+      // Don't change status here — wait for Apple webhook DID_CHANGE_RENEWAL_STATUS
+      // User may open Settings but decide not to cancel
+      writeAuditLog(req.wsId, { action: 'billing.cancel.apple.redirect', req }).catch(() => {});
       return res.json({
         ok: true,
-        status: 'cancelling',
+        status: data.subscription_status || 'active',
         source: 'apple',
         manage_url: 'https://apps.apple.com/account/subscriptions',
-        message: 'Apple subscriptions must be cancelled in iOS Settings → Apple ID → Subscriptions.',
+        message: 'To cancel, go to Settings → Apple ID → Subscriptions on your iPhone. Your subscription will remain active until the end of the current period.',
       });
     }
 
