@@ -356,7 +356,7 @@ export default function PublicBookingPage() {
   }
 
   async function handleBook() {
-    if (!clientName || !clientEmail || !selectedBarber || !selectedSlot) return
+    if (!clientName || !clientEmail || !clientPhone || !selectedBarber || !selectedSlot) return
     setBookLoading(true); setError('')
     try {
       const noteWithPhoto = referencePhoto
@@ -388,7 +388,7 @@ export default function PublicBookingPage() {
   }
 
   async function handlePayOnlineFlow() {
-    if (!clientName || !selectedBarber || !selectedSlot || selectedServiceIds.length === 0) return
+    if (!clientName || !clientEmail || !clientPhone || !selectedBarber || !selectedSlot || selectedServiceIds.length === 0) return
     setPaymentLoading(true); setError('')
     try {
       // 1. Create booking first
@@ -1091,8 +1091,8 @@ export default function PublicBookingPage() {
                 <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="your@email.com" required style={inp} />
               </div>
               <div>
-                <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Phone</label>
-                <input type="tel" value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="+1 (555) 123-4567" style={inp} />
+                <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Phone *</label>
+                <input type="tel" value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="+1 (555) 123-4567" required style={inp} />
               </div>
               <div>
                 <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Notes (optional)</label>
@@ -1217,17 +1217,17 @@ export default function PublicBookingPage() {
               <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
                 <button onClick={() => setStep(2)} style={{ padding: '12px 20px', background: 'none', border: `1px solid ${borderSoft}`, borderRadius: 12, color: textMuted, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Back</button>
                 {payOnline ? (
-                  <button onClick={handlePayOnlineFlow} disabled={!clientName || !clientEmail || paymentLoading} style={{
+                  <button onClick={handlePayOnlineFlow} disabled={!clientName || !clientEmail || !clientPhone || paymentLoading} style={{
                     flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit',
-                    cursor: !clientName || !clientEmail || paymentLoading ? 'default' : 'pointer',
+                    cursor: !clientName || !clientEmail || !clientPhone || paymentLoading ? 'default' : 'pointer',
                     background: 'rgba(130,150,220,.12)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
-                    opacity: !clientName || !clientEmail || paymentLoading ? 0.5 : 1,
+                    opacity: !clientName || !clientEmail || !clientPhone || paymentLoading ? 0.5 : 1,
                   }}>{paymentLoading ? 'Setting up payment...' : `Pay ${fmtPrice(totalPrice)} & Book`}</button>
                 ) : (
-                  <button onClick={handleBook} disabled={!clientName || !clientEmail || bookLoading} style={{
-                    flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: !clientName || !clientEmail || bookLoading ? 'default' : 'pointer',
+                  <button onClick={handleBook} disabled={!clientName || !clientEmail || !clientPhone || bookLoading} style={{
+                    flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: !clientName || !clientEmail || !clientPhone || bookLoading ? 'default' : 'pointer',
                     background: 'rgba(130,220,170,.1)', border: '1px solid rgba(130,220,170,.2)', color: 'rgba(130,220,170,.9)',
-                    opacity: !clientName || !clientEmail || bookLoading ? 0.5 : 1,
+                    opacity: !clientName || !clientEmail || !clientPhone || bookLoading ? 0.5 : 1,
                   }}>{bookLoading ? 'Booking...' : 'Confirm Booking'}</button>
                 )}
               </div>
