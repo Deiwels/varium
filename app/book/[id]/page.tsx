@@ -1172,20 +1172,18 @@ export default function PublicBookingPage() {
                 )}
               </div>
 
-              {clientPhone && (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4 }}>
-                  <input
-                    type="checkbox"
-                    checked={smsConsent}
-                    onChange={e => setSmsConsent(e.target.checked)}
-                    id="sms-consent"
-                    style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }}
-                  />
-                  <label htmlFor="sms-consent" style={{ fontSize: 12, color: textMuted, lineHeight: 1.5, cursor: 'pointer' }}>
-                    By checking this box, I consent to receive automated appointment-related text messages from Vurium at the mobile number provided, including booking confirmations, appointment reminders, schedule changes, and cancellation notices. Message frequency: up to 5 messages per booking. Message and data rates may apply. Reply STOP to cancel. Reply HELP for help. Consent is not a condition of booking. <a href="https://vurium.com/privacy#sms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>SMS Privacy Policy</a> &amp; <a href="https://vurium.com/terms#sms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>SMS Terms</a>.
-                  </label>
-                </div>
-              )}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4 }}>
+                <input
+                  type="checkbox"
+                  checked={smsConsent}
+                  onChange={e => setSmsConsent(e.target.checked)}
+                  id="sms-consent"
+                  style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }}
+                />
+                <label htmlFor="sms-consent" style={{ fontSize: 12, color: textMuted, lineHeight: 1.5, cursor: 'pointer' }}>
+                  By checking this box, I consent to receive automated appointment-related text messages from Vurium at the mobile number provided, including booking confirmations, appointment reminders, schedule changes, and cancellation notices. Message frequency: up to 5 messages per booking. Message and data rates may apply. Reply STOP to cancel. Reply HELP for help. Consent is not a condition of booking. <a href="https://vurium.com/privacy#sms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>SMS Privacy Policy</a> &amp; <a href="https://vurium.com/terms#sms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>SMS Terms</a>.
+                </label>
+              </div>
             </div>
 
             {/* Payment option */}
