@@ -1876,10 +1876,11 @@ async function verifyAppleToken(identityToken) {
   if (!key) throw new Error('Apple signing key not found');
   const pem = jwkToPem(key);
   const BUNDLE_ID = 'com.vurium.VuriumBook';
+  const SERVICES_ID = 'com.vurium.vuriumbook.web';
   return jwt.verify(identityToken, pem, {
     algorithms: ['RS256'],
     issuer: 'https://appleid.apple.com',
-    audience: BUNDLE_ID,
+    audience: [BUNDLE_ID, SERVICES_ID],
   });
 }
 
