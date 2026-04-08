@@ -240,6 +240,17 @@ export default function PaymentsPage() {
     setSyncing(false)
   }
 
+  async function reconcilePayments() {
+    if (!window.confirm('Auto-match Square payments to unpaid bookings? This will mark matched bookings as paid.')) return
+    setSyncing(true); setSyncResult('')
+    try {
+      const r = await apiFetch('/api/payments/reconcile', { method: 'POST', body: JSON.stringify({ from, to }) })
+      setSyncResult(`Matched ${r.matched} payments. ${r.unmatched_bookings} bookings still unpaid.`)
+      load()
+    } catch (e: any) { setSyncResult('Error: ' + e.message) }
+    setSyncing(false)
+  }
+
   // Filters
   const [q, setQ] = useState('')
   const [filterBarber, setFilterBarber] = useState('')
@@ -361,10 +372,16 @@ export default function PaymentsPage() {
                 CSV
               </button>
               {isOwner && (
-                <button onClick={syncTips} disabled={syncing}
-                  style={{ height: 34, padding: '0 10px', borderRadius: 999, border: '1px solid rgba(143,240,177,.35)', background: 'rgba(143,240,177,.06)', color: 'rgba(130,220,170,.5)', cursor: syncing ? 'wait' : 'pointer', fontWeight: 800, fontSize: 10, fontFamily: 'inherit', opacity: syncing ? .5 : 1 }}>
-                  {syncing ? '…' : 'Sync'}
-                </button>
+                <>
+                  <button onClick={reconcilePayments} disabled={syncing}
+                    style={{ height: 34, padding: '0 10px', borderRadius: 999, border: '1px solid rgba(130,150,220,.35)', background: 'rgba(130,150,220,.06)', color: 'rgba(130,150,220,.7)', cursor: syncing ? 'wait' : 'pointer', fontWeight: 800, fontSize: 10, fontFamily: 'inherit', opacity: syncing ? .5 : 1 }}>
+                    {syncing ? '…' : 'Reconcile'}
+                  </button>
+                  <button onClick={syncTips} disabled={syncing}
+                    style={{ height: 34, padding: '0 10px', borderRadius: 999, border: '1px solid rgba(143,240,177,.35)', background: 'rgba(143,240,177,.06)', color: 'rgba(130,220,170,.5)', cursor: syncing ? 'wait' : 'pointer', fontWeight: 800, fontSize: 10, fontFamily: 'inherit', opacity: syncing ? .5 : 1 }}>
+                    {syncing ? '…' : 'Sync Tips'}
+                  </button>
+                </>
               )}
             </div>
             {syncResult && <div style={{ padding: '8px 14px', borderRadius: 10, background: 'rgba(143,240,177,.06)', border: '1px solid rgba(143,240,177,.15)', color: 'rgba(130,220,170,.5)', fontSize: 12, marginTop: 8 }}>{syncResult}</div>}

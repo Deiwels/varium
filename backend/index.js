@@ -1126,6 +1126,63 @@ app.post('/api/webhooks/square', async (req, res) => {
         }
       }
     }
+    // Auto-reconcile any completed payment
+    if (event.type === 'payment.completed' || event.type === 'payment.updated') {
+      const payment = event.data?.object?.payment;
+      if (payment?.id && (payment.status || '').toUpperCase() === 'COMPLETED') {
+        const spAmountCents = payment.amount_money?.amount || 0;
+        const spTipCents = payment.tip_money?.amount || 0;
+        const spServiceCents = spAmountCents - spTipCents;
+        const spDate = (payment.created_at || '').slice(0, 10);
+        const spNote = payment.note || '';
+        // Search all workspaces
+        const wsSnap2 = await db.collection('workspaces').get();
+        for (const ws of wsSnap2.docs) {
+          const wsCol = (col) => db.collection('workspaces').doc(ws.id).collection(col);
+          // Skip if already tracked
+          const existingPr = await wsCol('payment_requests').where('payment_id', '==', payment.id).limit(1).get();
+          if (!existingPr.empty) break;
+          // Try note match
+          const noteMatch = spNote.match(/Booking\s+(\S+)/i);
+          let bookingId = noteMatch ? noteMatch[1] : '';
+          if (bookingId) {
+            const bDoc = await wsCol('bookings').doc(bookingId).get();
+            if (bDoc.exists && !bDoc.data()?.paid) {
+              await wsCol('bookings').doc(bookingId).update({
+                paid: true, payment_status: 'paid', payment_method: 'terminal', payment_id: payment.id,
+                tip: spTipCents / 100, tip_amount: spTipCents / 100, amount: spAmountCents / 100,
+                updated_at: toIso(new Date()),
+              }).catch(() => {});
+              await wsCol('payment_requests').add({
+                booking_id: bookingId, payment_id: payment.id, amount_cents: spAmountCents, tip_cents: spTipCents,
+                payment_method: 'card', status: 'completed', source: 'webhook_reconciled', created_at: payment.created_at,
+              }).catch(() => {});
+              break;
+            }
+          }
+          // Fuzzy match by date + amount
+          const bSnap = await wsCol('bookings').where('date', '==', spDate).limit(100).get();
+          for (const bDoc of bSnap.docs) {
+            const b = bDoc.data();
+            if (b.paid) continue;
+            const bCents = Math.round((Number(b.service_amount || b.amount || 0)) * 100);
+            if (Math.abs(bCents - spServiceCents) <= 200) {
+              await wsCol('bookings').doc(bDoc.id).update({
+                paid: true, payment_status: 'paid', payment_method: 'terminal', payment_id: payment.id,
+                tip: spTipCents / 100, tip_amount: spTipCents / 100, amount: spAmountCents / 100,
+                updated_at: toIso(new Date()),
+              }).catch(() => {});
+              await wsCol('payment_requests').add({
+                booking_id: bDoc.id, payment_id: payment.id, amount_cents: spAmountCents, tip_cents: spTipCents,
+                payment_method: 'card', status: 'completed', source: 'webhook_reconciled', created_at: payment.created_at,
+              }).catch(() => {});
+              break;
+            }
+          }
+          break; // only check first workspace with matching data
+        }
+      }
+    }
     res.json({ ok: true });
   } catch (e) { console.error('Square webhook error:', e); res.json({ ok: true }); }
 });
@@ -3166,6 +3223,106 @@ app.get('/api/payments', async (req, res) => {
     const totalGross = payments.reduce((s, p) => s + (Number(p.amount_cents || 0) / 100), 0);
     const totalTips = payments.reduce((s, p) => s + (Number(p.tip_cents || 0) / 100), 0);
     res.json({ payments, totals: { gross: totalGross, tips: totalTips, count: payments.length } });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// AUTO-RECONCILE SQUARE PAYMENTS WITH BOOKINGS
+// ============================================================
+app.post('/api/payments/reconcile', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const headers = await squareHeaders(req.ws);
+    const from = safeStr(req.body?.from || req.query?.from || '');
+    const to = safeStr(req.body?.to || req.query?.to || '');
+    // Fetch Square payments
+    const params = new URLSearchParams();
+    if (from) params.set('begin_time', from + 'T00:00:00Z');
+    if (to) params.set('end_time', to + 'T23:59:59Z');
+    params.set('sort_order', 'DESC');
+    const sqResp = await squareFetch(`/v2/payments?${params}`, { headers });
+    if (!sqResp.ok) return res.status(sqResp.status).json({ error: 'Failed to fetch Square payments' });
+    const sqData = await sqResp.json();
+    const sqPayments = (sqData.payments || []).filter(p => (p.status || '').toUpperCase() === 'COMPLETED');
+
+    // Get unpaid bookings in date range
+    let bookingsQuery = req.ws('bookings').orderBy('start_at', 'desc').limit(500);
+    const bSnap = await bookingsQuery.get();
+    const unpaidBookings = bSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(b => !b.paid && b.status !== 'cancelled' && b.status !== 'noshow');
+
+    // Get existing payment_requests to skip already-matched
+    const prSnap = await req.ws('payment_requests').limit(500).get();
+    const matchedPaymentIds = new Set(prSnap.docs.map(d => d.data().payment_id).filter(Boolean));
+
+    let matched = 0;
+    const results = [];
+
+    for (const sp of sqPayments) {
+      if (matchedPaymentIds.has(sp.id)) continue; // already tracked
+      const spAmountCents = sp.amount_money?.amount || 0;
+      const spTipCents = sp.tip_money?.amount || 0;
+      const spServiceCents = spAmountCents - spTipCents;
+      const spDate = (sp.created_at || '').slice(0, 10);
+      const spNote = sp.note || '';
+
+      // Try to extract booking_id from note (format: "Booking XXXXX")
+      const noteMatch = spNote.match(/Booking\s+(\S+)/i);
+
+      let bestMatch = null;
+      let matchReason = '';
+
+      // Strategy 1: Direct booking_id from note
+      if (noteMatch) {
+        const bid = noteMatch[1];
+        const booking = unpaidBookings.find(b => b.id === bid);
+        if (booking) { bestMatch = booking; matchReason = 'booking_id in note'; }
+      }
+
+      // Strategy 2: Match by date + amount (within $2 tolerance)
+      if (!bestMatch) {
+        for (const b of unpaidBookings) {
+          const bDate = (b.date || b.start_at?.slice(0, 10) || '');
+          if (bDate !== spDate) continue;
+          const bAmountCents = Math.round((Number(b.service_amount || b.amount || 0)) * 100);
+          if (Math.abs(bAmountCents - spServiceCents) <= 200) {
+            bestMatch = b;
+            matchReason = `date+amount (${bDate}, $${(spServiceCents/100).toFixed(2)} ≈ $${(bAmountCents/100).toFixed(2)})`;
+            break;
+          }
+        }
+      }
+
+      if (bestMatch) {
+        // Create payment_request record
+        await req.ws('payment_requests').add({
+          checkout_id: null, booking_id: bestMatch.id, payment_id: sp.id,
+          amount_cents: spAmountCents, tip_cents: spTipCents,
+          payment_method: 'card', status: 'completed',
+          client_name: bestMatch.client_name || '', service_name: bestMatch.service_name || '',
+          service_amount: Number(bestMatch.service_amount || 0),
+          card_brand: sp.card_details?.card?.card_brand || '', last_4: sp.card_details?.card?.last_4 || '',
+          source: 'reconciled', created_at: sp.created_at, completed_at: sp.created_at,
+          matched_by: matchReason,
+        });
+        // Mark booking as paid
+        await req.ws('bookings').doc(bestMatch.id).update({
+          paid: true, payment_status: 'paid', payment_method: 'terminal',
+          payment_id: sp.id,
+          tip: spTipCents / 100, tip_amount: spTipCents / 100,
+          amount: spAmountCents / 100,
+          updated_at: toIso(new Date()),
+        }).catch(() => {});
+        // Remove from unpaid list
+        const idx = unpaidBookings.findIndex(b => b.id === bestMatch.id);
+        if (idx >= 0) unpaidBookings.splice(idx, 1);
+        matched++;
+        results.push({ booking: bestMatch.client_name, payment: sp.id, tip: spTipCents / 100, reason: matchReason });
+        matchedPaymentIds.add(sp.id);
+      }
+    }
+
+    res.json({ ok: true, matched, total_square: sqPayments.length, unmatched_bookings: unpaidBookings.length, results });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
