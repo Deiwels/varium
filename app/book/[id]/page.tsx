@@ -1291,6 +1291,9 @@ export default function PublicBookingPage() {
       )}
 
       <footer style={{ padding: '20px 24px', borderTop: `1px solid ${borderSoft}`, textAlign: 'center', position: 'relative', zIndex: 2 }}>
+        <div style={{ fontSize: 10, color: isLightTheme ? 'rgba(0,0,0,.25)' : 'rgba(255,255,255,.18)', lineHeight: 1.6, marginBottom: 10, maxWidth: 400, margin: '0 auto 10px' }}>
+          SMS notifications are optional. Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe or HELP for help. <a href="https://vurium.com/privacy#sms" target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.3)' : 'rgba(255,255,255,.22)', textDecoration: 'none' }}>SMS Privacy Policy</a> &amp; <a href="https://vurium.com/terms#sms" target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.3)' : 'rgba(255,255,255,.22)', textDecoration: 'none' }}>SMS Terms</a>.
+        </div>
         <a href="https://vurium.com/vuriumbook" target="_blank" rel="noopener" style={{ fontSize: 11, color: isLightTheme ? 'rgba(0,0,0,.18)' : 'rgba(255,255,255,.12)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           <img src="/logo-white.jpg" alt="" style={{ width: 14, height: 14, borderRadius: 3, opacity: isLightTheme ? 0.35 : 0.25, filter: isLightTheme ? 'none' : 'invert(1)' }} />
           Powered by VuriumBook&trade;
