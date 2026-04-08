@@ -460,16 +460,17 @@ export default function PublicBookingPage() {
   }
 
   async function handleJoinWaitlist() {
-    if (!waitlistName.trim() || !waitlistEmail || !selectedBarber || !selectedDate) return
+    if (!waitlistName.trim() || !waitlistEmail || !waitlistPhone || !selectedBarber || !selectedDate) return
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(waitlistEmail)) { setError('Please enter a valid email address'); return }
     const phoneDigits = waitlistPhone.replace(/\D/g, '').replace(/^1/, '')
+    if (phoneDigits.length < 10) { setError('Please enter a valid 10-digit phone number'); return }
     setWaitlistSubmitting(true); setError('')
     try {
       const res = await api(`/public/waitlist/${resolvedWsId}`, {
         method: 'POST',
         body: JSON.stringify({
           email: waitlistEmail,
-          phone: phoneDigits.length >= 10 ? '+1' + phoneDigits : undefined,
+          phone: '+1' + phoneDigits,
           barber_id: selectedBarber.id,
           barber_name: selectedBarber.name,
           date: selectedDate,
@@ -480,7 +481,7 @@ export default function PublicBookingPage() {
           preferred_start_min: waitlistStartMin,
           preferred_end_min: waitlistEndMin,
           customer_note: waitlistNote || undefined,
-          sms_consent: waitlistPhone ? waitlistSmsConsent : undefined,
+          sms_consent: waitlistSmsConsent,
           reference_photo: waitlistPhoto ? { data_url: waitlistPhoto.dataUrl, file_name: waitlistPhoto.name } : undefined,
         }),
       })
@@ -954,8 +955,8 @@ export default function PublicBookingPage() {
                             <input type="email" value={waitlistEmail} onChange={e => setWaitlistEmail(e.target.value)} placeholder="your@email.com" required autoComplete="email" style={inp} />
                           </div>
                           <div>
-                            <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Phone</label>
-                            <input type="tel" value={waitlistPhone} onChange={e => setWaitlistPhone(formatWaitlistPhone(e.target.value))} placeholder="+1 (555) 123-4567" autoComplete="tel" style={inp} />
+                            <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Phone *</label>
+                            <input type="tel" value={waitlistPhone} onChange={e => setWaitlistPhone(formatWaitlistPhone(e.target.value))} placeholder="+1 (555) 123-4567" required autoComplete="tel" style={inp} />
                           </div>
                           <div>
                             <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Notes (optional)</label>
@@ -1017,21 +1018,19 @@ export default function PublicBookingPage() {
                             </div>
                           </div>
 
-                          {waitlistPhone && (
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4 }}>
-                              <input type="checkbox" checked={waitlistSmsConsent} onChange={e => setWaitlistSmsConsent(e.target.checked)} id="wl-sms-consent" style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }} />
-                              <label htmlFor="wl-sms-consent" style={{ fontSize: 12, color: textMuted, lineHeight: 1.5, cursor: 'pointer' }}>
-                                I agree to receive appointment-related SMS (confirmations, reminders, changes) at the number provided. Msg frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help. <a href="/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy</a> &amp; <a href="/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a>.
-                              </label>
-                            </div>
-                          )}
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4 }}>
+                            <input type="checkbox" checked={waitlistSmsConsent} onChange={e => setWaitlistSmsConsent(e.target.checked)} id="wl-sms-consent" style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }} />
+                            <label htmlFor="wl-sms-consent" style={{ fontSize: 12, color: textMuted, lineHeight: 1.5, cursor: 'pointer' }}>
+                              I agree to receive appointment-related SMS (confirmations, reminders, changes) at the number provided. Msg frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help. <a href="/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy</a> &amp; <a href="/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a>.
+                            </label>
+                          </div>
                         </div>
                         <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
                           <button onClick={() => setShowWaitlistForm(false)} style={{ padding: '12px 20px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', background: 'none', border: `1px solid ${borderSoft}`, color: textMuted }}>Cancel</button>
-                          <button onClick={handleJoinWaitlist} disabled={waitlistSubmitting || !waitlistEmail || !waitlistName.trim()} style={{
-                            flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: waitlistSubmitting || !waitlistEmail || !waitlistName.trim() ? 'default' : 'pointer',
+                          <button onClick={handleJoinWaitlist} disabled={waitlistSubmitting || !waitlistEmail || !waitlistName.trim() || !waitlistPhone} style={{
+                            flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: waitlistSubmitting || !waitlistEmail || !waitlistName.trim() || !waitlistPhone ? 'default' : 'pointer',
                             background: 'rgba(130,150,220,.1)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
-                            opacity: waitlistSubmitting || !waitlistEmail || !waitlistName.trim() ? 0.5 : 1,
+                            opacity: waitlistSubmitting || !waitlistEmail || !waitlistName.trim() || !waitlistPhone ? 0.5 : 1,
                           }}>{waitlistSubmitting ? 'Joining...' : 'Join Waitlist'}</button>
                         </div>
                       </div>
