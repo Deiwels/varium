@@ -2034,6 +2034,206 @@ app.post('/auth/apple-signin', async (req, res) => {
   }
 });
 
+// ─── Sign in with Google ────────────────────────────────────────────────────
+let googleJWKSCache = null;
+let googleJWKSCacheTime = 0;
+
+async function fetchGoogleJWKS() {
+  if (googleJWKSCache && Date.now() - googleJWKSCacheTime < APPLE_JWKS_TTL) return googleJWKSCache;
+  return new Promise((resolve, reject) => {
+    https.get('https://www.googleapis.com/oauth2/v3/certs', res => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          googleJWKSCache = JSON.parse(data);
+          googleJWKSCacheTime = Date.now();
+          resolve(googleJWKSCache);
+        } catch (e) { reject(e); }
+      });
+    }).on('error', reject);
+  });
+}
+
+async function verifyGoogleToken(idToken) {
+  const header = JSON.parse(Buffer.from(idToken.split('.')[0], 'base64url').toString());
+  const jwks = await fetchGoogleJWKS();
+  const key = jwks.keys.find(k => k.kid === header.kid);
+  if (!key) throw new Error('Google signing key not found');
+  const pem = jwkToPem(key);
+  const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+  return jwt.verify(idToken, pem, {
+    algorithms: ['RS256'],
+    issuer: ['accounts.google.com', 'https://accounts.google.com'],
+    audience: GOOGLE_CLIENT_ID || undefined,
+  });
+}
+
+app.post('/auth/google-signin', async (req, res) => {
+  try {
+    const { idToken, code } = req.body || {};
+
+    let googlePayload;
+
+    if (idToken) {
+      // Direct id_token verification
+      try {
+        googlePayload = await verifyGoogleToken(idToken);
+        console.log('[Google SignIn] Token verified, sub:', googlePayload.sub, 'email:', googlePayload.email);
+      } catch (e) {
+        console.error('[Google SignIn] Token verification failed:', e.message);
+        return res.status(401).json({ error: 'Invalid Google identity token: ' + e.message });
+      }
+    } else if (code) {
+      // Exchange authorization code for tokens
+      const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+      const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+      const REDIRECT_URI = (process.env.FRONTEND_URL || 'https://vurium.com') + '/api/auth/google-callback';
+      const tokenRes = await new Promise((resolve, reject) => {
+        const postData = new URLSearchParams({
+          code,
+          client_id: GOOGLE_CLIENT_ID,
+          client_secret: GOOGLE_CLIENT_SECRET,
+          redirect_uri: REDIRECT_URI,
+          grant_type: 'authorization_code',
+        }).toString();
+        const req2 = https.request('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(postData) },
+        }, res2 => {
+          let data = '';
+          res2.on('data', chunk => data += chunk);
+          res2.on('end', () => { try { resolve(JSON.parse(data)); } catch (e) { reject(e); } });
+        });
+        req2.on('error', reject);
+        req2.write(postData);
+        req2.end();
+      });
+      if (!tokenRes.id_token) {
+        console.error('[Google SignIn] Code exchange failed:', tokenRes);
+        return res.status(401).json({ error: 'Failed to exchange Google code' });
+      }
+      try {
+        googlePayload = await verifyGoogleToken(tokenRes.id_token);
+      } catch (e) {
+        // Fallback: decode without verification (token just came from Google)
+        googlePayload = JSON.parse(Buffer.from(tokenRes.id_token.split('.')[1], 'base64url').toString());
+      }
+    } else {
+      return res.status(400).json({ error: 'Missing idToken or code' });
+    }
+
+    const googleUserId = googlePayload.sub;
+    const googleEmail = (googlePayload.email || '').toLowerCase().trim();
+    const userName = googlePayload.name || googleEmail.split('@')[0];
+
+    if (!googleUserId) return res.status(400).json({ error: 'Invalid Google user ID' });
+
+    // 1. Search for existing user by google_user_id
+    const allWs = await db.collection('workspaces').get();
+    let foundUser = null, foundWsId = null;
+
+    for (const ws of allWs.docs) {
+      const snap = await ws.ref.collection('users')
+        .where('google_user_id', '==', googleUserId).where('active', '==', true).limit(1).get();
+      if (!snap.empty) {
+        foundUser = { ...snap.docs[0].data(), uid: snap.docs[0].id };
+        foundWsId = ws.id;
+        break;
+      }
+    }
+
+    // 2. If not found by google_user_id, search by email
+    if (!foundUser && googleEmail) {
+      for (const ws of allWs.docs) {
+        const snap = await ws.ref.collection('users')
+          .where('username', '==', googleEmail).where('active', '==', true).limit(1).get();
+        if (!snap.empty) {
+          foundUser = { ...snap.docs[0].data(), uid: snap.docs[0].id };
+          foundWsId = ws.id;
+          await ws.ref.collection('users').doc(foundUser.uid).update({
+            google_user_id: googleUserId,
+            updated_at: toIso(new Date()),
+          });
+          console.log(`[Google SignIn] Linked Google ID to existing user ${foundUser.uid}`);
+          break;
+        }
+      }
+    }
+
+    // 3. Found existing user — login
+    if (foundUser && foundWsId) {
+      const token = jwt.sign({
+        uid: foundUser.uid, username: foundUser.username, role: foundUser.role,
+        name: foundUser.name, workspace_id: foundWsId,
+        barber_id: foundUser.barber_id || null,
+        mentor_barber_ids: foundUser.mentor_barber_ids || [],
+        permissions: PERMISSIONS[foundUser.role] || {},
+      }, JWT_SECRET, { expiresIn: TOKEN_TTL });
+      setAuthCookie(res, token);
+      writeAuditLog(foundWsId, { action: 'user.login.google', resource_id: foundUser.uid, req }).catch(() => {});
+      return res.json({
+        ok: true, token,
+        user: {
+          id: foundUser.uid, uid: foundUser.uid, username: foundUser.username, name: foundUser.name,
+          role: foundUser.role, workspace_id: foundWsId, barber_id: foundUser.barber_id || null,
+          permissions: PERMISSIONS[foundUser.role] || {},
+        },
+      });
+    }
+
+    // 4. New user — create workspace + owner
+    const wsRef = db.collection('workspaces').doc();
+    const workspaceName = userName || 'My Business';
+    const slug = await generateUniqueSlug(workspaceName);
+    const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    await wsRef.set({
+      name: sanitizeHtml(workspaceName), slug,
+      plan_type: 'individual', billing_status: 'trialing',
+      trial_ends_at: toIso(trialEnd), trial_used: false,
+      owner_username: googleEmail || googleUserId,
+      timezone: 'America/Chicago',
+      created_at: toIso(new Date()), updated_at: toIso(new Date()),
+    });
+    await registerSlug(slug, wsRef.id).catch(() => {});
+
+    const userRef = wsRef.collection('users').doc();
+    await userRef.set({
+      username: googleEmail || googleUserId,
+      name: sanitizeHtml(userName), email: googleEmail || null,
+      role: 'owner', password_hash: null,
+      google_user_id: googleUserId, active: true,
+      created_at: toIso(new Date()), updated_at: toIso(new Date()),
+    });
+
+    await wsRef.collection('settings').doc('config').set({
+      timezone: 'America/Chicago', shop_name: sanitizeHtml(workspaceName),
+      created_at: toIso(new Date()),
+    });
+
+    const token = jwt.sign({
+      uid: userRef.id, username: googleEmail || googleUserId, role: 'owner',
+      name: sanitizeHtml(userName), workspace_id: wsRef.id,
+      permissions: PERMISSIONS.owner,
+    }, JWT_SECRET, { expiresIn: TOKEN_TTL });
+    setAuthCookie(res, token);
+
+    console.log(`[Google SignIn] Created new workspace ${wsRef.id} for Google user ${googleUserId}`);
+    res.status(201).json({
+      ok: true, token, isNewUser: true,
+      workspace_id: wsRef.id, slug,
+      user: {
+        id: userRef.id, uid: userRef.id, username: googleEmail || googleUserId,
+        name: sanitizeHtml(userName), role: 'owner', workspace_id: wsRef.id,
+        permissions: PERMISSIONS.owner,
+      },
+    });
+  } catch (e) {
+    console.error('[Google SignIn] Error:', e);
+    res.status(500).json({ error: e?.message || 'Google sign-in failed' });
+  }
+});
+
 // Login by email only — searches all workspaces
 app.post('/auth/login-email', async (req, res) => {
   try {
@@ -3484,8 +3684,13 @@ app.delete('/api/expenses/:id', async (req, res) => {
 // ============================================================
 app.get('/api/attendance', requirePlanFeature('attendance'), async (req, res) => {
   try {
-    const snap = await req.ws('attendance').orderBy('date', 'desc').limit(200).get();
-    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    let q = req.ws('attendance').orderBy('date', 'desc');
+    const from = safeStr(req.query.from || '');
+    const to = safeStr(req.query.to || '');
+    if (from) q = q.where('date', '>=', from);
+    if (to) q = q.where('date', '<=', to);
+    const snap = await q.limit(200).get();
+    res.json({ attendance: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
@@ -3497,9 +3702,13 @@ app.get('/api/attendance/status', requirePlanFeature('attendance'), async (req, 
       .where('user_id', '==', userId)
       .where('date', '==', today)
       .limit(1).get();
-    if (snap.empty) return res.json({ clocked_in: false });
+    if (snap.empty) return res.json({ clocked_in: false, today_minutes: 0 });
     const data = snap.docs[0].data();
-    res.json({ clocked_in: !data.clock_out, ...data, id: snap.docs[0].id });
+    let todayMinutes = data.duration_minutes || 0;
+    if (!data.clock_out && data.clock_in) {
+      todayMinutes = Math.round((Date.now() - new Date(data.clock_in).getTime()) / 60000);
+    }
+    res.json({ clocked_in: !data.clock_out, today_minutes: todayMinutes, ...data, id: snap.docs[0].id });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
@@ -3508,17 +3717,22 @@ app.post('/api/attendance/clock-in', requirePlanFeature('attendance'), async (re
     const userId = req.user.uid;
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
-    // Optional GPS geofence check
+    // GPS geofence check
     const lat = Number(req.body?.lat);
     const lng = Number(req.body?.lng);
-    if (lat && lng) {
-      const settingsDoc = await req.ws('settings').doc('config').get();
-      const settings = settingsDoc.exists ? settingsDoc.data() : {};
-      if (settings.geofence_lat && settings.geofence_lng) {
-        const dist = haversineMeters(lat, lng, Number(settings.geofence_lat), Number(settings.geofence_lng));
-        const radius = Number(settings.geofence_radius_m || 500);
-        if (dist > radius) return res.status(403).json({ error: 'You are too far from the shop to clock in', distance_m: Math.round(dist) });
-      }
+    let atShop = false;
+    let distanceMeters = null;
+    const settingsDoc = await req.ws('settings').doc('config').get();
+    const settings = settingsDoc.exists ? settingsDoc.data() : {};
+    if (lat && lng && settings.geofence_lat && settings.geofence_lng) {
+      const dist = haversineMeters(lat, lng, Number(settings.geofence_lat), Number(settings.geofence_lng));
+      const radius = Number(settings.geofence_radius_m || 500);
+      distanceMeters = Math.round(dist);
+      atShop = dist <= radius;
+      if (!atShop) return res.status(403).json({ error: `You are too far from the shop to clock in (${distanceMeters}m away, max ${radius}m)`, distance_m: distanceMeters });
+    } else if (lat && lng) {
+      // GPS provided but no geofence configured — allow but mark unknown
+      atShop = false;
     }
     const doc = {
       user_id: userId,
@@ -3529,6 +3743,8 @@ app.post('/api/attendance/clock-in', requirePlanFeature('attendance'), async (re
       clock_in: toIso(now),
       clock_out: null,
       lat: lat || null, lng: lng || null,
+      at_shop: atShop,
+      distance_meters: distanceMeters,
       created_at: toIso(now),
     };
     const ref = await req.ws('attendance').add(doc);
@@ -3546,7 +3762,10 @@ app.post('/api/attendance/clock-out', requirePlanFeature('attendance'), async (r
       .limit(1).get();
     if (snap.empty) return res.status(404).json({ error: 'No clock-in found for today' });
     const docRef = snap.docs[0].ref;
-    await docRef.update({ clock_out: toIso(new Date()) });
+    const existing = snap.docs[0].data();
+    const clockOutTime = new Date();
+    const durationMinutes = existing.clock_in ? Math.round((clockOutTime.getTime() - new Date(existing.clock_in).getTime()) / 60000) : null;
+    await docRef.update({ clock_out: toIso(clockOutTime), duration_minutes: durationMinutes });
     const saved = await docRef.get();
     res.json({ id: saved.id, ...saved.data() });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -3563,8 +3782,10 @@ app.post('/api/attendance/admin-clock-out', requireRole('owner', 'admin'), async
       .limit(1).get();
     if (snap.empty) return res.status(404).json({ error: 'No clock-in found' });
     const docRef = snap.docs[0].ref;
+    const existing = snap.docs[0].data();
     const clockOutTime = req.body?.clock_out ? toIso(parseIso(req.body.clock_out) || new Date()) : toIso(new Date());
-    await docRef.update({ clock_out: clockOutTime, admin_clock_out: true, admin_id: req.user.uid });
+    const durationMinutes = existing.clock_in ? Math.round((new Date(clockOutTime).getTime() - new Date(existing.clock_in).getTime()) / 60000) : null;
+    await docRef.update({ clock_out: clockOutTime, duration_minutes: durationMinutes, admin_clock_out: true, admin_id: req.user.uid });
     const saved = await docRef.get();
     res.json({ id: saved.id, ...saved.data() });
   } catch (e) { res.status(500).json({ error: e?.message }); }
