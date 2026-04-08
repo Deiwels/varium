@@ -2920,6 +2920,59 @@ app.get('/api/bookings', async (req, res) => {
       list = list.filter(b => req.user.mentor_barber_ids.includes(b.barber_id));
     }
     res.json(list);
+
+    // Background auto-reconcile: check Square for unmatched payments (throttled, max once per 2 min per workspace)
+    const now = Date.now();
+    const reconcileKey = `_lastReconcile_${req.wsId}`;
+    if (!_apiRateBuckets.has(reconcileKey) || now - (_apiRateBuckets.get(reconcileKey)?.start || 0) > 120000) {
+      _apiRateBuckets.set(reconcileKey, { start: now, count: 0 });
+      const unpaid = list.filter(b => !b.paid && b.status !== 'cancelled' && b.status !== 'noshow' && b.status !== 'no_show');
+      if (unpaid.length > 0) {
+        (async () => {
+          try {
+            const headers = await squareHeaders(req.ws);
+            const today = toIso(new Date()).slice(0, 10);
+            const sqResp = await squareFetch(`/v2/payments?sort_order=DESC&begin_time=${today}T00:00:00Z`, { headers });
+            if (!sqResp.ok) return;
+            const sqData = await sqResp.json();
+            const sqPayments = (sqData.payments || []).filter(p => (p.status || '').toUpperCase() === 'COMPLETED');
+            const prSnap = await req.ws('payment_requests').limit(500).get();
+            const matchedIds = new Set(prSnap.docs.map(d => d.data().payment_id).filter(Boolean));
+            for (const sp of sqPayments) {
+              if (matchedIds.has(sp.id)) continue;
+              const spCents = (sp.amount_money?.amount || 0) - (sp.tip_money?.amount || 0);
+              const spDate = (sp.created_at || '').slice(0, 10);
+              const spNote = sp.note || '';
+              const noteMatch = spNote.match(/Booking\s+(\S+)/i);
+              let matched = false;
+              // Match by booking_id in note
+              if (noteMatch) {
+                const bid = noteMatch[1];
+                const b = unpaid.find(u => u.id === bid);
+                if (b) {
+                  await req.ws('bookings').doc(bid).update({ paid: true, payment_status: 'paid', payment_method: 'terminal', payment_id: sp.id, tip: (sp.tip_money?.amount || 0) / 100, tip_amount: (sp.tip_money?.amount || 0) / 100, amount: (sp.amount_money?.amount || 0) / 100, updated_at: toIso(new Date()) }).catch(() => {});
+                  await req.ws('payment_requests').add({ booking_id: bid, payment_id: sp.id, amount_cents: sp.amount_money?.amount || 0, tip_cents: sp.tip_money?.amount || 0, payment_method: 'card', status: 'completed', source: 'auto_reconciled', created_at: sp.created_at }).catch(() => {});
+                  matched = true;
+                }
+              }
+              // Match by date + amount
+              if (!matched) {
+                for (const b of unpaid) {
+                  const bDate = (b.date || b.start_at?.slice(0, 10) || '');
+                  if (bDate !== spDate) continue;
+                  const bCents = Math.round((Number(b.service_amount || b.amount || 0)) * 100);
+                  if (Math.abs(bCents - spCents) <= 200) {
+                    await req.ws('bookings').doc(b.id).update({ paid: true, payment_status: 'paid', payment_method: 'terminal', payment_id: sp.id, tip: (sp.tip_money?.amount || 0) / 100, tip_amount: (sp.tip_money?.amount || 0) / 100, amount: (sp.amount_money?.amount || 0) / 100, updated_at: toIso(new Date()) }).catch(() => {});
+                    await req.ws('payment_requests').add({ booking_id: b.id, payment_id: sp.id, amount_cents: sp.amount_money?.amount || 0, tip_cents: sp.tip_money?.amount || 0, payment_method: 'card', status: 'completed', source: 'auto_reconciled', created_at: sp.created_at }).catch(() => {});
+                    break;
+                  }
+                }
+              }
+            }
+          } catch {}
+        })();
+      }
+    }
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
