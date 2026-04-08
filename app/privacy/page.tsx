@@ -68,7 +68,7 @@ export default function PrivacyPage() {
         </ul>
 
         {/* 4. SMS / Text Messaging Disclosure */}
-        <h2 style={heading}>4. SMS / Text Messaging Disclosure</h2>
+        <h2 id="sms" style={heading}>4. SMS / Text Messaging Disclosure</h2>
         <div style={highlight}>
           <p style={{ ...text, marginBottom: 14 }}>
             By providing your phone number and checking the SMS consent box at https://vurium.com/book/[workspace] during the online booking process, you consent to receive text messages from Vurium and the business you are booking with, related to your appointments.

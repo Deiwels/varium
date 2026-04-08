@@ -55,7 +55,7 @@ export default function TermsPage() {
         </ul>
 
         {/* 4. SMS Program Terms */}
-        <h2 style={heading}>4. SMS / Text Messaging Program Terms</h2>
+        <h2 id="sms" style={heading}>4. SMS / Text Messaging Program Terms</h2>
         <div style={highlight}>
           <p style={{ ...text, marginBottom: 14 }}>
             VuriumBook provides appointment-related text messaging as part of the booking experience. By opting in to SMS at the time of booking, you agree to the following:
