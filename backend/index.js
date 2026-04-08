@@ -5480,6 +5480,12 @@ app.post('/public/waitlist/:workspace_id', async (req, res) => {
       duration_minutes: Math.max(1, Number(req.body?.duration_minutes || 30)),
       preferred_start_min: prefStart,
       preferred_end_min: prefEnd,
+      customer_note: sanitizeHtml(safeStr(req.body?.customer_note || '')) || null,
+      sms_consent: !!req.body?.sms_consent,
+      reference_photo: req.body?.reference_photo && typeof req.body.reference_photo === 'object' ? {
+        data_url: safeStr(req.body.reference_photo.data_url || '').slice(0, 600000),
+        file_name: safeStr(req.body.reference_photo.file_name || 'photo.jpg'),
+      } : null,
       notified: false, created_at: toIso(new Date()),
     };
     const ref = await wsCol('waitlist').add(doc);

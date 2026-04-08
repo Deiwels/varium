@@ -191,6 +191,9 @@ export default function PublicBookingPage() {
   const [waitlistEmail, setWaitlistEmail] = useState('')
   const [waitlistPhone, setWaitlistPhone] = useState('')
   const [waitlistName, setWaitlistName] = useState('')
+  const [waitlistNote, setWaitlistNote] = useState('')
+  const [waitlistPhoto, setWaitlistPhoto] = useState<{ dataUrl: string; name: string } | null>(null)
+  const [waitlistSmsConsent, setWaitlistSmsConsent] = useState(false)
   const [waitlistSubmitting, setWaitlistSubmitting] = useState(false)
   const [waitlistDone, setWaitlistDone] = useState(false)
   const [waitlistStartMin, setWaitlistStartMin] = useState(9 * 60)  // 9:00 AM
@@ -444,7 +447,7 @@ export default function PublicBookingPage() {
     setSelectedDate(''); setClientName(''); setClientPhone('')
     setClientNote(''); setReferencePhoto(null); setBooked(false); setError('')
     setPayOnline(false); setPaymentClientSecret(''); setPaymentBookingId('')
-    setShowWaitlistForm(false); setWaitlistDone(false); setWaitlistEmail(''); setWaitlistPhone(''); setWaitlistName(''); setWaitlistStartMin(9 * 60); setWaitlistEndMin(18 * 60)
+    setShowWaitlistForm(false); setWaitlistDone(false); setWaitlistEmail(''); setWaitlistPhone(''); setWaitlistName(''); setWaitlistNote(''); setWaitlistPhoto(null); setWaitlistSmsConsent(false); setWaitlistStartMin(9 * 60); setWaitlistEndMin(18 * 60)
     if (!isSolo) setSelectedBarber(null)
   }
 
@@ -457,7 +460,7 @@ export default function PublicBookingPage() {
   }
 
   async function handleJoinWaitlist() {
-    if (!waitlistEmail || !selectedBarber || !selectedDate) return
+    if (!waitlistName.trim() || !waitlistEmail || !selectedBarber || !selectedDate) return
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(waitlistEmail)) { setError('Please enter a valid email address'); return }
     const phoneDigits = waitlistPhone.replace(/\D/g, '').replace(/^1/, '')
     setWaitlistSubmitting(true); setError('')
@@ -470,12 +473,15 @@ export default function PublicBookingPage() {
           barber_id: selectedBarber.id,
           barber_name: selectedBarber.name,
           date: selectedDate,
-          client_name: waitlistName || undefined,
+          client_name: waitlistName.trim(),
           service_ids: selectedServiceIds,
           service_names: selectedServices.map(s => s.name),
           duration_minutes: totalDuration,
           preferred_start_min: waitlistStartMin,
           preferred_end_min: waitlistEndMin,
+          customer_note: waitlistNote || undefined,
+          sms_consent: waitlistPhone ? waitlistSmsConsent : undefined,
+          reference_photo: waitlistPhoto ? { data_url: waitlistPhoto.dataUrl, file_name: waitlistPhoto.name } : undefined,
         }),
       })
       if (res.error) throw new Error(res.error)
@@ -938,24 +944,56 @@ export default function PublicBookingPage() {
                         <div style={{ fontSize: 12, color: textMuted, marginBottom: 16, lineHeight: 1.5 }}>
                           We&apos;ll notify you if a slot opens up for {selectedBarber?.name} on {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}.
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                           <div>
-                            <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Email *</label>
-                            <input type="email" value={waitlistEmail} onChange={e => setWaitlistEmail(e.target.value)} placeholder="your@email.com" autoComplete="email" style={inp} />
+                            <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Name *</label>
+                            <input type="text" value={waitlistName} onChange={e => setWaitlistName(e.target.value)} placeholder="Your full name" required autoComplete="name" style={inp} />
                           </div>
                           <div>
-                            <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Phone (optional)</label>
-                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                              <div style={{ position: 'absolute', left: 14, fontSize: 14, color: textMuted, pointerEvents: 'none', fontWeight: 600, zIndex: 1 }}>+1</div>
-                              <input type="tel" value={waitlistPhone} onChange={e => setWaitlistPhone(formatWaitlistPhone(e.target.value))} placeholder="(___) ___-____" autoComplete="tel" style={{ ...inp, paddingLeft: 38 }} />
+                            <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Email *</label>
+                            <input type="email" value={waitlistEmail} onChange={e => setWaitlistEmail(e.target.value)} placeholder="your@email.com" required autoComplete="email" style={inp} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Phone</label>
+                            <input type="tel" value={waitlistPhone} onChange={e => setWaitlistPhone(formatWaitlistPhone(e.target.value))} placeholder="+1 (555) 123-4567" autoComplete="tel" style={inp} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Notes (optional)</label>
+                            <textarea value={waitlistNote} onChange={e => setWaitlistNote(e.target.value)} placeholder="Any special requests..." rows={3} style={{ ...inp, resize: 'vertical' }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Reference photo (optional)</label>
+                            <div style={{ border: `1px dashed ${isLightTheme ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.12)'}`, borderRadius: 12, padding: '12px 14px', background: isLightTheme ? 'rgba(0,0,0,.02)' : 'rgba(255,255,255,.02)' }}>
+                              <input type="file" accept="image/*" onChange={e => {
+                                const file = e.target.files?.[0]; if (!file) return
+                                if (file.size > 10 * 1024 * 1024) { setError('Photo must be under 10MB'); return }
+                                const reader = new FileReader()
+                                reader.onload = () => {
+                                  const img = new Image()
+                                  img.onload = () => {
+                                    const maxW = 1200; const scale = img.width > maxW ? maxW / img.width : 1
+                                    const w = Math.round(img.width * scale), h = Math.round(img.height * scale)
+                                    const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h
+                                    canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+                                    let q = 0.75; let dataUrl = canvas.toDataURL('image/jpeg', q)
+                                    while (dataUrl.length > 500000 && q > 0.3) { q -= 0.1; dataUrl = canvas.toDataURL('image/jpeg', q) }
+                                    setWaitlistPhoto({ dataUrl, name: file.name })
+                                  }
+                                  img.src = reader.result as string
+                                }
+                                reader.readAsDataURL(file); e.target.value = ''
+                              }} style={{ fontSize: 12, color: textMuted, fontFamily: 'inherit' }} />
+                              <div style={{ fontSize: 11, color: textDim, marginTop: 6 }}>Attach a reference photo of the style you want</div>
                             </div>
+                            {waitlistPhoto && (
+                              <div style={{ marginTop: 10, position: 'relative', display: 'inline-block' }}>
+                                <img src={waitlistPhoto.dataUrl} alt="Reference" style={{ maxWidth: 200, maxHeight: 200, borderRadius: 12, objectFit: 'cover', border: `1px solid ${isLightTheme ? 'rgba(0,0,0,.1)' : 'rgba(255,255,255,.1)'}` }} />
+                                <button onClick={() => setWaitlistPhoto(null)} style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 999, background: 'rgba(220,60,60,.8)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                              </div>
+                            )}
                           </div>
                           <div>
-                            <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Name (optional)</label>
-                            <input type="text" value={waitlistName} onChange={e => setWaitlistName(e.target.value)} placeholder="Your name" autoComplete="name" style={inp} />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Preferred time</label>
+                            <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Preferred time</label>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                               <select value={waitlistStartMin} onChange={e => setWaitlistStartMin(Number(e.target.value))} style={{ ...inp, flex: 1 }}>
                                 {Array.from({ length: 28 }, (_, i) => {
@@ -978,13 +1016,22 @@ export default function PublicBookingPage() {
                               </select>
                             </div>
                           </div>
+
+                          {waitlistPhone && (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4 }}>
+                              <input type="checkbox" checked={waitlistSmsConsent} onChange={e => setWaitlistSmsConsent(e.target.checked)} id="wl-sms-consent" style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }} />
+                              <label htmlFor="wl-sms-consent" style={{ fontSize: 12, color: textMuted, lineHeight: 1.5, cursor: 'pointer' }}>
+                                I agree to receive appointment-related SMS (confirmations, reminders, changes) at the number provided. Msg frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help. <a href="/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy</a> &amp; <a href="/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a>.
+                              </label>
+                            </div>
+                          )}
                         </div>
-                        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                          <button onClick={() => setShowWaitlistForm(false)} style={{ padding: '10px 16px', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', background: 'none', border: `1px solid ${borderSoft}`, color: textMuted }}>Cancel</button>
-                          <button onClick={handleJoinWaitlist} disabled={waitlistSubmitting || !waitlistEmail} style={{
-                            flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', cursor: waitlistSubmitting || !waitlistEmail ? 'default' : 'pointer',
+                        <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+                          <button onClick={() => setShowWaitlistForm(false)} style={{ padding: '12px 20px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', background: 'none', border: `1px solid ${borderSoft}`, color: textMuted }}>Cancel</button>
+                          <button onClick={handleJoinWaitlist} disabled={waitlistSubmitting || !waitlistEmail || !waitlistName.trim()} style={{
+                            flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: waitlistSubmitting || !waitlistEmail || !waitlistName.trim() ? 'default' : 'pointer',
                             background: 'rgba(130,150,220,.1)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
-                            opacity: waitlistSubmitting || !waitlistEmail ? 0.5 : 1,
+                            opacity: waitlistSubmitting || !waitlistEmail || !waitlistName.trim() ? 0.5 : 1,
                           }}>{waitlistSubmitting ? 'Joining...' : 'Join Waitlist'}</button>
                         </div>
                       </div>
