@@ -115,6 +115,11 @@ function isValidEmail(s: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(s || '').trim())
 }
 
+function isValidPhone(s: string): boolean {
+  const digits = String(s || '').replace(/\D/g, '')
+  return digits.length >= 7 && digits.length <= 15
+}
+
 function processCustomHTML(html: string, data: { shopName: string; barbers: Barber[]; reviews: any[] }): string {
   let result = html
   // Simple variables
@@ -362,6 +367,8 @@ export default function PublicBookingPage() {
   async function handleBook() {
     if (!clientName || !clientEmail || !clientPhone || !selectedBarber || !selectedSlot) return
     if (!isValidEmail(clientEmail)) { setError('Please enter a valid email address.'); return }
+    if (!isValidPhone(clientPhone)) { setError('Please enter a valid phone number.'); return }
+    if (!smsConsent) { setError('Please agree to receive SMS notifications to continue.'); return }
     setBookLoading(true); setError('')
     try {
       const noteWithPhoto = referencePhoto
@@ -395,6 +402,8 @@ export default function PublicBookingPage() {
   async function handlePayOnlineFlow() {
     if (!clientName || !clientEmail || !clientPhone || !selectedBarber || !selectedSlot || selectedServiceIds.length === 0) return
     if (!isValidEmail(clientEmail)) { setError('Please enter a valid email address.'); return }
+    if (!isValidPhone(clientPhone)) { setError('Please enter a valid phone number.'); return }
+    if (!smsConsent) { setError('Please agree to receive SMS notifications to continue.'); return }
     setPaymentLoading(true); setError('')
     try {
       // 1. Create booking first
@@ -1223,17 +1232,17 @@ export default function PublicBookingPage() {
               <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
                 <button onClick={() => setStep(2)} style={{ padding: '12px 20px', background: 'none', border: `1px solid ${borderSoft}`, borderRadius: 12, color: textMuted, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Back</button>
                 {payOnline ? (
-                  <button onClick={handlePayOnlineFlow} disabled={!clientName || !isValidEmail(clientEmail) || !clientPhone || paymentLoading} style={{
+                  <button onClick={handlePayOnlineFlow} disabled={!clientName || !isValidEmail(clientEmail) || !isValidPhone(clientPhone) || !smsConsent || paymentLoading} style={{
                     flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit',
-                    cursor: !clientName || !isValidEmail(clientEmail) || !clientPhone || paymentLoading ? 'default' : 'pointer',
+                    cursor: !clientName || !isValidEmail(clientEmail) || !isValidPhone(clientPhone) || !smsConsent || paymentLoading ? 'default' : 'pointer',
                     background: 'rgba(130,150,220,.12)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
-                    opacity: !clientName || !isValidEmail(clientEmail) || !clientPhone || paymentLoading ? 0.5 : 1,
+                    opacity: !clientName || !isValidEmail(clientEmail) || !isValidPhone(clientPhone) || !smsConsent || paymentLoading ? 0.5 : 1,
                   }}>{paymentLoading ? 'Setting up payment...' : `Pay ${fmtPrice(totalPrice)} & Book`}</button>
                 ) : (
-                  <button onClick={handleBook} disabled={!clientName || !isValidEmail(clientEmail) || !clientPhone || bookLoading} style={{
-                    flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: !clientName || !isValidEmail(clientEmail) || !clientPhone || bookLoading ? 'default' : 'pointer',
+                  <button onClick={handleBook} disabled={!clientName || !isValidEmail(clientEmail) || !isValidPhone(clientPhone) || !smsConsent || bookLoading} style={{
+                    flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: !clientName || !isValidEmail(clientEmail) || !isValidPhone(clientPhone) || !smsConsent || bookLoading ? 'default' : 'pointer',
                     background: 'rgba(130,220,170,.1)', border: '1px solid rgba(130,220,170,.2)', color: 'rgba(130,220,170,.9)',
-                    opacity: !clientName || !isValidEmail(clientEmail) || !clientPhone || bookLoading ? 0.5 : 1,
+                    opacity: !clientName || !isValidEmail(clientEmail) || !isValidPhone(clientPhone) || !smsConsent || bookLoading ? 0.5 : 1,
                   }}>{bookLoading ? 'Booking...' : 'Confirm Booking'}</button>
                 )}
               </div>
