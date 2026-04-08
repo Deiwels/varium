@@ -760,13 +760,13 @@ export default function DashboardPage() {
           const wl: React.CSSProperties = { fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }
           switch (item.id) {
             case 'w_clockin': return (
-              <div onClick={e => { if (jiggleMode) return; e.stopPropagation(); handleClockAction() }} style={{...ws, cursor: clockLoading ? 'wait' : 'pointer', opacity: clockLoading ? .7 : 1 }}>
-                <div style={wl}>{clockedIn ? 'Clocked In' : 'Clock In'}</div>
+              <div onClick={e => { if (jiggleMode) return; e.stopPropagation(); handleClockAction() }} style={{...ws, cursor: clockLoading ? 'wait' : 'pointer', opacity: clockLoading ? .7 : 1, border: clockedIn ? '1px solid rgba(143,240,177,.20)' : ws.border }}>
+                <div style={wl}>{clockedIn ? 'On Shift' : 'Clock In'}</div>
                 <div style={{ fontSize: 22, fontWeight: 600, color: clockedIn ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.7)', lineHeight: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
                   {clockedIn && <span style={{ width: 6, height: 6, borderRadius: 999, background: 'rgba(130,220,170,.8)', animation: 'clockDot 2s ease-in-out infinite', flexShrink: 0 }} />}
                   {clockLoading ? '...' : clockedIn ? (elapsedStr || fmtMins(todayMinutes)) : 'Off'}
                 </div>
-                <div style={{ fontSize: 9, color: 'rgba(255,255,255,.3)', marginTop: 3 }}>{clockError || (clockedIn ? 'tap to clock out' : 'tap to start')}</div>
+                <div style={{ fontSize: 9, color: clockedIn ? 'rgba(255,107,107,.6)' : 'rgba(255,255,255,.3)', marginTop: 3, fontWeight: clockedIn ? 700 : 400 }}>{clockError || (clockedIn ? 'Clock Out' : 'tap to start')}</div>
               </div>
             )
             case 'w_clock': return <div style={{...ws, display: 'flex', alignItems: 'center', justifyContent: 'center'}}><ClockWidget /></div>
