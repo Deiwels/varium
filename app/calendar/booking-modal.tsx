@@ -136,9 +136,12 @@ async function apiFetch(path: string, opts?: RequestInit) {
 }
 
 // ─── ClientSearch ─────────────────────────────────────────────────────────────
-function ClientSearch({ onSelect, isOwnerOrAdmin, initialClient, initialName }: {
+function ClientSearch({ onSelect, isOwnerOrAdmin, canViewPhone, canCallClient, canMessageClient, initialClient, initialName }: {
   onSelect: (c: Client | null, name: string) => void
   isOwnerOrAdmin: boolean
+  canViewPhone: boolean
+  canCallClient: boolean
+  canMessageClient: boolean
   initialClient?: Client | null
   initialName?: string
 }) {
@@ -353,20 +356,20 @@ function ClientSearch({ onSelect, isOwnerOrAdmin, initialClient, initialName }: 
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 900, fontSize: 15 }}>{selected.name}</div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,.50)', marginTop: 2 }}>
-                  {isOwnerOrAdmin ? (selected.phone || 'No phone') : maskPhone(selected.phone || '')}
+                  {canViewPhone ? (selected.phone || 'No phone') : maskPhone(selected.phone || '')}
                   {selected.visitCount ? ` · ${selected.visitCount} visit${selected.visitCount !== 1 ? 's' : ''}` : ' · New client'}
                 </div>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-              {isOwnerOrAdmin && selected.phone && (
+              {canCallClient && selected.phone && (
                 <a href={`tel:${selected.phone.replace(/[^\d+]/g, '')}`}
                   title={`Call ${selected.name}`}
                   style={{ height: 30, width: 30, borderRadius: 8, border: '1px solid rgba(130,220,170,.30)', background: 'rgba(130,220,170,.08)', color: 'rgba(130,220,170,.75)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', flexShrink: 0 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 </a>
               )}
-              {isOwnerOrAdmin && selected.phone && (
+              {canMessageClient && selected.phone && (
                 <a href={`sms:${selected.phone.replace(/[^\d+]/g, '')}`}
                   title={`Message ${selected.name}`}
                   style={{ height: 30, width: 30, borderRadius: 8, border: '1px solid rgba(130,150,220,.30)', background: 'rgba(130,150,220,.08)', color: 'rgba(130,150,220,.75)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', flexShrink: 0 }}>
@@ -459,7 +462,7 @@ function ClientSearch({ onSelect, isOwnerOrAdmin, initialClient, initialName }: 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 800, fontSize: 14 }}>{c.name}</div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,.40)', marginTop: 1 }}>
-                  {isOwnerOrAdmin ? c.phone : maskPhone(c.phone || '')}
+                  {canViewPhone ? c.phone : maskPhone(c.phone || '')}
                   {c.visitCount ? ` · ${c.visitCount} visits` : ''}
                 </div>
               </div>
@@ -1025,6 +1028,9 @@ export function BookingModal({
   const { hasPerm } = usePermissions()
   const canCheckout = hasPerm('financial', 'checkout_client')
   const canTerminal = hasPerm('financial', 'access_terminal')
+  const canViewPhone = hasPerm('clients', 'view_phone')
+  const canCallClient = hasPerm('clients', 'call_client')
+  const canMessageClient = hasPerm('clients', 'message_client')
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [clientName, setClientName] = useState('')
@@ -1196,6 +1202,9 @@ export function BookingModal({
               <ClientSearch
                 key={modalKey}
                 isOwnerOrAdmin={isOwnerOrAdmin}
+                canViewPhone={canViewPhone}
+                canCallClient={canCallClient}
+                canMessageClient={canMessageClient}
                 initialClient={selectedClient}
                 initialName={!selectedClient ? clientName : undefined}
                 onSelect={(c, name) => {

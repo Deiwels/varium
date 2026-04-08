@@ -466,6 +466,7 @@ const PERM_SECTIONS: { category: PermCategory; label: string; items: { key: stri
   { category: 'clients', label: 'Clients', items: [
     { key: 'view', label: 'View clients' }, { key: 'add', label: 'Add clients' },
     { key: 'edit', label: 'Edit client info' }, { key: 'view_phone', label: 'View phone number' },
+    { key: 'call_client', label: 'Call client (phone)' }, { key: 'message_client', label: 'Message client (SMS)' },
     { key: 'delete', label: 'Delete clients' }, { key: 'view_all', label: 'View all clients' },
   ]},
   { category: 'schedule', label: 'Schedule & Approvals', items: [
