@@ -425,26 +425,19 @@ export default function BillingPage() {
                         </li>
                       ))}
                     </ul>
-                    {p.id !== 'custom' ? (
-                      <button
-                        onClick={() => startCheckout(p)}
-                        disabled={isCurrent || !!checkoutLoading}
-                        style={{
-                          width: '100%', padding: '12px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: isCurrent ? 'default' : 'pointer',
-                          background: isCurrent ? 'rgba(255,255,255,.03)' : p.featured ? 'rgba(130,220,170,.12)' : 'rgba(255,255,255,.05)',
-                          border: `1px solid ${isCurrent ? 'rgba(255,255,255,.06)' : p.featured ? 'rgba(130,220,170,.2)' : 'rgba(255,255,255,.1)'}`,
-                          color: isCurrent ? 'rgba(255,255,255,.3)' : p.featured ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.6)',
-                          opacity: checkoutLoading ? 0.5 : 1,
-                        }}
-                      >
-                        {checkoutLoading === p.id ? 'Loading...' : isCurrent ? 'Current Plan' : 'Subscribe'}
-                      </button>
-                    ) : (
-                      <a href="mailto:support@vurium.com?subject=VuriumBook Enterprise" style={{
-                        display: 'block', width: '100%', padding: '12px', borderRadius: 12, fontSize: 13, textAlign: 'center', textDecoration: 'none',
-                        background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)',
-                      }}>Contact Sales</a>
-                    )}
+                    <button
+                      onClick={() => startCheckout(p)}
+                      disabled={isCurrent || !!checkoutLoading}
+                      style={{
+                        width: '100%', padding: '12px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: isCurrent ? 'default' : 'pointer',
+                        background: isCurrent ? 'rgba(255,255,255,.03)' : p.featured ? 'rgba(130,220,170,.12)' : 'rgba(255,255,255,.05)',
+                        border: `1px solid ${isCurrent ? 'rgba(255,255,255,.06)' : p.featured ? 'rgba(130,220,170,.2)' : 'rgba(255,255,255,.1)'}`,
+                        color: isCurrent ? 'rgba(255,255,255,.3)' : p.featured ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.6)',
+                        opacity: checkoutLoading ? 0.5 : 1,
+                      }}
+                    >
+                      {checkoutLoading === p.id ? 'Loading...' : isCurrent ? 'Current Plan' : 'Subscribe'}
+                    </button>
                   </div>
                 )
               })}
