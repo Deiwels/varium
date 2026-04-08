@@ -538,12 +538,12 @@ async function scheduleReminders(wsCol, bookingId, booking, timeZone, shopName) 
     // 24h reminder
     const remind24 = new Date(startAt.getTime() - 24 * 60 * 60 * 1000);
     if (remind24 > new Date()) {
-      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, phone_norm: reminderPhoneNorm, type: '24h', send_at: toIso(remind24), sent: false, message: `${prefix}Reminder: Your appointment with ${barberName} is tomorrow ${dateStr} at ${timeStr}. Reply STOP to opt out, HELP for help.`, created_at: toIso(new Date()) });
+      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, phone_norm: reminderPhoneNorm, type: '24h', send_at: toIso(remind24), sent: false, message: `${prefix}Reminder: Your appointment with ${barberName} is tomorrow ${dateStr} at ${timeStr}. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, created_at: toIso(new Date()) });
     }
     // 2h reminder
     const remind2 = new Date(startAt.getTime() - 2 * 60 * 60 * 1000);
     if (remind2 > new Date()) {
-      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, phone_norm: reminderPhoneNorm, type: '2h', send_at: toIso(remind2), sent: false, message: `${prefix}Reminder: Your appointment with ${barberName} is in 2 hours at ${timeStr}. Reply STOP to opt out, HELP for help.`, created_at: toIso(new Date()) });
+      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, phone_norm: reminderPhoneNorm, type: '2h', send_at: toIso(remind2), sent: false, message: `${prefix}Reminder: Your appointment with ${barberName} is in 2 hours at ${timeStr}. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, created_at: toIso(new Date()) });
     }
   } catch (e) { console.warn('scheduleReminders error:', e?.message); }
 }
@@ -1302,7 +1302,7 @@ app.post('/api/webhooks/telnyx', async (req, res) => {
       const shopName = settingsDoc.empty ? 'Vurium' : safeStr(settingsDoc.docs[0].data()?.name || 'Vurium');
       sendSms(from, `${shopName}: You have been unsubscribed and will not receive further messages. Reply HELP for help.`).catch(() => {});
     } else if (body === 'HELP' || body === 'INFO') {
-      sendSms(from, `Vurium: For help, email support@vurium.com or visit https://vurium.com/privacy. Reply STOP to opt out of messages.`).catch(() => {});
+      sendSms(from, `${shopName || 'Vurium'}: For help, email support@vurium.com or visit https://vurium.com/privacy#sms. Msg & data rates may apply. Reply STOP to opt out of messages.`).catch(() => {});
     }
 
     res.status(200).json({ ok: true });
@@ -3152,7 +3152,7 @@ app.delete('/api/bookings/:id', async (req, res) => {
         const cancelSettings = await req.ws('settings').doc('config').get();
         const cancelShopName = cancelSettings.exists ? safeStr(cancelSettings.data()?.shop_name || '') : '';
         const cancelPrefix = cancelShopName ? `${cancelShopName}: ` : '';
-        sendSms(bookingData.client_phone, `${cancelPrefix}Your appointment with ${bookingData.barber_name || 'your specialist'} has been cancelled. Reply STOP to opt out, HELP for help.`).catch(() => {});
+        sendSms(bookingData.client_phone, `${cancelPrefix}Your appointment with ${bookingData.barber_name || 'your specialist'} has been cancelled. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`).catch(() => {});
       }
     }
     sendCrmPushToBarber(req.ws, bookingData.barber_id, 'Booking Cancelled', `${bookingData.client_name || 'Client'} cancelled`, { type: 'booking_cancelled' }, 'push_cancel').catch(() => {});
@@ -4318,7 +4318,7 @@ app.get('/api/admin/waitlist/check', requireRole('owner', 'admin'), async (req, 
         const wlSettings = await req.ws('settings').doc('config').get();
         const wlShopName = wlSettings.exists ? safeStr(wlSettings.data()?.shop_name || '') : '';
         const wlPrefix = wlShopName || 'VuriumBook';
-        const msg = `${wlPrefix}: A spot opened up for ${svcText} with ${w.barber_name || 'your specialist'} on ${w.date} at ${slotTime}. Book now! Reply STOP to opt out, HELP for help.`;
+        const msg = `${wlPrefix}: A spot opened up for ${svcText} with ${w.barber_name || 'your specialist'} on ${w.date} at ${slotTime}. Book now! Msg & data rates may apply. Reply STOP to opt out, HELP for help.`;
         // Send notification via email and/or SMS
         if (w.email) {
           try {
@@ -4488,6 +4488,12 @@ app.post('/api/receipts/send', async (req, res) => {
     // Get shop name
     const settingsDoc = await req.ws('settings').doc('config').get();
     const shopName = settingsDoc.exists ? settingsDoc.data()?.shop_name || 'VuriumBook' : 'VuriumBook';
+    // Check opt-out before sending
+    const phoneNorm = normPhone(phone);
+    if (phoneNorm) {
+      const optOutCheck = await req.ws('clients').where('phone_norm', '==', phoneNorm).where('sms_opt_out', '==', true).limit(1).get();
+      if (!optOutCheck.empty) return res.json({ ok: true, skipped: 'opted_out' });
+    }
     const lines = [
       `${shopName} — Receipt`,
       `Date: ${date}`,
@@ -4498,7 +4504,8 @@ app.post('/api/receipts/send', async (req, res) => {
       `Total: $${total.toFixed(2)}`,
       `Payment: ${(b.payment_method || '').charAt(0).toUpperCase() + (b.payment_method || '').slice(1)}`,
       '',
-      'Thank you for your visit!'
+      'Thank you for your visit!',
+      'Reply STOP to opt out, HELP for help.'
     ].filter(Boolean).join('\n');
     await sendSms(phone, lines);
     res.json({ ok: true });
@@ -5637,18 +5644,34 @@ app.post('/public/verify/send/:workspace_id', async (req, res) => {
     if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
     const phone = normPhone(safeStr(req.body?.phone));
     if (!phone || phone.length < 10) return res.status(400).json({ error: 'Valid phone required' });
-    const code = String(Math.floor(100000 + Math.random() * 900000));
+    // Rate limit: max 3 verification SMS per phone per 10 minutes
     const key = `verify_${phone}`;
-    await db.collection('workspaces').doc(wsId).collection('phone_verify').doc(key).set({
-      phone, code, attempts: 0,
-      expires_at: toIso(new Date(Date.now() + 10 * 60 * 1000)),
-      created_at: toIso(new Date()),
-    });
+    const existingDoc = await db.collection('workspaces').doc(wsId).collection('phone_verify').doc(key).get();
+    if (existingDoc.exists) {
+      const existing = existingDoc.data();
+      const createdAt = existing?.created_at ? new Date(existing.created_at) : null;
+      const sendCount = Number(existing?.send_count || 1);
+      if (createdAt && (Date.now() - createdAt.getTime()) < 10 * 60 * 1000 && sendCount >= 3) {
+        return res.status(429).json({ error: 'Too many verification attempts. Please wait a few minutes.' });
+      }
+    }
+    // Check opt-out before sending
+    const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
     const formatted = phone.length === 10 ? `+1${phone}` : `+${phone}`;
+    const phoneNormV = normPhone(formatted) || phone;
+    const optOutV = await wsCol('clients').where('phone_norm', '==', phoneNormV).where('sms_opt_out', '==', true).limit(1).get();
+    if (!optOutV.empty) return res.json({ ok: true, sent: true }); // silently skip
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const sendCount = (existingDoc.exists && existingDoc.data()?.send_count) ? Number(existingDoc.data().send_count) + 1 : 1;
+    await db.collection('workspaces').doc(wsId).collection('phone_verify').doc(key).set({
+      phone, code, attempts: 0, send_count: sendCount,
+      expires_at: toIso(new Date(Date.now() + 10 * 60 * 1000)),
+      created_at: existingDoc.exists && sendCount > 1 ? existingDoc.data().created_at : toIso(new Date()),
+    });
     const verifySettings = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
     const verifyShopName = verifySettings.exists ? safeStr(verifySettings.data()?.shop_name || '') : '';
     const verifyPrefix = verifyShopName || 'VuriumBook';
-    sendSms(formatted, `${verifyPrefix}: Your verification code is ${code}. Do not share this code. Reply STOP to opt out, HELP for help.`).catch(e => console.warn('verify SMS error:', e?.message));
+    sendSms(formatted, `${verifyPrefix}: Your verification code is ${code}. Do not share this code. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`).catch(e => console.warn('verify SMS error:', e?.message));
     res.json({ ok: true, sent: true });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
