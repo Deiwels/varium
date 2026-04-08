@@ -827,31 +827,47 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
       const tipOptStr = (shopSettings?.payroll?.tip_options || [15,20,25]).join('% / ') + '%'
       setHint(`Waiting for payment… Tip options: ${tipOptStr} / No tip`); setHintType('info')
       let count = 0
+      let errorCount = 0
       pollRef.current = setInterval(async () => {
-        if (!mountedRef.current) { clearInterval(pollRef.current); return }
         count++
-        if (count > 45) { clearInterval(pollRef.current); setHint('Timed out — check Terminal'); setHintType('warning'); setPolling(false); setActiveCheckoutId(null); return }
+        if (count > 60) { clearInterval(pollRef.current); setHint('Timed out — check Terminal'); setHintType('warning'); setPolling(false); setActiveCheckoutId(null); return }
         try {
           const s = await apiFetch(`/api/payments/terminal/status/${encodeURIComponent(checkoutId)}`)
+          errorCount = 0 // reset on success
           const st = String(s?.status || '').toUpperCase()
-          if (st === 'COMPLETED') {
+          if (st === 'COMPLETED' || st === 'COMPLETE') {
             clearInterval(pollRef.current); setPolling(false); setActiveCheckoutId(null)
             // Extract tip from all possible Square response paths (cents → dollars)
             const tipCents = Number(
-              s?.tip_money?.amount || s?.raw?.tip_money?.amount ||
-              s?.checkout?.tip_money?.amount || s?.payment?.tip_money?.amount ||
-              s?.tip_cents || s?.raw?.tip_cents || s?.tip_amount_money?.amount || 0
+              s?.tip_money?.amount || s?.tip_cents ||
+              s?.checkout?.tip_money?.amount || s?.payment?.tip_money?.amount || 0
             )
             const tip = tipCents / 100
-            console.log('[Terminal] payment status response:', JSON.stringify(s), 'tip extracted:', tip)
-            setHint('Payment completed ✓'); setHintType('success'); onPayment('terminal', tip)
-          } else if (st === 'CANCELED' || st.includes('CANCEL')) {
+            setHint(`Payment completed ✓${tip > 0 ? ` (tip: $${tip.toFixed(2)})` : ''}`); setHintType('success'); onPayment('terminal', tip)
+            // Delayed re-fetch for tips that arrive late
+            setTimeout(async () => {
+              try {
+                const s2 = await apiFetch(`/api/payments/terminal/status/${encodeURIComponent(checkoutId)}`)
+                const tipCents2 = Number(s2?.tip_money?.amount || s2?.tip_cents || 0)
+                if (tipCents2 > tipCents && tipCents2 > 0) {
+                  onPayment('terminal', tipCents2 / 100)
+                }
+              } catch {}
+            }, 5000)
+          } else if (st === 'CANCELED' || st === 'CANCELLED' || st.includes('CANCEL')) {
             clearInterval(pollRef.current); setPolling(false); setActiveCheckoutId(null)
             setHint('Payment was cancelled on Terminal'); setHintType('error')
           } else if (st === 'IN_PROGRESS') {
             setHint('Customer is completing payment on Terminal…'); setHintType('info')
           }
-        } catch (err) { console.warn('Terminal poll error:', err) }
+        } catch (err) {
+          errorCount++
+          console.warn('Terminal poll error:', err)
+          if (errorCount >= 5) {
+            clearInterval(pollRef.current); setPolling(false); setActiveCheckoutId(null)
+            setHint('Connection error — check Terminal manually'); setHintType('error')
+          }
+        }
       }, 3000)
     } catch (e: any) { setHint('Error: ' + e.message); setHintType('error'); setPolling(false) }
   }
