@@ -185,56 +185,12 @@ export default function PaymentsPage() {
   const [user] = useState(() => { try { return JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}') } catch { return {} } })
   const isOwner = user?.role === 'owner'
 
-  // Sync tips from payments to bookings — recovers lost tips
+  // Sync tips from Square payment objects to bookings
   async function syncTips() {
-    if (!window.confirm('Sync tips from Square payments to bookings? This will update bookings that are missing tip data.')) return
     setSyncing(true); setSyncResult('')
     try {
-      const [paymentsRes, bookingsRes] = await Promise.all([
-        apiFetch(`/api/payments?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
-        apiFetch(`/api/bookings?from=${encodeURIComponent(from + 'T00:00:00.000Z')}&to=${encodeURIComponent(to + 'T23:59:59.999Z')}`)
-      ])
-      const allPayments: Payment[] = paymentsRes?.payments || []
-      const bookings: any[] = bookingsRes?.bookings || []
-      let updated = 0, skipped = 0
-
-      for (const p of allPayments) {
-        if (p.status !== 'paid') continue
-        const tip = Number(p.tip || 0)
-        if (!tip) { skipped++; continue }
-
-        // Try direct booking_id match first
-        let bookingId = p.booking_id || ''
-
-        // If no booking_id — match by amount + barber + date
-        if (!bookingId) {
-          const pDate = String(p.date || p.created_at || '').slice(0, 10)
-          const pAmount = Number(p.amount || 0)
-          const match = bookings.find((b: any) => {
-            if (b.tip && Number(b.tip) > 0) return false // already has tip
-            const bDate = String(b.start_at || '').slice(0, 10)
-            const bAmount = Number(b.service_amount || b.amount || b.price || 0)
-            const bBarberId = String(b.barber_id || '')
-            // Match by date + approximate amount (within $2 for tax/fee differences)
-            return bDate === pDate && Math.abs(bAmount - pAmount) < 2 && (!p.barber_id || bBarberId === p.barber_id)
-          })
-          if (match) bookingId = match.id
-        }
-
-        if (!bookingId) { skipped++; continue }
-
-        try {
-          await apiFetch(`/api/bookings/${encodeURIComponent(bookingId)}`, {
-            method: 'PATCH',
-            body: JSON.stringify({ tip, tip_amount: tip, payment_method: p.method || 'terminal' })
-          })
-          // Mark booking as matched so it's not matched again
-          const idx = bookings.findIndex((b: any) => b.id === bookingId)
-          if (idx >= 0) bookings[idx].tip = tip
-          updated++
-        } catch { skipped++ }
-      }
-      setSyncResult(`Done! Updated ${updated} bookings, skipped ${skipped}`)
+      const r = await apiFetch('/api/payroll/sync-tips-from-square', { method: 'POST' })
+      setSyncResult(`Tips synced: ${r.updated} bookings updated`)
       load()
     } catch (e: any) { setSyncResult('Error: ' + e.message) }
     setSyncing(false)
