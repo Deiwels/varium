@@ -525,6 +525,7 @@ function PermissionsTab() {
               schedule: { ...DEFAULT_PERMS[role].schedule, ...(saved.schedule || {}) },
               settings_access: { ...DEFAULT_PERMS[role].settings_access, ...(saved.settings_access || {}) },
               financial: { ...DEFAULT_PERMS[role].financial, ...(saved.financial || {}) },
+              waitlist: { ...DEFAULT_PERMS[role].waitlist, ...(saved.waitlist || {}) },
             }
           }
           setPerms(merged)
