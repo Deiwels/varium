@@ -4614,31 +4614,55 @@ app.post('/api/payments/terminal', async (req, res) => {
     }
     const idempotencyKey = crypto.randomUUID();
 
-    // Auto-sync client to Square if we have client info
+    // Auto-sync client to Square and build rich note
     let squareCustomerId = safeStr(b.square_customer_id || '');
-    if (!squareCustomerId && bookingId) {
+    let clientName = safeStr(b.client_name || '');
+    let clientPhone = '';
+    let serviceName = safeStr(b.service_name || '');
+    let barberName = '';
+
+    if (bookingId) {
       try {
         const bookingDoc = await req.ws('bookings').doc(bookingId).get();
         const bData = bookingDoc.exists ? bookingDoc.data() : {};
-        const clientId = bData?.customer_id || bData?.client_id || '';
-        if (clientId) {
-          const clientDoc = await req.ws('clients').doc(clientId).get();
-          if (clientDoc.exists) {
-            const cData = clientDoc.data();
-            if (cData?.square_customer_id) {
+        if (!clientName) clientName = safeStr(bData?.client_name || '');
+        clientPhone = safeStr(bData?.client_phone || '');
+        if (!serviceName) serviceName = safeStr(bData?.service_name || '');
+        barberName = safeStr(bData?.barber_name || '');
+
+        // Find or create Square customer
+        if (!squareCustomerId) {
+          const clientId = bData?.customer_id || bData?.client_id || '';
+          let cData = null;
+          if (clientId) {
+            const clientDoc = await req.ws('clients').doc(clientId).get();
+            if (clientDoc.exists) cData = { id: clientId, ...clientDoc.data() };
+          }
+          // Fallback: search clients by phone
+          if (!cData && clientPhone) {
+            const phoneNorm = clientPhone.replace(/\D/g, '');
+            if (phoneNorm.length >= 10) {
+              const cSnap = await req.ws('clients').where('phone_norm', '==', phoneNorm.slice(-10)).limit(1).get();
+              if (!cSnap.empty) cData = { id: cSnap.docs[0].id, ...cSnap.docs[0].data() };
+            }
+          }
+
+          if (cData) {
+            if (cData.square_customer_id) {
               squareCustomerId = cData.square_customer_id;
             } else {
-              // Create/find in Square
+              // Create in Square
               try {
-                const nameParts = (cData?.name || '').trim().split(/\s+/);
-                const createBody = { idempotency_key: crypto.randomUUID(), given_name: nameParts[0] || '', family_name: nameParts.slice(1).join(' ') || '', reference_id: clientId };
-                if (cData?.phone) createBody.phone_number = cData.phone.startsWith('+') ? cData.phone : '+1' + cData.phone.replace(/\D/g, '');
-                if (cData?.email) createBody.email_address = cData.email;
+                const nameParts = (cData.name || clientName || '').trim().split(/\s+/);
+                const createBody = { idempotency_key: crypto.randomUUID(), given_name: nameParts[0] || '', family_name: nameParts.slice(1).join(' ') || '', reference_id: cData.id };
+                const ph = cData.phone || clientPhone;
+                if (ph) createBody.phone_number = ph.startsWith('+') ? ph : '+1' + ph.replace(/\D/g, '');
+                if (cData.email) createBody.email_address = cData.email;
                 const cr = await squareFetch('/v2/customers', { method: 'POST', headers, body: JSON.stringify(createBody) });
                 if (cr.ok) {
                   const cd = await cr.json();
                   squareCustomerId = cd.customer?.id || '';
-                  if (squareCustomerId) await req.ws('clients').doc(clientId).update({ square_customer_id: squareCustomerId, updated_at: toIso(new Date()) }).catch(() => {});
+                  if (squareCustomerId) await req.ws('clients').doc(cData.id).update({ square_customer_id: squareCustomerId, updated_at: toIso(new Date()) }).catch(() => {});
                 }
               } catch {}
             }
@@ -4647,13 +4671,21 @@ app.post('/api/payments/terminal', async (req, res) => {
       } catch {}
     }
 
+    // Build descriptive note for Square
+    const noteParts = ['VuriumBook'];
+    if (clientName) noteParts.push(clientName);
+    if (serviceName) noteParts.push(serviceName);
+    if (barberName) noteParts.push(`w/ ${barberName}`);
+    noteParts.push(`Booking ${bookingId}`);
+    const checkoutNote = b.note || noteParts.join(' • ');
+
     const sqBody = {
       idempotency_key: idempotencyKey,
       checkout: {
         amount_money: { amount: amountCents, currency: 'USD' },
         device_options: { device_id: deviceId, tip_settings: { allow_tipping: true, custom_tip_field: true, tip_percentages: (b.tip_percentages || [15, 20, 25]).map(Number) } },
         payment_type: 'CARD_PRESENT',
-        note: b.note || `Booking ${bookingId}`,
+        note: checkoutNote,
         ...(squareCustomerId ? { customer_id: squareCustomerId } : {}),
         ...(locationId ? { location_id: locationId } : {}),
       },
