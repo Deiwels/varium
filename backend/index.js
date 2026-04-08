@@ -204,8 +204,9 @@ function getEffectivePlan(wsData) {
     }
   }
 
-  // Active subscription → give the plan they paid for
-  if (billingStatus === 'active') {
+  // Active or cancelling subscription → give the plan they paid for
+  // 'cancelling' means auto-renew is off but current period is still active
+  if (billingStatus === 'active' || billingStatus === 'cancelling') {
     // Map legacy plan names
     if (planType === 'starter' || planType === 'free' || planType === 'trial') return 'individual';
     if (planType === 'pro') return 'salon';
@@ -214,7 +215,13 @@ function getEffectivePlan(wsData) {
     return 'individual';
   }
 
-  // No active subscription / payment failed / canceled / expired trial → no access
+  // past_due (grace period) → still give access
+  if (billingStatus === 'past_due') {
+    if (['individual', 'salon', 'custom'].includes(planType)) return planType;
+    return 'individual';
+  }
+
+  // No active subscription / canceled / expired trial → no access
   return 'expired';
 }
 
