@@ -12,6 +12,7 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     schedule: { change_own: true, change_others: true, needs_approval: false },
     settings_access: { general: true, booking: true, site_builder: true, fees_tax: false, integrations: true, change_password: true, view_pin: true },
     financial: { mark_paid: true, checkout_client: true, refund: false, access_terminal: true, pay_cash: true, pay_zelle: true, pay_other: true, view_earnings: true, view_all_earnings: true },
+    waitlist: { view_ghost: true, confirm: true, view_phone: true, call_client: true },
   },
   barber: {
     pages: { dashboard: false, calendar: true, history: true, clients: false, messages: true, waitlist: true, portfolio: true, payments: false, attendance: false, cash: false, membership: false, analytics: false },
@@ -21,6 +22,7 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     schedule: { change_own: true, change_others: false, needs_approval: true },
     settings_access: { general: false, booking: false, site_builder: false, fees_tax: false, integrations: false, change_password: true, view_pin: true },
     financial: { mark_paid: false, checkout_client: false, refund: false, access_terminal: false, pay_cash: false, pay_zelle: false, pay_other: false, view_earnings: true, view_all_earnings: false },
+    waitlist: { view_ghost: true, confirm: false, view_phone: false, call_client: false },
   },
   guest: {
     pages: { dashboard: false, calendar: true, history: false, clients: true, messages: false, waitlist: false, portfolio: false, payments: false, attendance: false, cash: false, membership: false, analytics: false },
@@ -30,6 +32,7 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     schedule: { change_own: false, change_others: false, needs_approval: false },
     settings_access: { general: false, booking: false, site_builder: false, fees_tax: false, integrations: false, change_password: true, view_pin: false },
     financial: { mark_paid: false, checkout_client: false, refund: false, access_terminal: false, pay_cash: false, pay_zelle: false, pay_other: false, view_earnings: false, view_all_earnings: false },
+    waitlist: { view_ghost: false, confirm: false, view_phone: false, call_client: false },
   },
   student: {
     pages: { dashboard: false, calendar: true, history: false, clients: false, messages: true, waitlist: false, portfolio: false, payments: false, attendance: false, cash: false, membership: false, analytics: false },
@@ -39,6 +42,7 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     schedule: { change_own: false, change_others: false, needs_approval: false },
     settings_access: { general: false, booking: false, site_builder: false, fees_tax: false, integrations: false, change_password: true, view_pin: false },
     financial: { mark_paid: false, checkout_client: false, refund: false, access_terminal: false, pay_cash: false, pay_zelle: false, pay_other: false, view_earnings: false, view_all_earnings: false },
+    waitlist: { view_ghost: false, confirm: false, view_phone: false, call_client: false },
   },
 }
 
@@ -50,6 +54,7 @@ export interface RolePerms {
   schedule: Record<string, boolean>
   settings_access: Record<string, boolean>
   financial: Record<string, boolean>
+  waitlist: Record<string, boolean>
 }
 
 export type PermCategory = keyof RolePerms
@@ -93,6 +98,7 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
               schedule: { ...DEFAULT_PERMS[role].schedule, ...(saved.schedule || {}) },
               settings_access: { ...DEFAULT_PERMS[role].settings_access, ...(saved.settings_access || {}) },
               financial: { ...DEFAULT_PERMS[role].financial, ...(saved.financial || {}) },
+              waitlist: { ...DEFAULT_PERMS[role].waitlist, ...(saved.waitlist || {}) },
             }
           }
           setPerms(merged)

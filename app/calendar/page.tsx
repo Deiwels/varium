@@ -2527,7 +2527,7 @@ export default function CalendarPage() {
                       )
                     })}
                     {/* Waitlist ghost entries */}
-                    {!isStudent && waitlistEntries.filter(w => w.barber_id === barber.id).map((w, wi) => {
+                    {(isOwnerOrAdmin || hasPerm('waitlist', 'view_ghost')) && waitlistEntries.filter(w => w.barber_id === barber.id).map((w, wi) => {
                       // Place at first available slot for this barber
                       const dur = w.duration_minutes || 30
                       // Find a free slot in working hours
@@ -2549,8 +2549,8 @@ export default function CalendarPage() {
                       const top = minToY(slotMin)
                       const height = Math.max(24, (dur / 5) * slotH) - 2
                       return (
-                        <div key={`wl-${w.id}`} className="wl-ghost-pulse" style={{ position: 'absolute', left: 8, right: 8, top, height, borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', zIndex: 3, padding: '6px 10px', cursor: 'pointer', overflow: 'hidden', boxShadow: '0 0 12px rgba(255,255,255,.06), inset 0 0 0 1px rgba(255,255,255,.05)' }}
-                          onClick={() => setWlConfirm({ w, barberId: barber.id, barberName: barber.name, slotMin, dur })}>
+                        <div key={`wl-${w.id}`} className="wl-ghost-pulse" style={{ position: 'absolute', left: 8, right: 8, top, height, borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', zIndex: 3, padding: '6px 10px', cursor: (isOwnerOrAdmin || hasPerm('waitlist', 'confirm')) ? 'pointer' : 'default', overflow: 'hidden', boxShadow: '0 0 12px rgba(255,255,255,.06), inset 0 0 0 1px rgba(255,255,255,.05)' }}
+                          onClick={() => { if (isOwnerOrAdmin || hasPerm('waitlist', 'confirm')) setWlConfirm({ w, barberId: barber.id, barberName: barber.name, slotMin, dur }) }}>
                           <div style={{ fontSize: 11, fontWeight: 700, color: '#bfe0ff' }}>{w.client_name || 'Waitlist'}</div>
                           <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 1 }}>{minToAMPM(slotMin)} · {dur}min · {prefStart !== wh.startMin || prefEnd !== wh.endMin ? `${minToAMPM(prefStart)}-${minToAMPM(prefEnd)}` : 'WAITLIST'}</div>
                         </div>
@@ -3104,6 +3104,19 @@ export default function CalendarPage() {
                   <span style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', letterSpacing: '.08em', textTransform: 'uppercase' }}>Client</span>
                   <span style={{ fontSize: 14, fontWeight: 800 }}>{w.client_name || 'Client'}</span>
                 </div>
+                {(w.phone_raw || w.phone_norm) && (isOwnerOrAdmin || hasPerm('waitlist', 'view_phone')) && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', letterSpacing: '.08em', textTransform: 'uppercase' }}>Phone</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{w.phone_raw || w.phone_norm}</span>
+                      {(isOwnerOrAdmin || hasPerm('waitlist', 'call_client')) && (
+                        <a href={`tel:${w.phone_norm || w.phone_raw}`} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(130,220,170,.25)', background: 'rgba(130,220,170,.08)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(130,220,170,.7)" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                   <span style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', letterSpacing: '.08em', textTransform: 'uppercase' }}>Team Member</span>
                   <span style={{ fontSize: 14, fontWeight: 700 }}>{barberName}</span>

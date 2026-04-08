@@ -482,6 +482,10 @@ const PERM_SECTIONS: { category: PermCategory; label: string; items: { key: stri
     { key: 'change_password', label: 'Change own password' },
     { key: 'view_pin', label: 'Quick PIN setup' },
   ]},
+  { category: 'waitlist', label: 'Waitlist', items: [
+    { key: 'view_ghost', label: 'See waitlist on calendar' }, { key: 'confirm', label: 'Confirm / book from waitlist' },
+    { key: 'view_phone', label: 'View waitlist client phone' }, { key: 'call_client', label: 'Call waitlist client' },
+  ]},
   { category: 'financial', label: 'Financial', items: [
     { key: 'mark_paid', label: 'Mark as paid' }, { key: 'checkout_client', label: 'Checkout / charge client' },
     { key: 'refund', label: 'Issue refund' }, { key: 'access_terminal', label: 'Access payment terminal' },

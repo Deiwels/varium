@@ -5,6 +5,7 @@ import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
 import FeatureGate from '@/components/FeatureGate'
 
 import { apiFetch } from '@/lib/api'
+import { usePermissions } from '@/components/PermissionsProvider'
 
 interface WaitlistEntry {
   id: string
@@ -55,6 +56,8 @@ export default function WaitlistPage() {
   const [user] = useState(() => {
     try { return JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}') } catch { return {} }
   })
+  const { hasPerm } = usePermissions()
+  const isOwner = user?.role === 'owner'
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -470,21 +473,34 @@ export default function WaitlistPage() {
                           {(() => { const s = entry.preferred_start_min!, e = entry.preferred_end_min!; const fmt = (m: number) => { const h = Math.floor(m/60), mm = m%60; return `${h===0?12:h>12?h-12:h}:${String(mm).padStart(2,'0')}${h>=12?'PM':'AM'}` }; return `${fmt(s)}–${fmt(e)}` })()}
                         </span>
                       )}
-                      {entry.phone_raw && <span>{entry.phone_raw}</span>}
+                      {entry.phone_raw && (isOwner || hasPerm('waitlist', 'view_phone')) && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {entry.phone_raw}
+                          {(isOwner || hasPerm('waitlist', 'call_client')) && (
+                            <a href={`tel:${entry.phone_norm || entry.phone_raw}`} onClick={e => e.stopPropagation()} style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid rgba(130,220,170,.25)', background: 'rgba(130,220,170,.06)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', flexShrink: 0 }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(130,220,170,.6)" strokeWidth="2.5" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                            </a>
+                          )}
+                        </span>
+                      )}
                     </div>
                     {entry.service_names?.length ? (
                       <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 4 }}>{entry.service_names.join(', ')}</div>
                     ) : null}
                   </div>
                   <div className="wl-entry-actions" style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                    <button onClick={() => confirm(entry.id)}
-                      style={{ height: 32, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(143,240,177,.40)', background: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
-                      Confirm
-                    </button>
-                    <button onClick={() => remove(entry.id)}
-                      style={{ height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.06)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
-                      ✕
-                    </button>
+                    {(isOwner || hasPerm('waitlist', 'confirm')) && (
+                      <button onClick={() => confirm(entry.id)}
+                        style={{ height: 32, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(143,240,177,.40)', background: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
+                        Confirm
+                      </button>
+                    )}
+                    {(isOwner || hasPerm('waitlist', 'confirm')) && (
+                      <button onClick={() => remove(entry.id)}
+                        style={{ height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,107,107,.30)', background: 'rgba(255,107,107,.06)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 700, fontSize: 11, fontFamily: 'inherit' }}>
+                        ✕
+                      </button>
+                    )}
                   </div>
                 </div>
               )
