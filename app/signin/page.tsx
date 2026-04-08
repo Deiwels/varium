@@ -232,29 +232,35 @@ export default function SignInPage() {
             </div>
           </form>
 
-          {/* Sign in with Apple */}
-          <div style={{ marginTop: 16 }}>
+          {/* Sign in with Apple (hidden in native iOS — native button on LoginView.swift handles it) */}
+          <div style={{ marginTop: 16, display: typeof window !== 'undefined' && (window as any).__VURIUM_IS_NATIVE ? 'none' : 'block' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.06)' }} />
               <span style={{ fontSize: 12, color: 'rgba(255,255,255,.25)' }}>or</span>
               <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.06)' }} />
             </div>
-            <button type="button" onClick={() => {
-              const redirectUri = `${window.location.origin}/api/auth/apple-callback`
-              const params = new URLSearchParams({
-                client_id: 'com.vurium.vuriumbook.web',
-                redirect_uri: redirectUri,
-                response_type: 'code id_token',
-                response_mode: 'form_post',
-                scope: 'name email',
-                state: 'signin',
-              })
-              window.location.href = `https://appleid.apple.com/auth/authorize?${params}`
+            <button type="button" onClick={async () => {
+              setError(''); setLoading(true)
+              try {
+                // Open Apple auth in a new window (works in iOS WebView)
+                const redirectUri = `${window.location.origin}/api/auth/apple-callback`
+                const params = new URLSearchParams({
+                  client_id: 'com.vurium.vuriumbook.web',
+                  redirect_uri: redirectUri,
+                  response_type: 'code id_token',
+                  response_mode: 'form_post',
+                  scope: 'name email',
+                  state: 'signin',
+                })
+                // Use full page redirect — form_post will POST to our callback which returns HTML with localStorage set
+                window.location.href = `https://appleid.apple.com/auth/authorize?${params}`
+              } catch (err: any) { setError(err.message || 'Apple Sign In failed'); setLoading(false) }
             }} disabled={loading} style={{
               width: '100%', height: 50, borderRadius: 999, border: '1px solid rgba(255,255,255,.12)',
               background: '#000', color: '#fff', fontSize: 15, fontWeight: 600,
-              cursor: 'pointer', fontFamily: 'inherit',
+              cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              opacity: loading ? 0.5 : 1,
             }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
               Sign in with Apple
