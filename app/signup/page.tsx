@@ -246,7 +246,7 @@ export default function SignupPage() {
   }
 
   const planLabels: Record<string, { label: string; color: string }> = {
-    free: { label: '30-Day Free Trial', color: 'rgba(255,255,255,.6)' },
+    free: { label: '14-Day Free Trial', color: 'rgba(255,255,255,.6)' },
     individual: { label: 'Individual — $29/mo', color: 'rgba(255,255,255,.6)' },
     salon: { label: 'Salon — $79/mo', color: 'rgba(255,255,255,.6)' },
     custom: { label: 'Custom Plan', color: 'rgba(255,255,255,.6)' },
