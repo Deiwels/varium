@@ -963,7 +963,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         {/* ── Content ── */}
         <div className="content">
           {/* Block entire app if subscription expired */}
-          {planExpired && page !== 'billing' ? (
+          {planExpired && page.toLowerCase() !== 'billing' ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', padding: '40px 24px', textAlign: 'center' }}>
               <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
