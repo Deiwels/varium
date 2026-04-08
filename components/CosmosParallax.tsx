@@ -3,6 +3,9 @@ import { useEffect } from 'react'
 
 export default function CosmosParallax() {
   useEffect(() => {
+    // Disable parallax entirely in native iOS app — saves battery
+    if ((window as any).__VURIUM_IS_NATIVE) return
+
     const isMobile = window.matchMedia('(max-width: 768px)').matches
       || 'ontouchstart' in window
 
