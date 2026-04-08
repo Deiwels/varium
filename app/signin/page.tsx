@@ -266,10 +266,6 @@ export default function SignInPage() {
               Sign in with Apple
             </button>
             <button type="button" onClick={() => {
-              // In native iOS, use native handler to open in Safari (Google blocks WKWebView)
-              if ((window as any).__VURIUM_IS_NATIVE && (window as any).webkit?.messageHandlers?.googleSignIn) {
-                (window as any).webkit.messageHandlers.googleSignIn.postMessage({}); return
-              }
               const clientId = '431945333485-vm8jajavm5ndmk0ug0ujqov65ffev96m.apps.googleusercontent.com'
               const redirectUri = `${window.location.origin}/api/auth/google-callback`
               const params = new URLSearchParams({
