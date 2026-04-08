@@ -823,11 +823,12 @@ export default function PayrollPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {/* Formula */}
               <div style={{ ...card, padding: '12px 14px' }}>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', lineHeight: 1.6 }}>
-                  <strong style={{ color: 'rgba(255,255,255,.65)' }}>Formula</strong><br/>
-                  Barber payout = services × rate% + tips × tips%<br/>
-                  Owner share = services × (100 − rate%)<br/>
-                  Tiers override base % when threshold reached
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', lineHeight: 1.7 }}>
+                  <strong style={{ color: 'rgba(255,255,255,.65)' }}>Barber</strong><br/>
+                  Payout = net services × rate% + tips × tips%<br/>
+                  <span style={{ color: 'rgba(255,255,255,.25)' }}>Services = base price without tax/fees</span><br/>
+                  <strong style={{ color: 'rgba(255,255,255,.65)', marginTop: 4, display: 'inline-block' }}>Admin</strong><br/>
+                  Pay = hourly × hours + profit% × owner share × (days worked / period days) + fee%
                 </div>
               </div>
 
@@ -837,19 +838,27 @@ export default function PayrollPage() {
                 const totalServices = totals?.service_total || 0
                 const terminalServices = (totals as any)?.terminal_service_total || 0
                 const barbersTotalPayout = totals?.barber_total || 0
+                // Count total days in selected period
+                const periodDays = Math.max(1, Math.round((new Date(to + 'T23:59:59').getTime() - new Date(from + 'T00:00:00').getTime()) / 86400000) + 1)
+
                 let totalAdminPay = 0
                 const adminCalcs = adminUsers.map(u => {
                   const r = rules[u.id] || { hourly_rate: 0, owner_profit_pct: 2, service_fee_pct: 3, service_fee_days: [] }
                   const hours = (adminAttendance[u.id] || 0) / 60
                   const basePay = (r.hourly_rate || 0) * hours
-                  const profitShare = ownerShare * ((r.owner_profit_pct || 0) / 100)
+                  // Profit share — proportional to days actually worked
                   const workedDays = adminWorkDays[u.id] || []
                   const extraDays = (r.service_fee_days || []) as number[]
                   const allFeeDays = [...new Set([...workedDays, ...extraDays])]
-                  const feeShare = allFeeDays.length > 0 ? terminalServices * ((r.service_fee_pct || 0) / 100) : 0
-                  const total = basePay + profitShare + feeShare
+                  const daysWorked = allFeeDays.length
+                  const profitShare = daysWorked > 0
+                    ? ownerShare * ((r.owner_profit_pct || 0) / 100) * (daysWorked / periodDays)
+                    : 0
+                  // Service fee: percentage of terminal services (only if worked)
+                  const feeShare = daysWorked > 0 ? terminalServices * ((r.service_fee_pct || 0) / 100) : 0
+                  const total = Math.round((basePay + profitShare + feeShare) * 100) / 100
                   totalAdminPay += total
-                  return { u, r, hours, basePay, profitShare, feeShare, total, allFeeDays }
+                  return { u, r, hours, basePay, profitShare, feeShare, total, allFeeDays, daysWorked, periodDays }
                 })
                 const ownerNet = ownerShare - totalAdminPay - expensesTotal
                 return (
@@ -875,7 +884,7 @@ export default function PayrollPage() {
                             <div className="admin-payroll-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, fontSize: 11 }}>
                               <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Hours: </span><span style={{ color: 'rgba(255,255,255,.6)' }}>{hours.toFixed(1)}h</span></div>
                               <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Base (${r.hourly_rate||0}/hr): </span><span style={{ color: 'rgba(130,220,170,.8)' }}>{fmtMoney(basePay)}</span></div>
-                              <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Profit {r.owner_profit_pct||0}%: </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(profitShare)}</span></div>
+                              <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Profit {r.owner_profit_pct||0}% ({daysWorked}/{periodDays}d): </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(profitShare)}</span></div>
                               <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Fee {r.service_fee_pct||0}% ({allFeeDays.length}d): </span><span style={{ color: 'rgba(220,190,130,.5)' }}>{fmtMoney(feeShare)}</span></div>
                             </div>
                             <div style={{ marginTop: 3, fontWeight: 900, fontSize: 14 }}>Total: <span style={{ color: 'rgba(130,220,170,.8)' }}>{fmtMoney(total)}</span></div>
