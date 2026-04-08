@@ -1185,7 +1185,7 @@ export default function PublicBookingPage() {
               </div>
               {!smsConsent && (
                 <div style={{ fontSize: 11, color: 'rgba(220,160,80,.6)', marginTop: 6, paddingLeft: 28 }}>
-                  Without SMS consent, you will not receive appointment confirmations or reminders via text message.
+                  SMS notifications are optional and used for appointment confirmations and reminders.
                 </div>
               )}
             </div>
