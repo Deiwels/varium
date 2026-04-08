@@ -907,84 +907,7 @@ export default function PublicBookingPage() {
                   <div style={{ color: textDim, padding: 20, textAlign: 'center' }}>Loading...</div>
                 ) : slots.length === 0 ? (
                   <div style={{ padding: 20, textAlign: 'center' }}>
-                    <div style={{ color: textDim, marginBottom: waitlistEnabled ? 16 : 0 }}>No available times</div>
-                    {waitlistEnabled && !waitlistDone && (
-                      <div style={{ textAlign: 'left' }}>
-                        {!showWaitlistForm ? (
-                          <button onClick={() => setShowWaitlistForm(true)} style={{
-                            width: '100%', padding: '14px 20px', borderRadius: 14, fontSize: 14, fontFamily: 'inherit', cursor: 'pointer',
-                            background: 'rgba(130,150,220,.08)', border: '1px solid rgba(130,150,220,.15)', color: 'rgba(130,150,220,.85)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                          }}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                            Join waitlist — get notified when a slot opens
-                          </button>
-                        ) : (
-                          <div style={{ padding: 20, borderRadius: 16, border: `1px solid ${isLightTheme ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.08)'}`, background: isLightTheme ? 'rgba(0,0,0,.02)' : 'rgba(255,255,255,.03)' }}>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: textHeading, marginBottom: 14 }}>Join the waitlist</div>
-                            <div style={{ fontSize: 12, color: textMuted, marginBottom: 16, lineHeight: 1.5 }}>
-                              We&apos;ll notify you if a slot opens up for {selectedBarber?.name} on {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}.
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                              <div>
-                                <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Email *</label>
-                                <input type="email" value={waitlistEmail} onChange={e => setWaitlistEmail(e.target.value)} placeholder="your@email.com" autoComplete="email" style={inp} />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Phone (optional)</label>
-                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                  <div style={{ position: 'absolute', left: 14, fontSize: 14, color: textMuted, pointerEvents: 'none', fontWeight: 600, zIndex: 1 }}>+1</div>
-                                  <input type="tel" value={waitlistPhone} onChange={e => setWaitlistPhone(formatWaitlistPhone(e.target.value))} placeholder="(___) ___-____" autoComplete="tel" style={{ ...inp, paddingLeft: 38 }} />
-                                </div>
-                              </div>
-                              <div>
-                                <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Name (optional)</label>
-                                <input type="text" value={waitlistName} onChange={e => setWaitlistName(e.target.value)} placeholder="Your name" autoComplete="name" style={inp} />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Preferred time</label>
-                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                  <select value={waitlistStartMin} onChange={e => setWaitlistStartMin(Number(e.target.value))} style={{ ...inp, flex: 1 }}>
-                                    {Array.from({ length: 28 }, (_, i) => {
-                                      const m = 7 * 60 + i * 30
-                                      const h = Math.floor(m / 60), mm = m % 60
-                                      const ampm = h >= 12 ? 'PM' : 'AM'
-                                      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
-                                      return <option key={m} value={m}>{h12}:{String(mm).padStart(2, '0')} {ampm}</option>
-                                    })}
-                                  </select>
-                                  <span style={{ color: textDim, fontSize: 12, fontWeight: 600 }}>to</span>
-                                  <select value={waitlistEndMin} onChange={e => setWaitlistEndMin(Number(e.target.value))} style={{ ...inp, flex: 1 }}>
-                                    {Array.from({ length: 28 }, (_, i) => {
-                                      const m = 7 * 60 + 30 + i * 30
-                                      const h = Math.floor(m / 60), mm = m % 60
-                                      const ampm = h >= 12 ? 'PM' : 'AM'
-                                      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
-                                      return <option key={m} value={m}>{h12}:{String(mm).padStart(2, '0')} {ampm}</option>
-                                    })}
-                                  </select>
-                                </div>
-                              </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                              <button onClick={() => setShowWaitlistForm(false)} style={{ padding: '10px 16px', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', background: 'none', border: `1px solid ${borderSoft}`, color: textMuted }}>Cancel</button>
-                              <button onClick={handleJoinWaitlist} disabled={waitlistSubmitting || !waitlistEmail} style={{
-                                flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', cursor: waitlistSubmitting || !waitlistEmail ? 'default' : 'pointer',
-                                background: 'rgba(130,150,220,.1)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
-                                opacity: waitlistSubmitting || !waitlistEmail ? 0.5 : 1,
-                              }}>{waitlistSubmitting ? 'Joining...' : 'Join Waitlist'}</button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {waitlistDone && (
-                      <div style={{ padding: 20, borderRadius: 16, border: '1px solid rgba(130,220,170,.15)', background: 'rgba(130,220,170,.04)', textAlign: 'center' }}>
-                        <div style={{ width: 40, height: 40, borderRadius: 999, margin: '0 auto 12px', background: 'rgba(130,220,170,.1)', border: '1px solid rgba(130,220,170,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'rgba(130,220,170,.8)' }}>✓</div>
-                        <div style={{ fontSize: 15, fontWeight: 600, color: textMain, marginBottom: 4 }}>You&apos;re on the waitlist!</div>
-                        <div style={{ fontSize: 13, color: textMuted, lineHeight: 1.5 }}>We&apos;ll notify you if a spot opens up.</div>
-                      </div>
-                    )}
+                    <div style={{ color: textDim }}>No available times</div>
                   </div>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))', gap: 8 }}>
@@ -996,6 +919,83 @@ export default function PublicBookingPage() {
                         color: selectedSlot === s ? 'rgba(130,220,170,.9)' : textSoft,
                       }}>{fmtTime(s)}</div>
                     ))}
+                  </div>
+                )}
+                {/* Waitlist — always visible when enabled, regardless of slot availability */}
+                {waitlistEnabled && !slotsLoading && !waitlistDone && (
+                  <div style={{ marginTop: 16 }}>
+                    {!showWaitlistForm ? (
+                      <button onClick={() => setShowWaitlistForm(true)} style={{
+                        width: '100%', padding: '12px 20px', borderRadius: 14, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer',
+                        background: 'transparent', border: `1px solid ${borderSoft}`, color: textMuted,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      }}>
+                        {slots.length === 0 ? 'Join waitlist — get notified when a slot opens' : 'Need a different time? Join the waitlist'}
+                      </button>
+                    ) : (
+                      <div style={{ padding: 20, borderRadius: 16, border: `1px solid ${isLightTheme ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.08)'}`, background: isLightTheme ? 'rgba(0,0,0,.02)' : 'rgba(255,255,255,.03)' }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: textHeading, marginBottom: 14 }}>Join the waitlist</div>
+                        <div style={{ fontSize: 12, color: textMuted, marginBottom: 16, lineHeight: 1.5 }}>
+                          We&apos;ll notify you if a slot opens up for {selectedBarber?.name} on {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}.
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          <div>
+                            <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Email *</label>
+                            <input type="email" value={waitlistEmail} onChange={e => setWaitlistEmail(e.target.value)} placeholder="your@email.com" autoComplete="email" style={inp} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Phone (optional)</label>
+                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                              <div style={{ position: 'absolute', left: 14, fontSize: 14, color: textMuted, pointerEvents: 'none', fontWeight: 600, zIndex: 1 }}>+1</div>
+                              <input type="tel" value={waitlistPhone} onChange={e => setWaitlistPhone(formatWaitlistPhone(e.target.value))} placeholder="(___) ___-____" autoComplete="tel" style={{ ...inp, paddingLeft: 38 }} />
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Name (optional)</label>
+                            <input type="text" value={waitlistName} onChange={e => setWaitlistName(e.target.value)} placeholder="Your name" autoComplete="name" style={inp} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Preferred time</label>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                              <select value={waitlistStartMin} onChange={e => setWaitlistStartMin(Number(e.target.value))} style={{ ...inp, flex: 1 }}>
+                                {Array.from({ length: 28 }, (_, i) => {
+                                  const m = 7 * 60 + i * 30
+                                  const h = Math.floor(m / 60), mm = m % 60
+                                  const ampm = h >= 12 ? 'PM' : 'AM'
+                                  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+                                  return <option key={m} value={m}>{h12}:{String(mm).padStart(2, '0')} {ampm}</option>
+                                })}
+                              </select>
+                              <span style={{ color: textDim, fontSize: 12, fontWeight: 600 }}>to</span>
+                              <select value={waitlistEndMin} onChange={e => setWaitlistEndMin(Number(e.target.value))} style={{ ...inp, flex: 1 }}>
+                                {Array.from({ length: 28 }, (_, i) => {
+                                  const m = 7 * 60 + 30 + i * 30
+                                  const h = Math.floor(m / 60), mm = m % 60
+                                  const ampm = h >= 12 ? 'PM' : 'AM'
+                                  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+                                  return <option key={m} value={m}>{h12}:{String(mm).padStart(2, '0')} {ampm}</option>
+                                })}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                          <button onClick={() => setShowWaitlistForm(false)} style={{ padding: '10px 16px', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', background: 'none', border: `1px solid ${borderSoft}`, color: textMuted }}>Cancel</button>
+                          <button onClick={handleJoinWaitlist} disabled={waitlistSubmitting || !waitlistEmail} style={{
+                            flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', cursor: waitlistSubmitting || !waitlistEmail ? 'default' : 'pointer',
+                            background: 'rgba(130,150,220,.1)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
+                            opacity: waitlistSubmitting || !waitlistEmail ? 0.5 : 1,
+                          }}>{waitlistSubmitting ? 'Joining...' : 'Join Waitlist'}</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {waitlistDone && (
+                  <div style={{ marginTop: 16, padding: 20, borderRadius: 16, border: '1px solid rgba(130,220,170,.15)', background: 'rgba(130,220,170,.04)', textAlign: 'center' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 999, margin: '0 auto 12px', background: 'rgba(130,220,170,.1)', border: '1px solid rgba(130,220,170,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'rgba(130,220,170,.8)' }}>✓</div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: textMain, marginBottom: 4 }}>You&apos;re on the waitlist!</div>
+                    <div style={{ fontSize: 13, color: textMuted, lineHeight: 1.5 }}>We&apos;ll notify you if a spot opens up.</div>
                   </div>
                 )}
               </div>
