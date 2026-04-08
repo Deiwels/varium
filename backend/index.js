@@ -4080,13 +4080,41 @@ app.get('/api/admin/waitlist/check', requireRole('owner', 'admin'), async (req, 
         const wlShopName = wlSettings.exists ? safeStr(wlSettings.data()?.shop_name || '') : '';
         const wlPrefix = wlShopName || 'VuriumBook';
         const msg = `${wlPrefix}: A spot opened up for ${svcText} with ${w.barber_name || 'your specialist'} on ${w.date} at ${slotTime}. Book now! Reply STOP to opt out, HELP for help.`;
-        // Check SMS opt-out before sending waitlist notification
+        // Send notification via email and/or SMS
+        if (w.email) {
+          try {
+            const cfg = await getWorkspaceEmailConfig(req.wsId);
+            const dateStr = new Date(w.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+            const t = EMAIL_THEMES[cfg.template] || EMAIL_THEMES.modern;
+            const isLt = ['classic', 'colorful'].includes(cfg.template);
+            const cardBg = isLt ? 'rgba(0,0,0,.03)' : 'rgba(255,255,255,.04)';
+            const bookUrl = `https://vurium.com/book/${req.wsId}`;
+            const bodyHtml = `
+              <div style="text-align:center;margin-bottom:20px;">
+                <div style="width:48px;height:48px;margin:0 auto 12px;border-radius:999px;background:${isLt ? 'rgba(40,167,69,.08)' : 'rgba(130,220,170,.1)'};border:1px solid ${isLt ? 'rgba(40,167,69,.15)' : 'rgba(130,220,170,.15)'};text-align:center;line-height:48px;font-size:20px;">&#127881;</div>
+                <p style="font-size:15px;color:${t.text};margin:0;font-weight:600;">A spot just opened up!</p>
+              </div>
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;background:${cardBg};border:1px solid ${t.border};border-radius:14px;">
+                <tr><td style="padding:14px 18px;border-bottom:1px solid ${t.border};"><span style="font-size:11px;color:${t.muted};text-transform:uppercase;letter-spacing:.08em;">Date</span></td><td style="padding:14px 18px;text-align:right;font-weight:600;color:${t.text};border-bottom:1px solid ${t.border};">${dateStr}</td></tr>
+                <tr><td style="padding:14px 18px;border-bottom:1px solid ${t.border};"><span style="font-size:11px;color:${t.muted};text-transform:uppercase;letter-spacing:.08em;">Time</span></td><td style="padding:14px 18px;text-align:right;font-weight:600;color:${t.text};border-bottom:1px solid ${t.border};">${slotTime}</td></tr>
+                ${w.barber_name ? `<tr><td style="padding:14px 18px;border-bottom:1px solid ${t.border};"><span style="font-size:11px;color:${t.muted};text-transform:uppercase;letter-spacing:.08em;">With</span></td><td style="padding:14px 18px;text-align:right;font-weight:600;color:${t.text};border-bottom:1px solid ${t.border};">${w.barber_name}</td></tr>` : ''}
+                <tr><td style="padding:14px 18px;"><span style="font-size:11px;color:${t.muted};text-transform:uppercase;letter-spacing:.08em;">Service</span></td><td style="padding:14px 18px;text-align:right;font-weight:600;color:${t.text};">${svcText}</td></tr>
+              </table>
+              <div style="text-align:center;margin:24px 0 8px;">
+                <a href="${bookUrl}" style="display:inline-block;padding:14px 36px;border-radius:12px;font-size:15px;font-weight:600;text-decoration:none;color:${isLt ? '#fff' : 'rgba(130,220,170,.9)'};background:${isLt ? '#333' : 'rgba(130,220,170,.1)'};border:1px solid ${isLt ? '#333' : 'rgba(130,220,170,.2)'};">Book Now</a>
+              </div>
+              <p style="font-size:12px;color:${t.muted};text-align:center;margin-top:16px;">This slot may fill up quickly — book soon to secure your spot.</p>`;
+            const html = vuriumEmailTemplate('A Spot Opened Up!', bodyHtml, cfg.shopName, cfg.logoUrl, cfg.template);
+            sendEmail(w.email, `A spot opened up – ${cfg.shopName || 'VuriumBook'}`, html, cfg.shopName || 'VuriumBook');
+          } catch (emailErr) { console.warn('waitlist email error:', emailErr?.message); }
+        }
+        // Also send SMS if phone available
         const wlPhoneNorm = normPhone(w.phone_raw || w.phone_norm);
         if (wlPhoneNorm) {
           const wlOptOut = await req.ws('clients').where('phone_norm', '==', wlPhoneNorm).where('sms_opt_out', '==', true).limit(1).get();
           if (!wlOptOut.empty) { await wDoc.ref.update({ notified: true, notified_at: toIso(new Date()), cancelled_reason: 'sms_opt_out' }); continue; }
+          sendSms(wlPhoneNorm, msg).catch(() => {});
         }
-        sendSms(w.phone_raw || w.phone_norm, msg).catch(() => {});
         await wDoc.ref.update({ notified: true, notified_at: toIso(new Date()), notified_slot: toIso(slots[0]) });
         notified++;
       } catch (e) { console.warn('waitlist check error for', wDoc.id, e?.message); }
@@ -5423,29 +5451,66 @@ app.post('/public/waitlist/:workspace_id', async (req, res) => {
     const wsDoc = await db.collection('workspaces').doc(wsId).get();
     if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
     const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
-    const phone = normPhone(safeStr(req.body?.phone));
+    const email = safeStr(req.body?.email || '').toLowerCase().trim();
+    const phone = normPhone(safeStr(req.body?.phone || ''));
     const barberId = safeStr(req.body?.barber_id);
     const date = safeStr(req.body?.date);
-    const clientName = safeStr(req.body?.client_name || '');
-    if (!phone) return res.status(400).json({ error: 'phone required' });
+    const clientName = sanitizeHtml(safeStr(req.body?.client_name || ''));
+    const barberName = safeStr(req.body?.barber_name || '');
+    if (!email && !phone) return res.status(400).json({ error: 'email or phone required' });
     if (!barberId) return res.status(400).json({ error: 'barber_id required' });
     if (!date) return res.status(400).json({ error: 'date required (YYYY-MM-DD)' });
-    // Check duplicate
-    const existing = await wsCol('waitlist').where('phone_norm', '==', phone).where('barber_id', '==', barberId).where('date', '==', date).where('notified', '==', false).limit(1).get();
+    // Check duplicate by email or phone
+    let existing;
+    if (email) {
+      existing = await wsCol('waitlist').where('email', '==', email).where('barber_id', '==', barberId).where('date', '==', date).where('notified', '==', false).limit(1).get();
+    } else {
+      existing = await wsCol('waitlist').where('phone_norm', '==', phone).where('barber_id', '==', barberId).where('date', '==', date).where('notified', '==', false).limit(1).get();
+    }
     if (!existing.empty) return res.json({ ok: true, id: existing.docs[0].id, already: true });
+    const prefStart = Math.max(0, Number(req.body?.preferred_start_min || 0));
+    const prefEnd = Math.min(1440, Number(req.body?.preferred_end_min || 1440));
     const doc = {
-      phone_norm: phone, phone_raw: safeStr(req.body?.phone),
+      email: email || null,
+      phone_norm: phone || null, phone_raw: phone ? safeStr(req.body?.phone) : null,
       client_name: clientName || null, barber_id: barberId,
-      barber_name: safeStr(req.body?.barber_name),
+      barber_name: barberName,
       date, service_ids: Array.isArray(req.body?.service_ids) ? req.body.service_ids : [],
       service_names: Array.isArray(req.body?.service_names) ? req.body.service_names : [],
       duration_minutes: Math.max(1, Number(req.body?.duration_minutes || 30)),
-      preferred_start_min: Math.max(0, Number(req.body?.preferred_start_min || 0)),
-      preferred_end_min: Math.min(1440, Number(req.body?.preferred_end_min || 1440)),
+      preferred_start_min: prefStart,
+      preferred_end_min: prefEnd,
       notified: false, created_at: toIso(new Date()),
     };
     const ref = await wsCol('waitlist').add(doc);
     sendCrmPushToStaff(wsCol, barberId, 'Waitlist', `${clientName || 'Client'} wants ${date}`, { type: 'waitlist' }, 'push_waitlist').catch(() => {});
+    // Send confirmation email
+    if (email) {
+      getWorkspaceEmailConfig(wsId).then(cfg => {
+        const fmtMin = (m) => { const h = Math.floor(m / 60), mm = m % 60; const ampm = h >= 12 ? 'PM' : 'AM'; const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h; return `${h12}:${String(mm).padStart(2, '0')} ${ampm}`; };
+        const dateObj = new Date(date + 'T12:00:00');
+        const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+        const t = EMAIL_THEMES[cfg.template] || EMAIL_THEMES.modern;
+        const isLt = ['classic', 'colorful'].includes(cfg.template);
+        const cardBg = isLt ? 'rgba(0,0,0,.03)' : 'rgba(255,255,255,.04)';
+        const svcText = (doc.service_names || []).join(', ');
+        const timeRange = prefStart > 0 && prefEnd < 1440 ? `${fmtMin(prefStart)} – ${fmtMin(prefEnd)}` : 'Any time';
+        const bodyHtml = `
+          <div style="text-align:center;margin-bottom:20px;">
+            <div style="width:48px;height:48px;margin:0 auto 12px;border-radius:999px;background:${isLt ? 'rgba(99,102,241,.08)' : 'rgba(130,150,220,.1)'};border:1px solid ${isLt ? 'rgba(99,102,241,.15)' : 'rgba(130,150,220,.15)'};text-align:center;line-height:48px;font-size:20px;">&#128276;</div>
+            <p style="font-size:14px;color:${t.text};margin:0;">You've been added to the waitlist${barberName ? ` for <strong>${barberName}</strong>` : ''}.</p>
+          </div>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;background:${cardBg};border:1px solid ${t.border};border-radius:14px;">
+            <tr><td style="padding:14px 18px;border-bottom:1px solid ${t.border};"><span style="font-size:11px;color:${t.muted};text-transform:uppercase;letter-spacing:.08em;">Date</span></td><td style="padding:14px 18px;text-align:right;font-weight:600;color:${t.text};border-bottom:1px solid ${t.border};">${dateStr}</td></tr>
+            <tr><td style="padding:14px 18px;border-bottom:1px solid ${t.border};"><span style="font-size:11px;color:${t.muted};text-transform:uppercase;letter-spacing:.08em;">Preferred Time</span></td><td style="padding:14px 18px;text-align:right;font-weight:600;color:${t.text};border-bottom:1px solid ${t.border};">${timeRange}</td></tr>
+            ${svcText ? `<tr><td style="padding:14px 18px;border-bottom:1px solid ${t.border};"><span style="font-size:11px;color:${t.muted};text-transform:uppercase;letter-spacing:.08em;">Service</span></td><td style="padding:14px 18px;text-align:right;font-weight:600;color:${t.text};border-bottom:1px solid ${t.border};">${svcText}</td></tr>` : ''}
+            <tr><td style="padding:14px 18px;"><span style="font-size:11px;color:${t.muted};text-transform:uppercase;letter-spacing:.08em;">Duration</span></td><td style="padding:14px 18px;text-align:right;font-weight:600;color:${t.text};">${doc.duration_minutes} min</td></tr>
+          </table>
+          <p style="font-size:13px;color:${t.muted};text-align:center;line-height:1.6;margin-top:20px;">We'll notify you by email as soon as a matching slot becomes available. No action needed from you right now.</p>`;
+        const html = vuriumEmailTemplate('You\'re on the Waitlist', bodyHtml, cfg.shopName, cfg.logoUrl, cfg.template);
+        sendEmail(email, `You're on the waitlist – ${cfg.shopName || 'VuriumBook'}`, html, cfg.shopName || 'VuriumBook');
+      }).catch(() => {});
+    }
     res.status(201).json({ ok: true, id: ref.id });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
