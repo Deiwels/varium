@@ -28,7 +28,8 @@ export async function GET(req: NextRequest) {
 
     // Return HTML page that stores token in localStorage and redirects (same as Apple)
     const role = data.user?.role || 'owner'
-    const dest = (role === 'barber' || role === 'student') ? '/calendar' : '/dashboard'
+    const isNewUser = data.isNewUser === true
+    const dest = isNewUser ? '/billing' : (role === 'barber' || role === 'student') ? '/calendar' : '/dashboard'
     const tokenEsc = data.token.replace(/'/g, "\\'")
     const userEsc = JSON.stringify(data.user).replace(/'/g, "\\'")
 
