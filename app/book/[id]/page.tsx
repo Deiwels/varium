@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { loadStripe, Appearance } from '@stripe/stripe-js'
+import { getStaffLabel } from '@/lib/terminology'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
@@ -157,6 +158,7 @@ export default function PublicBookingPage() {
   const [effectivePlan, setEffectivePlan] = useState('individual')
   const [siteConfig, setSiteConfig] = useState<any>(null)
   const [shopName, setShopName] = useState('')
+  const [businessType, setBusinessType] = useState<string | null>(null)
   const [config, setConfig] = useState<Config>({})
   const [barbers, setBarbers] = useState<Barber[]>([])
   const [services, setServices] = useState<Service[]>([])
@@ -190,6 +192,8 @@ export default function PublicBookingPage() {
   const [waitlistName, setWaitlistName] = useState('')
   const [waitlistSubmitting, setWaitlistSubmitting] = useState(false)
   const [waitlistDone, setWaitlistDone] = useState(false)
+  const [waitlistStartMin, setWaitlistStartMin] = useState(9 * 60)  // 9:00 AM
+  const [waitlistEndMin, setWaitlistEndMin] = useState(18 * 60)     // 6:00 PM
 
   // Payment state
   const [stripeConnected, setStripeConnected] = useState(false)
@@ -270,6 +274,7 @@ export default function PublicBookingPage() {
       setEffectivePlan(resolved.effective_plan || 'individual')
       setSiteConfig(resolved.site_config || null)
       setShopName(resolved.name || '')
+      setBusinessType(resolved.business_type || null)
       setWaitlistEnabled(!!resolved.waitlist_enabled)
       // Individual plan → go straight to booking
       if (resolved.effective_plan === 'individual') setShowBooking(true)
@@ -438,7 +443,7 @@ export default function PublicBookingPage() {
     setSelectedDate(''); setClientName(''); setClientPhone('')
     setClientNote(''); setReferencePhoto(null); setBooked(false); setError('')
     setPayOnline(false); setPaymentClientSecret(''); setPaymentBookingId('')
-    setShowWaitlistForm(false); setWaitlistDone(false); setWaitlistPhone(''); setWaitlistName('')
+    setShowWaitlistForm(false); setWaitlistDone(false); setWaitlistPhone(''); setWaitlistName(''); setWaitlistStartMin(9 * 60); setWaitlistEndMin(18 * 60)
     if (!isSolo) setSelectedBarber(null)
   }
 
@@ -467,6 +472,8 @@ export default function PublicBookingPage() {
           service_ids: selectedServiceIds,
           service_names: selectedServices.map(s => s.name),
           duration_minutes: totalDuration,
+          preferred_start_min: waitlistStartMin,
+          preferred_end_min: waitlistEndMin,
         }),
       })
       if (res.error) throw new Error(res.error)
@@ -633,7 +640,7 @@ export default function PublicBookingPage() {
           {/* Team */}
           {barbers.length > 1 && (
             <div style={{ marginBottom: 40 }}>
-              <div style={{ fontSize: 12, color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Our Team</div>
+              <div style={{ fontSize: 12, color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Our {getStaffLabel(businessType, true)}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 12 }}>
                 {barbers.map(b => (
                   <div key={b.id} style={{ textAlign: 'center', padding: '16px 8px', borderRadius: 14, border: `1px solid ${t.cardBorder}`, background: t.card }}>
@@ -737,7 +744,7 @@ export default function PublicBookingPage() {
         {/* Step 0: Team Member (salon mode only — solo skips to step 1) */}
         {step === 0 && !isSolo && (
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, color: textHeading }}>Choose your specialist</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, color: textHeading }}>Choose your {getStaffLabel(businessType).toLowerCase()}</h2>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${barbers.length <= 3 ? '140px' : '120px'}, 1fr))`, gap: 12 }}>
               {barbers.map(b => (
                 <div key={b.id} onClick={() => selectBarber(b)} style={{ ...card, textAlign: 'center', padding: '24px 12px' }}>
@@ -927,6 +934,30 @@ export default function PublicBookingPage() {
                               <div>
                                 <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Name (optional)</label>
                                 <input type="text" value={waitlistName} onChange={e => setWaitlistName(e.target.value)} placeholder="Your name" autoComplete="name" style={inp} />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: 12, color: textMuted, display: 'block', marginBottom: 4 }}>Preferred time</label>
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                  <select value={waitlistStartMin} onChange={e => setWaitlistStartMin(Number(e.target.value))} style={{ ...inp, flex: 1 }}>
+                                    {Array.from({ length: 28 }, (_, i) => {
+                                      const m = 7 * 60 + i * 30
+                                      const h = Math.floor(m / 60), mm = m % 60
+                                      const ampm = h >= 12 ? 'PM' : 'AM'
+                                      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+                                      return <option key={m} value={m}>{h12}:{String(mm).padStart(2, '0')} {ampm}</option>
+                                    })}
+                                  </select>
+                                  <span style={{ color: textDim, fontSize: 12, fontWeight: 600 }}>to</span>
+                                  <select value={waitlistEndMin} onChange={e => setWaitlistEndMin(Number(e.target.value))} style={{ ...inp, flex: 1 }}>
+                                    {Array.from({ length: 28 }, (_, i) => {
+                                      const m = 7 * 60 + 30 + i * 30
+                                      const h = Math.floor(m / 60), mm = m % 60
+                                      const ampm = h >= 12 ? 'PM' : 'AM'
+                                      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+                                      return <option key={m} value={m}>{h12}:{String(mm).padStart(2, '0')} {ampm}</option>
+                                    })}
+                                  </select>
+                                </div>
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
