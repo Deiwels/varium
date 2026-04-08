@@ -263,7 +263,7 @@ export default function DashboardPage() {
   const [editingShortcuts, setEditingShortcuts] = useState(false)
   const [dashShortcuts, setDashShortcuts] = useState<string[]>([])
   // Widgets
-  const [dashWidgets, setDashWidgets] = useState<string[]>(['clock', 'todays-earnings', 'mini-calendar', 'weekly-chart', 'new-clients', 'expenses-month', 'site-analytics'])
+  const [dashWidgets, setDashWidgets] = useState<string[]>(['clock', 'todays-earnings', 'mini-calendar', 'weekly-chart', 'new-clients', 'team-on-duty', 'expenses-month', 'site-analytics'])
   const [editingWidgets, setEditingWidgets] = useState(false)
   const widgetSettingsLoaded = useRef(false) // true once API settings have been applied
   const myEarningsInjected = useRef(false)
@@ -279,7 +279,7 @@ export default function DashboardPage() {
       setDashShortcuts(saved && saved.length ? saved : ['/payments', '/waitlist', '/portfolio', '/cash', '/membership'])
       const savedW = d?.dash_widgets
       if (savedW && savedW.length) widgetSettingsLoaded.current = true
-      setDashWidgets(savedW && savedW.length ? savedW : ['clock', 'todays-earnings', 'mini-calendar', 'weekly-chart', 'new-clients', 'expenses-month', 'site-analytics'])
+      setDashWidgets(savedW && savedW.length ? savedW : ['clock', 'todays-earnings', 'mini-calendar', 'weekly-chart', 'new-clients', 'team-on-duty', 'expenses-month', 'site-analytics'])
     }).catch(() => {})
     apiFetch('/api/account/limits').then(d => { if (d?.slug) setSlug(d.slug) }).catch(() => {})
   }, [])
@@ -1223,27 +1223,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Staff on clock — admin/owner only */}
-        {isOwnerOrAdmin && staffOnClock.length > 0 && (
-          <div style={{ borderRadius: 18, border: '1px solid rgba(143,240,177,.15)', background: 'linear-gradient(180deg,rgba(143,240,177,.04),rgba(143,240,177,.01))', boxShadow: '0 10px 40px rgba(0,0,0,.35)', padding: '14px 16px', marginBottom: 14 }}>
-            <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.55)', marginBottom: 10, fontWeight: 900 }}>Staff on clock</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {staffOnClock.map((s: any) => {
-                const since = s.clock_in ? new Date(s.clock_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : '—'
-                const elapsed = s.clock_in ? Math.round((Date.now() - new Date(s.clock_in).getTime()) / 60000) : 0
-                return (
-                  <div key={s.id || s.user_id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(130,220,170,.8)', animation: 'clockDot 2s ease-in-out infinite', flexShrink: 0 }} />
-                    <span style={{ fontWeight: 700, fontSize: 13, color: '#e8e8ed', flex: 1 }}>{s.user_name || 'Staff'}</span>
-                    <span style={{ fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.50)' }}>{s.role}</span>
-                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,.45)' }}>since {since}</span>
-                    <span style={{ fontSize: 12, color: 'rgba(130,220,170,.8)', fontWeight: 700 }}>{fmtMins(elapsed)}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
+        {/* Staff on clock — now rendered as a widget in the grid below */}
 
         {/* Barber earnings rendered as my-earnings widget in the grid below */}
 
@@ -1390,19 +1370,25 @@ export default function DashboardPage() {
             }
             if (wId === 'team-on-duty') {
               return (
-                <div key={wId} {...longPress} style={wBox}>
+                <div key={wId} {...longPress} style={{ ...wBox, width: staffOnClock.length > 2 ? 350 : 190 }}>
                   {removeBtn}
                   <div style={wTitle}>On Duty</div>
                   {staffOnClock.length === 0 ? (
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.2)' }}>No one</div>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.2)' }}>No one clocked in</div>
                   ) : (
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {staffOnClock.slice(0, 4).map((s: any, i: number) => (
-                        <div key={i} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(130,220,170,.06)', border: '1px solid rgba(130,220,170,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'rgba(130,220,170,.6)' }}>
-                          {(s.user_name || '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
-                        </div>
-                      ))}
-                      {staffOnClock.length > 4 && <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', display: 'flex', alignItems: 'center' }}>+{staffOnClock.length - 4}</div>}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      {staffOnClock.map((s: any, i: number) => {
+                        const since = s.clock_in ? new Date(s.clock_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : '—'
+                        const elapsed = s.clock_in ? Math.round((Date.now() - new Date(s.clock_in).getTime()) / 60000) : 0
+                        return (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ width: 5, height: 5, borderRadius: 999, background: 'rgba(130,220,170,.8)', animation: 'clockDot 2s ease-in-out infinite', flexShrink: 0 }} />
+                            <span style={{ fontWeight: 600, fontSize: 10, color: 'rgba(255,255,255,.7)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.user_name || 'Staff'}</span>
+                            <span style={{ fontSize: 8, color: 'rgba(255,255,255,.3)' }}>{since}</span>
+                            <span style={{ fontSize: 9, color: 'rgba(130,220,170,.7)', fontWeight: 700 }}>{fmtMins(elapsed)}</span>
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
                 </div>
