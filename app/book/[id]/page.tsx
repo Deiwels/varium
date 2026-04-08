@@ -1183,6 +1183,11 @@ export default function PublicBookingPage() {
                   I agree to receive SMS messages from Vurium, including appointment confirmations, reminders, booking updates, and occasional one-time verification codes (OTP). Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe or HELP for help. <a href="https://vurium.com/privacy#sms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>SMS Privacy Policy</a> and <a href="https://vurium.com/terms#sms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>SMS Terms</a>.
                 </label>
               </div>
+              {!smsConsent && (
+                <div style={{ fontSize: 11, color: 'rgba(220,160,80,.6)', marginTop: 6, paddingLeft: 28 }}>
+                  Without SMS consent, you will not receive appointment confirmations or reminders via text message.
+                </div>
+              )}
             </div>
 
             {/* Payment option */}
