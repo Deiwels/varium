@@ -423,12 +423,8 @@ async function getWorkspaceSmsConfig(wsId) {
 }
 
 async function sendSms(to, body, fromOverride, wsId) {
-  // Platform-first: always send. No blocking based on registration status.
-  // If workspace has own number, fromOverride will be set; otherwise uses TELNYX_FROM.
-  if (false) { // Kept for reference — blocking disabled in platform-first model
-    return null;
-    }
-  }
+  // Platform-first: always send via global TELNYX_FROM.
+  // If workspace has own dedicated number, fromOverride will use it instead.
   const { apiKey, from } = telnyxCredentials();
   if (!apiKey) { console.warn('Telnyx not configured'); return Promise.resolve(null); }
   const effectiveFrom = fromOverride || from;
