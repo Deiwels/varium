@@ -147,7 +147,7 @@ export default function SignupPage() {
 
   // Listen for Apple IAP results
   useEffect(() => {
-    const onSuccess = () => { setAppleLoading(false); const needsBiz = selectedPlan === 'salon' || selectedPlan === 'custom' || selectedPlan === 'pro' || selectedPlan === 'enterprise'; setStep(needsBiz ? (1.5 as any) : 2) }
+    const onSuccess = () => { setAppleLoading(false); setStep(2) }
     const onError = (e: any) => { setAppleLoading(false); const msg = e?.detail?.error; if (msg && msg !== 'cancelled') setError('Purchase failed: ' + msg) }
     window.addEventListener('vuriumPurchaseSuccess', onSuccess)
     window.addEventListener('vuriumPurchaseError', onError)
@@ -661,7 +661,7 @@ export default function SignupPage() {
                         planId={selectedPlan}
                         planPrice={SIGNUP_PLANS.find(p => p.id === selectedPlan)?.price || 79}
                         planName={SIGNUP_PLANS.find(p => p.id === selectedPlan)?.name || 'Salon'}
-                        onSuccess={() => { const needsBiz = selectedPlan === 'salon' || selectedPlan === 'custom' || selectedPlan === 'pro' || selectedPlan === 'enterprise'; setStep(needsBiz ? (1.5 as any) : 2) }}
+                        onSuccess={() => setStep(2)}
                       />
                     </Elements>
                   )}

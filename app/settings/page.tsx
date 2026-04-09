@@ -902,6 +902,7 @@ export default function SettingsPage() {
   const [squareConnecting, setSquareConnecting] = useState(false)
   const [stripeConnect, setStripeConnect] = useState<{ connected: boolean; account_id?: string; connected_at?: string; charges_enabled?: boolean; payouts_enabled?: boolean }>({ connected: false })
   const [stripeConnecting, setStripeConnecting] = useState(false)
+  const [showDedicatedNumber, setShowDedicatedNumber] = useState(false)
   const [squareDevices, setSquareDevices] = useState<any[]>([])
   const [squareLocations, setSquareLocations] = useState<any[]>([])
   const [selectedDeviceId, setSelectedDeviceId] = useState('')
@@ -1434,67 +1435,33 @@ export default function SettingsPage() {
                   </div>
                 </SectionCard>
 
-                {/* SMS Registration (10DLC) */}
-                <SectionCard title="SMS Registration" action={null}>
-                  {(() => {
-                    const smsStatus = settings.sms_registration_status || 'none'
-                    const statusColors: Record<string, string> = {
-                      none: 'rgba(255,255,255,.25)',
-                      pending_otp: 'rgba(255,180,80,.7)',
-                      pending_vetting: 'rgba(255,180,80,.7)',
-                      pending_campaign: 'rgba(255,180,80,.7)',
-                      pending_approval: 'rgba(255,180,80,.7)',
-                      pending_number: 'rgba(255,180,80,.7)',
-                      brand_created: 'rgba(255,180,80,.7)',
-                      active: 'rgba(130,220,170,.8)',
-                      rejected: 'rgba(255,80,80,.8)',
-                    }
-                    const statusLabels: Record<string, string> = {
-                      none: 'Not Registered',
-                      pending_otp: 'Pending Phone Verification',
-                      pending_vetting: 'Pending Brand Vetting',
-                      pending_campaign: 'Pending Campaign Creation',
-                      pending_approval: 'Pending Carrier Approval',
-                      pending_number: 'Pending Number Assignment',
-                      brand_created: 'Brand Created — Campaign Pending',
-                      active: 'Active — SMS Enabled',
-                      rejected: 'Rejected — Please Re-register',
-                    }
-
-                    if (smsStatus !== 'none' && smsStatus !== 'rejected') {
-                      return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: 999, background: statusColors[smsStatus] || statusColors.none }} />
-                            <span style={{ fontSize: 13, fontWeight: 600, color: statusColors[smsStatus] || 'rgba(255,255,255,.4)' }}>{statusLabels[smsStatus] || smsStatus}</span>
-                          </div>
-                          {settings.sms_from_number && (
-                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)' }}>Phone: <span style={{ color: 'rgba(255,255,255,.55)' }}>{settings.sms_from_number}</span></div>
-                          )}
-                          {settings.telnyx_campaign_id && (
-                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)' }}>Campaign: <span style={{ color: 'rgba(255,255,255,.55)', fontFamily: 'monospace' }}>{settings.telnyx_campaign_id}</span></div>
-                          )}
-                          {settings.sms_brand_name && (
-                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)' }}>Brand: <span style={{ color: 'rgba(255,255,255,.55)' }}>{settings.sms_brand_name}</span></div>
-                          )}
-                          <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 4 }}>
-                            {smsStatus === 'active' ? 'Your business is registered for SMS. Appointment notifications will be sent from your dedicated number.' : 'Registration is being processed by carriers. This typically takes 5-10 business days.'}
-                          </p>
-                        </div>
-                      )
-                    }
-
-                    // Individual plan → simple toll-free setup; Salon/Custom → full 10DLC registration
-                    const isIndividualPlan = currentPlan === 'individual' || currentPlan === 'starter' || currentPlan === 'free'
-                    if (isIndividualPlan) {
-                      return <TollFreeEnableButton settings={settings} onDone={(data: any) => {
+                {/* SMS Status */}
+                <SectionCard title="SMS Notifications" action={null}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(130,220,170,.8)' }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(130,220,170,.8)' }}>Active</span>
+                  </div>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', lineHeight: 1.5, marginBottom: 8 }}>
+                    SMS appointment confirmations and reminders are enabled for your business. Clients who opt in will receive text notifications automatically.
+                  </p>
+                  {settings.sms_from_number && (
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)' }}>Dedicated number: <span style={{ color: 'rgba(255,255,255,.45)', fontFamily: 'monospace' }}>{settings.sms_from_number}</span></div>
+                  )}
+                  {!settings.sms_from_number && (
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 4 }}>
+                      Want a dedicated local number for your business? <button onClick={() => setShowDedicatedNumber(true)} style={{ background: 'none', border: 'none', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, textDecoration: 'underline', padding: 0 }}>Register for a dedicated number</button>
+                    </div>
+                  )}
+                  {showDedicatedNumber && !settings.sms_from_number && (
+                    <div style={{ marginTop: 12, padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.02)' }}>
+                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', marginBottom: 10, lineHeight: 1.5 }}>
+                        Get a dedicated local phone number for your SMS. Clients will see your own number instead of the platform number. Requires business registration with carriers.
+                      </p>
+                      <SmsRegistrationForm wsId={s.slug || ''} settings={settings} onDone={(data: any) => {
                         setSettings((prev: any) => ({ ...prev, ...data }))
                       }} />
-                    }
-                    return <SmsRegistrationForm wsId={s.slug || ''} settings={settings} onDone={(data: any) => {
-                      setSettings((prev: any) => ({ ...prev, ...data }))
-                    }} />
-                  })()}
+                    </div>
+                  )}
                 </SectionCard>
               </div>
             )}

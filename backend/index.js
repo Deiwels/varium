@@ -401,31 +401,32 @@ function formatPhone(phone) {
 }
 
 // Get per-workspace SMS config (dedicated 10DLC number, brand name)
+// Platform-first SMS: use global TELNYX_FROM for all by default.
+// If a workspace has its own dedicated number (optional 10DLC upgrade), use that instead.
 async function getWorkspaceSmsConfig(wsId) {
-  if (!wsId) return { fromNumber: safeStr(process.env.TELNYX_FROM), brandName: '', campaignId: null, status: 'none', canSend: true };
+  const platformFrom = safeStr(process.env.TELNYX_FROM);
+  if (!wsId) return { fromNumber: platformFrom, brandName: '', campaignId: null, status: 'none', canSend: true };
   try {
     const doc = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
     const data = doc.exists ? doc.data() : {};
     const status = safeStr(data.sms_registration_status || 'none');
-    // Can send if: no registration attempted (backward compat) OR status is 'active'
-    const canSend = status === 'none' || status === 'active';
+    // Use workspace's own number ONLY if they registered and it's active
+    const hasOwnNumber = status === 'active' && data.sms_from_number;
     return {
-      fromNumber: safeStr(data.sms_from_number) || safeStr(process.env.TELNYX_FROM),
+      fromNumber: hasOwnNumber ? safeStr(data.sms_from_number) : platformFrom,
       brandName: safeStr(data.sms_brand_name || data.shop_name || ''),
       campaignId: safeStr(data.telnyx_campaign_id || ''),
       status,
-      canSend,
+      canSend: true, // Always allow sending — platform TFN is always available
     };
-  } catch { return { fromNumber: safeStr(process.env.TELNYX_FROM), brandName: '', campaignId: null, status: 'none', canSend: true }; }
+  } catch { return { fromNumber: platformFrom, brandName: '', campaignId: null, status: 'none', canSend: true }; }
 }
 
 async function sendSms(to, body, fromOverride, wsId) {
-  // Check if workspace is allowed to send (campaign must be active or not registered)
-  if (wsId) {
-    const smsConf = await getWorkspaceSmsConfig(wsId);
-    if (!smsConf.canSend) {
-      console.warn(`sendSms blocked: workspace ${wsId} status=${smsConf.status} (not active)`);
-      return null;
+  // Platform-first: always send. No blocking based on registration status.
+  // If workspace has own number, fromOverride will be set; otherwise uses TELNYX_FROM.
+  if (false) { // Kept for reference — blocking disabled in platform-first model
+    return null;
     }
   }
   const { apiKey, from } = telnyxCredentials();
@@ -1959,56 +1960,9 @@ app.post('/auth/signup', async (req, res) => {
 
     setAuthCookie(res, token);
 
-    // Auto-provision toll-free SMS number for new workspaces (async, don't block signup)
-    (async () => {
-      try {
-        const settingsRef = wsRef.collection('settings').doc('config');
-        const shopName = sanitizeHtml(shop_name || workspace_name);
-
-        // Buy toll-free number
-        const searchResult = await telnyxApi('GET', '/v2/available_phone_numbers?filter[country_code]=US&filter[number_type]=toll-free&filter[features]=sms&filter[limit]=1');
-        const availNum = searchResult?.data?.[0]?.phone_number;
-        if (!availNum) { console.warn('Auto-TFN: no numbers available'); return; }
-        await telnyxApi('POST', '/v2/number_orders', { phone_numbers: [{ phone_number: availNum }] });
-
-        // Create messaging profile
-        let profileId = '';
-        try {
-          const profileResult = await telnyxApi('POST', '/v2/messaging_profiles', {
-            name: `VuriumBook TF - ${shopName}`,
-            webhook_url: `${API_BASE_URL}/api/webhooks/telnyx`,
-            enabled: true,
-          });
-          profileId = profileResult?.data?.id || '';
-          if (profileId) {
-            await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
-              response_type: 'STOP', response_text: `${shopName}: You have been unsubscribed. No further messages will be sent. Reply HELP for help.`,
-            }).catch(() => {});
-            await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
-              response_type: 'HELP', response_text: `${shopName}: For help, contact support@vurium.com. Visit https://vurium.com/privacy. Reply STOP to opt out.`,
-            }).catch(() => {});
-          }
-        } catch (e) { console.warn('Auto-TFN profile failed:', e.message); }
-
-        // Associate number with profile
-        if (profileId) {
-          try { await telnyxApi('PATCH', `/v2/phone_numbers/${availNum.replace('+', '')}`, { messaging_profile_id: profileId }); } catch {}
-        }
-
-        // Save to settings
-        await settingsRef.update({
-          sms_from_number: availNum,
-          sms_number_type: 'toll-free',
-          sms_messaging_profile_id: profileId,
-          sms_brand_name: shopName,
-          sms_registration_status: 'active',
-          sms_registered_at: toIso(new Date()),
-        });
-        console.log(`Auto-TFN provisioned for workspace ${wsRef.id}: ${availNum}`);
-      } catch (e) {
-        console.warn('Auto-TFN provisioning failed (non-blocking):', e.message);
-      }
-    })();
+    // Platform-first SMS: all workspaces use the global TELNYX_FROM number by default.
+    // No per-workspace number provisioning needed. SMS works immediately for everyone.
+    // Businesses can optionally upgrade to a dedicated number via Settings → SMS Registration.
 
     res.status(201).json({
       ok: true,
