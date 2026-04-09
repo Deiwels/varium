@@ -529,6 +529,11 @@ ${bodyHtml}
 </td></tr>
 <tr><td style="padding:16px 28px;border-top:1px solid ${t.border};text-align:center;background:${t.card};">
 <a href="https://vurium.com" style="font-size:11px;color:${t.footer};text-decoration:none;">Powered by VuriumBook&trade;</a>
+<div style="margin-top:8px;font-size:11px;color:${t.footer};">
+<a href="https://vurium.com/privacy" style="color:${t.footer};text-decoration:underline;">Privacy Policy</a>
+&nbsp;&middot;&nbsp;
+<a href="https://vurium.com/terms" style="color:${t.footer};text-decoration:underline;">Terms of Service</a>
+</div>
 </td></tr>
 </table>
 </td></tr>
