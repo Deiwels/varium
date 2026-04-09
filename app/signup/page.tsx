@@ -119,6 +119,10 @@ export default function SignupPage() {
   const [clientSecret, setClientSecret] = useState('')
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [appleLoading, setAppleLoading] = useState(false)
+  const [verifyCode, setVerifyCode] = useState('')
+  const [verifySending, setVerifySending] = useState(false)
+  const [verifyError, setVerifyError] = useState('')
+  const [verifyResent, setVerifyResent] = useState(false)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -240,7 +244,19 @@ export default function SignupPage() {
       }))
       setAuthCookie('owner:' + data.user_id)
       setWsId(data.workspace_id)
-      setStep(1)
+      // Send phone verification code
+      if (phone) {
+        try {
+          await fetch(`${API}/public/verify/send/${data.workspace_id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: phone.replace(/\D/g, '') }),
+          })
+        } catch {}
+        setStep(0.5 as any) // Phone verification step
+      } else {
+        setStep(1)
+      }
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
     } finally {
@@ -387,8 +403,9 @@ export default function SignupPage() {
                     <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 4 }}>This will be your login</p>
                   </div>
                   <div>
-                    <label style={lbl}>Phone (optional)</label>
-                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 (555) 123-4567" style={inp} />
+                    <label style={lbl}>Phone *</label>
+                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 (555) 123-4567" required style={inp} />
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 4 }}>We&apos;ll send a verification code to confirm your number</p>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
@@ -435,6 +452,85 @@ export default function SignupPage() {
             <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'rgba(255,255,255,.25)' }}>
               Already have an account? <a href="/signin" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Sign in</a>
             </p>
+          </div>
+        )}
+
+        {/* STEP 0.5: Phone Verification */}
+        {step === (0.5 as any) && (
+          <div className="fade-up" style={{ maxWidth: 440, width: '100%' }}>
+            <div className="glass-card" style={{ padding: '36px 28px', textAlign: 'center' }}>
+              <div style={{ fontSize: 40, marginBottom: 16 }}>&#128241;</div>
+              <h2 style={{ fontSize: 22, fontWeight: 700, color: '#e8e8ed', marginBottom: 8 }}>Verify your phone</h2>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,.35)', marginBottom: 24, lineHeight: 1.5 }}>
+                We sent a 6-digit code to <strong style={{ color: 'rgba(255,255,255,.6)' }}>{phone}</strong>. Enter it below to continue.
+              </p>
+              {verifyError && (
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(220,80,80,.1)', border: '1px solid rgba(220,80,80,.2)', color: 'rgba(255,160,160,.9)', fontSize: 13, marginBottom: 16 }}>
+                  {verifyError}
+                </div>
+              )}
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={verifyCode}
+                onChange={e => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                style={{
+                  ...inp, textAlign: 'center', fontSize: 28, fontWeight: 700, letterSpacing: '.3em',
+                  maxWidth: 220, margin: '0 auto 20px',
+                }}
+              />
+              <button
+                type="button"
+                disabled={verifyCode.length !== 6 || verifySending}
+                onClick={async () => {
+                  setVerifySending(true); setVerifyError('')
+                  try {
+                    const res = await fetch(`${API}/public/verify/check/${wsId}`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ phone: phone.replace(/\D/g, ''), code: verifyCode }),
+                    })
+                    const data = await res.json()
+                    if (!res.ok) throw new Error(data.error || 'Invalid code')
+                    setStep(1) // Proceed to plan selection
+                  } catch (err: any) {
+                    setVerifyError(err.message || 'Verification failed')
+                  } finally {
+                    setVerifySending(false)
+                  }
+                }}
+                className="btn-primary"
+                style={{ width: '100%', fontSize: 15, fontFamily: 'inherit', opacity: (verifyCode.length !== 6 || verifySending) ? 0.5 : 1 }}
+              >
+                {verifySending ? 'Verifying...' : 'Verify & Continue'}
+              </button>
+              <button
+                type="button"
+                disabled={verifyResent}
+                onClick={async () => {
+                  try {
+                    await fetch(`${API}/public/verify/send/${wsId}`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ phone: phone.replace(/\D/g, '') }),
+                    })
+                    setVerifyResent(true)
+                    setTimeout(() => setVerifyResent(false), 30000)
+                  } catch {}
+                }}
+                style={{
+                  marginTop: 16, background: 'none', border: 'none', color: verifyResent ? 'rgba(255,255,255,.15)' : 'rgba(130,150,220,.6)',
+                  fontSize: 13, cursor: verifyResent ? 'default' : 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                {verifyResent ? 'Code sent! Wait 30s to resend' : 'Resend code'}
+              </button>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,.15)', marginTop: 20, lineHeight: 1.5 }}>
+                Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help. <a href="/privacy" style={{ color: 'rgba(130,150,220,.4)', textDecoration: 'none' }}>Privacy Policy</a>
+              </p>
+            </div>
           </div>
         )}
 
