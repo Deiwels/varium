@@ -457,6 +457,17 @@ function sendSms(to, body, fromOverride, wsId) {
 // ─── Email via Resend ─────────────────────────────────────────────────────────
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const EMAIL_FROM_DOMAIN = 'noreply@vurium.com';
+const BACKEND_PUBLIC_URL = process.env.BACKEND_PUBLIC_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app';
+
+// Most email clients (Gmail, Outlook, Apple Mail) strip `data:` URIs from
+// <img src>. When the workspace logo is stored as a data URL, substitute a
+// public HTTPS endpoint that decodes and serves the image on demand.
+function resolveEmailLogoUrl(wsId, rawLogoUrl) {
+  const s = String(rawLogoUrl || '');
+  if (!s) return '';
+  if (s.startsWith('data:')) return `${BACKEND_PUBLIC_URL}/public/workspaces/${encodeURIComponent(wsId)}/logo`;
+  return s;
+}
 
 function sendEmail(to, subject, html, fromName) {
   if (!RESEND_API_KEY) { console.warn('Resend not configured'); return Promise.resolve(null); }
@@ -534,7 +545,7 @@ async function getWorkspaceEmailConfig(wsId) {
   const w = wsDoc.exists ? wsDoc.data() : {};
   return {
     shopName: safeStr(s?.shop_name || ''),
-    logoUrl: s?.logo_url || '',
+    logoUrl: resolveEmailLogoUrl(wsId, s?.logo_url || ''),
     tz: s?.timezone || 'America/Chicago',
     // 'custom' is a website-only template (custom HTML/CSS) — fall back to 'modern' for emails
     template: (['modern','classic','bold','dark-luxury','colorful'].includes(w?.site_config?.template) ? w.site_config.template : 'modern'),
@@ -5625,7 +5636,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
         const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: emailTz });
         const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: emailTz });
         const emailShopName = safeStr(emailSettingsData?.shop_name || '');
-        const emailLogo = emailSettingsData?.logo_url || '';
+        const emailLogo = resolveEmailLogoUrl(wsId, emailSettingsData?.logo_url || '');
         const wsDocData = await db.collection('workspaces').doc(wsId).get();
         const rawTemplate = wsDocData.exists ? wsDocData.data()?.site_config?.template : null;
         const emailTemplate = ['modern','classic','bold','dark-luxury','colorful'].includes(rawTemplate) ? rawTemplate : 'modern';
@@ -5673,6 +5684,36 @@ app.get('/public/config/:workspace_id', async (req, res) => {
       timezone: safeStr(data.timezone || 'America/Chicago'),
     });
   } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// Serves the workspace logo as a real HTTPS image so email clients (which
+// strip data: URIs) can render it. If the stored logo_url is a data URL we
+// decode the base64 and return the bytes; if it's already an HTTPS URL we
+// redirect to it; otherwise 404.
+app.get('/public/workspaces/:workspace_id/logo', async (req, res) => {
+  try {
+    const wsId = req.params.workspace_id;
+    const doc = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
+    const raw = doc.exists ? (doc.data()?.logo_url || '') : '';
+    if (!raw) return res.status(404).end();
+    if (typeof raw === 'string' && raw.startsWith('data:')) {
+      const match = raw.match(/^data:([^;,]+);base64,(.+)$/);
+      if (!match) return res.status(404).end();
+      const mime = match[1] || 'image/png';
+      const buf = Buffer.from(match[2], 'base64');
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Content-Length', buf.length);
+      return res.end(buf);
+    }
+    if (typeof raw === 'string' && /^https?:\/\//i.test(raw)) {
+      return res.redirect(302, raw);
+    }
+    return res.status(404).end();
+  } catch (e) {
+    console.warn('logo fetch error:', e?.message);
+    return res.status(500).end();
+  }
 });
 
 // ============================================================
