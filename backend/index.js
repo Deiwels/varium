@@ -976,6 +976,11 @@ const SignupSchema = z.object({
   timezone: z.string().max(60),
   business_type: z.string().max(60).optional(),
   shop_name: z.string().max(120).optional(),
+  shop_address: z.string().max(250).optional(),
+  street: z.string().max(200).optional(),
+  city: z.string().max(100).optional(),
+  state: z.string().max(2).optional(),
+  postal_code: z.string().max(10).optional(),
 });
 
 const LoginSchema = z.object({
@@ -1938,10 +1943,18 @@ app.post('/auth/signup', async (req, res) => {
     };
     await userRef.set(userData);
 
-    // Create default settings doc
+    // Create default settings doc with business address for SMS/compliance
+    const { shop_address, street: bStreet, city: bCity, state: bState, postal_code: bZip } = v.data;
     await wsRef.collection('settings').doc('config').set({
       timezone: timezone || 'America/Chicago',
       shop_name: sanitizeHtml(shop_name || workspace_name),
+      shop_address: sanitizeHtml(shop_address || ''),
+      shop_street: sanitizeHtml(bStreet || ''),
+      shop_city: sanitizeHtml(bCity || ''),
+      shop_state: sanitizeHtml(bState || ''),
+      shop_zip: sanitizeHtml(bZip || ''),
+      shop_phone: phone || null,
+      shop_email: sanitizeHtml(email || ''),
       business_type: business_type || null,
       created_at: toIso(new Date()),
     });

@@ -111,6 +111,10 @@ export default function SignupPage() {
   const [phone, setPhone] = useState('')
   const [businessType, setBusinessType] = useState('')
   const [timezone, setTimezone] = useState('')
+  const [street, setStreet] = useState('')
+  const [city, setCity] = useState('')
+  const [state, setState] = useState('')
+  const [zip, setZip] = useState('')
   const [plan, setPlan] = useState('free')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -239,6 +243,8 @@ export default function SignupPage() {
           timezone,
           business_type: businessType || undefined,
           shop_name: businessName,
+          shop_address: `${street}, ${city}, ${state} ${zip}`,
+          street, city, state, postal_code: zip,
         }),
       })
       const data = await res.json()
@@ -261,19 +267,7 @@ export default function SignupPage() {
       }))
       setAuthCookie('owner:' + data.user_id)
       setWsId(data.workspace_id)
-      // Send phone verification code
-      if (phone) {
-        try {
-          await fetch(`${API}/public/verify/send/${data.workspace_id}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone: phone.replace(/\D/g, '') }),
-          })
-        } catch {}
-        setStep(0.5 as any) // Phone verification step
-      } else {
-        setStep(1)
-      }
+      setStep(1) // Go directly to plan selection — SMS is auto-enabled
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
     } finally {
@@ -404,6 +398,24 @@ export default function SignupPage() {
                       ))}
                     </select>
                   </div>
+                  <div>
+                    <label style={lbl}>Business Address *</label>
+                    <input type="text" value={street} onChange={e => setStreet(e.target.value)} placeholder="Street address" required style={inp} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10 }}>
+                    <div>
+                      <label style={lbl}>City *</label>
+                      <input type="text" value={city} onChange={e => setCity(e.target.value)} required style={inp} />
+                    </div>
+                    <div>
+                      <label style={lbl}>State *</label>
+                      <input type="text" value={state} onChange={e => setState(e.target.value)} placeholder="IL" maxLength={2} required style={inp} />
+                    </div>
+                    <div>
+                      <label style={lbl}>ZIP *</label>
+                      <input type="text" value={zip} onChange={e => setZip(e.target.value)} placeholder="60089" required style={inp} />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Section: Your Account */}
@@ -420,9 +432,8 @@ export default function SignupPage() {
                     <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 4 }}>This will be your login</p>
                   </div>
                   <div>
-                    <label style={lbl}>Phone (optional)</label>
-                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 (555) 123-4567" style={inp} />
-                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 4 }}>Optional — we&apos;ll send a verification code if provided</p>
+                    <label style={lbl}>Mobile Phone *</label>
+                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 (555) 123-4567" required style={inp} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
@@ -454,18 +465,6 @@ export default function SignupPage() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}>
-                  <label htmlFor="sms-verify-consent" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
-                    <input
-                      id="sms-verify-consent"
-                      type="checkbox"
-                      checked={smsConsent}
-                      onChange={e => setSmsConsent(e.target.checked)}
-                      style={{ marginTop: 3, width: 16, height: 16, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }}
-                    />
-                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>
-                      I agree to receive a one-time SMS verification code from Vurium at the number provided. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help.
-                    </span>
-                  </label>
                   <label htmlFor="terms-consent" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
                     <input
                       id="terms-consent"
@@ -478,12 +477,24 @@ export default function SignupPage() {
                       I confirm I am at least 16 years old and agree to the <a href="/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy Policy</a>.
                     </span>
                   </label>
+                  <label htmlFor="sms-auth-consent" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                    <input
+                      id="sms-auth-consent"
+                      type="checkbox"
+                      checked={smsConsent}
+                      onChange={e => setSmsConsent(e.target.checked)}
+                      style={{ marginTop: 3, width: 16, height: 16, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }}
+                    />
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>
+                      I authorize VuriumBook&trade; to send appointment-related text messages to my clients on my behalf when enabled in my booking settings. I am responsible for using SMS features lawfully and only where my clients have provided consent.
+                    </span>
+                  </label>
                 </div>
 
-                <button type="submit" disabled={loading || !smsConsent || !termsConsent} className="btn-primary" style={{
+                <button type="submit" disabled={loading || !termsConsent || !smsConsent} className="btn-primary" style={{
                   width: '100%', fontSize: 15, fontFamily: 'inherit',
-                  opacity: loading || !smsConsent || !termsConsent ? 0.5 : 1,
-                  cursor: loading || !smsConsent || !termsConsent ? 'not-allowed' : 'pointer',
+                  opacity: loading || !termsConsent || !smsConsent ? 0.5 : 1,
+                  cursor: loading || !termsConsent || !smsConsent ? 'not-allowed' : 'pointer',
                 }}>
                   {loading ? 'Creating workspace...' : 'Create Workspace'}
                 </button>
