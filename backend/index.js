@@ -1958,6 +1958,58 @@ app.post('/auth/signup', async (req, res) => {
     }, JWT_SECRET, { expiresIn: TOKEN_TTL });
 
     setAuthCookie(res, token);
+
+    // Auto-provision toll-free SMS number for new workspaces (async, don't block signup)
+    (async () => {
+      try {
+        const settingsRef = wsRef.collection('settings').doc('config');
+        const shopName = sanitizeHtml(shop_name || workspace_name);
+
+        // Buy toll-free number
+        const searchResult = await telnyxApi('GET', '/v2/available_phone_numbers?filter[country_code]=US&filter[number_type]=toll-free&filter[features]=sms&filter[limit]=1');
+        const availNum = searchResult?.data?.[0]?.phone_number;
+        if (!availNum) { console.warn('Auto-TFN: no numbers available'); return; }
+        await telnyxApi('POST', '/v2/number_orders', { phone_numbers: [{ phone_number: availNum }] });
+
+        // Create messaging profile
+        let profileId = '';
+        try {
+          const profileResult = await telnyxApi('POST', '/v2/messaging_profiles', {
+            name: `VuriumBook TF - ${shopName}`,
+            webhook_url: `${API_BASE_URL}/api/webhooks/telnyx`,
+            enabled: true,
+          });
+          profileId = profileResult?.data?.id || '';
+          if (profileId) {
+            await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
+              response_type: 'STOP', response_text: `${shopName}: You have been unsubscribed. No further messages will be sent. Reply HELP for help.`,
+            }).catch(() => {});
+            await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
+              response_type: 'HELP', response_text: `${shopName}: For help, contact support@vurium.com. Visit https://vurium.com/privacy. Reply STOP to opt out.`,
+            }).catch(() => {});
+          }
+        } catch (e) { console.warn('Auto-TFN profile failed:', e.message); }
+
+        // Associate number with profile
+        if (profileId) {
+          try { await telnyxApi('PATCH', `/v2/phone_numbers/${availNum.replace('+', '')}`, { messaging_profile_id: profileId }); } catch {}
+        }
+
+        // Save to settings
+        await settingsRef.update({
+          sms_from_number: availNum,
+          sms_number_type: 'toll-free',
+          sms_messaging_profile_id: profileId,
+          sms_brand_name: shopName,
+          sms_registration_status: 'active',
+          sms_registered_at: toIso(new Date()),
+        });
+        console.log(`Auto-TFN provisioned for workspace ${wsRef.id}: ${availNum}`);
+      } catch (e) {
+        console.warn('Auto-TFN provisioning failed (non-blocking):', e.message);
+      }
+    })();
+
     res.status(201).json({
       ok: true,
       workspace_id: wsRef.id,
