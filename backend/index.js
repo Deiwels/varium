@@ -4338,20 +4338,41 @@ app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
       updated_at: toIso(new Date()),
     });
 
-    // Step 1b: Request enhanced brand vetting (optional, speeds up approval)
-    try {
-      await telnyxApi('POST', `/v2/10dlc/brands/${brandId}/vetting_requests`, {});
-    } catch (e) {
-      console.warn('Enhanced vetting request failed (non-critical):', e.message);
+    // Step 1b: For Sole Proprietors — trigger OTP verification
+    const isSoleProp = entityType === 'SOLE_PROPRIETOR';
+    if (isSoleProp) {
+      try {
+        await telnyxApi('POST', `/v2/10dlc/brand/${brandId}/smsOtp`, {
+          pinSms: `VuriumBook: Your verification code is @OTP_PIN@. Enter this code to verify your identity. Expires in 24 hours.`,
+          successSms: `VuriumBook: Your brand has been verified successfully. You can now send SMS to your clients.`,
+        });
+        await settingsRef.update({ sms_registration_status: 'pending_otp' });
+        // Return early — user must verify OTP before campaign can be created
+        return res.json({
+          ok: true, step: 'otp_sent', brand_id: brandId, status: 'pending_otp',
+          message: 'Verification code sent to your mobile. Enter it to continue.',
+        });
+      } catch (e) {
+        console.warn('SP OTP send failed:', e.message);
+        // Continue anyway — may not require OTP in all cases
+      }
+    } else {
+      // For regular businesses — request enhanced brand vetting
+      try {
+        await telnyxApi('POST', `/v2/10dlc/brands/${brandId}/vetting_requests`, {});
+      } catch (e) {
+        console.warn('Enhanced vetting request failed (non-critical):', e.message);
+      }
     }
 
     // Step 2: Create Campaign
     const shopName = displayName || companyName;
+    const campaignUseCase = isSoleProp ? 'SOLE_PROPRIETOR' : 'CUSTOMER_CARE';
     let campaignResult;
     try {
       campaignResult = await telnyxApi('POST', '/v2/10dlc/campaignBuilder', {
         brandId,
-        usecase: 'CUSTOMER_CARE',
+        usecase: campaignUseCase,
         description: `Transactional appointment-related SMS sent by ${shopName} to clients who opt in during online booking. Messages include booking confirmations, reminders, and cancellation notices. Frequency: up to 5 messages per booking.`,
         messageFlow: 'WEBFORM',
         sample1: `${shopName}: Your appointment is confirmed for Mon Apr 7 at 2:00 PM with John. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`,
@@ -4458,6 +4479,124 @@ app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
   } catch (e) {
     console.error('SMS register error:', e);
     res.status(500).json({ error: e?.message || 'Registration failed' });
+  }
+});
+
+// Sole Proprietor OTP verification — called after /api/sms/register returns step=otp_sent
+app.post('/api/sms/verify-otp', requireRole('owner'), async (req, res) => {
+  try {
+    const pin = safeStr(req.body?.pin || '');
+    if (!pin || pin.length !== 6) return res.status(400).json({ error: '6-digit PIN required' });
+
+    const settingsRef = req.ws('settings').doc('config');
+    const doc = await settingsRef.get();
+    const data = doc.exists ? doc.data() : {};
+    const brandId = data.telnyx_brand_id;
+    if (!brandId) return res.status(400).json({ error: 'No brand found. Register first.' });
+
+    // Verify OTP with Telnyx
+    try {
+      await telnyxApi('POST', `/v2/10dlc/brand/${brandId}/smsOtp/verify`, { otpPin: pin });
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid or expired code: ' + e.message });
+    }
+
+    await settingsRef.update({ sms_registration_status: 'verified', updated_at: toIso(new Date()) });
+
+    // Now auto-create campaign + buy number + assign (same flow as regular registration continues)
+    const displayName = safeStr(data.sms_brand_name || data.shop_name || '');
+    const shopName = displayName || 'Business';
+    const state = safeStr(data.shop_address?.split(',').slice(-2, -1)[0]?.trim() || '');
+
+    // Create SP Campaign
+    let campaignResult;
+    try {
+      campaignResult = await telnyxApi('POST', '/v2/10dlc/campaignBuilder', {
+        brandId,
+        usecase: 'SOLE_PROPRIETOR',
+        description: `Appointment reminders and confirmations sent by ${shopName} to clients who opt in during online booking. Frequency: up to 5 messages per booking.`,
+        messageFlow: 'WEBFORM',
+        sample1: `${shopName}: Your appointment is confirmed for Mon Apr 7 at 2:00 PM. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`,
+        sample2: `${shopName}: Reminder: Your appointment is tomorrow at 2:00 PM. Reply STOP to opt out, HELP for help.`,
+        helpMessage: `${shopName}: For help, contact support@vurium.com. Visit https://vurium.com/privacy for Privacy Policy. Reply STOP to opt out.`,
+        helpKeywords: 'HELP',
+        optinKeywords: 'START,YES',
+        optoutKeywords: 'STOP,UNSUBSCRIBE',
+        optinMessage: `${shopName}: You're subscribed to appointment SMS. Msg frequency varies. Msg & data rates may apply. Reply HELP for help, STOP to opt out.`,
+        optoutMessage: `${shopName}: You have been unsubscribed and will receive no further messages. Reply HELP for help or START to re-subscribe.`,
+        embeddedLink: false,
+        embeddedPhone: false,
+        numberPool: false,
+        ageGated: false,
+        directLending: false,
+        termsAndConditions: true,
+      });
+    } catch (e) {
+      return res.status(400).json({ error: 'Campaign creation failed: ' + e.message, step: 'campaign' });
+    }
+    const campaignId = campaignResult?.data?.campaignId || campaignResult?.data?.id || '';
+
+    // Buy number
+    let phoneNumber = '';
+    try {
+      const searchResult = await telnyxApi('GET', '/v2/available_phone_numbers?filter[country_code]=US&filter[features]=sms&filter[limit]=1');
+      const availNum = searchResult?.data?.[0]?.phone_number;
+      if (!availNum) throw new Error('No numbers available');
+      await telnyxApi('POST', '/v2/number_orders', { phone_numbers: [{ phone_number: availNum }] });
+      phoneNumber = availNum;
+    } catch (e) {
+      console.warn('Number purchase failed:', e.message);
+    }
+
+    // Create messaging profile
+    let profileId = '';
+    try {
+      const profileResult = await telnyxApi('POST', '/v2/messaging_profiles', {
+        name: `VuriumBook - ${shopName}`,
+        webhook_url: `${API_BASE_URL}/api/webhooks/telnyx`,
+        enabled: true,
+      });
+      profileId = profileResult?.data?.id || '';
+
+      // Custom STOP/HELP auto-responses
+      await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
+        response_type: 'STOP', response_text: `${shopName}: You have been unsubscribed. No further messages will be sent. Reply HELP for help.`,
+      }).catch(() => {});
+      await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
+        response_type: 'HELP', response_text: `${shopName}: For help, contact support@vurium.com. Visit https://vurium.com/privacy. Reply STOP to opt out.`,
+      }).catch(() => {});
+    } catch (e) {
+      console.warn('Profile creation failed:', e.message);
+    }
+
+    // Assign number to campaign
+    if (phoneNumber && campaignId) {
+      try {
+        await telnyxApi('POST', '/v2/10dlc/phoneNumberCampaign', { phoneNumber, campaignId });
+      } catch (e) {
+        console.warn('Number-campaign assignment failed:', e.message);
+      }
+    }
+
+    // Save everything — SP campaigns typically auto-approve
+    await settingsRef.update({
+      telnyx_campaign_id: campaignId,
+      sms_from_number: phoneNumber,
+      sms_messaging_profile_id: profileId,
+      sms_registration_status: 'active', // SP campaigns auto-activate
+      updated_at: toIso(new Date()),
+    });
+
+    writeAuditLog(req.wsId, { action: 'sms.sp_verified', resource_id: brandId, data: { campaign_id: campaignId, phone_number: phoneNumber }, req }).catch(() => {});
+
+    res.json({
+      ok: true, status: 'active',
+      brand_id: brandId, campaign_id: campaignId,
+      phone_number: phoneNumber, messaging_profile_id: profileId,
+    });
+  } catch (e) {
+    console.error('SMS OTP verify error:', e);
+    res.status(500).json({ error: e?.message || 'Verification failed' });
   }
 });
 

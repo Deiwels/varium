@@ -83,6 +83,9 @@ function SmsRegistrationForm({ wsId, settings, onDone }: { wsId: string; setting
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [otpStep, setOtpStep] = useState(false)
+  const [otpPin, setOtpPin] = useState('')
+  const [otpBrandId, setOtpBrandId] = useState('')
 
   const inp: React.CSSProperties = {
     width: '100%', padding: '10px 12px', borderRadius: 10,
@@ -104,18 +107,78 @@ function SmsRegistrationForm({ wsId, settings, onDone }: { wsId: string; setting
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Registration failed')
+      if (data.step === 'otp_sent') {
+        // Sole proprietor — need OTP verification
+        setOtpStep(true)
+        setOtpBrandId(data.brand_id)
+        onDone({ sms_registration_status: 'pending_otp', telnyx_brand_id: data.brand_id, sms_brand_name: form.display_name })
+      } else {
+        onDone({
+          sms_registration_status: data.status || 'pending_approval',
+          telnyx_brand_id: data.brand_id,
+          telnyx_campaign_id: data.campaign_id,
+          sms_from_number: data.phone_number,
+          sms_brand_name: form.display_name,
+        })
+      }
+    } catch (e: any) {
+      setError(e.message || 'Something went wrong')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // OTP verification step for Sole Proprietors
+  async function handleVerifyOtp() {
+    setLoading(true); setError('')
+    try {
+      const res = await fetch(`${(window as any).__API || 'https://vuriumbook-api-431945333485.us-central1.run.app'}/api/sms/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ pin: otpPin }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Verification failed')
       onDone({
-        sms_registration_status: data.status || 'pending_approval',
+        sms_registration_status: data.status || 'active',
         telnyx_brand_id: data.brand_id,
         telnyx_campaign_id: data.campaign_id,
         sms_from_number: data.phone_number,
         sms_brand_name: form.display_name,
       })
     } catch (e: any) {
-      setError(e.message || 'Something went wrong')
+      setError(e.message || 'Verification failed')
     } finally {
       setLoading(false)
     }
+  }
+
+  if (otpStep) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center' }}>
+        <div style={{ fontSize: 32, marginBottom: 4 }}>&#128241;</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.6)' }}>Verify your identity</div>
+        <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.5 }}>
+          We sent a 6-digit code to your mobile phone. Enter it below to complete registration.
+        </p>
+        {error && <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(220,80,80,.1)', border: '1px solid rgba(220,80,80,.2)', color: 'rgba(255,160,160,.9)', fontSize: 12, width: '100%' }}>{error}</div>}
+        <input
+          type="text" inputMode="numeric" maxLength={6}
+          value={otpPin} onChange={e => setOtpPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          placeholder="000000"
+          style={{ ...inp, textAlign: 'center', fontSize: 24, fontWeight: 700, letterSpacing: '.3em', maxWidth: 200 }}
+        />
+        <button onClick={handleVerifyOtp} disabled={otpPin.length !== 6 || loading} style={{
+          height: 38, borderRadius: 999, border: 'none', background: 'rgba(130,150,220,.2)',
+          color: 'rgba(130,150,220,.9)', cursor: loading ? 'wait' : 'pointer', fontWeight: 700,
+          fontSize: 13, fontFamily: 'inherit', opacity: (otpPin.length !== 6 || loading) ? 0.5 : 1, width: '100%', maxWidth: 200,
+        }}>
+          {loading ? 'Verifying...' : 'Verify & Activate'}
+        </button>
+        <p style={{ fontSize: 10, color: 'rgba(255,255,255,.15)', marginTop: 4 }}>Code expires in 24 hours</p>
+      </div>
+    )
   }
 
   return (
@@ -1326,6 +1389,7 @@ export default function SettingsPage() {
                     const smsStatus = settings.sms_registration_status || 'none'
                     const statusColors: Record<string, string> = {
                       none: 'rgba(255,255,255,.25)',
+                      pending_otp: 'rgba(255,180,80,.7)',
                       pending_vetting: 'rgba(255,180,80,.7)',
                       pending_campaign: 'rgba(255,180,80,.7)',
                       pending_approval: 'rgba(255,180,80,.7)',
@@ -1336,6 +1400,7 @@ export default function SettingsPage() {
                     }
                     const statusLabels: Record<string, string> = {
                       none: 'Not Registered',
+                      pending_otp: 'Pending Phone Verification',
                       pending_vetting: 'Pending Brand Vetting',
                       pending_campaign: 'Pending Campaign Creation',
                       pending_approval: 'Pending Carrier Approval',
