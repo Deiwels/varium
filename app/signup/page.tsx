@@ -454,7 +454,7 @@ export default function SignupPage() {
                       style={{ marginTop: 3, width: 16, height: 16, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }}
                     />
                     <span style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>
-                      I agree to receive a one-time SMS verification code from Vurium at the number provided. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help.
+                      I agree to receive a one-time SMS verification code from Vurium at the number provided. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help. <a href="/terms#sms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>SMS Terms of Service</a> &amp; <a href="/privacy#sms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>SMS Privacy Policy</a>.
                     </span>
                   </label>
                   <label htmlFor="terms-consent" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
