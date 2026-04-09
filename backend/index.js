@@ -6214,7 +6214,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       sms_consent_ip: smsConsent ? getClientIp(req) : null,
       sms_consent_ua: smsConsent ? safeStr(req.headers['user-agent'] || '').slice(0, 500) : null,
       sms_consent_at: smsConsent ? toIso(new Date()) : null,
-      sms_consent_text: smsConsent ? safeStr(booking.sms_consent_text || `By providing your phone number, you agree to receive SMS appointment confirmations, reminders, and changes from ${pubShopName || 'this business'}. Message frequency may vary, up to 5 msgs per booking. Msg & data rates may apply. Reply STOP to opt out. Reply HELP for help.`).slice(0, 1000) : null,
+      sms_consent_text: smsConsent ? safeStr(booking.sms_consent_text || 'By providing your phone number, you agree to receive SMS appointment confirmations, reminders, and changes. Message frequency may vary, up to 5 msgs per booking. Msg & data rates may apply. Reply STOP to opt out. Reply HELP for help.').slice(0, 1000) : null,
       workspace_id: wsId,
       client_token: crypto.randomBytes(24).toString('hex'),
       created_by: { name: clientName || 'Client', role: 'client' },
