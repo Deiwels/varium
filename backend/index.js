@@ -401,25 +401,27 @@ function formatPhone(phone) {
 }
 
 // Get per-workspace SMS config (dedicated 10DLC number, brand name)
-// Platform-first SMS: use global TELNYX_FROM for all by default.
-// If a workspace has its own dedicated number (optional 10DLC upgrade), use that instead.
+// Per-business toll-free SMS: each workspace gets its own TFN.
+// Like Square (assigns 855 numbers per business), not a shared platform number.
+// Fallback to global TELNYX_FROM only if workspace has no number yet (for backward compat).
 async function getWorkspaceSmsConfig(wsId) {
-  const platformFrom = safeStr(process.env.TELNYX_FROM);
-  if (!wsId) return { fromNumber: platformFrom, brandName: '', campaignId: null, status: 'none', canSend: true };
+  const fallbackFrom = safeStr(process.env.TELNYX_FROM);
+  if (!wsId) return { fromNumber: fallbackFrom, brandName: '', status: 'none', canSend: !!fallbackFrom };
   try {
     const doc = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
     const data = doc.exists ? doc.data() : {};
     const status = safeStr(data.sms_registration_status || 'none');
-    // Use workspace's own number ONLY if they registered and it's active
-    const hasOwnNumber = status === 'active' && data.sms_from_number;
+    const hasOwnNumber = !!data.sms_from_number;
+    // Can send if: has own verified number, OR has own number pending verification (TFN can send while pending),
+    // OR fallback to global TELNYX_FROM exists (backward compat for existing workspaces)
+    const canSend = hasOwnNumber || !!fallbackFrom;
     return {
-      fromNumber: hasOwnNumber ? safeStr(data.sms_from_number) : platformFrom,
+      fromNumber: hasOwnNumber ? safeStr(data.sms_from_number) : fallbackFrom,
       brandName: safeStr(data.sms_brand_name || data.shop_name || ''),
-      campaignId: safeStr(data.telnyx_campaign_id || ''),
       status,
-      canSend: true, // Always allow sending — platform TFN is always available
+      canSend,
     };
-  } catch { return { fromNumber: platformFrom, brandName: '', campaignId: null, status: 'none', canSend: true }; }
+  } catch { return { fromNumber: fallbackFrom, brandName: '', status: 'none', canSend: !!fallbackFrom }; }
 }
 
 async function sendSms(to, body, fromOverride, wsId) {
@@ -1956,9 +1958,65 @@ app.post('/auth/signup', async (req, res) => {
 
     setAuthCookie(res, token);
 
-    // Platform-first SMS: all workspaces use the global TELNYX_FROM number by default.
-    // No per-workspace number provisioning needed. SMS works immediately for everyone.
-    // Businesses can optionally upgrade to a dedicated number via Settings → SMS Registration.
+    // Auto-provision per-business toll-free number (async, non-blocking)
+    // Each workspace gets its own TFN — like Square assigns 855 numbers per business.
+    // TFN can send SMS even while verification is pending.
+    (async () => {
+      try {
+        const settingsRef = wsRef.collection('settings').doc('config');
+        const shopName = sanitizeHtml(shop_name || workspace_name);
+
+        // Step 1: Buy toll-free number
+        const searchResult = await telnyxApi('GET', '/v2/available_phone_numbers?filter[country_code]=US&filter[number_type]=toll-free&filter[features]=sms&filter[limit]=1');
+        const availNum = searchResult?.data?.[0]?.phone_number;
+        if (!availNum) { console.warn('Auto-TFN: no numbers available for ws', wsRef.id); return; }
+        await telnyxApi('POST', '/v2/number_orders', { phone_numbers: [{ phone_number: availNum }] });
+
+        // Step 2: Create messaging profile with webhook
+        let profileId = '';
+        try {
+          const profileResult = await telnyxApi('POST', '/v2/messaging_profiles', {
+            name: `VuriumBook - ${shopName}`,
+            webhook_url: `${API_BASE_URL}/api/webhooks/telnyx`,
+            enabled: true,
+          });
+          profileId = profileResult?.data?.id || '';
+          // Custom STOP/HELP auto-responses with business name
+          if (profileId) {
+            await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
+              response_type: 'STOP', response_text: `${shopName}: You have been unsubscribed. No further messages will be sent. Reply HELP for help.`,
+            }).catch(() => {});
+            await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
+              response_type: 'HELP', response_text: `${shopName}: For help, contact support@vurium.com. Visit https://vurium.com/support. Reply STOP to opt out.`,
+            }).catch(() => {});
+          }
+        } catch (e) { console.warn('Auto-TFN profile failed:', e.message); }
+
+        // Step 3: Associate number with messaging profile
+        if (profileId) {
+          try { await telnyxApi('PATCH', `/v2/phone_numbers/${availNum.replace('+', '')}`, { messaging_profile_id: profileId }); } catch {}
+        }
+
+        // Step 4: Save to workspace settings (SMS can be sent immediately — TFN works while verification pending)
+        await settingsRef.update({
+          sms_from_number: availNum,
+          sms_number_type: 'toll-free',
+          sms_messaging_profile_id: profileId,
+          sms_brand_name: shopName,
+          sms_registration_status: 'pending_verification',
+          sms_registered_at: toIso(new Date()),
+        });
+        console.log(`Auto-TFN provisioned for workspace ${wsRef.id}: ${availNum}`);
+
+        // Step 5: Auto-submit TFN verification request (will be processed by Telnyx in 1-2 weeks)
+        // Note: Verification requires BRN (EIN) which we may not have at signup.
+        // The number can still SEND while verification is pending.
+        // Full verification will be completed when business provides EIN in Settings.
+
+      } catch (e) {
+        console.warn('Auto-TFN provisioning failed (non-blocking):', e.message);
+      }
+    })();
 
     res.status(201).json({
       ok: true,
