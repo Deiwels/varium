@@ -1368,7 +1368,7 @@ export default function SettingsPage() {
                       )
                     }
 
-                    return <SmsRegistrationForm wsId={wsId} settings={settings} onDone={(data: any) => {
+                    return <SmsRegistrationForm wsId={s.slug || ''} settings={settings} onDone={(data: any) => {
                       setSettings((prev: any) => ({ ...prev, ...data }))
                     }} />
                   })()}
