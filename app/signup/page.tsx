@@ -411,9 +411,9 @@ export default function SignupPage() {
                     <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 4 }}>This will be your login</p>
                   </div>
                   <div>
-                    <label style={lbl}>Phone *</label>
-                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 (555) 123-4567" required style={inp} />
-                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 4 }}>We&apos;ll send a verification code to confirm your number</p>
+                    <label style={lbl}>Phone (optional)</label>
+                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 (555) 123-4567" style={inp} />
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 4 }}>Optional — we&apos;ll send a verification code if provided</p>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
