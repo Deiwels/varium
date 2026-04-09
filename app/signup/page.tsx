@@ -117,6 +117,15 @@ export default function SignupPage() {
   const [wsId, setWsId] = useState('')
   const [selectedPlan, setSelectedPlan] = useState<string>('salon')
   const [clientSecret, setClientSecret] = useState('')
+  // 10DLC business info for Salon/Custom plans
+  const [bizInfo, setBizInfo] = useState({
+    company_name: '', display_name: '', ein: '', entity_type: 'PRIVATE_PROFIT',
+    vertical: 'PROFESSIONAL', website: '', phone: '', email: '',
+    street: '', city: '', state: '', postal_code: '', country: 'US',
+    first_name: '', last_name: '', date_of_birth: '', mobile_phone: '',
+  })
+  const [smsRegLoading, setSmsRegLoading] = useState(false)
+  const [smsRegError, setSmsRegError] = useState('')
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [appleLoading, setAppleLoading] = useState(false)
   const [verifyCode, setVerifyCode] = useState('')
@@ -138,7 +147,7 @@ export default function SignupPage() {
 
   // Listen for Apple IAP results
   useEffect(() => {
-    const onSuccess = () => { setAppleLoading(false); setStep(2) }
+    const onSuccess = () => { setAppleLoading(false); const needsBiz = selectedPlan === 'salon' || selectedPlan === 'custom' || selectedPlan === 'pro' || selectedPlan === 'enterprise'; setStep(needsBiz ? (1.5 as any) : 2) }
     const onError = (e: any) => { setAppleLoading(false); const msg = e?.detail?.error; if (msg && msg !== 'cancelled') setError('Purchase failed: ' + msg) }
     window.addEventListener('vuriumPurchaseSuccess', onSuccess)
     window.addEventListener('vuriumPurchaseError', onError)
@@ -652,7 +661,7 @@ export default function SignupPage() {
                         planId={selectedPlan}
                         planPrice={SIGNUP_PLANS.find(p => p.id === selectedPlan)?.price || 79}
                         planName={SIGNUP_PLANS.find(p => p.id === selectedPlan)?.name || 'Salon'}
-                        onSuccess={() => setStep(2)}
+                        onSuccess={() => { const needsBiz = selectedPlan === 'salon' || selectedPlan === 'custom' || selectedPlan === 'pro' || selectedPlan === 'enterprise'; setStep(needsBiz ? (1.5 as any) : 2) }}
                       />
                     </Elements>
                   )}
@@ -665,6 +674,102 @@ export default function SignupPage() {
         )}
 
         {/* STEP 2: Success */}
+        {/* STEP 1.5: Business Info for SMS Registration (Salon/Custom) */}
+        {step === (1.5 as any) && (
+          <div className="fade-up" style={{ maxWidth: 480, width: '100%' }}>
+            <div className="glass-card" style={{ padding: '32px 28px' }}>
+              <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 6, color: '#e8e8ed', textAlign: 'center' }}>SMS Setup</h2>
+              <p style={{ color: 'rgba(255,255,255,.35)', fontSize: 13, textAlign: 'center', marginBottom: 20, lineHeight: 1.5 }}>
+                Enter your business details to enable SMS appointment reminders for your clients.
+              </p>
+
+              {smsRegError && <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(220,80,80,.1)', border: '1px solid rgba(220,80,80,.2)', color: 'rgba(255,160,160,.9)', fontSize: 13, marginBottom: 16 }}>{smsRegError}</div>}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div><label style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 4 }}>Legal Business Name *</label><input style={inp} value={bizInfo.company_name || businessName} onChange={e => setBizInfo(p => ({ ...p, company_name: e.target.value }))} /></div>
+                  <div><label style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 4 }}>Display Name</label><input style={inp} value={bizInfo.display_name || businessName} onChange={e => setBizInfo(p => ({ ...p, display_name: e.target.value }))} /></div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div>
+                    <label style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 4 }}>Entity Type *</label>
+                    <select style={inp} value={bizInfo.entity_type} onChange={e => setBizInfo(p => ({ ...p, entity_type: e.target.value }))}>
+                      <option value="PRIVATE_PROFIT">Private Company</option>
+                      <option value="SOLE_PROPRIETOR">Sole Proprietor (no EIN)</option>
+                      <option value="PUBLIC_PROFIT">Public Company</option>
+                      <option value="NON_PROFIT">Non-Profit</option>
+                    </select>
+                  </div>
+                  <div><label style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 4 }}>EIN / Tax ID {bizInfo.entity_type === 'SOLE_PROPRIETOR' ? '(optional)' : '*'}</label><input style={inp} value={bizInfo.ein} onChange={e => setBizInfo(p => ({ ...p, ein: e.target.value }))} placeholder="XX-XXXXXXX" /></div>
+                </div>
+                <div><label style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 4 }}>Street Address *</label><input style={inp} value={bizInfo.street} onChange={e => setBizInfo(p => ({ ...p, street: e.target.value }))} placeholder="123 Main St" /></div>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8 }}>
+                  <div><label style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 4 }}>City *</label><input style={inp} value={bizInfo.city} onChange={e => setBizInfo(p => ({ ...p, city: e.target.value }))} /></div>
+                  <div><label style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 4 }}>State *</label><input style={inp} value={bizInfo.state} onChange={e => setBizInfo(p => ({ ...p, state: e.target.value }))} maxLength={2} placeholder="IL" /></div>
+                  <div><label style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 4 }}>ZIP *</label><input style={inp} value={bizInfo.postal_code} onChange={e => setBizInfo(p => ({ ...p, postal_code: e.target.value }))} placeholder="60089" /></div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div><label style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 4 }}>Business Phone *</label><input style={inp} value={bizInfo.phone || phone} onChange={e => setBizInfo(p => ({ ...p, phone: e.target.value }))} /></div>
+                  <div><label style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 4 }}>Business Email *</label><input style={inp} value={bizInfo.email || email} onChange={e => setBizInfo(p => ({ ...p, email: e.target.value }))} /></div>
+                </div>
+
+                {bizInfo.entity_type === 'SOLE_PROPRIETOR' && (
+                  <>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,180,80,.5)', letterSpacing: '.06em', textTransform: 'uppercase', marginTop: 6 }}>Owner Verification</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <div><label style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 4 }}>First Name *</label><input style={inp} value={bizInfo.first_name} onChange={e => setBizInfo(p => ({ ...p, first_name: e.target.value }))} /></div>
+                      <div><label style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 4 }}>Last Name *</label><input style={inp} value={bizInfo.last_name} onChange={e => setBizInfo(p => ({ ...p, last_name: e.target.value }))} /></div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <div><label style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 4 }}>Date of Birth</label><input type="date" style={inp} value={bizInfo.date_of_birth} onChange={e => setBizInfo(p => ({ ...p, date_of_birth: e.target.value }))} /></div>
+                      <div><label style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 4 }}>Mobile (for OTP) *</label><input style={inp} value={bizInfo.mobile_phone || phone} onChange={e => setBizInfo(p => ({ ...p, mobile_phone: e.target.value }))} /></div>
+                    </div>
+                  </>
+                )}
+
+                <button disabled={smsRegLoading} onClick={async () => {
+                  setSmsRegLoading(true); setSmsRegError('')
+                  try {
+                    const payload = { ...bizInfo }
+                    if (!payload.company_name) payload.company_name = businessName
+                    if (!payload.display_name) payload.display_name = businessName
+                    if (!payload.phone) payload.phone = phone
+                    if (!payload.email) payload.email = email
+                    payload.website = `https://vurium.com/book/${wsId}`
+                    const res = await fetch(`${API}/api/sms/register`, {
+                      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                      body: JSON.stringify(payload),
+                    })
+                    const data = await res.json()
+                    if (!res.ok) throw new Error(data.error || 'Registration failed')
+                    // If SP OTP needed, stay here; otherwise go to welcome
+                    if (data.step === 'otp_sent') {
+                      setSmsRegError('Verification code sent to your phone. Check Settings → Booking → SMS to enter the code.')
+                      setTimeout(() => setStep(2), 3000)
+                    } else {
+                      setStep(2)
+                    }
+                  } catch (e: any) {
+                    setSmsRegError(e.message || 'Failed')
+                  } finally {
+                    setSmsRegLoading(false)
+                  }
+                }} className="btn-primary" style={{ width: '100%', fontSize: 15, fontFamily: 'inherit', opacity: smsRegLoading ? 0.5 : 1, marginTop: 8 }}>
+                  {smsRegLoading ? 'Registering...' : 'Register & Continue'}
+                </button>
+
+                <button onClick={() => setStep(2)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.25)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', marginTop: 4 }}>
+                  Skip for now — I&apos;ll set up SMS later
+                </button>
+
+                <p style={{ fontSize: 10, color: 'rgba(255,255,255,.12)', textAlign: 'center', lineHeight: 1.5, marginTop: 4 }}>
+                  SMS registration costs: ~$4.50 brand + $15 campaign review. Approval takes 5-10 business days for businesses with EIN, instant for sole proprietors.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {step === 2 && (
           <div className="fade-up" style={{ maxWidth: 480, width: '100%', textAlign: 'center' }}>
             <div className="glass-card" style={{ padding: '48px 32px' }}>
