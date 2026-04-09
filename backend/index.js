@@ -4283,6 +4283,84 @@ app.post('/api/payroll/rules/:id', requireRole('owner'), async (req, res) => {
 // ============================================================
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app';
 
+// Toll-Free SMS setup for Individual plan (no 10DLC registration needed)
+app.post('/api/sms/enable-tollfree', requireRole('owner'), async (req, res) => {
+  try {
+    const settingsRef = req.ws('settings').doc('config');
+    const doc = await settingsRef.get();
+    const data = doc.exists ? doc.data() : {};
+
+    // Check if already has a number
+    if (data.sms_from_number && data.sms_registration_status === 'active') {
+      return res.json({ ok: true, already_active: true, phone_number: data.sms_from_number });
+    }
+
+    const shopName = safeStr(data.sms_brand_name || data.shop_name || req.user?.name || 'Business');
+
+    // Step 1: Search and buy a toll-free number
+    let phoneNumber = '';
+    try {
+      const searchResult = await telnyxApi('GET', '/v2/available_phone_numbers?filter[country_code]=US&filter[number_type]=toll-free&filter[features]=sms&filter[limit]=1');
+      const availNum = searchResult?.data?.[0]?.phone_number;
+      if (!availNum) throw new Error('No toll-free numbers available');
+      await telnyxApi('POST', '/v2/number_orders', { phone_numbers: [{ phone_number: availNum }] });
+      phoneNumber = availNum;
+    } catch (e) {
+      return res.status(400).json({ error: 'Could not purchase toll-free number: ' + e.message });
+    }
+
+    // Step 2: Create messaging profile for this workspace
+    let profileId = '';
+    try {
+      const profileResult = await telnyxApi('POST', '/v2/messaging_profiles', {
+        name: `VuriumBook TF - ${shopName}`,
+        webhook_url: `${API_BASE_URL}/api/webhooks/telnyx`,
+        enabled: true,
+      });
+      profileId = profileResult?.data?.id || '';
+
+      // Custom STOP/HELP auto-responses
+      if (profileId) {
+        await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
+          response_type: 'STOP',
+          response_text: `${shopName}: You have been unsubscribed and will receive no further messages. Reply HELP for help or START to re-subscribe.`,
+        }).catch(() => {});
+        await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
+          response_type: 'HELP',
+          response_text: `${shopName}: For help, contact support@vurium.com. Visit https://vurium.com/privacy for Privacy Policy. Reply STOP to opt out.`,
+        }).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('TF messaging profile creation failed:', e.message);
+    }
+
+    // Step 3: Save to workspace settings
+    await settingsRef.update({
+      sms_from_number: phoneNumber,
+      sms_number_type: 'toll-free',
+      sms_messaging_profile_id: profileId,
+      sms_brand_name: shopName,
+      sms_registration_status: 'active',
+      sms_registered_at: toIso(new Date()),
+      updated_at: toIso(new Date()),
+    });
+
+    writeAuditLog(req.wsId, { action: 'sms.enable_tollfree', data: { phone_number: phoneNumber, profile_id: profileId }, req }).catch(() => {});
+
+    res.json({
+      ok: true,
+      status: 'active',
+      phone_number: phoneNumber,
+      number_type: 'toll-free',
+      messaging_profile_id: profileId,
+    });
+  } catch (e) {
+    console.error('TF SMS enable error:', e);
+    res.status(500).json({ error: e?.message || 'Failed to enable SMS' });
+  }
+});
+
+// 10DLC SMS registration for Salon/Business plan
 app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
   try {
     const b = req.body || {};
@@ -4667,7 +4745,7 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
       'clock_in_enabled', 'waitlist_enabled', 'portfolio_enabled', 'membership_enabled', 'cash_register_enabled',
       'dash_shortcuts', 'dash_widgets', 'business_type',
       'sms_from_number', 'sms_brand_name', 'telnyx_campaign_id', 'telnyx_brand_id', 'sms_registration_status',
-      'sms_messaging_profile_id', 'sms_registered_at', 'sms_status_updated_at'];
+      'sms_messaging_profile_id', 'sms_number_type', 'sms_registered_at', 'sms_status_updated_at'];
     const patch = { updated_at: toIso(new Date()) };
     for (const key of ALLOWED_SETTINGS) {
       if (b[key] !== undefined) patch[key] = typeof b[key] === 'string' ? sanitizeHtml(b[key]) : b[key];

@@ -59,6 +59,57 @@ function SmBtn({ onClick, children, danger, disabled }: { onClick: () => void; c
   )
 }
 
+// ─── Toll-Free SMS Enable (Individual plan) ─────────────────────────────────
+function TollFreeEnableButton({ settings, onDone }: { settings: any; onDone: (data: any) => void }) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleEnable() {
+    setLoading(true); setError('')
+    try {
+      const res = await fetch(`${(window as any).__API || 'https://vuriumbook-api-431945333485.us-central1.run.app'}/api/sms/enable-tollfree`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to enable SMS')
+      onDone({
+        sms_registration_status: 'active',
+        sms_from_number: data.phone_number,
+        sms_number_type: 'toll-free',
+        sms_brand_name: settings.shop_name || '',
+      })
+    } catch (e: any) {
+      setError(e.message || 'Something went wrong')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center' }}>
+      <div style={{ fontSize: 32 }}>&#128172;</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.6)' }}>SMS Appointment Reminders</div>
+      <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.5, maxWidth: 340 }}>
+        Enable SMS to automatically send appointment confirmations and reminders to your clients. No setup required — just click the button below.
+      </p>
+      {error && <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(220,80,80,.1)', border: '1px solid rgba(220,80,80,.2)', color: 'rgba(255,160,160,.9)', fontSize: 12, width: '100%' }}>{error}</div>}
+      <button onClick={handleEnable} disabled={loading} style={{
+        height: 42, padding: '0 28px', borderRadius: 999, border: 'none',
+        background: 'rgba(130,220,170,.15)', color: 'rgba(130,220,170,.9)',
+        cursor: loading ? 'wait' : 'pointer', fontWeight: 700, fontSize: 14, fontFamily: 'inherit',
+        opacity: loading ? 0.5 : 1,
+      }}>
+        {loading ? 'Setting up...' : 'Enable SMS Reminders'}
+      </button>
+      <p style={{ fontSize: 10, color: 'rgba(255,255,255,.12)', lineHeight: 1.5, maxWidth: 300 }}>
+        Included in your plan. Msg &amp; data rates may apply to recipients. <a href="/privacy" style={{ color: 'rgba(130,150,220,.3)', textDecoration: 'none' }}>Privacy Policy</a>
+      </p>
+    </div>
+  )
+}
+
 // ─── SMS Registration Form ──────────────────────────────────────────────────
 function SmsRegistrationForm({ wsId, settings, onDone }: { wsId: string; settings: any; onDone: (data: any) => void }) {
   const [form, setForm] = useState({
@@ -1433,6 +1484,13 @@ export default function SettingsPage() {
                       )
                     }
 
+                    // Individual plan → simple toll-free setup; Salon/Custom → full 10DLC registration
+                    const isIndividualPlan = currentPlan === 'individual' || currentPlan === 'starter' || currentPlan === 'free'
+                    if (isIndividualPlan) {
+                      return <TollFreeEnableButton settings={settings} onDone={(data: any) => {
+                        setSettings((prev: any) => ({ ...prev, ...data }))
+                      }} />
+                    }
                     return <SmsRegistrationForm wsId={s.slug || ''} settings={settings} onDone={(data: any) => {
                       setSettings((prev: any) => ({ ...prev, ...data }))
                     }} />
