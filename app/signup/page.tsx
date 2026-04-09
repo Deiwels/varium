@@ -123,6 +123,8 @@ export default function SignupPage() {
   const [verifySending, setVerifySending] = useState(false)
   const [verifyError, setVerifyError] = useState('')
   const [verifyResent, setVerifyResent] = useState(false)
+  const [smsConsent, setSmsConsent] = useState(false)
+  const [termsConsent, setTermsConsent] = useState(false)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -204,6 +206,12 @@ export default function SignupPage() {
     }
     if (!email.includes('@') || !email.includes('.')) {
       setError('Please enter a valid email address.'); return
+    }
+    if (!smsConsent) {
+      setError('Please agree to receive the SMS verification code to continue.'); return
+    }
+    if (!termsConsent) {
+      setError('Please confirm you are at least 16 and agree to the Terms of Service and Privacy Policy.'); return
     }
 
     setLoading(true)
@@ -436,16 +444,40 @@ export default function SignupPage() {
                   )}
                 </div>
 
-                <button type="submit" disabled={loading} className="btn-primary" style={{
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}>
+                  <label htmlFor="sms-verify-consent" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                    <input
+                      id="sms-verify-consent"
+                      type="checkbox"
+                      checked={smsConsent}
+                      onChange={e => setSmsConsent(e.target.checked)}
+                      style={{ marginTop: 3, width: 16, height: 16, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }}
+                    />
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>
+                      I agree to receive a one-time SMS verification code from Vurium at the number provided. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help.
+                    </span>
+                  </label>
+                  <label htmlFor="terms-consent" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                    <input
+                      id="terms-consent"
+                      type="checkbox"
+                      checked={termsConsent}
+                      onChange={e => setTermsConsent(e.target.checked)}
+                      style={{ marginTop: 3, width: 16, height: 16, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }}
+                    />
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>
+                      I confirm I am at least 16 years old and agree to the <a href="/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy Policy</a>.
+                    </span>
+                  </label>
+                </div>
+
+                <button type="submit" disabled={loading || !smsConsent || !termsConsent} className="btn-primary" style={{
                   width: '100%', fontSize: 15, fontFamily: 'inherit',
-                  opacity: loading ? 0.5 : 1,
+                  opacity: loading || !smsConsent || !termsConsent ? 0.5 : 1,
+                  cursor: loading || !smsConsent || !termsConsent ? 'not-allowed' : 'pointer',
                 }}>
                   {loading ? 'Creating workspace...' : 'Create Workspace'}
                 </button>
-
-                <p style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: 'rgba(255,255,255,.2)', lineHeight: 1.5 }}>
-                  By creating an account you confirm that you are at least 16 years old and agree to our <a href="/terms" style={{ color: 'rgba(130,150,220,.5)', textDecoration: 'none' }}>Terms of Service</a> and <a href="/privacy" style={{ color: 'rgba(130,150,220,.5)', textDecoration: 'none' }}>Privacy Policy</a>.
-                </p>
               </div>
             </form>
 
