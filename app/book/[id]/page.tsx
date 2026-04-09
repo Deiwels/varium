@@ -1292,8 +1292,11 @@ export default function PublicBookingPage() {
           <img src="/logo-white.jpg" alt="" style={{ width: 14, height: 14, borderRadius: 3, opacity: isLightTheme ? 0.35 : 0.25, filter: isLightTheme ? 'none' : 'invert(1)' }} />
           Powered by VuriumBook&trade;
         </a>
-        <div style={{ fontSize: 10, color: isLightTheme ? 'rgba(0,0,0,.25)' : 'rgba(255,255,255,.18)', lineHeight: 1.6, maxWidth: 400, margin: '8px auto 0' }}>
-          Msg &amp; data rates may apply. Msg frequency: up to 5 per booking. Reply STOP to unsubscribe, HELP for help. <a href="https://vurium.com/privacy#sms" target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.3)' : 'rgba(255,255,255,.22)', textDecoration: 'none' }}>Privacy Policy</a> &amp; <a href="https://vurium.com/terms#sms" target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.3)' : 'rgba(255,255,255,.22)', textDecoration: 'none' }}>Terms</a>.
+        <div style={{ fontSize: 10, color: isLightTheme ? 'rgba(0,0,0,.3)' : 'rgba(255,255,255,.22)', lineHeight: 1.6, maxWidth: 400, margin: '8px auto 0' }}>
+          Msg &amp; data rates may apply. Msg frequency: up to 5 per booking. Reply STOP to unsubscribe, HELP for help.
+          <div style={{ marginTop: 3 }}>
+            <a href="https://vurium.com/privacy#sms" target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.3)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>Privacy Policy</a> &amp; <a href="https://vurium.com/terms#sms" target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.3)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>Terms</a>
+          </div>
         </div>
       </footer>
     </div>
