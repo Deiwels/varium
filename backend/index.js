@@ -4338,6 +4338,13 @@ app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
       updated_at: toIso(new Date()),
     });
 
+    // Step 1b: Request enhanced brand vetting (optional, speeds up approval)
+    try {
+      await telnyxApi('POST', `/v2/10dlc/brands/${brandId}/vetting_requests`, {});
+    } catch (e) {
+      console.warn('Enhanced vetting request failed (non-critical):', e.message);
+    }
+
     // Step 2: Create Campaign
     const shopName = displayName || companyName;
     let campaignResult;
@@ -4402,6 +4409,22 @@ app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
       profileId = profileResult?.data?.id || '';
     } catch (e) {
       console.warn('Messaging profile creation failed:', e.message);
+    }
+
+    // Step 4b: Configure custom STOP/HELP auto-responses for this business
+    if (profileId) {
+      try {
+        await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
+          response_type: 'STOP',
+          response_text: `${shopName}: You have been unsubscribed and will receive no further messages. Reply HELP for help or START to re-subscribe.`,
+        });
+        await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
+          response_type: 'HELP',
+          response_text: `${shopName}: For help, contact support@vurium.com or call (847) 630-1884. Visit https://vurium.com/privacy for our Privacy Policy. Reply STOP to opt out.`,
+        });
+      } catch (e) {
+        console.warn('Auto-response config failed:', e.message);
+      }
     }
 
     // Step 5: Assign number to campaign
@@ -5879,6 +5902,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       sms_consent_ip: smsConsent ? getClientIp(req) : null,
       sms_consent_ua: smsConsent ? safeStr(req.headers['user-agent'] || '').slice(0, 500) : null,
       sms_consent_at: smsConsent ? toIso(new Date()) : null,
+      sms_consent_text: smsConsent ? safeStr(booking.sms_consent_text || `By providing your phone number, you agree to receive SMS appointment confirmations, reminders, and changes from ${pubShopName || 'this business'}. Message frequency may vary, up to 5 msgs per booking. Msg & data rates may apply. Reply STOP to opt out. Reply HELP for help.`).slice(0, 1000) : null,
       workspace_id: wsId,
       client_token: crypto.randomBytes(24).toString('hex'),
       created_by: { name: clientName || 'Client', role: 'client' },
