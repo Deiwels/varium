@@ -4290,10 +4290,16 @@ app.post('/api/sms/enable-tollfree', requireRole('owner'), async (req, res) => {
     const doc = await settingsRef.get();
     const data = doc.exists ? doc.data() : {};
 
-    // Check if already has a number
+    // Check if already has a number or is in progress
     if (data.sms_from_number && data.sms_registration_status === 'active') {
       return res.json({ ok: true, already_active: true, phone_number: data.sms_from_number });
     }
+    // Prevent double-click: if status is anything other than 'none' or 'rejected', block
+    if (data.sms_registration_status && data.sms_registration_status !== 'none' && data.sms_registration_status !== 'rejected') {
+      return res.status(409).json({ error: 'SMS setup already in progress', status: data.sms_registration_status });
+    }
+    // Mark as in-progress immediately to prevent race conditions
+    await settingsRef.update({ sms_registration_status: 'provisioning', updated_at: toIso(new Date()) });
 
     const shopName = safeStr(data.sms_brand_name || data.shop_name || req.user?.name || 'Business');
 
@@ -4332,6 +4338,21 @@ app.post('/api/sms/enable-tollfree', requireRole('owner'), async (req, res) => {
       }
     } catch (e) {
       console.warn('TF messaging profile creation failed:', e.message);
+    }
+
+    // Step 2b: Associate TFN with messaging profile
+    if (profileId && phoneNumber) {
+      try {
+        // Telnyx requires explicit number→profile link for inbound routing
+        const numId = phoneNumber.replace('+', '');
+        await telnyxApi('PATCH', `/v2/phone_numbers/${numId}`, { messaging_profile_id: profileId });
+      } catch (e) {
+        console.warn('TF number→profile association failed:', e.message);
+        // Try alternative endpoint format
+        try {
+          await telnyxApi('PATCH', `/v2/phone_numbers/${encodeURIComponent(phoneNumber)}`, { messaging_profile_id: profileId });
+        } catch { /* non-critical — inbound may still work via default profile */ }
+      }
     }
 
     // Step 3: Save to workspace settings
@@ -4526,7 +4547,7 @@ app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
       }
     }
 
-    // Step 5: Assign number to campaign
+    // Step 5: Assign number to campaign + messaging profile
     try {
       await telnyxApi('POST', '/v2/10dlc/phoneNumberCampaign', {
         phoneNumber,
@@ -4534,6 +4555,13 @@ app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
       });
     } catch (e) {
       console.warn('Number-campaign assignment failed:', e.message);
+    }
+    if (phoneNumber && profileId) {
+      try {
+        await telnyxApi('PATCH', `/v2/phone_numbers/${phoneNumber.replace('+', '')}`, { messaging_profile_id: profileId });
+      } catch (e) {
+        console.warn('Number→profile association failed:', e.message);
+      }
     }
 
     // Step 6: Save all to settings
@@ -4647,12 +4675,19 @@ app.post('/api/sms/verify-otp', requireRole('owner'), async (req, res) => {
       console.warn('Profile creation failed:', e.message);
     }
 
-    // Assign number to campaign
+    // Assign number to campaign + profile
     if (phoneNumber && campaignId) {
       try {
         await telnyxApi('POST', '/v2/10dlc/phoneNumberCampaign', { phoneNumber, campaignId });
       } catch (e) {
         console.warn('Number-campaign assignment failed:', e.message);
+      }
+    }
+    if (phoneNumber && profileId) {
+      try {
+        await telnyxApi('PATCH', `/v2/phone_numbers/${phoneNumber.replace('+', '')}`, { messaging_profile_id: profileId });
+      } catch (e) {
+        console.warn('Number→profile association failed:', e.message);
       }
     }
 
