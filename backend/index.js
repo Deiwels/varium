@@ -1182,7 +1182,7 @@ app.post('/api/webhooks/square', async (req, res) => {
           if (status === 'COMPLETED') {
             patch.completed_at = toIso(new Date());
             let tipCents = 0;
-            let totalCents = checkout.amount_money?.amount || 0;
+            let serviceCents = checkout.amount_money?.amount || 0;
             // Always fetch tip from payment object (checkout.tip_money only set when allow_tipping=false)
             if (checkout.payment_ids?.length) {
               try {
@@ -1192,7 +1192,8 @@ app.post('/api/webhooks/square', async (req, res) => {
                   const pd = await pr.json();
                   const payment = pd.payment || {};
                   tipCents = payment.tip_money?.amount || 0;
-                  if (payment.total_money?.amount) totalCents = payment.total_money.amount;
+                  // amount_money = service only (without tip)
+                  if (payment.amount_money?.amount) serviceCents = payment.amount_money.amount;
                 }
               } catch {}
             }
@@ -1204,7 +1205,7 @@ app.post('/api/webhooks/square', async (req, res) => {
               const bPatch = {
                 payment_status: 'paid', paid: true, payment_method: 'terminal',
                 tip: tipCents / 100, tip_amount: tipCents / 100,
-                amount: totalCents / 100,
+                amount: serviceCents / 100,
                 updated_at: toIso(new Date()),
               };
               if (checkout.payment_ids?.length) bPatch.payment_id = checkout.payment_ids[0];
@@ -1224,9 +1225,8 @@ app.post('/api/webhooks/square', async (req, res) => {
     if (event.type === 'payment.completed' || event.type === 'payment.updated') {
       const payment = event.data?.object?.payment;
       if (payment?.id && (payment.status || '').toUpperCase() === 'COMPLETED') {
-        const spAmountCents = payment.amount_money?.amount || 0;
+        const spServiceCents = payment.amount_money?.amount || 0; // amount_money = service only
         const spTipCents = payment.tip_money?.amount || 0;
-        const spServiceCents = spAmountCents - spTipCents;
         const spDate = (payment.created_at || '').slice(0, 10);
         const spNote = payment.note || '';
         // Search all workspaces
@@ -3095,7 +3095,7 @@ app.get('/api/bookings', async (req, res) => {
             const matchedIds = new Set(prSnap.docs.map(d => d.data().payment_id).filter(Boolean));
             for (const sp of sqPayments) {
               if (matchedIds.has(sp.id)) continue;
-              const spCents = (sp.amount_money?.amount || 0) - (sp.tip_money?.amount || 0);
+              const spCents = sp.amount_money?.amount || 0; // amount_money = service only (no tip)
               const spDate = (sp.created_at || '').slice(0, 10);
               const spNote = sp.note || '';
               const noteMatch = spNote.match(/Booking\s+(\S+)/i);
@@ -3684,9 +3684,8 @@ app.post('/api/payments/reconcile', requireRole('owner', 'admin'), async (req, r
 
     for (const sp of sqPayments) {
       if (matchedPaymentIds.has(sp.id)) continue; // already tracked
-      const spAmountCents = sp.amount_money?.amount || 0;
+      const spServiceCents = sp.amount_money?.amount || 0; // amount_money = service only (no tip)
       const spTipCents = sp.tip_money?.amount || 0;
-      const spServiceCents = spAmountCents - spTipCents;
       const spDate = (sp.created_at || '').slice(0, 10);
       const spNote = sp.note || '';
 
@@ -5681,7 +5680,7 @@ app.get('/api/payments/terminal/status/:checkoutId', async (req, res) => {
 
         // Fetch tip from payment object (checkout.tip_money is null when allow_tipping=true)
         let tipCents = 0;
-        let totalCents = checkout.amount_money?.amount || 0;
+        let serviceCents = checkout.amount_money?.amount || 0; // amount_money = service only (what we sent)
         if (checkout.payment_ids?.length) {
           try {
             const payHeaders = await squareHeaders(req.ws);
@@ -5690,7 +5689,8 @@ app.get('/api/payments/terminal/status/:checkoutId', async (req, res) => {
               const pd = await pr.json();
               const payment = pd.payment || {};
               tipCents = payment.tip_money?.amount || 0;
-              if (payment.total_money?.amount) totalCents = payment.total_money.amount;
+              // amount_money = service amount (without tip), total_money = service + tip
+              if (payment.amount_money?.amount) serviceCents = payment.amount_money.amount;
             }
           } catch {}
         }
@@ -5702,7 +5702,7 @@ app.get('/api/payments/terminal/status/:checkoutId', async (req, res) => {
           await req.ws('bookings').doc(prData.booking_id).update({
             payment_status: 'paid', paid: true, payment_method: 'terminal',
             tip: tipCents / 100, tip_amount: tipCents / 100,
-            amount: totalCents / 100,
+            amount: serviceCents / 100,
             ...(checkout.payment_ids?.length ? { payment_id: checkout.payment_ids[0] } : {}),
             ...(prData.service_amount ? { service_amount: prData.service_amount } : {}),
             ...(prData.tax_amount ? { tax_amount: prData.tax_amount } : {}),
