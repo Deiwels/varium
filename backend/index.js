@@ -412,9 +412,9 @@ async function getWorkspaceSmsConfig(wsId) {
     const data = doc.exists ? doc.data() : {};
     const status = safeStr(data.sms_registration_status || 'none');
     const hasOwnNumber = !!data.sms_from_number;
-    // Can send if: has own verified number, OR has own number pending verification (TFN can send while pending),
-    // OR fallback to global TELNYX_FROM exists (backward compat for existing workspaces)
-    const canSend = hasOwnNumber || !!fallbackFrom;
+    const isVerified = status === 'active' || status === 'verified';
+    // Can send if: own number is verified/active, OR fallback to global TELNYX_FROM (must also be verified)
+    const canSend = (hasOwnNumber && isVerified) || !!fallbackFrom;
     return {
       fromNumber: hasOwnNumber ? safeStr(data.sms_from_number) : fallbackFrom,
       brandName: safeStr(data.sms_brand_name || data.shop_name || ''),
@@ -4768,7 +4768,7 @@ app.post('/api/sms/verify-otp', requireRole('owner'), async (req, res) => {
       telnyx_campaign_id: campaignId,
       sms_from_number: phoneNumber,
       sms_messaging_profile_id: profileId,
-      sms_registration_status: 'active', // SP campaigns auto-activate
+      sms_registration_status: 'pending_approval', // SP campaigns need 3-7 days carrier approval
       updated_at: toIso(new Date()),
     });
 

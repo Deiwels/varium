@@ -1449,13 +1449,13 @@ export default function SettingsPage() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ width: 8, height: 8, borderRadius: 999, background: isVerified ? 'rgba(130,220,170,.8)' : isPending ? 'rgba(255,180,80,.7)' : 'rgba(255,255,255,.3)' }} />
                             <span style={{ fontSize: 13, fontWeight: 600, color: isVerified ? 'rgba(130,220,170,.8)' : isPending ? 'rgba(255,180,80,.7)' : 'rgba(255,255,255,.4)' }}>
-                              {isVerified ? 'Active — SMS Enabled' : isPending ? 'Active — Verification Pending' : 'SMS Number Assigned'}
+                              {isVerified ? 'Active — SMS Enabled' : isPending ? 'Pending — Awaiting Carrier Approval (~5 business days)' : 'SMS Number Assigned'}
                             </span>
                           </div>
                           <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)' }}>Your number: <span style={{ color: 'rgba(255,255,255,.5)', fontFamily: 'monospace' }}>{settings.sms_from_number}</span></div>
                           <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', lineHeight: 1.5 }}>
                             {isPending
-                              ? 'Your toll-free number is active and can send SMS. Carrier verification is in progress (1-2 weeks). To complete verification faster, provide your EIN below.'
+                              ? 'Your number is awaiting carrier verification. SMS will be enabled once approved (typically 3-7 business days). To speed up approval, provide your EIN below.'
                               : 'Appointment confirmations and reminders are sent from your dedicated number.'}
                           </p>
                           {isPending && !settings.telnyx_brand_ein && (
