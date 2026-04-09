@@ -400,9 +400,25 @@ function formatPhone(phone) {
   return null;
 }
 
-function sendSms(to, body) {
+// Get per-workspace SMS config (dedicated 10DLC number, brand name)
+async function getWorkspaceSmsConfig(wsId) {
+  if (!wsId) return { fromNumber: safeStr(process.env.TELNYX_FROM), brandName: '', campaignId: null };
+  try {
+    const doc = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
+    const data = doc.exists ? doc.data() : {};
+    return {
+      fromNumber: safeStr(data.sms_from_number) || safeStr(process.env.TELNYX_FROM),
+      brandName: safeStr(data.sms_brand_name || data.shop_name || ''),
+      campaignId: safeStr(data.telnyx_campaign_id || ''),
+    };
+  } catch { return { fromNumber: safeStr(process.env.TELNYX_FROM), brandName: '', campaignId: null }; }
+}
+
+function sendSms(to, body, fromOverride, wsId) {
   const { apiKey, from } = telnyxCredentials();
-  if (!apiKey || !from) { console.warn('Telnyx not configured'); return Promise.resolve(null); }
+  if (!apiKey) { console.warn('Telnyx not configured'); return Promise.resolve(null); }
+  const effectiveFrom = fromOverride || from;
+  if (!effectiveFrom) { console.warn('Telnyx FROM not configured'); return Promise.resolve(null); }
   const toFormatted = formatPhone(to);
   if (!toFormatted) { console.warn('sendSms: invalid phone', to); return Promise.resolve(null); }
   // Log SMS send for compliance audit trail
@@ -410,11 +426,13 @@ function sendSms(to, body) {
   db.collection('sms_logs').add({
     phone_last4: phoneNormLog ? '****' + phoneNormLog.slice(-4) : '****',
     direction: 'outbound',
+    from_number: effectiveFrom,
+    workspace_id: wsId || null,
     message_preview: String(body || '').slice(0, 50) + '...',
     char_count: String(body || '').length,
     sent_at: toIso(new Date()),
   }).catch(() => {});
-  const payload = JSON.stringify({ from, to: toFormatted, text: body });
+  const payload = JSON.stringify({ from: effectiveFrom, to: toFormatted, text: body });
   return new Promise((resolve) => {
     const req = https.request({
       hostname: 'api.telnyx.com',
@@ -523,7 +541,7 @@ async function getWorkspaceEmailConfig(wsId) {
   };
 }
 
-async function scheduleReminders(wsCol, bookingId, booking, timeZone, shopName) {
+async function scheduleReminders(wsCol, bookingId, booking, timeZone, shopName, fromNumber) {
   try {
     const startAt = parseIso(booking.start_at);
     if (!startAt) return;
@@ -538,12 +556,12 @@ async function scheduleReminders(wsCol, bookingId, booking, timeZone, shopName) 
     // 24h reminder
     const remind24 = new Date(startAt.getTime() - 24 * 60 * 60 * 1000);
     if (remind24 > new Date()) {
-      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, phone_norm: reminderPhoneNorm, type: '24h', send_at: toIso(remind24), sent: false, message: `${prefix}Reminder: Your appointment with ${barberName} is tomorrow ${dateStr} at ${timeStr}. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, created_at: toIso(new Date()) });
+      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, phone_norm: reminderPhoneNorm, from_number: fromNumber || null, type: '24h', send_at: toIso(remind24), sent: false, message: `${prefix}Reminder: Your appointment with ${barberName} is tomorrow ${dateStr} at ${timeStr}. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, created_at: toIso(new Date()) });
     }
     // 2h reminder
     const remind2 = new Date(startAt.getTime() - 2 * 60 * 60 * 1000);
     if (remind2 > new Date()) {
-      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, phone_norm: reminderPhoneNorm, type: '2h', send_at: toIso(remind2), sent: false, message: `${prefix}Reminder: Your appointment with ${barberName} is in 2 hours at ${timeStr}. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, created_at: toIso(new Date()) });
+      await wsCol('sms_reminders').add({ booking_id: bookingId, phone, phone_norm: reminderPhoneNorm, from_number: fromNumber || null, type: '2h', send_at: toIso(remind2), sent: false, message: `${prefix}Reminder: Your appointment with ${barberName} is in 2 hours at ${timeStr}. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, created_at: toIso(new Date()) });
     }
   } catch (e) { console.warn('scheduleReminders error:', e?.message); }
 }
@@ -1281,8 +1299,30 @@ app.post('/api/webhooks/telnyx', async (req, res) => {
     const phoneNorm = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
     if (!phoneNorm) return res.status(200).json({ ok: true });
 
+    // Determine which workspace this message belongs to by matching the TO number
+    const toNumber = payload.to?.phone_number || '';
+    const toNorm = toNumber.replace(/\D/g, '');
+    let matchedWsId = null;
+    let matchedShopName = 'Vurium';
+    let matchedFromNumber = toNumber || safeStr(process.env.TELNYX_FROM);
+
+    // Try to find workspace by sms_from_number
+    const wsSnap = await db.collection('workspaces').limit(100).get();
+    for (const ws of wsSnap.docs) {
+      const wsCol = (col) => db.collection('workspaces').doc(ws.id).collection(col);
+      const cfg = await wsCol('settings').doc('config').get();
+      const cfgData = cfg.exists ? cfg.data() : {};
+      const wsFrom = safeStr(cfgData.sms_from_number || '').replace(/\D/g, '');
+      if (wsFrom && toNorm && wsFrom === toNorm) {
+        matchedWsId = ws.id;
+        matchedShopName = safeStr(cfgData.sms_brand_name || cfgData.shop_name || 'Vurium');
+        matchedFromNumber = cfgData.sms_from_number;
+        break;
+      }
+    }
+
     if (body === 'STOP' || body === 'UNSUBSCRIBE' || body === 'CANCEL' || body === 'END' || body === 'QUIT') {
-      const wsSnap = await db.collection('workspaces').limit(100).get();
+      // Process opt-out across all workspaces where this phone exists
       for (const ws of wsSnap.docs) {
         const wsCol = (col) => db.collection('workspaces').doc(ws.id).collection(col);
         const clientSnap = await wsCol('clients').where('phone_norm', '==', phoneNorm).limit(1).get();
@@ -1298,11 +1338,9 @@ app.post('/api/webhooks/telnyx', async (req, res) => {
           }
         }
       }
-      const settingsDoc = await db.collection('workspaces').limit(1).get();
-      const shopName = settingsDoc.empty ? 'Vurium' : safeStr(settingsDoc.docs[0].data()?.name || 'Vurium');
-      sendSms(from, `${shopName}: You have been unsubscribed and will not receive further messages. Reply HELP for help.`).catch(() => {});
+      sendSms(from, `${matchedShopName}: You have been unsubscribed and will not receive further messages. Reply HELP for help.`, matchedFromNumber, matchedWsId).catch(() => {});
     } else if (body === 'HELP' || body === 'INFO') {
-      sendSms(from, `${shopName || 'Vurium'}: For help, email support@vurium.com or visit https://vurium.com/privacy#sms. Msg & data rates may apply. Reply STOP to opt out of messages.`).catch(() => {});
+      sendSms(from, `${matchedShopName}: For help, email support@vurium.com or visit https://vurium.com/privacy. Msg & data rates may apply. Reply STOP to opt out.`, matchedFromNumber, matchedWsId).catch(() => {});
     }
 
     res.status(200).json({ ok: true });
@@ -3053,8 +3091,9 @@ app.post('/api/bookings', async (req, res) => {
         const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
         const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
         const prefix = shopName ? `${shopName}: ` : '';
-        sendSms(doc.client_phone, `${prefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your specialist'}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`).catch(() => {});
-        scheduleReminders(req.ws, bookingRef.id, doc, tz, shopName).catch(() => {});
+        const wsSmsConf = await getWorkspaceSmsConfig(req.wsId);
+        sendSms(doc.client_phone, `${prefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your specialist'}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`, wsSmsConf.fromNumber, req.wsId).catch(() => {});
+        scheduleReminders(req.ws, bookingRef.id, doc, tz, shopName, wsSmsConf.fromNumber).catch(() => {});
       }
     }
     sendCrmPushToStaff(req.ws, doc.barber_id, 'New Booking', `${doc.client_name || 'Client'} booked for ${doc.start_at?.slice(0, 10)}`, { type: 'booking_confirmed' }, 'push_booking_confirm', req.user.uid).catch(() => {});
@@ -3205,7 +3244,8 @@ app.delete('/api/bookings/:id', async (req, res) => {
         const cancelSettings = await req.ws('settings').doc('config').get();
         const cancelShopName = cancelSettings.exists ? safeStr(cancelSettings.data()?.shop_name || '') : '';
         const cancelPrefix = cancelShopName ? `${cancelShopName}: ` : '';
-        sendSms(bookingData.client_phone, `${cancelPrefix}Your appointment with ${bookingData.barber_name || 'your specialist'} has been cancelled. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`).catch(() => {});
+        const cancelSmsConf = await getWorkspaceSmsConfig(req.wsId);
+        sendSms(bookingData.client_phone, `${cancelPrefix}Your appointment with ${bookingData.barber_name || 'your specialist'} has been cancelled. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, cancelSmsConf.fromNumber, req.wsId).catch(() => {});
       }
     }
     sendCrmPushToBarber(req.ws, bookingData.barber_id, 'Booking Cancelled', `${bookingData.client_name || 'Client'} cancelled`, { type: 'booking_cancelled' }, 'push_cancel').catch(() => {});
@@ -4172,7 +4212,8 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
       'dash_calendar', 'dash_clients', 'dash_payments', 'dash_waitlist', 'dash_portfolio',
       'dash_cash', 'dash_membership', 'dash_attendance', 'dash_expenses', 'dash_payroll',
       'clock_in_enabled', 'waitlist_enabled', 'portfolio_enabled', 'membership_enabled', 'cash_register_enabled',
-      'dash_shortcuts', 'dash_widgets', 'business_type'];
+      'dash_shortcuts', 'dash_widgets', 'business_type',
+      'sms_from_number', 'sms_brand_name', 'telnyx_campaign_id', 'telnyx_brand_id', 'sms_registration_status'];
     const patch = { updated_at: toIso(new Date()) };
     for (const key of ALLOWED_SETTINGS) {
       if (b[key] !== undefined) patch[key] = typeof b[key] === 'string' ? sanitizeHtml(b[key]) : b[key];
@@ -4405,7 +4446,8 @@ app.get('/api/admin/waitlist/check', requireRole('owner', 'admin'), async (req, 
         if (wlPhoneNorm) {
           const wlOptOut = await req.ws('clients').where('phone_norm', '==', wlPhoneNorm).where('sms_opt_out', '==', true).limit(1).get();
           if (!wlOptOut.empty) { await wDoc.ref.update({ notified: true, notified_at: toIso(new Date()), cancelled_reason: 'sms_opt_out' }); continue; }
-          sendSms(wlPhoneNorm, msg).catch(() => {});
+          const wlSmsConf = await getWorkspaceSmsConfig(req.wsId);
+          sendSms(wlPhoneNorm, msg, wlSmsConf.fromNumber, req.wsId).catch(() => {});
         }
         await wDoc.ref.update({ notified: true, notified_at: toIso(new Date()), notified_slot: toIso(slots[0]) });
         notified++;
@@ -4560,7 +4602,8 @@ app.post('/api/receipts/send', async (req, res) => {
       'Thank you for your visit!',
       'Reply STOP to opt out, HELP for help.'
     ].filter(Boolean).join('\n');
-    await sendSms(phone, lines);
+    const receiptSmsConf = await getWorkspaceSmsConfig(req.wsId);
+    await sendSms(phone, lines, receiptSmsConf.fromNumber, req.wsId);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -5569,8 +5612,9 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
       const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
       const pubPrefix = pubShopName ? `${pubShopName}: ` : '';
-      sendSms(clientPhone, `${pubPrefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your specialist'}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`).catch(() => {});
-      scheduleReminders(wsCol, bookingRef.id, doc, tz, pubShopName).catch(() => {});
+      const pubSmsConf = await getWorkspaceSmsConfig(wsId);
+      sendSms(clientPhone, `${pubPrefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your specialist'}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`, pubSmsConf.fromNumber, wsId).catch(() => {});
+      scheduleReminders(wsCol, bookingRef.id, doc, tz, pubShopName, pubSmsConf.fromNumber).catch(() => {});
     }
     // Email confirmation
     const bookingEmail = doc.client_email;
@@ -5625,6 +5669,7 @@ app.get('/public/config/:workspace_id', async (req, res) => {
       hero_media_url: safeStr(data.hero_media_url || data.hero_url || ''),
       hero_media_type: safeStr(data.hero_media_type || 'video'),
       shop_name: safeStr(data.shop_name || ''),
+      sms_brand_name: safeStr(data.sms_brand_name || data.shop_name || ''),
       timezone: safeStr(data.timezone || 'America/Chicago'),
     });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -5725,7 +5770,8 @@ app.post('/public/verify/send/:workspace_id', async (req, res) => {
     const verifySettings = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
     const verifyShopName = verifySettings.exists ? safeStr(verifySettings.data()?.shop_name || '') : '';
     const verifyPrefix = verifyShopName || 'VuriumBook';
-    sendSms(formatted, `${verifyPrefix}: Your verification code is ${code}. Do not share this code. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`).catch(e => console.warn('verify SMS error:', e?.message));
+    const verifySmsConf = await getWorkspaceSmsConfig(wsId);
+    sendSms(formatted, `${verifyPrefix}: Your verification code is ${code}. Do not share this code. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, verifySmsConf.fromNumber, wsId).catch(e => console.warn('verify SMS error:', e?.message));
     res.json({ ok: true, sent: true });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -6019,7 +6065,9 @@ async function runAutoReminders() {
               continue;
             }
           }
-          sendSms(r.phone, r.message).catch(() => {});
+          // Use stored from_number or fetch workspace config
+          const reminderFrom = r.from_number || (await getWorkspaceSmsConfig(ws.id)).fromNumber;
+          sendSms(r.phone, r.message, reminderFrom, ws.id).catch(() => {});
           await d.ref.update({ sent: true, sent_at: toIso(new Date()) });
         }
       } catch (e) { console.warn('runAutoReminders error for ws', ws.id, e?.message); }
