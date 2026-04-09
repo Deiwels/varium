@@ -402,19 +402,32 @@ function formatPhone(phone) {
 
 // Get per-workspace SMS config (dedicated 10DLC number, brand name)
 async function getWorkspaceSmsConfig(wsId) {
-  if (!wsId) return { fromNumber: safeStr(process.env.TELNYX_FROM), brandName: '', campaignId: null };
+  if (!wsId) return { fromNumber: safeStr(process.env.TELNYX_FROM), brandName: '', campaignId: null, status: 'none', canSend: true };
   try {
     const doc = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
     const data = doc.exists ? doc.data() : {};
+    const status = safeStr(data.sms_registration_status || 'none');
+    // Can send if: no registration attempted (backward compat) OR status is 'active'
+    const canSend = status === 'none' || status === 'active';
     return {
       fromNumber: safeStr(data.sms_from_number) || safeStr(process.env.TELNYX_FROM),
       brandName: safeStr(data.sms_brand_name || data.shop_name || ''),
       campaignId: safeStr(data.telnyx_campaign_id || ''),
+      status,
+      canSend,
     };
-  } catch { return { fromNumber: safeStr(process.env.TELNYX_FROM), brandName: '', campaignId: null }; }
+  } catch { return { fromNumber: safeStr(process.env.TELNYX_FROM), brandName: '', campaignId: null, status: 'none', canSend: true }; }
 }
 
-function sendSms(to, body, fromOverride, wsId) {
+async function sendSms(to, body, fromOverride, wsId) {
+  // Check if workspace is allowed to send (campaign must be active or not registered)
+  if (wsId) {
+    const smsConf = await getWorkspaceSmsConfig(wsId);
+    if (!smsConf.canSend) {
+      console.warn(`sendSms blocked: workspace ${wsId} status=${smsConf.status} (not active)`);
+      return null;
+    }
+  }
   const { apiKey, from } = telnyxCredentials();
   if (!apiKey) { console.warn('Telnyx not configured'); return Promise.resolve(null); }
   const effectiveFrom = fromOverride || from;
