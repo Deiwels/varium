@@ -500,7 +500,7 @@ const EMAIL_THEMES = {
   custom:       { bg: '#000000', card: '#0d0d0d', border: 'rgba(255,255,255,.08)', text: '#e9e9e9', muted: 'rgba(255,255,255,.5)', accent: '#0a84ff', footer: 'rgba(255,255,255,.15)' },
 };
 
-function vuriumEmailTemplate(title, bodyHtml, shopName, logoUrl, template) {
+function vuriumEmailTemplate(title, bodyHtml, shopName, logoUrl, template, contactInfo) {
   const displayName = shopName || 'VuriumBook';
   const t = EMAIL_THEMES[template] || EMAIL_THEMES.modern;
   const isLight = ['classic', 'colorful'].includes(template);
@@ -508,6 +508,14 @@ function vuriumEmailTemplate(title, bodyHtml, shopName, logoUrl, template) {
   const logoHtml = logoUrl
     ? `<img src="${logoUrl}" width="40" height="40" style="border-radius:10px;display:block;margin:0 auto;" alt="${displayName}">`
     : `<div style="width:48px;height:48px;margin:0 auto;border-radius:14px;background:${isLight ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.06)'};border:1px solid ${t.border};text-align:center;line-height:48px;font-size:22px;font-weight:700;color:${t.muted};">${(displayName || 'V')[0].toUpperCase()}</div>`;
+  const contactLines = [];
+  if (contactInfo?.address) contactLines.push(sanitizeHtml(String(contactInfo.address)));
+  if (contactInfo?.phone) contactLines.push(sanitizeHtml(String(contactInfo.phone)));
+  const contactHtml = contactLines.length
+    ? `<div style="font-size:11px;color:${t.muted};line-height:1.6;margin-bottom:12px;">
+${shopName ? `<strong style="color:${t.text};">${sanitizeHtml(shopName)}</strong><br>` : ''}${contactLines.join('<br>')}
+</div>`
+    : '';
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="${colorScheme}">
 <meta name="supported-color-schemes" content="${colorScheme}">
@@ -527,7 +535,8 @@ ${logoHtml}
 <tr><td style="padding:24px 28px 28px;font-size:14px;line-height:1.7;color:${t.muted};background:${t.card};">
 ${bodyHtml}
 </td></tr>
-<tr><td style="padding:16px 28px;border-top:1px solid ${t.border};text-align:center;background:${t.card};">
+<tr><td style="padding:20px 28px;border-top:1px solid ${t.border};text-align:center;background:${t.card};">
+${contactHtml}
 <a href="https://vurium.com" style="font-size:11px;color:${t.footer};text-decoration:none;">Powered by VuriumBook&trade;</a>
 <div style="margin-top:8px;font-size:11px;color:${t.footer};">
 <a href="https://vurium.com/privacy" style="color:${t.footer};text-decoration:underline;">Privacy Policy</a>
@@ -554,6 +563,10 @@ async function getWorkspaceEmailConfig(wsId) {
     tz: s?.timezone || 'America/Chicago',
     // 'custom' is a website-only template (custom HTML/CSS) — fall back to 'modern' for emails
     template: (['modern','classic','bold','dark-luxury','colorful'].includes(w?.site_config?.template) ? w.site_config.template : 'modern'),
+    contactInfo: {
+      address: safeStr(s?.shop_address || ''),
+      phone: safeStr(s?.shop_phone || ''),
+    },
   };
 }
 
@@ -3129,7 +3142,7 @@ app.post('/api/bookings', async (req, res) => {
           <a href="${manageUrl}" style="display:inline-block;padding:12px 24px;border-radius:10px;background:${cardBg};border:1px solid ${et.border};color:${et.text};text-decoration:none;font-size:13px;font-weight:500;">Reschedule</a>
           <a href="${manageUrl}&action=cancel" style="display:inline-block;padding:12px 24px;border-radius:10px;background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.2);color:rgba(255,140,140,.9);text-decoration:none;font-size:13px;font-weight:500;">Cancel</a>
         </div>
-      `, shopName, logoUrl, template), shopName).catch(() => {});
+      `, shopName, logoUrl, template, cfg.contactInfo), shopName).catch(() => {});
     }
     res.status(201).json({ id: bookingRef.id, ...doc });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -3195,7 +3208,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
           <div style="text-align:center;margin:20px 0;">
             <a href="${manageUrl}" style="display:inline-block;padding:12px 28px;border-radius:10px;background:${isLt ? 'rgba(0,0,0,.05)' : 'rgba(255,255,255,.08)'};border:1px solid ${et.border};color:${et.text};text-decoration:none;font-size:13px;font-weight:500;">Manage Booking</a>
           </div>
-        `, shopName, logoUrl, template), shopName).catch(() => {});
+        `, shopName, logoUrl, template, cfg.contactInfo), shopName).catch(() => {});
       }
 
       // Cancelled via status change
@@ -3207,7 +3220,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
             <div style="color:${et.muted};margin-top:4px;">with ${barberName}</div>
           </div>
           <p style="font-size:12px;color:${et.muted};">To book a new appointment, visit our booking page.</p>
-        `, shopName, logoUrl, template), shopName).catch(() => {});
+        `, shopName, logoUrl, template, cfg.contactInfo), shopName).catch(() => {});
       }
     };
 
@@ -3279,7 +3292,7 @@ app.delete('/api/bookings/:id', async (req, res) => {
           <div style="color:${et.muted};margin-top:4px;">with ${bookingData.barber_name || 'your specialist'}</div>
         </div>
         <p style="font-size:12px;color:${et.muted};">To book a new appointment, visit our booking page.</p>
-      `, cfgShop, logoUrl, template), cfgShop).catch(() => {});
+      `, cfgShop, logoUrl, template, cfg.contactInfo), cfgShop).catch(() => {});
     }
     res.json({ ok: true, id: req.params.id, status: 'cancelled' });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -3403,7 +3416,7 @@ app.post('/api/users', requireRole('owner'), async (req, res) => {
           <p style="margin:0 0 16px;">Sign in at:</p>
           <a href="https://vurium.com/signin" style="display:inline-block;padding:12px 28px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;text-decoration:none;font-weight:600;font-size:14px;">Sign In to VuriumBook&trade;</a>
           <p style="margin:20px 0 0;font-size:12px;opacity:.5;">If you didn't expect this email, you can safely ignore it. Use "Forgot password" on the sign-in page if you need to reset your password.</p>`;
-        sendEmail(doc.email, `Your ${cfg.shopName || 'VuriumBook'} Account`, vuriumEmailTemplate('Welcome to the Team!', bodyHtml, cfg.shopName, cfg.logoUrl, cfg.template), cfg.shopName);
+        sendEmail(doc.email, `Your ${cfg.shopName || 'VuriumBook'} Account`, vuriumEmailTemplate('Welcome to the Team!', bodyHtml, cfg.shopName, cfg.logoUrl, cfg.template, cfg.contactInfo), cfg.shopName);
       }).catch(() => {});
     }
     res.status(201).json({ id: ref.id, username: doc.username, name: doc.name, role: doc.role, active: true });
@@ -4453,7 +4466,7 @@ app.get('/api/admin/waitlist/check', requireRole('owner', 'admin'), async (req, 
                 <a href="${bookUrl}" style="display:inline-block;padding:14px 36px;border-radius:12px;font-size:15px;font-weight:600;text-decoration:none;color:${isLt ? '#fff' : 'rgba(130,220,170,.9)'};background:${isLt ? '#333' : 'rgba(130,220,170,.1)'};border:1px solid ${isLt ? '#333' : 'rgba(130,220,170,.2)'};">Book Now</a>
               </div>
               <p style="font-size:12px;color:${t.muted};text-align:center;margin-top:16px;">This slot may fill up quickly — book soon to secure your spot.</p>`;
-            const html = vuriumEmailTemplate('A Spot Opened Up!', bodyHtml, cfg.shopName, cfg.logoUrl, cfg.template);
+            const html = vuriumEmailTemplate('A Spot Opened Up!', bodyHtml, cfg.shopName, cfg.logoUrl, cfg.template, cfg.contactInfo);
             sendEmail(w.email, `A spot opened up – ${cfg.shopName || 'VuriumBook'}`, html, cfg.shopName || 'VuriumBook');
           } catch (emailErr) { console.warn('waitlist email error:', emailErr?.message); }
         }
@@ -5642,6 +5655,10 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
         const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: emailTz });
         const emailShopName = safeStr(emailSettingsData?.shop_name || '');
         const emailLogo = resolveEmailLogoUrl(wsId, emailSettingsData?.logo_url || '');
+        const emailContactInfo = {
+          address: safeStr(emailSettingsData?.shop_address || ''),
+          phone: safeStr(emailSettingsData?.shop_phone || ''),
+        };
         const wsDocData = await db.collection('workspaces').doc(wsId).get();
         const rawTemplate = wsDocData.exists ? wsDocData.data()?.site_config?.template : null;
         const emailTemplate = ['modern','classic','bold','dark-luxury','colorful'].includes(rawTemplate) ? rawTemplate : 'modern';
@@ -5661,7 +5678,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
             <a href="${manageUrl}" style="display:inline-block;padding:12px 24px;border-radius:10px;background:${isLt ? 'rgba(0,0,0,.05)' : 'rgba(255,255,255,.08)'};border:1px solid ${cardBrd};color:${et.text};text-decoration:none;font-size:13px;font-weight:500;margin-right:8px;">Reschedule</a>
             <a href="${manageUrl}&action=cancel" style="display:inline-block;padding:12px 24px;border-radius:10px;background:rgba(220,60,60,.08);border:1px solid rgba(220,60,60,.2);color:rgba(220,80,80,.8);text-decoration:none;font-size:13px;font-weight:500;">Cancel</a>
           </div>
-        `, emailShopName, emailLogo, emailTemplate), emailShopName).catch(() => {});
+        `, emailShopName, emailLogo, emailTemplate, emailContactInfo), emailShopName).catch(() => {});
     }
     res.status(201).json({ booking_id: bookingRef.id, id: bookingRef.id });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -5921,7 +5938,7 @@ app.post('/public/waitlist/:workspace_id', async (req, res) => {
             <tr><td style="padding:14px 18px;"><span style="font-size:11px;color:${t.muted};text-transform:uppercase;letter-spacing:.08em;">Duration</span></td><td style="padding:14px 18px;text-align:right;font-weight:600;color:${t.text};">${doc.duration_minutes} min</td></tr>
           </table>
           <p style="font-size:13px;color:${t.muted};text-align:center;line-height:1.6;margin-top:20px;">We'll notify you by email as soon as a matching slot becomes available. No action needed from you right now.</p>`;
-        const html = vuriumEmailTemplate('You\'re on the Waitlist', bodyHtml, cfg.shopName, cfg.logoUrl, cfg.template);
+        const html = vuriumEmailTemplate('You\'re on the Waitlist', bodyHtml, cfg.shopName, cfg.logoUrl, cfg.template, cfg.contactInfo);
         sendEmail(email, `You're on the waitlist – ${cfg.shopName || 'VuriumBook'}`, html, cfg.shopName || 'VuriumBook');
       }).catch(() => {});
     }
@@ -6856,7 +6873,7 @@ app.post('/public/manage-booking/cancel', async (req, res) => {
           <div style="color:${et.muted};margin-top:4px;">with ${data.barber_name || 'your specialist'}</div>
         </div>
         <p style="font-size:12px;color:${et.muted};">To book a new appointment, visit our booking page.</p>
-      `, shopName, logoUrl, template), shopName).catch(() => {});
+      `, shopName, logoUrl, template, cfg.contactInfo), shopName).catch(() => {});
     }
     res.json({ ok: true, status: 'cancelled' });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -6923,7 +6940,7 @@ app.post('/public/manage-booking/reschedule', async (req, res) => {
         <div style="text-align:center;margin:20px 0;">
           <a href="${manageUrl}" style="display:inline-block;padding:12px 28px;border-radius:10px;background:${isLt ? 'rgba(0,0,0,.05)' : 'rgba(255,255,255,.08)'};border:1px solid ${et.border};color:${et.text};text-decoration:none;font-size:13px;font-weight:500;">Manage Booking</a>
         </div>
-      `, shopName, logoUrl, template), shopName).catch(() => {});
+      `, shopName, logoUrl, template, cfg.contactInfo), shopName).catch(() => {});
     }
     res.json({ ok: true, start_at: toIso(newStartAt), end_at: toIso(newEndAt) });
   } catch (e) { res.status(500).json({ error: e?.message }); }

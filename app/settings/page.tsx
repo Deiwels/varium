@@ -911,6 +911,14 @@ export default function SettingsPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 600 }}>
                 <SectionCard title="Business">
                   <Field label="Shop name"><input value={s.shop_name || ''} onChange={e => set('shop_name', e.target.value)} placeholder="Your Business Name" style={inp} /></Field>
+                  <Field label="Shop address">
+                    <input value={s.shop_address || ''} onChange={e => set('shop_address', e.target.value)} placeholder="123 Main St, City, State ZIP" style={inp} />
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Shown in emails and used for employee clock-in location</div>
+                  </Field>
+                  <Field label="Shop phone">
+                    <input type="tel" value={s.shop_phone || ''} onChange={e => set('shop_phone', e.target.value)} placeholder="(555) 123-4567" style={inp} />
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Shown in emails so clients can contact you</div>
+                  </Field>
                   <Field label="Logo">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       {s.logo_url ? (
@@ -981,10 +989,7 @@ export default function SettingsPage() {
                   <SectionCard title="Attendance & Clock-In">
                     <Toggle checked={!!s.clock_in_enabled} onChange={v => set('clock_in_enabled', v)} label="Enable clock-in / clock-out" sub="Staff and admins will see a clock-in widget on their dashboard" />
                     {s.clock_in_enabled && (<>
-                      <Field label="Shop address">
-                        <input value={s.shop_address || ''} onChange={e => set('shop_address', e.target.value)} placeholder="123 Main St, City, State" style={inp} />
-                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Used to verify employee location when clocking in</div>
-                      </Field>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>Geofence uses the shop address set in the Business section above.</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <button onClick={geocodeAddress} disabled={geocoding || !s.shop_address} style={{ height: 36, padding: '0 16px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: geocoding || !s.shop_address ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'inherit', opacity: geocoding || !s.shop_address ? .5 : 1 }}>
                           {geocoding ? 'Finding location…' : 'Set location from address'}
