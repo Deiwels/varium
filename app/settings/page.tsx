@@ -59,6 +59,152 @@ function SmBtn({ onClick, children, danger, disabled }: { onClick: () => void; c
   )
 }
 
+// ─── SMS Registration Form ──────────────────────────────────────────────────
+function SmsRegistrationForm({ wsId, settings, onDone }: { wsId: string; settings: any; onDone: (data: any) => void }) {
+  const [form, setForm] = useState({
+    company_name: settings.shop_name || '',
+    display_name: settings.shop_name || '',
+    ein: '',
+    entity_type: 'PRIVATE_PROFIT',
+    vertical: 'PROFESSIONAL',
+    website: `https://vurium.com/book/${wsId}`,
+    phone: settings.shop_phone || '',
+    email: settings.shop_email || '',
+    street: '',
+    city: '',
+    state: '',
+    postal_code: '',
+    country: 'US',
+    // Sole proprietor fields
+    first_name: '',
+    last_name: '',
+    date_of_birth: '',
+    mobile_phone: '',
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const inp: React.CSSProperties = {
+    width: '100%', padding: '10px 12px', borderRadius: 10,
+    border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)',
+    color: '#fff', fontSize: 13, outline: 'none', fontFamily: 'inherit',
+  }
+  const lbl: React.CSSProperties = { fontSize: 11, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 4 }
+
+  const set = (key: string, val: string) => setForm(prev => ({ ...prev, [key]: val }))
+
+  async function handleRegister() {
+    setLoading(true); setError('')
+    try {
+      const res = await fetch(`${(window as any).__API || 'https://vuriumbook-api-431945333485.us-central1.run.app'}/api/sms/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(form),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Registration failed')
+      onDone({
+        sms_registration_status: data.status || 'pending_approval',
+        telnyx_brand_id: data.brand_id,
+        telnyx_campaign_id: data.campaign_id,
+        sms_from_number: data.phone_number,
+        sms_brand_name: form.display_name,
+      })
+    } catch (e: any) {
+      setError(e.message || 'Something went wrong')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', marginBottom: 4, lineHeight: 1.5 }}>
+        Register your business for SMS to send appointment confirmations and reminders from a dedicated phone number.
+      </p>
+
+      {error && <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(220,80,80,.1)', border: '1px solid rgba(220,80,80,.2)', color: 'rgba(255,160,160,.9)', fontSize: 12 }}>{error}</div>}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div><label style={lbl}>Legal Business Name *</label><input style={inp} value={form.company_name} onChange={e => set('company_name', e.target.value)} placeholder="Element Barbershop Co" /></div>
+        <div><label style={lbl}>Display Name (DBA)</label><input style={inp} value={form.display_name} onChange={e => set('display_name', e.target.value)} placeholder="Element Barbershop" /></div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div>
+          <label style={lbl}>Entity Type *</label>
+          <select style={inp} value={form.entity_type} onChange={e => set('entity_type', e.target.value)}>
+            <option value="PRIVATE_PROFIT">Private Company</option>
+            <option value="SOLE_PROPRIETOR">Sole Proprietor</option>
+            <option value="PUBLIC_PROFIT">Public Company</option>
+            <option value="NON_PROFIT">Non-Profit</option>
+            <option value="GOVERNMENT">Government</option>
+          </select>
+        </div>
+        <div><label style={lbl}>EIN / Tax ID {form.entity_type === 'SOLE_PROPRIETOR' ? '(optional)' : '*'}</label><input style={inp} value={form.ein} onChange={e => set('ein', e.target.value)} placeholder="XX-XXXXXXX" /></div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div>
+          <label style={lbl}>Industry *</label>
+          <select style={inp} value={form.vertical} onChange={e => set('vertical', e.target.value)}>
+            <option value="PROFESSIONAL">Professional Services</option>
+            <option value="RETAIL">Retail</option>
+            <option value="HEALTHCARE">Healthcare</option>
+            <option value="HOSPITALITY">Hospitality</option>
+            <option value="ENTERTAINMENT">Entertainment</option>
+            <option value="EDUCATION">Education</option>
+            <option value="REAL_ESTATE">Real Estate</option>
+            <option value="TECHNOLOGY">Technology</option>
+          </select>
+        </div>
+        <div><label style={lbl}>Website</label><input style={inp} value={form.website} onChange={e => set('website', e.target.value)} /></div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div><label style={lbl}>Business Phone *</label><input style={inp} value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+1 (555) 123-4567" /></div>
+        <div><label style={lbl}>Business Email *</label><input style={inp} value={form.email} onChange={e => set('email', e.target.value)} placeholder="info@business.com" /></div>
+      </div>
+
+      <div><label style={lbl}>Street Address *</label><input style={inp} value={form.street} onChange={e => set('street', e.target.value)} placeholder="123 Main St" /></div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8 }}>
+        <div><label style={lbl}>City *</label><input style={inp} value={form.city} onChange={e => set('city', e.target.value)} /></div>
+        <div><label style={lbl}>State *</label><input style={inp} value={form.state} onChange={e => set('state', e.target.value)} placeholder="IL" maxLength={2} /></div>
+        <div><label style={lbl}>ZIP *</label><input style={inp} value={form.postal_code} onChange={e => set('postal_code', e.target.value)} placeholder="60089" /></div>
+      </div>
+
+      {form.entity_type === 'SOLE_PROPRIETOR' && (
+        <>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,180,80,.5)', letterSpacing: '.06em', textTransform: 'uppercase', marginTop: 8 }}>Owner Verification (Sole Proprietor)</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div><label style={lbl}>First Name *</label><input style={inp} value={form.first_name} onChange={e => set('first_name', e.target.value)} /></div>
+            <div><label style={lbl}>Last Name *</label><input style={inp} value={form.last_name} onChange={e => set('last_name', e.target.value)} /></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div><label style={lbl}>Date of Birth</label><input type="date" style={inp} value={form.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} /></div>
+            <div><label style={lbl}>Mobile Phone (for OTP) *</label><input style={inp} value={form.mobile_phone} onChange={e => set('mobile_phone', e.target.value)} placeholder="+1 (555) 987-6543" /></div>
+          </div>
+        </>
+      )}
+
+      <button onClick={handleRegister} disabled={loading} style={{
+        marginTop: 8, height: 40, borderRadius: 999, border: 'none',
+        background: 'rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
+        cursor: loading ? 'wait' : 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit',
+        opacity: loading ? 0.5 : 1, width: '100%',
+      }}>
+        {loading ? 'Registering...' : 'Register for SMS'}
+      </button>
+
+      <p style={{ fontSize: 10, color: 'rgba(255,255,255,.15)', lineHeight: 1.5, marginTop: 4 }}>
+        Registration costs: ~$4.50 brand fee + $15 campaign review + ~$1.50/mo for number. Approval takes 5-10 business days.
+      </p>
+    </div>
+  )
+}
+
 // ─── Users Tab — Clean VuriumBook style ──────────────────────────────────────
 function UsersTab() {
   const { effective_plan } = usePlan()
@@ -1172,6 +1318,60 @@ export default function SettingsPage() {
                       </select>
                     </Field>
                   </div>
+                </SectionCard>
+
+                {/* SMS Registration (10DLC) */}
+                <SectionCard title="SMS Registration" action={null}>
+                  {(() => {
+                    const smsStatus = settings.sms_registration_status || 'none'
+                    const statusColors: Record<string, string> = {
+                      none: 'rgba(255,255,255,.25)',
+                      pending_vetting: 'rgba(255,180,80,.7)',
+                      pending_campaign: 'rgba(255,180,80,.7)',
+                      pending_approval: 'rgba(255,180,80,.7)',
+                      pending_number: 'rgba(255,180,80,.7)',
+                      brand_created: 'rgba(255,180,80,.7)',
+                      active: 'rgba(130,220,170,.8)',
+                      rejected: 'rgba(255,80,80,.8)',
+                    }
+                    const statusLabels: Record<string, string> = {
+                      none: 'Not Registered',
+                      pending_vetting: 'Pending Brand Vetting',
+                      pending_campaign: 'Pending Campaign Creation',
+                      pending_approval: 'Pending Carrier Approval',
+                      pending_number: 'Pending Number Assignment',
+                      brand_created: 'Brand Created — Campaign Pending',
+                      active: 'Active — SMS Enabled',
+                      rejected: 'Rejected — Please Re-register',
+                    }
+
+                    if (smsStatus !== 'none' && smsStatus !== 'rejected') {
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 999, background: statusColors[smsStatus] || statusColors.none }} />
+                            <span style={{ fontSize: 13, fontWeight: 600, color: statusColors[smsStatus] || 'rgba(255,255,255,.4)' }}>{statusLabels[smsStatus] || smsStatus}</span>
+                          </div>
+                          {settings.sms_from_number && (
+                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)' }}>Phone: <span style={{ color: 'rgba(255,255,255,.55)' }}>{settings.sms_from_number}</span></div>
+                          )}
+                          {settings.telnyx_campaign_id && (
+                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)' }}>Campaign: <span style={{ color: 'rgba(255,255,255,.55)', fontFamily: 'monospace' }}>{settings.telnyx_campaign_id}</span></div>
+                          )}
+                          {settings.sms_brand_name && (
+                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)' }}>Brand: <span style={{ color: 'rgba(255,255,255,.55)' }}>{settings.sms_brand_name}</span></div>
+                          )}
+                          <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 4 }}>
+                            {smsStatus === 'active' ? 'Your business is registered for SMS. Appointment notifications will be sent from your dedicated number.' : 'Registration is being processed by carriers. This typically takes 5-10 business days.'}
+                          </p>
+                        </div>
+                      )
+                    }
+
+                    return <SmsRegistrationForm wsId={wsId} settings={settings} onDone={(data: any) => {
+                      setSettings((prev: any) => ({ ...prev, ...data }))
+                    }} />
+                  })()}
                 </SectionCard>
               </div>
             )}

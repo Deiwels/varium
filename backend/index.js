@@ -454,6 +454,36 @@ function sendSms(to, body, fromOverride, wsId) {
 
 
 
+// ─── Telnyx REST API helper ───────────────────────────────────────────────────
+function telnyxApi(method, path, body) {
+  const { apiKey } = telnyxCredentials();
+  if (!apiKey) return Promise.reject(new Error('Telnyx not configured'));
+  const payload = body ? JSON.stringify(body) : null;
+  return new Promise((resolve, reject) => {
+    const opts = {
+      hostname: 'api.telnyx.com',
+      path: path.startsWith('/') ? path : '/' + path,
+      method,
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    };
+    if (payload) opts.headers['Content-Length'] = Buffer.byteLength(payload);
+    const req = https.request(opts, (resp) => {
+      let data = '';
+      resp.on('data', c => data += c);
+      resp.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (resp.statusCode >= 400) reject(new Error(parsed?.errors?.[0]?.detail || parsed?.error || `Telnyx API ${resp.statusCode}`));
+          else resolve(parsed);
+        } catch { reject(new Error('Telnyx API parse error')); }
+      });
+    });
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
 // ─── Email via Resend ─────────────────────────────────────────────────────────
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const EMAIL_FROM_DOMAIN = 'noreply@vurium.com';
@@ -1375,6 +1405,49 @@ app.post('/api/webhooks/telnyx', async (req, res) => {
     res.status(200).json({ ok: true });
   } catch (e) {
     console.warn('Telnyx inbound webhook error:', e?.message);
+    res.status(200).json({ ok: true });
+  }
+});
+
+// ============================================================
+// TELNYX 10DLC STATUS WEBHOOK (brand/campaign status updates)
+// ============================================================
+app.post('/api/webhooks/telnyx-10dlc', async (req, res) => {
+  try {
+    const event = req.body?.data || {};
+    const eventType = event.event_type || req.body?.event_type || '';
+    const payload = event.payload || event || {};
+
+    // Find workspace by brand_id or campaign_id
+    const brandId = payload.brand_id || payload.brandId || '';
+    const campaignId = payload.campaign_id || payload.campaignId || '';
+    const status = payload.status || payload.csp_campaign_status || '';
+
+    if (!brandId && !campaignId) return res.status(200).json({ ok: true });
+
+    const wsSnap = await db.collection('workspaces').limit(200).get();
+    for (const ws of wsSnap.docs) {
+      const cfg = await db.collection('workspaces').doc(ws.id).collection('settings').doc('config').get();
+      if (!cfg.exists) continue;
+      const data = cfg.data();
+      const matchBrand = brandId && data.telnyx_brand_id === brandId;
+      const matchCampaign = campaignId && data.telnyx_campaign_id === campaignId;
+      if (!matchBrand && !matchCampaign) continue;
+
+      // Map Telnyx status to our status
+      let newStatus = data.sms_registration_status;
+      if (status === 'VERIFIED' || status === 'VETTED') newStatus = 'pending_campaign';
+      else if (status === 'MNO_PROVISIONED' || status === 'ACTIVE') newStatus = 'active';
+      else if (status === 'MNO_REJECTED' || status === 'REJECTED' || status === 'FAILED') newStatus = 'rejected';
+      else if (status === 'MNO_PENDING' || status === 'TCR_PENDING') newStatus = 'pending_approval';
+
+      await cfg.ref.update({ sms_registration_status: newStatus, sms_status_updated_at: toIso(new Date()) });
+      console.log(`10DLC status update: ws=${ws.id} status=${newStatus} (${status})`);
+      break;
+    }
+    res.status(200).json({ ok: true });
+  } catch (e) {
+    console.warn('Telnyx 10DLC webhook error:', e?.message);
     res.status(200).json({ ok: true });
   }
 });
@@ -4193,6 +4266,182 @@ app.post('/api/payroll/rules/:id', requireRole('owner'), async (req, res) => {
 });
 
 // ============================================================
+// 10DLC SMS REGISTRATION (ISV automation via Telnyx API)
+// ============================================================
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app';
+
+app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const companyName = safeStr(b.company_name);
+    const displayName = safeStr(b.display_name || b.company_name);
+    const ein = safeStr(b.ein || '');
+    const entityType = safeStr(b.entity_type || 'PRIVATE_PROFIT');
+    const vertical = safeStr(b.vertical || 'PROFESSIONAL');
+    const website = safeStr(b.website || '');
+    const phone = safeStr(b.phone || '');
+    const email = safeStr(b.email || '');
+    const street = safeStr(b.street || '');
+    const city = safeStr(b.city || '');
+    const state = safeStr(b.state || '');
+    const postalCode = safeStr(b.postal_code || '');
+    const country = safeStr(b.country || 'US');
+
+    if (!companyName) return res.status(400).json({ error: 'Company name is required' });
+    if (!phone) return res.status(400).json({ error: 'Business phone is required' });
+    if (!email) return res.status(400).json({ error: 'Business email is required' });
+    if (!street || !city || !state || !postalCode) return res.status(400).json({ error: 'Full address is required' });
+
+    const settingsRef = req.ws('settings').doc('config');
+
+    // Step 1: Create Brand
+    const brandPayload = {
+      entityType, displayName, companyName, phone, email, website,
+      street, city, state, postalCode, country, vertical,
+    };
+    if (ein) brandPayload.ein = ein;
+    if (ein) brandPayload.einIssuingCountry = country;
+
+    // Sole proprietor extra fields
+    if (entityType === 'SOLE_PROPRIETOR') {
+      brandPayload.firstName = safeStr(b.first_name || '');
+      brandPayload.lastName = safeStr(b.last_name || '');
+      if (b.date_of_birth) brandPayload.dateOfBirth = safeStr(b.date_of_birth);
+      if (b.mobile_phone) brandPayload.mobilePhone = safeStr(b.mobile_phone);
+    }
+
+    let brandResult;
+    try {
+      brandResult = await telnyxApi('POST', '/v2/10dlc/brand', brandPayload);
+    } catch (e) {
+      return res.status(400).json({ error: 'Brand creation failed: ' + e.message, step: 'brand' });
+    }
+    const brandId = brandResult?.data?.brandId || brandResult?.data?.id || '';
+    await settingsRef.update({
+      telnyx_brand_id: brandId,
+      sms_brand_name: displayName,
+      sms_registration_status: 'pending_vetting',
+      sms_registered_at: toIso(new Date()),
+      updated_at: toIso(new Date()),
+    });
+
+    // Step 2: Create Campaign
+    const shopName = displayName || companyName;
+    let campaignResult;
+    try {
+      campaignResult = await telnyxApi('POST', '/v2/10dlc/campaignBuilder', {
+        brandId,
+        usecase: 'CUSTOMER_CARE',
+        description: `Transactional appointment-related SMS sent by ${shopName} to clients who opt in during online booking. Messages include booking confirmations, reminders, and cancellation notices. Frequency: up to 5 messages per booking.`,
+        messageFlow: 'WEBFORM',
+        sample1: `${shopName}: Your appointment is confirmed for Mon Apr 7 at 2:00 PM with John. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`,
+        sample2: `${shopName}: Reminder: Your appointment with John is tomorrow Mon Apr 7 at 2:00 PM. Reply STOP to opt out, HELP for help.`,
+        helpMessage: `${shopName}: For help, contact support@vurium.com or call (847) 630-1884. Visit https://vurium.com/privacy for our Privacy Policy. Reply STOP to opt out.`,
+        helpKeywords: 'HELP',
+        optinKeywords: 'START,YES',
+        optoutKeywords: 'STOP,UNSUBSCRIBE',
+        optinMessage: `${shopName}: You're subscribed to appointment SMS. Msg frequency varies, up to 5 msgs per booking. Msg & data rates may apply. Reply HELP for help, STOP to opt out. Privacy Policy: https://vurium.com/privacy`,
+        optoutMessage: `${shopName}: You have been unsubscribed and will receive no further messages. Reply HELP for help or START to re-subscribe.`,
+        embeddedLink: true,
+        embeddedPhone: false,
+        numberPool: false,
+        ageGated: false,
+        directLending: false,
+      });
+    } catch (e) {
+      await settingsRef.update({ sms_registration_status: 'brand_created' });
+      return res.status(400).json({ error: 'Campaign creation failed: ' + e.message, step: 'campaign', brand_id: brandId });
+    }
+    const campaignId = campaignResult?.data?.campaignId || campaignResult?.data?.id || '';
+    await settingsRef.update({
+      telnyx_campaign_id: campaignId,
+      sms_registration_status: 'pending_campaign',
+      updated_at: toIso(new Date()),
+    });
+
+    // Step 3: Search & buy a local phone number
+    let phoneNumber = '';
+    try {
+      const areaCode = postalCode ? postalCode.slice(0, 3) : '';
+      const searchParams = new URLSearchParams({ 'filter[country_code]': 'US', 'filter[features]': 'sms', 'filter[limit]': '1' });
+      if (state) searchParams.set('filter[administrative_area]', state);
+      const searchResult = await telnyxApi('GET', `/v2/available_phone_numbers?${searchParams.toString()}`);
+      const availableNumber = searchResult?.data?.[0]?.phone_number;
+      if (!availableNumber) throw new Error('No numbers available');
+
+      const orderResult = await telnyxApi('POST', '/v2/number_orders', {
+        phone_numbers: [{ phone_number: availableNumber }],
+      });
+      phoneNumber = availableNumber;
+    } catch (e) {
+      await settingsRef.update({ sms_registration_status: 'pending_number' });
+      return res.status(400).json({ error: 'Number purchase failed: ' + e.message, step: 'number', brand_id: brandId, campaign_id: campaignId });
+    }
+
+    // Step 4: Create messaging profile
+    let profileId = '';
+    try {
+      const profileResult = await telnyxApi('POST', '/v2/messaging_profiles', {
+        name: `VuriumBook - ${shopName}`,
+        webhook_url: `${API_BASE_URL}/api/webhooks/telnyx`,
+        enabled: true,
+      });
+      profileId = profileResult?.data?.id || '';
+    } catch (e) {
+      console.warn('Messaging profile creation failed:', e.message);
+    }
+
+    // Step 5: Assign number to campaign
+    try {
+      await telnyxApi('POST', '/v2/10dlc/phoneNumberCampaign', {
+        phoneNumber,
+        campaignId,
+      });
+    } catch (e) {
+      console.warn('Number-campaign assignment failed:', e.message);
+    }
+
+    // Step 6: Save all to settings
+    await settingsRef.update({
+      sms_from_number: phoneNumber,
+      sms_messaging_profile_id: profileId,
+      sms_registration_status: 'pending_approval',
+      updated_at: toIso(new Date()),
+    });
+
+    writeAuditLog(req.wsId, { action: 'sms.register', resource_id: brandId, data: { campaign_id: campaignId, phone_number: phoneNumber }, req }).catch(() => {});
+
+    res.json({
+      ok: true,
+      brand_id: brandId,
+      campaign_id: campaignId,
+      phone_number: phoneNumber,
+      messaging_profile_id: profileId,
+      status: 'pending_approval',
+    });
+  } catch (e) {
+    console.error('SMS register error:', e);
+    res.status(500).json({ error: e?.message || 'Registration failed' });
+  }
+});
+
+app.get('/api/sms/status', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const doc = await req.ws('settings').doc('config').get();
+    const data = doc.exists ? doc.data() : {};
+    res.json({
+      status: data.sms_registration_status || 'none',
+      brand_id: data.telnyx_brand_id || null,
+      campaign_id: data.telnyx_campaign_id || null,
+      from_number: data.sms_from_number || null,
+      brand_name: data.sms_brand_name || data.shop_name || null,
+      messaging_profile_id: data.sms_messaging_profile_id || null,
+      registered_at: data.sms_registered_at || null,
+    });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
 // SETTINGS
 // ============================================================
 app.get('/api/settings', async (req, res) => {
@@ -4242,7 +4491,8 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
       'dash_cash', 'dash_membership', 'dash_attendance', 'dash_expenses', 'dash_payroll',
       'clock_in_enabled', 'waitlist_enabled', 'portfolio_enabled', 'membership_enabled', 'cash_register_enabled',
       'dash_shortcuts', 'dash_widgets', 'business_type',
-      'sms_from_number', 'sms_brand_name', 'telnyx_campaign_id', 'telnyx_brand_id', 'sms_registration_status'];
+      'sms_from_number', 'sms_brand_name', 'telnyx_campaign_id', 'telnyx_brand_id', 'sms_registration_status',
+      'sms_messaging_profile_id', 'sms_registered_at', 'sms_status_updated_at'];
     const patch = { updated_at: toIso(new Date()) };
     for (const key of ALLOWED_SETTINGS) {
       if (b[key] !== undefined) patch[key] = typeof b[key] === 'string' ? sanitizeHtml(b[key]) : b[key];
