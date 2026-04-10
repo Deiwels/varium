@@ -719,6 +719,7 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true)
   const [drag, setDrag] = useState<{ eventId: string; offsetMin: number; ghostBarberIdx: number; ghostMin: number } | null>(null)
   const [dragConfirm, setDragConfirm] = useState<{ eventId: string; newBarberId: string; newBarberName: string; newMin: number } | null>(null)
+  const [resizeConfirm, setResizeConfirm] = useState<{ eventId: string; newDur: number; oldDur: number } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [datePickerOpen, setDatePickerOpen] = useState(false)
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
@@ -2517,10 +2518,7 @@ export default function CalendarPage() {
                                 const onEnd = () => {
                                   window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onEnd)
                                   if (currentDur === startDur) return
-                                  // Save new duration
-                                  const sa = new Date(ev.date + 'T' + minToHHMM(ev.startMin) + ':00')
-                                  const ea = new Date(sa.getTime() + currentDur * 60000)
-                                  if (ev._raw?.id) apiFetch(`/api/bookings/${encodeURIComponent(String(ev._raw.id))}`, { method: 'PATCH', body: JSON.stringify({ end_at: ea.toISOString(), duration_minutes: currentDur }) }).catch(() => setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, durMin: startDur } : x)))
+                                  setResizeConfirm({ eventId: ev.id, newDur: currentDur, oldDur: startDur })
                                 }
                                 window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onEnd)
                               }}
@@ -2531,9 +2529,7 @@ export default function CalendarPage() {
                                 const onEnd = () => {
                                   window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onEnd)
                                   if (currentDur === startDur) return
-                                  const sa = new Date(ev.date + 'T' + minToHHMM(ev.startMin) + ':00')
-                                  const ea = new Date(sa.getTime() + currentDur * 60000)
-                                  if (ev._raw?.id) apiFetch(`/api/bookings/${encodeURIComponent(String(ev._raw.id))}`, { method: 'PATCH', body: JSON.stringify({ end_at: ea.toISOString(), duration_minutes: currentDur }) }).catch(() => setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, durMin: startDur } : x)))
+                                  setResizeConfirm({ eventId: ev.id, newDur: currentDur, oldDur: startDur })
                                 }
                                 window.addEventListener('touchmove', onMove, { passive: false }); window.addEventListener('touchend', onEnd)
                               }}
@@ -2740,6 +2736,37 @@ export default function CalendarPage() {
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                 <button onClick={() => setDragConfirm(null)} style={{ height: 40, padding: '0 18px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
                 <button onClick={confirmDragMove} style={{ height: 40, padding: '0 20px', borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.05)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13 }}>Move</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Resize confirm dialog */}
+      {resizeConfirm && (() => {
+        const ev = events.find(e => e.id === resizeConfirm.eventId); if (!ev) return null
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.50)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
+            onClick={() => { setResizeConfirm(null); setEvents(prev => prev.map(x => x.id === resizeConfirm.eventId ? { ...x, durMin: resizeConfirm.oldDur } : x)) }}>
+            <div onClick={e => e.stopPropagation()} style={{ width: 'min(380px,92vw)', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', boxShadow: '0 32px 80px rgba(0,0,0,.55), inset 0 0 0 0.5px rgba(255,255,255,.06)', padding: 20, color: '#e8e8ed', fontFamily: 'Inter,sans-serif' }}>
+              <div style={{ letterSpacing: '.16em', textTransform: 'uppercase', fontSize: 13, color: 'rgba(255,255,255,.70)', marginBottom: 14 }}>Resize booking</div>
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.50)', marginBottom: 4 }}>{ev.clientName} · {ev.serviceName}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 16, color: 'rgba(255,255,255,.40)', textDecoration: 'line-through' }}>{resizeConfirm.oldDur}min</span>
+                  <span style={{ color: 'rgba(255,255,255,.30)' }}>&rarr;</span>
+                  <span style={{ fontSize: 22, fontWeight: 800, color: '#fff' }}>{resizeConfirm.newDur}min</span>
+                </div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.40)', marginTop: 4 }}>{minToAMPM(ev.startMin)} &ndash; {minToAMPM(ev.startMin + resizeConfirm.newDur)}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button onClick={() => { setResizeConfirm(null); setEvents(prev => prev.map(x => x.id === resizeConfirm.eventId ? { ...x, durMin: resizeConfirm.oldDur } : x)) }} style={{ height: 40, padding: '0 18px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
+                <button onClick={() => {
+                  const sa = new Date(ev.date + 'T' + minToHHMM(ev.startMin) + ':00')
+                  const ea = new Date(sa.getTime() + resizeConfirm.newDur * 60000)
+                  if (ev._raw?.id) apiFetch(`/api/bookings/${encodeURIComponent(String(ev._raw.id))}`, { method: 'PATCH', body: JSON.stringify({ end_at: ea.toISOString(), duration_minutes: resizeConfirm.newDur }) }).catch(() => setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, durMin: resizeConfirm.oldDur } : x)))
+                  setResizeConfirm(null)
+                }} style={{ height: 40, padding: '0 20px', borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.05)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13 }}>Confirm</button>
               </div>
             </div>
           </div>
