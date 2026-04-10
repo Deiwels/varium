@@ -290,32 +290,18 @@ export default function CashPage() {
                   )}
                 </div>
 
-                {/* Numbers grid */}
+                {/* Compact inline amounts */}
                 {hasActivity && (
-                  <div className="cash-day-nums" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
-                    <div style={{ padding: '10px 10px', borderRadius: 12, background: 'rgba(255,207,63,.04)', border: '1px solid rgba(255,207,63,.10)' }}>
-                      <div style={{ fontSize: 8, color: 'rgba(255,207,63,.55)', letterSpacing: '.10em', textTransform: 'uppercase', fontWeight: 800 }}>Cash</div>
-                      <div style={{ fontSize: 17, fontWeight: 900, color: 'rgba(220,190,130,.5)', marginTop: 3 }}>{usd(expectedCash)}</div>
-                      <div style={{ fontSize: 8, color: 'rgba(255,255,255,.20)', marginTop: 2 }}>{usd(day.cashTotal)} + {usd(day.cashTips)} tips</div>
-                    </div>
-                    <div style={{ padding: '10px 10px', borderRadius: 12, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.04)' }}>
-                      <div style={{ fontSize: 8, color: 'rgba(255,255,255,.18)', letterSpacing: '.10em', textTransform: 'uppercase', fontWeight: 800 }}>Zelle</div>
-                      <div style={{ fontSize: 17, fontWeight: 900, color: 'rgba(255,255,255,.6)', marginTop: 3 }}>{usd(expectedZelle)}</div>
-                      <div style={{ fontSize: 8, color: 'rgba(255,255,255,.20)', marginTop: 2 }}>{usd(day.zelleTotal)} + {usd(day.zelleTips)} tips</div>
-                    </div>
-                    <div style={{ padding: '10px 10px', borderRadius: 12, background: day.report ? (diff !== null && diff >= 0 ? 'rgba(143,240,177,.04)' : 'rgba(255,107,107,.04)') : 'rgba(255,255,255,.02)', border: `1px solid ${day.report ? (diff !== null && diff >= 0 ? 'rgba(143,240,177,.12)' : 'rgba(255,107,107,.12)') : 'rgba(255,255,255,.06)'}` }}>
-                      <div style={{ fontSize: 8, color: day.report ? (diff !== null && diff >= 0 ? 'rgba(143,240,177,.55)' : 'rgba(255,107,107,.55)') : 'rgba(255,255,255,.30)', letterSpacing: '.10em', textTransform: 'uppercase', fontWeight: 800 }}>Counted</div>
-                      {day.report ? (
-                        <>
-                          <div style={{ fontSize: 17, fontWeight: 900, color: diff !== null && diff >= 0 ? 'rgba(130,220,170,.5)' : 'rgba(220,130,160,.5)', marginTop: 3 }}>{usd(day.report.actual_cash)}</div>
-                          <div style={{ fontSize: 9, fontWeight: 800, color: diff !== null && diff >= 0 ? 'rgba(130,220,170,.8)' : '#ff6b6b', marginTop: 2 }}>
-                            {diff !== null ? (diff >= 0 ? '+' : '') + usd(diff) : ''}{diff === 0 ? <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: 3, verticalAlign: 'middle' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(130,220,170,.8)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg></span> : ''}
-                          </div>
-                        </>
-                      ) : (
-                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.15)', marginTop: 5 }}>—</div>
-                      )}
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: 'rgba(220,190,130,.6)' }}>{usd(expectedCash)} <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.25)' }}>cash</span></span>
+                    {expectedZelle > 0 && <span style={{ fontSize: 13, fontWeight: 800, color: 'rgba(255,255,255,.55)' }}>{usd(expectedZelle)} <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.25)' }}>zelle</span></span>}
+                    {day.report && (
+                      <span style={{ fontSize: 12, fontWeight: 800, color: diff !== null && diff === 0 ? 'rgba(130,220,170,.7)' : diff !== null && diff! > 0 ? 'rgba(130,220,170,.7)' : 'rgba(220,130,160,.6)' }}>
+                        counted {usd(day.report.actual_cash)}
+                        {diff !== null && diff !== 0 && <span style={{ marginLeft: 4, fontSize: 10 }}>({diff >= 0 ? '+' : ''}{usd(diff)})</span>}
+                        {diff === 0 && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 3, verticalAlign: 'middle' }}><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>}
+                      </span>
+                    )}
                   </div>
                 )}
 
