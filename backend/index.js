@@ -6104,9 +6104,15 @@ app.post('/public/availability/:workspace_id', async (req, res) => {
     const avail = [];
     for (const cur of eachTzDay(range.start, range.end, timeZone)) {
       const sch = getScheduleForDate(barber, cur, timeZone);
+      if (!sch.works) continue;
       let slots = buildSmartSlotsForDay({ dayDateUTC: cur, schedule: sch, durationMin, stepMin: durationMin, timeZone, busy });
       slots = slots.filter(t => t >= range.start && t < range.end && t > new Date());
       slots = filterSlotsAgainstBusy(slots, busy, durationMin);
+      // Double-check each slot is within barber working hours (guard against timezone edge cases)
+      const dayParts = getTzParts(cur, timeZone);
+      const workStartUTC = zonedTimeToUtc({ year: dayParts.year, month: dayParts.month, day: dayParts.day, hour: Math.floor(sch.startMin / 60), minute: sch.startMin % 60 }, timeZone);
+      const workEndUTC = zonedTimeToUtc({ year: dayParts.year, month: dayParts.month, day: dayParts.day, hour: Math.floor(sch.endMin / 60), minute: sch.endMin % 60 }, timeZone);
+      slots = slots.filter(t => t >= workStartUTC && addMinutes(t, durationMin) <= workEndUTC);
       for (const t of slots) avail.push({ start_at: toIso(t), local_day: getTzDateKey(t, timeZone) });
     }
     res.json({ time_zone: timeZone, availabilities: avail, slots: avail.map(x => x.start_at) });
