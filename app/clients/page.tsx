@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 
 import { apiFetch } from '@/lib/api'
 import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
+import { usePermissions } from '@/components/PermissionsProvider'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Client {
@@ -110,9 +111,13 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
   const [userRole] = useState(() => {
     try { return JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}').role || '' } catch { return '' }
   })
+  const { hasPerm: clientHasPerm } = usePermissions()
   const isOwner = userRole === 'owner'
   const isAdmin = userRole === 'admin'
   const isOwnerOrAdmin = isOwner || isAdmin
+  const canViewPhone = isOwner || isAdmin || clientHasPerm('clients', 'view_phone')
+  const canEditClient = isOwnerOrAdmin || clientHasPerm('clients', 'edit')
+  const canDeleteClient = isOwner || clientHasPerm('clients', 'delete')
 
   function revealPhone(cid: string, phone: string) {
     setRevealedPhones(prev => ({ ...prev, [cid]: phone }))
@@ -239,7 +244,7 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
             <span style={{ fontSize:11, color:'rgba(255,255,255,.40)' }}>{barber}</span>
           </div>
         </div>
-        {isOwner && (
+        {canDeleteClient && (
           <button onClick={async () => {
             if (!window.confirm(`Delete client "${c.name}"? This cannot be undone.`)) return
             try {
@@ -265,19 +270,17 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
       {/* Info */}
       <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
         {c.phone && row('Phone',
-          isOwner
+          canViewPhone
             ? (revealedPhones[c.id]
               ? <a href={`tel:${revealedPhones[c.id]}`} style={{ color:'rgba(255,255,255,.6)', textDecoration:'none' }}>{revealedPhones[c.id]}</a>
-              : <span onClick={() => revealPhone(c.id, c.phone!)} style={{ color:'rgba(255,255,255,.5)', cursor:'pointer', fontSize:12 }}>{maskPhone(c.phone)} · tap to reveal</span>)
-            : isAdmin
-              ? (revealedPhones[c.id]
-                ? <span style={{ color:'rgba(130,220,170,.8)' }}>{revealedPhones[c.id]} <span style={{ fontSize:9, color:'rgba(255,255,255,.30)' }}>auto-hide 15s</span></span>
-                : phoneLoading === c.id
+              : isOwner
+                ? <span onClick={() => revealPhone(c.id, c.phone!)} style={{ color:'rgba(255,255,255,.5)', cursor:'pointer', fontSize:12 }}>{maskPhone(c.phone)} · tap to reveal</span>
+                : (phoneLoading === c.id
                   ? <span style={{ color:'rgba(255,255,255,.40)', fontSize:11 }}>Verifying location...</span>
                   : <button onClick={() => requestPhone(c.id)} style={{ height:28, padding:'0 10px', borderRadius:999, border:'1px solid rgba(255,255,255,.18)', background:'rgba(255,255,255,.06)', color:'rgba(255,255,255,.6)', cursor:'pointer', fontWeight:700, fontSize:10, fontFamily:'inherit' }}>
                       {maskPhone(c.phone)} · Request phone
-                    </button>)
-              : <span style={{ color:'rgba(255,255,255,.55)' }}>{maskPhone(c.phone)}</span>
+                    </button>))
+            : <span style={{ color:'rgba(255,255,255,.55)' }}>{maskPhone(c.phone)}</span>
         )}
         {phoneError && <div style={{ fontSize:11, color:'#ff6b6b', padding:'4px 0' }}>{phoneError}</div>}
         {c.email && row('Email', <a href={`mailto:${c.email}`} style={{ color:'rgba(255,255,255,.6)', textDecoration:'none', overflow:'hidden', textOverflow:'ellipsis', maxWidth:160, display:'block' }}>{c.email}</a>)}
@@ -436,9 +439,11 @@ export default function ClientsPage() {
   const [userRole] = useState(() => {
     try { return JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}').role || '' } catch { return '' }
   })
+  const { hasPerm: listHasPerm } = usePermissions()
   const isOwner = userRole === 'owner'
   const isAdmin = userRole === 'admin'
   const isOwnerOrAdmin = isOwner || isAdmin
+  const canViewPhone = isOwner || isAdmin || listHasPerm('clients', 'view_phone')
 
   // Auto-hide revealed phones after 15 seconds (admin only)
   function revealPhone(clientId: string, phone: string) {
@@ -579,17 +584,15 @@ export default function ClientsPage() {
                           <div style={{ minWidth:0 }}>
                             <div style={{ fontWeight:600, fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.name}</div>
                             <div style={{ fontSize:11, color:'rgba(255,255,255,.35)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginTop:1 }}>
-                              {isOwner
+                              {canViewPhone
                                 ? (revealedPhones[c.id]
                                   ? <span onClick={(e) => { e.stopPropagation(); setRevealedPhones(p => { const n={...p}; delete n[c.id]; return n }) }} style={{ cursor:'pointer' }}>{revealedPhones[c.id]}</span>
-                                  : <span onClick={(e) => { e.stopPropagation(); revealPhone(c.id, c.phone||'') }} style={{ cursor:'pointer', color:'rgba(255,255,255,.45)' }}>{maskPhone(c.phone||'')}</span>)
-                                : isAdmin
-                                  ? (revealedPhones[c.id]
-                                    ? <span style={{ color:'rgba(130,220,170,.8)' }}>{revealedPhones[c.id]}</span>
+                                  : isOwner
+                                    ? <span onClick={(e) => { e.stopPropagation(); revealPhone(c.id, c.phone||'') }} style={{ cursor:'pointer', color:'rgba(255,255,255,.45)' }}>{maskPhone(c.phone||'')}</span>
                                     : phoneLoading === c.id
                                       ? <span style={{ color:'rgba(255,255,255,.40)', fontSize:10 }}>Verifying...</span>
                                       : <span onClick={(e) => { e.stopPropagation(); requestPhone(c.id) }} style={{ cursor:'pointer', color:'rgba(255,255,255,.45)', fontSize:10 }}>{maskPhone(c.phone||'')} · request</span>)
-                                  : maskPhone(c.phone||'')}
+                                : maskPhone(c.phone||'')}
                             </div>
                           </div>
                         </div>
