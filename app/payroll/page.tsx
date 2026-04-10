@@ -871,6 +871,9 @@ export default function PayrollPage() {
                         <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Owner share: </span><span style={{ color: 'rgba(220,190,130,.6)' }}>{fmtMoney(ownerShare)}</span></div>
                         {adminUsers.length > 0 && <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Admin pay: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(totalAdminPay)}</span></div>}
                         {expensesTotal > 0 && <div><span style={{ color: 'rgba(255,255,255,.40)' }}>Expenses: </span><span style={{ color: '#ff6b6b' }}>−{fmtMoney(expensesTotal)}</span></div>}
+                        {expensesTotal > 0 && Object.keys(expensesByCategory).length > 0 && Object.entries(expensesByCategory).map(([cat, amt]) => (
+                          <div key={cat} style={{ gridColumn: '1/-1', paddingLeft: 8 }}><span style={{ color: 'rgba(255,255,255,.25)', fontSize: 10 }}>{cat}: </span><span style={{ color: 'rgba(255,255,255,.35)', fontSize: 10 }}>−{fmtMoney(Number(amt))}</span></div>
+                        ))}
                       </div>
                       <div style={{ fontWeight: 900, fontSize: 20, color: 'rgba(220,190,130,.6)' }}>Net: {fmtMoney(ownerNet)}</div>
                     </div>

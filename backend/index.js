@@ -3906,14 +3906,28 @@ app.get('/api/expenses/total', requirePlanFeature('expenses'), async (req, res) 
     if (from) query = query.where('date', '>=', from);
     if (to) query = query.where('date', '<=', to);
     const snap = await query.get();
-    const total = snap.docs.reduce((sum, d) => sum + Number(d.data()?.amount || 0), 0);
-    res.json({ total, count: snap.size });
+    let total = 0;
+    const by_category = {};
+    snap.docs.forEach(d => {
+      const data = d.data() || {};
+      const amt = Number(data.amount || 0);
+      total += amt;
+      const cat = data.category || 'Other';
+      by_category[cat] = (by_category[cat] || 0) + amt;
+    });
+    res.json({ total, count: snap.size, by_category });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
 app.get('/api/expenses', requirePlanFeature('expenses'), async (req, res) => {
   try {
-    const snap = await req.ws('expenses').orderBy('date', 'desc').limit(200).get();
+    const from = safeStr(req.query?.from || '');
+    const to = safeStr(req.query?.to || '');
+    let query = req.ws('expenses');
+    if (from) query = query.where('date', '>=', from);
+    if (to) query = query.where('date', '<=', to);
+    query = query.orderBy('date', 'desc');
+    const snap = await query.limit(200).get();
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });

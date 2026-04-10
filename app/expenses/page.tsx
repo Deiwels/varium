@@ -132,8 +132,8 @@ export default function ExpensesPage() {
         apiFetch(`/api/expenses?from=${from}&to=${to}`),
         apiFetch('/api/expenses/categories'),
       ])
-      setExpenses(expData?.expenses || [])
-      setCategories(catData?.categories || [])
+      setExpenses(Array.isArray(expData) ? expData : expData?.expenses || [])
+      setCategories(Array.isArray(catData) ? catData : catData?.categories || [])
     } catch (e: any) { showToast('Error: ' + e.message) }
     setLoading(false)
   }, [from, to])
