@@ -1563,8 +1563,12 @@ app.post('/api/vurium-dev/auth/request', express.json(), (req, res) => {
   `, 'Vurium', null, 'modern');
 
   sendEmail(ADMIN_EMAIL, 'Vurium Developer — Sign In Link', html, 'Vurium')
-    .then(() => res.json({ ok: true }))
-    .catch(() => res.json({ ok: true }));
+    .then((result) => {
+      if (result?.id) { console.log('[DEV-AUTH] Magic link sent to', ADMIN_EMAIL, 'resend_id:', result.id); }
+      else { console.warn('[DEV-AUTH] Magic link send may have failed:', JSON.stringify(result)); }
+      res.json({ ok: true });
+    })
+    .catch((e) => { console.error('[DEV-AUTH] Magic link send error:', e?.message); res.json({ ok: true }); });
 });
 
 // Magic link: verify token → set HttpOnly cookie
