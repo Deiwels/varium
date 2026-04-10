@@ -2507,6 +2507,38 @@ export default function CalendarPage() {
                             </div>
                           )}
                           </>)}
+                          {/* Resize handle — drag bottom edge to change duration */}
+                          {canDrag && height > 30 && !isNoshow && (
+                            <div
+                              onMouseDown={e => {
+                                e.stopPropagation(); e.preventDefault()
+                                const startY = e.clientY; const startDur = ev.durMin; let currentDur = startDur
+                                const onMove = (me: MouseEvent) => { me.preventDefault(); const dy = me.clientY - startY; currentDur = Math.max(5, startDur + Math.round(dy / slotH) * 5); setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, durMin: currentDur } : x)) }
+                                const onEnd = () => {
+                                  window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onEnd)
+                                  if (currentDur === startDur) return
+                                  // Save new duration
+                                  const sa = new Date(ev.date + 'T' + minToHHMM(ev.startMin) + ':00')
+                                  const ea = new Date(sa.getTime() + currentDur * 60000)
+                                  if (ev._raw?.id) apiFetch(`/api/bookings/${encodeURIComponent(String(ev._raw.id))}`, { method: 'PATCH', body: JSON.stringify({ end_at: ea.toISOString(), duration_minutes: currentDur }) }).catch(() => setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, durMin: startDur } : x)))
+                                }
+                                window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onEnd)
+                              }}
+                              onTouchStart={e => {
+                                e.stopPropagation()
+                                const startY = e.touches[0].clientY; const startDur = ev.durMin; let currentDur = startDur
+                                const onMove = (te: TouchEvent) => { te.preventDefault(); const dy = te.touches[0].clientY - startY; currentDur = Math.max(5, startDur + Math.round(dy / slotH) * 5); setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, durMin: currentDur } : x)) }
+                                const onEnd = () => {
+                                  window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onEnd)
+                                  if (currentDur === startDur) return
+                                  const sa = new Date(ev.date + 'T' + minToHHMM(ev.startMin) + ':00')
+                                  const ea = new Date(sa.getTime() + currentDur * 60000)
+                                  if (ev._raw?.id) apiFetch(`/api/bookings/${encodeURIComponent(String(ev._raw.id))}`, { method: 'PATCH', body: JSON.stringify({ end_at: ea.toISOString(), duration_minutes: currentDur }) }).catch(() => setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, durMin: startDur } : x)))
+                                }
+                                window.addEventListener('touchmove', onMove, { passive: false }); window.addEventListener('touchend', onEnd)
+                              }}
+                              style={{ position: 'absolute', left: 10, right: 10, bottom: 3, height: 4, borderRadius: 999, background: 'rgba(255,255,255,.12)', cursor: 'ns-resize', touchAction: 'none', zIndex: 6 }} />
+                          )}
                         </div>
                       )
                     })}
