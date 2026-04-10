@@ -391,7 +391,12 @@ export default function PublicBookingPage() {
           reference_photo: referencePhoto ? { data_url: referencePhoto.dataUrl, file_name: referencePhoto.name } : undefined,
         }),
       })
-      if (res.error) throw new Error(res.error)
+      if (res.error) {
+        if (res.error.includes('outside') || res.error.includes('OUTSIDE')) {
+          setSelectedSlot(''); setStep(2); throw new Error('This time slot is no longer available. Please choose another time.')
+        }
+        throw new Error(res.error)
+      }
       setBooked(true); setStep(4)
     } catch (e: any) {
       setError(e.message || 'Booking failed. Please try again.')
@@ -426,7 +431,12 @@ export default function PublicBookingPage() {
           reference_photo: referencePhoto ? { data_url: referencePhoto.dataUrl, file_name: referencePhoto.name } : undefined,
         }),
       })
-      if (bookRes.error) throw new Error(bookRes.error)
+      if (bookRes.error) {
+        if (bookRes.error.includes('outside') || bookRes.error.includes('OUTSIDE')) {
+          setSelectedSlot(''); setStep(2); throw new Error('This time slot is no longer available. Please choose another time.')
+        }
+        throw new Error(bookRes.error)
+      }
       const bookingId = bookRes.booking_id || bookRes.id
       setPaymentBookingId(bookingId)
       // 2. Create payment intent
