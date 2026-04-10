@@ -3672,7 +3672,7 @@ app.get('/api/payments', async (req, res) => {
     const to = safeStr(req.query?.to || '');
     const barberId = safeStr(req.query?.barber_id || '');
     // Local payment_requests
-    const prSnap = await req.ws('payment_requests').orderBy('created_at', 'desc').limit(200).get();
+    const prSnap = await req.ws('payment_requests').orderBy('created_at', 'desc').limit(1000).get();
     let payments = prSnap.docs.map(d => ({ id: d.id, source: 'local', ...d.data() }));
     // Try to get Square payments too
     try {
@@ -3714,10 +3714,42 @@ app.get('/api/payments', async (req, res) => {
     if (barberId) payments = payments.filter(p => p.barber_id === barberId);
     if (from) payments = payments.filter(p => (p.created_at || '').slice(0, 10) >= from.slice(0, 10));
     if (to) payments = payments.filter(p => (p.created_at || '').slice(0, 10) <= to.slice(0, 10));
+    // Normalize each payment to a consistent format for the frontend
+    const normalized = payments.map(p => {
+      const amount = Number(p.amount_cents || 0) / 100;
+      const tip = Number(p.tip_cents || p.tip_amount || 0) / 100;
+      const fee = Number(p.fee_cents || p.fee_amount || 0) / 100;
+      const method = p.payment_method || p.method || (p.card_brand ? 'card' : 'other');
+      const rawStatus = (p.status || '').toLowerCase();
+      const status = rawStatus === 'completed' ? 'paid' : rawStatus;
+      const date = (p.created_at || p.date || '').slice(0, 10);
+      return {
+        id: p.id,
+        square_id: p.payment_id || p.square_id || null,
+        source: p.source || 'local',
+        date,
+        created_at: p.created_at || '',
+        client_name: p.client_name || '',
+        client_phone: p.client_phone || '',
+        barber_name: p.barber_name || '',
+        barber_id: p.barber_id || '',
+        method,
+        amount,
+        tip,
+        fee,
+        net: amount + tip - fee,
+        status,
+        note: p.note || (p.service_name ? `VuriumBook • ${p.client_name || ''} • ${p.service_name || ''}` : ''),
+        receipt_url: p.receipt_url || '',
+        booking_id: p.booking_id || '',
+      };
+    });
     // Totals
-    const totalGross = payments.reduce((s, p) => s + (Number(p.amount_cents || 0) / 100), 0);
-    const totalTips = payments.reduce((s, p) => s + (Number(p.tip_cents || 0) / 100), 0);
-    res.json({ payments, totals: { gross: totalGross, tips: totalTips, count: payments.length } });
+    const totalGross = normalized.reduce((s, p) => s + p.amount + p.tip, 0);
+    const totalTips = normalized.reduce((s, p) => s + p.tip, 0);
+    const totalFees = normalized.reduce((s, p) => s + p.fee, 0);
+    const totalNet = normalized.reduce((s, p) => s + p.net, 0);
+    res.json({ payments: normalized, totals: { gross: totalGross, tips: totalTips, fees: totalFees, net: totalNet, count: normalized.length } });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
