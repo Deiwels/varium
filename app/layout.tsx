@@ -109,6 +109,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         ` }} />
       </head>
       <body>
+        {/* Vurium Analytics — lightweight privacy-friendly tracker */}
+        <script src="/va.js" defer />
         {/* ── Global cosmic starfield ── */}
         <div id="vurium-cosmos" style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', background: '#010101', willChange: 'transform', contain: 'layout style' as any }}>
 

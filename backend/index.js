@@ -1504,6 +1504,324 @@ app.post('/contact', (req, res) => {
     .catch((e) => { console.warn('Contact email error:', e?.message); res.status(500).json({ error: 'Failed to send message.' }); });
 });
 
+// ============================================================
+// VURIUM SUPER-ADMIN PANEL — Private admin endpoints
+// Separate auth via magic link (not VuriumBook accounts)
+// Must be before the workspace auth middleware below
+// ============================================================
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
+const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || (JWT_SECRET + '_admin');
+
+function requireSuperadmin(req, res, next) {
+  const token = req.cookies?.vurium_admin_token || '';
+  if (!token) return res.status(401).json({ error: 'Not authenticated' });
+  try {
+    const payload = jwt.verify(token, ADMIN_JWT_SECRET);
+    if (payload.role !== 'superadmin') return res.status(403).json({ error: 'Forbidden' });
+    req.adminUser = payload;
+    next();
+  } catch { return res.status(401).json({ error: 'Invalid or expired token' }); }
+}
+
+// Magic link: rate limiter (3 requests per 15 min per IP)
+const magicLinkLimiter = {};
+// Used magic tokens (one-time use)
+const usedMagicTokens = new Set();
+// Auto-cleanup used tokens every hour
+setInterval(() => usedMagicTokens.clear(), 3600000);
+
+// Magic link: request login link
+app.post('/api/vurium-dev/auth/request', express.json(), (req, res) => {
+  const ip = getClientIp(req);
+  const now = Date.now();
+
+  // Rate limit: 3 requests per 15 minutes
+  if (!magicLinkLimiter[ip]) magicLinkLimiter[ip] = { count: 0, reset: now + 900000 };
+  if (now > magicLinkLimiter[ip].reset) magicLinkLimiter[ip] = { count: 0, reset: now + 900000 };
+  magicLinkLimiter[ip].count++;
+  if (magicLinkLimiter[ip].count > 3) {
+    return res.json({ ok: true }); // Don't reveal rate limit — always "sent"
+  }
+
+  const email = safeStr(req.body?.email || '').toLowerCase().trim();
+  if (!ADMIN_EMAIL || email !== ADMIN_EMAIL) {
+    // Don't reveal whether email is valid — always say "sent"
+    return res.json({ ok: true });
+  }
+
+  const jti = crypto.randomBytes(16).toString('hex'); // unique token ID for one-time use
+  const magicToken = jwt.sign({ email, role: 'superadmin', purpose: 'magic_link', jti }, ADMIN_JWT_SECRET, { expiresIn: '15m' });
+  const frontendUrl = process.env.FRONTEND_URL || 'https://vurium.com';
+  const link = `${frontendUrl}/developer/verify?token=${magicToken}`;
+
+  const html = vuriumEmailTemplate('Developer Login', `
+    <p style="margin:0 0 16px;color:rgba(255,255,255,.6);">Click the button below to sign in to the Vurium Developer panel. This link expires in 15 minutes.</p>
+    <p style="margin:24px 0;text-align:center;">
+      <a href="${link}" style="display:inline-block;padding:12px 32px;border-radius:999px;background:rgba(130,150,220,.2);color:rgba(130,150,220,.95);font-weight:700;font-size:14px;text-decoration:none;border:1px solid rgba(130,150,220,.3);">Sign in to Developer Panel</a>
+    </p>
+    <p style="margin:16px 0 0;font-size:12px;color:rgba(255,255,255,.25);">If you didn't request this, ignore this email. This link can only be used once.</p>
+  `, 'Vurium', null, 'modern');
+
+  sendEmail(ADMIN_EMAIL, 'Vurium Developer — Sign In Link', html, 'Vurium')
+    .then(() => res.json({ ok: true }))
+    .catch(() => res.json({ ok: true }));
+});
+
+// Magic link: verify token → set HttpOnly cookie
+app.post('/api/vurium-dev/auth/verify', express.json(), (req, res) => {
+  const token = safeStr(req.body?.token || '');
+  if (!token) return res.status(400).json({ error: 'Missing token' });
+  try {
+    const payload = jwt.verify(token, ADMIN_JWT_SECRET);
+    if (payload.purpose !== 'magic_link' || payload.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Invalid token' });
+    }
+
+    // One-time use: check if token was already used
+    if (usedMagicTokens.has(payload.jti)) {
+      return res.status(401).json({ error: 'This link has already been used' });
+    }
+    usedMagicTokens.add(payload.jti);
+
+    // Log login event
+    const ip = getClientIp(req);
+    console.log(`[DEV-AUTH] Login: ${payload.email} from ${ip} at ${new Date().toISOString()}`);
+    db.collection('vurium_dev_logins').add({
+      email: payload.email, ip, ua: safeStr(req.headers['user-agent'] || '').substring(0, 300),
+      created_at: toIso(new Date()),
+    }).catch(() => {});
+
+    // Issue session token (24h)
+    const sessionToken = jwt.sign({ email: payload.email, role: 'superadmin' }, ADMIN_JWT_SECRET, { expiresIn: '24h' });
+
+    res.cookie('vurium_admin_token', sessionToken, {
+      httpOnly: true, secure: true, sameSite: 'lax',
+      path: '/', maxAge: 86400000, // 24h
+    });
+    res.json({ ok: true });
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired link' });
+  }
+});
+
+// Logout
+app.post('/api/vurium-dev/auth/logout', (req, res) => {
+  res.cookie('vurium_admin_token', '', { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 0 });
+  res.json({ ok: true });
+});
+
+// Ping — auth check for admin panel
+app.get('/api/vurium-dev/ping', requireSuperadmin, (req, res) => {
+  res.json({ ok: true, email: req.adminUser.email });
+});
+
+// ── Analytics tracker ingest (unauthenticated, rate-limited) ──
+const trackerLimiter = {};
+app.post('/t', express.json({ limit: '1kb' }), (req, res) => {
+  const ip = getClientIp(req);
+  const now = Date.now();
+  if (!trackerLimiter[ip]) trackerLimiter[ip] = { count: 0, reset: now + 60000 };
+  if (now > trackerLimiter[ip].reset) { trackerLimiter[ip] = { count: 0, reset: now + 60000 }; }
+  trackerLimiter[ip].count++;
+  if (trackerLimiter[ip].count > 60) return res.status(429).end();
+
+  const { url, ref, scr, vid, sid } = req.body || {};
+  if (!url || typeof url !== 'string' || url.length > 500) return res.status(400).end();
+
+  const ua = safeStr(req.headers['user-agent'] || '').substring(0, 300);
+  const isMobile = /Mobile|Android|iPhone|iPad/i.test(ua);
+  const isTablet = /iPad|Tablet|Android(?!.*Mobile)/i.test(ua);
+  const device = isTablet ? 'tablet' : isMobile ? 'mobile' : 'desktop';
+  const browserMatch = ua.match(/(Chrome|Firefox|Safari|Edge|Opera|MSIE|Trident)/i);
+  const browser = browserMatch ? browserMatch[1].toLowerCase().replace('trident', 'ie') : 'other';
+  const ipHash = crypto.createHash('sha256').update(ip + JWT_SECRET).digest('hex').substring(0, 16);
+
+  db.collection('vurium_analytics').add({
+    url: safeStr(url).substring(0, 500),
+    referrer: safeStr(ref || '').substring(0, 500),
+    device, browser,
+    screen: safeStr(scr || '').substring(0, 20),
+    visitor_id: safeStr(vid || '').substring(0, 40),
+    session_id: safeStr(sid || '').substring(0, 40),
+    ip_hash: ipHash,
+    created_at: toIso(new Date()),
+  }).catch(e => console.warn('Analytics write error:', e?.message));
+
+  res.status(204).end();
+});
+
+// ── Analytics query (superadmin only) ──
+app.get('/api/vurium-dev/analytics', requireSuperadmin, async (req, res) => {
+  try {
+    const range = req.query.range || '7d';
+    const days = range === '90d' ? 90 : range === '30d' ? 30 : 7;
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+
+    const snap = await db.collection('vurium_analytics')
+      .where('created_at', '>=', since)
+      .orderBy('created_at', 'desc')
+      .limit(50000)
+      .get();
+
+    const docs = [];
+    snap.forEach(d => docs.push(d.data()));
+
+    // Aggregate
+    const uniqueVisitors = new Set(docs.map(d => d.visitor_id).filter(Boolean));
+    const uniqueSessions = new Set(docs.map(d => d.session_id).filter(Boolean));
+
+    // Pageviews by day
+    const byDay = {};
+    docs.forEach(d => {
+      const day = (d.created_at || '').substring(0, 10);
+      if (day) byDay[day] = (byDay[day] || 0) + 1;
+    });
+
+    // Top pages
+    const byPage = {};
+    docs.forEach(d => { if (d.url) byPage[d.url] = (byPage[d.url] || 0) + 1; });
+    const topPages = Object.entries(byPage).sort((a, b) => b[1] - a[1]).slice(0, 20).map(([url, count]) => ({ url, count }));
+
+    // Top referrers
+    const byRef = {};
+    docs.forEach(d => {
+      if (d.referrer) {
+        try { const h = new URL(d.referrer).hostname; byRef[h] = (byRef[h] || 0) + 1; } catch { byRef[d.referrer] = (byRef[d.referrer] || 0) + 1; }
+      }
+    });
+    const topReferrers = Object.entries(byRef).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([source, count]) => ({ source, count }));
+
+    // Device breakdown
+    const byDevice = { desktop: 0, mobile: 0, tablet: 0 };
+    docs.forEach(d => { if (d.device && byDevice[d.device] !== undefined) byDevice[d.device]++; });
+
+    // Browser breakdown
+    const byBrowser = {};
+    docs.forEach(d => { if (d.browser) byBrowser[d.browser] = (byBrowser[d.browser] || 0) + 1; });
+
+    // Conversion funnel: visitors who hit / then /signup in same session
+    const sessionPages = {};
+    docs.forEach(d => {
+      if (d.session_id && d.url) {
+        if (!sessionPages[d.session_id]) sessionPages[d.session_id] = new Set();
+        sessionPages[d.session_id].add(d.url);
+      }
+    });
+    const landingSessions = Object.values(sessionPages).filter(s => s.has('/')).length;
+    const signupSessions = Object.values(sessionPages).filter(s => s.has('/signup')).length;
+    const completedSignups = Object.values(sessionPages).filter(s => s.has('/dashboard')).length;
+
+    res.json({
+      range: days,
+      total_pageviews: docs.length,
+      unique_visitors: uniqueVisitors.size,
+      unique_sessions: uniqueSessions.size,
+      by_day: byDay,
+      top_pages: topPages,
+      top_referrers: topReferrers,
+      devices: byDevice,
+      browsers: byBrowser,
+      funnel: { landing: landingSessions, signup: signupSessions, completed: completedSignups },
+    });
+  } catch (e) {
+    console.error('Analytics query error:', e);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
+// ── Email: Send (superadmin only) ──
+app.post('/api/vurium-dev/email/send', requireSuperadmin, async (req, res) => {
+  try {
+    const { to, subject, body_html } = req.body;
+    if (!to || !subject) return res.status(400).json({ error: 'Missing to or subject' });
+
+    const html = vuriumEmailTemplate(subject, body_html || '<p>No content</p>', 'Vurium', null, 'modern');
+    const result = await sendEmail(to, subject, html, 'Vurium');
+
+    // Save outbound email
+    await db.collection('vurium_emails').add({
+      direction: 'outbound',
+      from: `noreply@vurium.com`,
+      to, subject,
+      body_html: body_html || '',
+      body_text: '',
+      status: result?.id ? 'sent' : 'failed',
+      read: true,
+      created_at: toIso(new Date()),
+    });
+
+    res.json({ ok: true, id: result?.id });
+  } catch (e) {
+    console.error('Admin email send error:', e);
+    res.status(500).json({ error: 'Failed to send email' });
+  }
+});
+
+// ── Email: Resend inbound webhook ──
+app.post('/api/vurium-dev/email/inbound', express.json({ limit: '5mb' }), async (req, res) => {
+  try {
+    const { from, to, subject, html, text } = req.body || {};
+    if (!from) return res.status(400).json({ error: 'Missing from' });
+
+    await db.collection('vurium_emails').add({
+      direction: 'inbound',
+      from: typeof from === 'string' ? from : (from?.address || from?.email || JSON.stringify(from)),
+      to: typeof to === 'string' ? to : (Array.isArray(to) ? to.map(t => t?.address || t).join(', ') : JSON.stringify(to)),
+      subject: safeStr(subject || '(no subject)').substring(0, 500),
+      body_html: (html || '').substring(0, 100000),
+      body_text: (text || '').substring(0, 50000),
+      status: 'received',
+      read: false,
+      created_at: toIso(new Date()),
+    });
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('Inbound email error:', e);
+    res.status(500).json({ error: 'Failed to store inbound email' });
+  }
+});
+
+// ── Email: List (superadmin only) ──
+app.get('/api/vurium-dev/emails', requireSuperadmin, async (req, res) => {
+  try {
+    const direction = req.query.direction || 'all';
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    let q = db.collection('vurium_emails').orderBy('created_at', 'desc').limit(limit);
+    if (direction !== 'all') q = q.where('direction', '==', direction);
+
+    const snap = await q.get();
+    const emails = [];
+    snap.forEach(d => emails.push({ id: d.id, ...d.data() }));
+    res.json({ emails });
+  } catch (e) {
+    console.error('Email list error:', e);
+    res.status(500).json({ error: 'Failed to list emails' });
+  }
+});
+
+// ── Email: Get single (superadmin only) ──
+app.get('/api/vurium-dev/emails/:id', requireSuperadmin, async (req, res) => {
+  try {
+    const doc = await db.collection('vurium_emails').doc(req.params.id).get();
+    if (!doc.exists) return res.status(404).json({ error: 'Not found' });
+    res.json({ id: doc.id, ...doc.data() });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to get email' });
+  }
+});
+
+// ── Email: Mark read/unread (superadmin only) ──
+app.patch('/api/vurium-dev/emails/:id', requireSuperadmin, async (req, res) => {
+  try {
+    const { read } = req.body;
+    await db.collection('vurium_emails').doc(req.params.id).update({ read: !!read });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update email' });
+  }
+});
+
 // Apply auth + workspace for all /api/ routes
 // API rate limiting middleware (120 req/min per IP)
 app.use('/api', (req, res, next) => {

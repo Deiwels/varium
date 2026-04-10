@@ -137,7 +137,7 @@ export default function TermsPage() {
         </div>
 
         {/* 10. Limitation of Liability */}
-        <h2 style={heading}>9. Limitation of Liability</h2>
+        <h2 style={heading}>10. Limitation of Liability</h2>
         <p style={text}>
           To the fullest extent permitted by applicable law, Vurium shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits, revenue, data, or business opportunities, arising out of or related to your use of the Service. Our total aggregate liability for any claims arising under these Terms shall not exceed the amount you paid to Vurium in the 12 months preceding the claim. Nothing in these Terms excludes or limits liability that cannot be excluded under applicable law (including liability for death, personal injury, or fraud).
         </p>

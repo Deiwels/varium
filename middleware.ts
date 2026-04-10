@@ -60,6 +60,14 @@ export function middleware(req: NextRequest) {
     ? decodeURIComponent(req.cookies.get(COOKIE_NAME)!.value)
     : null
 
+  // ── Developer panel: /developer/* ──
+  // Auth is handled by HttpOnly cookie (vurium_admin_token) verified by the backend.
+  // Middleware just lets it through — the layout component checks /api/vurium-dev/ping.
+  // Login page at /developer/login is always accessible.
+  if (pathname.startsWith('/developer')) {
+    return NextResponse.next()
+  }
+
   // No cookie → redirect to signin
   if (!cookieValue) {
     const url = req.nextUrl.clone()
