@@ -3977,7 +3977,10 @@ app.get('/api/attendance', requirePlanFeature('attendance'), async (req, res) =>
 app.get('/api/attendance/status', requirePlanFeature('attendance'), async (req, res) => {
   try {
     const userId = req.user.uid;
-    const today = new Date().toISOString().slice(0, 10);
+    // Use workspace timezone for "today" (not UTC)
+    const settingsDoc = await req.ws('settings').doc('config').get();
+    const tz = settingsDoc.exists ? (settingsDoc.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
     // Get ALL today's records to find the latest one and sum total minutes
     const snap = await req.ws('attendance')
       .where('user_id', '==', userId)
@@ -4004,7 +4007,11 @@ app.post('/api/attendance/clock-in', requirePlanFeature('attendance'), async (re
   try {
     const userId = req.user.uid;
     const now = new Date();
-    const today = now.toISOString().slice(0, 10);
+    // Load settings once for timezone + geofence
+    const settingsDoc = await req.ws('settings').doc('config').get();
+    const settings = settingsDoc.exists ? settingsDoc.data() : {};
+    const tz = settings.timezone || 'America/Chicago';
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(now);
     // Prevent double clock-in — check if already clocked in today
     const existing = await req.ws('attendance')
       .where('user_id', '==', userId)
@@ -4017,8 +4024,6 @@ app.post('/api/attendance/clock-in', requirePlanFeature('attendance'), async (re
     const lng = Number(req.body?.lng);
     let atShop = false;
     let distanceMeters = null;
-    const settingsDoc = await req.ws('settings').doc('config').get();
-    const settings = settingsDoc.exists ? settingsDoc.data() : {};
     if (lat && lng && settings.geofence_lat && settings.geofence_lng) {
       const dist = haversineMeters(lat, lng, Number(settings.geofence_lat), Number(settings.geofence_lng));
       const radius = Number(settings.geofence_radius_m || 500);
@@ -4050,7 +4055,10 @@ app.post('/api/attendance/clock-in', requirePlanFeature('attendance'), async (re
 app.post('/api/attendance/clock-out', requirePlanFeature('attendance'), async (req, res) => {
   try {
     const userId = req.user.uid;
-    const today = new Date().toISOString().slice(0, 10);
+    // Use workspace timezone for "today"
+    const tzDoc = await req.ws('settings').doc('config').get();
+    const tz = tzDoc.exists ? (tzDoc.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
     const snap = await req.ws('attendance')
       .where('user_id', '==', userId)
       .where('date', '==', today)
