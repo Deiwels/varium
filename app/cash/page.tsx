@@ -112,16 +112,17 @@ export default function CashPage() {
       const byDate = new Map<string, { cashTotal: number; zelleTotal: number; cashTips: number; zelleTips: number; cashCount: number; zelleCount: number }>()
       const start = new Date(fromDate + 'T00:00:00'), end = new Date(toDate + 'T00:00:00')
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) byDate.set(localDateStr(d), { cashTotal: 0, zelleTotal: 0, cashTips: 0, zelleTips: 0, cashCount: 0, zelleCount: 0 })
-      // Filter exactly like Payments page does — by method field, status paid
+      // Normalize payment fields — backend uses payment_method/amount_cents/created_at
       for (const p of allPayments) {
-        if (p.status !== 'paid') continue
-        const method = String(p.method || '').toLowerCase()
+        const status = String(p.status || '').toLowerCase()
+        if (status !== 'paid' && status !== 'completed') continue
+        const method = String(p.payment_method || p.method || '').toLowerCase()
         if (method !== 'cash' && method !== 'zelle') continue
-        const date = String(p.date || '').slice(0, 10)
+        const date = String(p.created_at || p.date || '').slice(0, 10)
         if (!date) continue
         const entry = byDate.get(date) || { cashTotal: 0, zelleTotal: 0, cashTips: 0, zelleTips: 0, cashCount: 0, zelleCount: 0 }
-        const amt = Number(p.amount || 0)
-        const tip = Number(p.tip || 0)
+        const amt = p.amount_cents ? Number(p.amount_cents) / 100 : Number(p.amount || p.service_amount || 0)
+        const tip = p.tip_cents ? Number(p.tip_cents) / 100 : Number(p.tip_amount || p.tip || 0)
         if (method === 'cash') { entry.cashTotal += amt; entry.cashTips += tip; entry.cashCount++ }
         else if (method === 'zelle') { entry.zelleTotal += amt; entry.zelleTips += tip; entry.zelleCount++ }
         byDate.set(date, entry)
