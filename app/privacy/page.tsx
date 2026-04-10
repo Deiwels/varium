@@ -33,7 +33,7 @@ export default function PrivacyPage() {
 
         {/* Introduction */}
         <p style={text}>
-          Element Barbershop Co (doing business as &quot;VuriumBook&quot;) (&quot;Vurium,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) operates the VuriumBook&trade; platform &mdash; a scheduling and business management service for barbershops, salons, and service businesses. This Privacy Policy describes how we collect, use, store, and protect your personal information when you use our website and services. This policy applies to all users worldwide, including residents of the European Economic Area (EEA), United Kingdom, and California.
+          Vurium Inc. (&quot;Vurium,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) operates the VuriumBook&trade; platform &mdash; a scheduling and business management service for barbershops, salons, and service businesses. This Privacy Policy describes how we collect, use, store, and protect your personal information when you use our website and services. This policy applies to all users worldwide, including residents of the European Economic Area (EEA), United Kingdom, and California.
         </p>
 
         {/* 1. Information We Collect */}
@@ -197,7 +197,7 @@ export default function PrivacyPage() {
         </p>
         <div style={highlight}>
           <p style={{ ...text, marginBottom: 0 }}>
-            Element Barbershop Co (doing business as &quot;VuriumBook&quot;)<br />
+            Vurium Inc.<br />
             1142 W Lake Cook Rd, 60089<br />
             Buffalo Grove, IL, United States<br />
             Email: <a href="mailto:support@vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>support@vurium.com</a><br />

@@ -34,7 +34,7 @@ export default function TermsPage() {
         {/* 1. Acceptance */}
         <h2 style={heading}>1. Acceptance of Terms</h2>
         <p style={text}>
-          By accessing or using VuriumBook&trade; (the &quot;Service&quot;), operated by Element Barbershop Co (doing business as &quot;VuriumBook&quot;) (&quot;Vurium,&quot; &quot;we,&quot; &quot;us&quot;), you agree to be bound by these Terms of Service and our <a href="/privacy" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Privacy Policy</a>. If you do not agree, do not use the Service.
+          By accessing or using VuriumBook&trade; (the &quot;Service&quot;), operated by Vurium Inc. (&quot;Vurium,&quot; &quot;we,&quot; &quot;us&quot;), you agree to be bound by these Terms of Service and our <a href="/privacy" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Privacy Policy</a>. If you do not agree, do not use the Service.
         </p>
 
         {/* 2. Service Description */}
@@ -145,7 +145,7 @@ export default function TermsPage() {
         {/* 11. Indemnification */}
         <h2 style={heading}>11. Indemnification</h2>
         <p style={text}>
-          You agree to indemnify, defend, and hold harmless Element Barbershop Co (doing business as &quot;VuriumBook&quot;), its officers, directors, employees, and agents from and against any claims, liabilities, damages, losses, and expenses (including reasonable legal fees) arising out of or related to: (a) your use of the Service; (b) your violation of these Terms; (c) your violation of any third-party rights; or (d) any content or data you submit through the Service. This indemnification obligation will survive termination of these Terms and your use of the Service.
+          You agree to indemnify, defend, and hold harmless Vurium Inc., its officers, directors, employees, and agents from and against any claims, liabilities, damages, losses, and expenses (including reasonable legal fees) arising out of or related to: (a) your use of the Service; (b) your violation of these Terms; (c) your violation of any third-party rights; or (d) any content or data you submit through the Service. This indemnification obligation will survive termination of these Terms and your use of the Service.
         </p>
 
         {/* 12. Dispute Resolution */}
