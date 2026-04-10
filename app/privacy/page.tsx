@@ -33,7 +33,7 @@ export default function PrivacyPage() {
 
         {/* Introduction */}
         <p style={text}>
-          Vurium Inc. (&quot;Vurium,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) operates the VuriumBook&trade; platform &mdash; a scheduling and business management service for barbershops, salons, and service businesses. This Privacy Policy describes how we collect, use, store, and protect your personal information when you use our website and services. This policy applies to all users worldwide, including residents of the European Economic Area (EEA), United Kingdom, and California.
+          Element Barbershop Co (doing business as &quot;VuriumBook&quot;) (&quot;Vurium,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) operates the VuriumBook&trade; platform &mdash; a scheduling and business management service for barbershops, salons, and service businesses. This Privacy Policy describes how we collect, use, store, and protect your personal information when you use our website and services. This policy applies to all users worldwide, including residents of the European Economic Area (EEA), United Kingdom, and California.
         </p>
 
         {/* 1. Information We Collect */}
@@ -67,8 +67,10 @@ export default function PrivacyPage() {
           <li>To detect, prevent, and address fraud, abuse, and security issues.</li>
         </ul>
 
-        {/* 4. SMS / Text Messaging Disclosure */}
-        <h2 id="sms" style={heading}>4. SMS / Text Messaging Disclosure</h2>
+        {/* 4. SMS / Text Messaging Programs */}
+        <h2 id="sms" style={heading}>4. SMS / Text Messaging Programs</h2>
+
+        <h3 style={{ ...heading, fontSize: 16, marginTop: 24 }}>Program A &mdash; Appointment Notifications (Customer Care)</h3>
         <div style={highlight}>
           <p style={{ ...text, marginBottom: 14 }}>
             We collect and use phone numbers to send appointment-related SMS messages including booking confirmations, reminders, schedule changes, and cancellation notices. By providing your phone number and checking the SMS consent box at https://vurium.com/book/[workspace] during the online booking process, you explicitly opt in to receive these text messages from Vurium and the business you are booking with.
@@ -81,6 +83,21 @@ export default function PrivacyPage() {
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Help:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>HELP</strong> to any message for assistance, or email support@vurium.com.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>No Sharing:</strong> We will not sell, rent, or share your mobile phone number or SMS opt-in data with third parties for their marketing purposes.</li>
             <li>Consent to receive SMS is <strong style={{ color: 'rgba(255,255,255,.55)' }}>not a condition</strong> of purchasing any service or making a booking.</li>
+          </ul>
+        </div>
+
+        <h3 style={{ ...heading, fontSize: 16, marginTop: 24 }}>Program B &mdash; Account Verification &amp; Security Codes (2FA)</h3>
+        <div style={highlight}>
+          <p style={{ ...text, marginBottom: 14 }}>
+            We use SMS to help secure VuriumBook&trade; business-owner accounts. If you enter your mobile number and request verification (for example, by clicking &quot;Send code&quot; or &quot;Verify&quot;), we may send one-time authentication messages such as phone number verification codes during account signup, login verification codes, and password reset codes.
+          </p>
+          <ul style={{ ...list, marginBottom: 0 }}>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Types:</strong> One-time verification codes for signup, login, and password reset only. No marketing, no appointment notifications.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Frequency:</strong> Varies based on your requests, typically 1&ndash;2 messages per verification attempt.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message and data rates may apply.</strong> Your wireless carrier may charge message and data rates.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Opt-Out:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>STOP</strong> to opt out of SMS verification codes. If you opt out, you may need to use an alternate verification method (such as email) or contact support.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Help:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>HELP</strong> for assistance, or email support@vurium.com.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>No Sharing:</strong> Your mobile information will not be sold or shared with third parties for promotional or marketing purposes. All categories of sharing described in this Privacy Policy exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties except service providers that help us deliver these messages.</li>
           </ul>
         </div>
 
@@ -180,7 +197,7 @@ export default function PrivacyPage() {
         </p>
         <div style={highlight}>
           <p style={{ ...text, marginBottom: 0 }}>
-            Vurium Inc.<br />
+            Element Barbershop Co (doing business as &quot;VuriumBook&quot;)<br />
             1142 W Lake Cook Rd, 60089<br />
             Buffalo Grove, IL, United States<br />
             Email: <a href="mailto:support@vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>support@vurium.com</a><br />

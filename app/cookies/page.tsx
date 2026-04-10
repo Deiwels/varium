@@ -32,7 +32,7 @@ export default function CookiePolicyPage() {
         </p>
 
         <p style={text}>
-          This Cookie Policy explains how Vurium Inc. (&quot;Vurium,&quot; &quot;we,&quot; &quot;us&quot;) uses cookies and similar technologies on our website and platform. This policy should be read alongside our <a href="/privacy" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Privacy Policy</a>.
+          This Cookie Policy explains how Element Barbershop Co (doing business as &quot;VuriumBook&quot;) (&quot;Vurium,&quot; &quot;we,&quot; &quot;us&quot;) uses cookies and similar technologies on our website and platform. This policy should be read alongside our <a href="/privacy" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Privacy Policy</a>.
         </p>
 
         {/* 1. What Are Cookies */}

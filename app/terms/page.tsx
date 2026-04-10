@@ -34,7 +34,7 @@ export default function TermsPage() {
         {/* 1. Acceptance */}
         <h2 style={heading}>1. Acceptance of Terms</h2>
         <p style={text}>
-          By accessing or using VuriumBook&trade; (the &quot;Service&quot;), operated by Vurium Inc. (&quot;Vurium,&quot; &quot;we,&quot; &quot;us&quot;), you agree to be bound by these Terms of Service and our <a href="/privacy" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Privacy Policy</a>. If you do not agree, do not use the Service.
+          By accessing or using VuriumBook&trade; (the &quot;Service&quot;), operated by Element Barbershop Co (doing business as &quot;VuriumBook&quot;) (&quot;Vurium,&quot; &quot;we,&quot; &quot;us&quot;), you agree to be bound by these Terms of Service and our <a href="/privacy" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Privacy Policy</a>. If you do not agree, do not use the Service.
         </p>
 
         {/* 2. Service Description */}
@@ -69,6 +69,19 @@ export default function TermsPage() {
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message and data rates may apply.</strong> Check with your wireless carrier.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Supported Carriers:</strong> Major US carriers are supported. Carriers are not liable for delayed or undelivered messages.</li>
             <li>Consent to receive SMS is <strong style={{ color: 'rgba(255,255,255,.55)' }}>not required</strong> to use the booking service or make a purchase.</li>
+          </ul>
+        </div>
+
+        <h3 style={{ ...heading, fontSize: 16, marginTop: 24 }}>4.2 Account Verification &amp; Security Codes (2FA)</h3>
+        <div style={highlight}>
+          <p style={{ ...text, marginBottom: 14 }}>
+            VuriumBook&trade; may send one-time SMS messages to help verify and secure business-owner accounts (for example, verification codes during signup, login codes, and password reset codes). These messages are transactional and security-related.
+          </p>
+          <ul style={{ ...list, marginBottom: 0 }}>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Frequency:</strong> Varies based on your requests, typically 1&ndash;2 messages per verification attempt.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message and data rates may apply.</strong></li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Opt-Out:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>STOP</strong> to opt out of SMS security codes. If you opt out, you may need to use an alternative verification method or contact support.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Help:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>HELP</strong> for assistance, or contact support@vurium.com.</li>
           </ul>
         </div>
 
@@ -132,7 +145,7 @@ export default function TermsPage() {
         {/* 11. Indemnification */}
         <h2 style={heading}>11. Indemnification</h2>
         <p style={text}>
-          You agree to indemnify, defend, and hold harmless Vurium Inc., its officers, directors, employees, and agents from and against any claims, liabilities, damages, losses, and expenses (including reasonable legal fees) arising out of or related to: (a) your use of the Service; (b) your violation of these Terms; (c) your violation of any third-party rights; or (d) any content or data you submit through the Service. This indemnification obligation will survive termination of these Terms and your use of the Service.
+          You agree to indemnify, defend, and hold harmless Element Barbershop Co (doing business as &quot;VuriumBook&quot;), its officers, directors, employees, and agents from and against any claims, liabilities, damages, losses, and expenses (including reasonable legal fees) arising out of or related to: (a) your use of the Service; (b) your violation of these Terms; (c) your violation of any third-party rights; or (d) any content or data you submit through the Service. This indemnification obligation will survive termination of these Terms and your use of the Service.
         </p>
 
         {/* 12. Dispute Resolution */}

@@ -31,7 +31,7 @@ export default function AccessibilityPage() {
         </p>
 
         <p style={text}>
-          Vurium Inc. is committed to ensuring digital accessibility for people with disabilities. We are continually improving the user experience for everyone and applying the relevant accessibility standards.
+          Element Barbershop Co (doing business as &quot;VuriumBook&quot;) is committed to ensuring digital accessibility for people with disabilities. We are continually improving the user experience for everyone and applying the relevant accessibility standards.
         </p>
 
         <h2 style={heading}>Conformance Status</h2>
