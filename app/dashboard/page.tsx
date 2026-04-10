@@ -760,7 +760,11 @@ export default function DashboardPage() {
           const wl: React.CSSProperties = { fontSize: 9, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }
           switch (item.id) {
             case 'w_clockin': return (
-              <div onClick={e => { if (jiggleMode) return; e.stopPropagation(); handleClockAction() }} style={{...ws, cursor: clockLoading ? 'wait' : 'pointer', opacity: clockLoading ? .7 : 1, border: clockedIn ? '1px solid rgba(143,240,177,.20)' : ws.border }}>
+              <div
+                onTouchStart={e => { e.stopPropagation(); clearTimeout(jiggleTimerRef.current) }}
+                onTouchEnd={e => { if (jiggleMode || clockLoading) return; e.preventDefault(); e.stopPropagation(); handleClockAction() }}
+                onClick={e => { if (jiggleMode || clockLoading) return; e.stopPropagation(); handleClockAction() }}
+                style={{...ws, cursor: clockLoading ? 'wait' : 'pointer', opacity: clockLoading ? .7 : 1, border: clockedIn ? '1px solid rgba(143,240,177,.20)' : ws.border }}>
                 <div style={wl}>{clockedIn ? 'On Shift' : 'Clock In'}</div>
                 <div style={{ fontSize: 22, fontWeight: 600, color: clockedIn ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.7)', lineHeight: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
                   {clockedIn && <span style={{ width: 6, height: 6, borderRadius: 999, background: 'rgba(130,220,170,.8)', animation: 'clockDot 2s ease-in-out infinite', flexShrink: 0 }} />}
