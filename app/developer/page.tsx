@@ -7,189 +7,219 @@ const card: React.CSSProperties = {
   background: 'rgba(255,255,255,.03)', backdropFilter: 'blur(12px)', padding: '20px 24px',
 }
 const statCard: React.CSSProperties = {
-  ...card, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 160,
+  ...card, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 140,
+}
+const tbl: React.CSSProperties = { width: '100%', borderCollapse: 'collapse' }
+const th: React.CSSProperties = { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.3)', textTransform: 'uppercase', letterSpacing: '.1em', textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,.06)' }
+const td: React.CSSProperties = { fontSize: 13, color: 'rgba(255,255,255,.55)', padding: '10px 10px', borderBottom: '1px solid rgba(255,255,255,.03)' }
+
+function devFetch(path: string) {
+  return fetch(`${API}${path}`, { credentials: 'include', headers: { 'Content-Type': 'application/json' } }).then(r => r.json())
 }
 
-function adminFetch(path: string) {
-  return fetch(`${API}${path}`, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-  }).then(r => r.json())
+function StatusBadge({ status }: { status: string }) {
+  const colors: Record<string, { bg: string; text: string }> = {
+    active: { bg: 'rgba(130,220,170,.1)', text: 'rgba(130,220,170,.8)' },
+    trialing: { bg: 'rgba(130,150,220,.1)', text: 'rgba(130,150,220,.8)' },
+    past_due: { bg: 'rgba(220,170,100,.1)', text: 'rgba(220,170,100,.8)' },
+    canceled: { bg: 'rgba(220,100,100,.1)', text: 'rgba(220,100,100,.7)' },
+    inactive: { bg: 'rgba(255,255,255,.04)', text: 'rgba(255,255,255,.3)' },
+  }
+  const c = colors[status] || colors.inactive
+  return (
+    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: c.bg, color: c.text, textTransform: 'uppercase', letterSpacing: '.05em' }}>
+      {status}
+    </span>
+  )
 }
 
 function MiniChart({ data, color }: { data: { label: string; value: number }[]; color: string }) {
   if (!data.length) return null
   const max = Math.max(...data.map(d => d.value), 1)
-  const w = 400, h = 100, px = data.length > 1 ? w / (data.length - 1) : 0
-  const points = data.map((d, i) => `${i * px},${h - (d.value / max) * (h - 10)}`).join(' ')
+  const w = 300, h = 60, px = data.length > 1 ? w / (data.length - 1) : 0
+  const points = data.map((d, i) => `${i * px},${h - (d.value / max) * (h - 6)}`).join(' ')
   return (
-    <svg viewBox={`0 0 ${w} ${h + 10}`} style={{ width: '100%', height: 120 }} preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${w} ${h + 4}`} style={{ width: '100%', height: 70 }} preserveAspectRatio="none">
       <defs>
-        <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity=".3" />
+        <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity=".25" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <polygon points={`0,${h + 10} ${points} ${w},${h + 10}`} fill="url(#cg)" />
+      <polygon points={`0,${h + 4} ${points} ${w},${h + 4}`} fill="url(#sg)" />
       <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {data.map((d, i) => (
-        <circle key={i} cx={i * px} cy={h - (d.value / max) * (h - 10)} r="3" fill={color} opacity=".6" />
-      ))}
     </svg>
   )
 }
 
-export default function AdminDashboard() {
+export default function DeveloperOverview() {
   const [data, setData] = useState<any>(null)
-  const [range, setRange] = useState('7d')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setLoading(true)
-    adminFetch(`/api/vurium-dev/analytics?range=${range}`)
+    devFetch('/api/vurium-dev/platform')
       .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [range])
+  }, [])
 
-  const chartData = data?.by_day
-    ? Object.entries(data.by_day).sort(([a], [b]) => a.localeCompare(b)).map(([label, value]) => ({ label, value: value as number }))
+  if (loading) return <div style={{ padding: 60, textAlign: 'center', color: 'rgba(255,255,255,.3)', fontSize: 13 }}>Loading platform data...</div>
+  if (!data) return <div style={{ padding: 60, textAlign: 'center', color: 'rgba(255,255,255,.3)', fontSize: 13 }}>Failed to load</div>
+
+  const signupChart = data.signups_by_day
+    ? Object.entries(data.signups_by_day).sort(([a], [b]) => a.localeCompare(b)).map(([label, value]) => ({ label, value: value as number }))
     : []
+
+  const totalBookings = (data.workspaces || []).reduce((a: number, w: any) => a + (w.bookings || 0), 0)
+  const totalClients = (data.workspaces || []).reduce((a: number, w: any) => a + (w.clients || 0), 0)
+  const totalStaff = (data.workspaces || []).reduce((a: number, w: any) => a + (w.staff || 0), 0)
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.85)', margin: 0 }}>Analytics</h1>
-          <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', marginTop: 4 }}>vurium.com site statistics</p>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.85)', margin: 0 }}>Overview</h1>
+        <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', marginTop: 4 }}>VuriumBook platform metrics</p>
+      </div>
+
+      {/* Top stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 24 }}>
+        <div style={statCard}>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Workspaces</span>
+          <span style={{ fontSize: 32, fontWeight: 700, color: 'rgba(130,150,220,.9)' }}>{data.total_workspaces}</span>
         </div>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {['7d', '30d', '90d'].map(r => (
-            <button key={r} onClick={() => setRange(r)} style={{
-              padding: '6px 14px', borderRadius: 999, border: 'none', cursor: 'pointer',
-              fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
-              background: range === r ? 'rgba(130,150,220,.15)' : 'rgba(255,255,255,.04)',
-              color: range === r ? 'rgba(130,150,220,.9)' : 'rgba(255,255,255,.4)',
-            }}>{r}</button>
-          ))}
+        <div style={statCard}>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Paid</span>
+          <span style={{ fontSize: 32, fontWeight: 700, color: 'rgba(130,220,170,.9)' }}>{data.paid_count}</span>
+        </div>
+        <div style={statCard}>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Trialing</span>
+          <span style={{ fontSize: 32, fontWeight: 700, color: 'rgba(220,170,100,.9)' }}>{data.trial_count}</span>
+        </div>
+        <div style={statCard}>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Conversion</span>
+          <span style={{ fontSize: 32, fontWeight: 700, color: 'rgba(255,255,255,.6)' }}>{data.trial_conversion_rate}%</span>
+        </div>
+        <div style={statCard}>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Signups (7d)</span>
+          <span style={{ fontSize: 32, fontWeight: 700, color: 'rgba(130,150,220,.7)' }}>{data.signups_7d}</span>
+        </div>
+        <div style={statCard}>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Signups (30d)</span>
+          <span style={{ fontSize: 32, fontWeight: 700, color: 'rgba(130,150,220,.5)' }}>{data.signups_30d}</span>
         </div>
       </div>
 
-      {loading ? (
-        <div style={{ padding: 60, textAlign: 'center', color: 'rgba(255,255,255,.3)', fontSize: 13 }}>Loading analytics...</div>
-      ) : !data ? (
-        <div style={{ padding: 60, textAlign: 'center', color: 'rgba(255,255,255,.3)', fontSize: 13 }}>No data yet</div>
-      ) : (
-        <>
-          {/* Stat cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12, marginBottom: 24 }}>
-            <div style={statCard}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Pageviews</span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: 'rgba(130,150,220,.9)' }}>{data.total_pageviews?.toLocaleString()}</span>
-            </div>
-            <div style={statCard}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Visitors</span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: 'rgba(130,220,170,.9)' }}>{data.unique_visitors?.toLocaleString()}</span>
-            </div>
-            <div style={statCard}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Sessions</span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: 'rgba(220,170,100,.9)' }}>{data.unique_sessions?.toLocaleString()}</span>
-            </div>
-            <div style={statCard}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Pages/Session</span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: 'rgba(255,255,255,.6)' }}>
-                {data.unique_sessions ? (data.total_pageviews / data.unique_sessions).toFixed(1) : '0'}
-              </span>
-            </div>
+      {/* Row: Signup chart + Plan breakdown */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12, marginBottom: 20 }}>
+        <div style={card}>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Signups (last 30 days)</span>
+          <div style={{ marginTop: 8 }}>
+            {signupChart.length > 0 ? <MiniChart data={signupChart} color="rgba(130,220,170,.7)" /> : <p style={{ fontSize: 12, color: 'rgba(255,255,255,.2)', margin: '20px 0' }}>No signups yet</p>}
           </div>
+        </div>
 
-          {/* Chart */}
-          <div style={{ ...card, marginBottom: 20 }}>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Pageviews over time</span>
-            <div style={{ marginTop: 12 }}>
-              <MiniChart data={chartData} color="rgba(130,150,220,.8)" />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-              {chartData.length > 0 && <span style={{ fontSize: 10, color: 'rgba(255,255,255,.2)' }}>{chartData[0].label}</span>}
-              {chartData.length > 1 && <span style={{ fontSize: 10, color: 'rgba(255,255,255,.2)' }}>{chartData[chartData.length - 1].label}</span>}
-            </div>
-          </div>
-
-          {/* Grid: Top pages + Referrers + Devices */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-            {/* Top Pages */}
-            <div style={card}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 12 }}>Top Pages</span>
-              {(data.top_pages || []).map((p: any, i: number) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
-                  <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{p.url}</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(130,150,220,.7)' }}>{p.count}</span>
+        <div style={card}>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 14 }}>Plans</span>
+          {data.by_plan && Object.entries(data.by_plan).map(([plan, count]: any) => {
+            const total = data.total_workspaces || 1
+            const pct = Math.round((count / total) * 100)
+            const colors: Record<string, string> = { individual: 'rgba(130,150,220,.6)', salon: 'rgba(130,220,170,.6)', custom: 'rgba(220,170,100,.6)' }
+            return (
+              <div key={plan} style={{ marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'rgba(255,255,255,.5)', marginBottom: 4 }}>
+                  <span style={{ textTransform: 'capitalize' }}>{plan}</span>
+                  <span>{count} ({pct}%)</span>
                 </div>
-              ))}
-              {!data.top_pages?.length && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.2)' }}>No data</span>}
-            </div>
-
-            {/* Referrers */}
-            <div style={card}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 12 }}>Top Referrers</span>
-              {(data.top_referrers || []).map((r: any, i: number) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
-                  <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>{r.source}</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(130,220,170,.7)' }}>{r.count}</span>
+                <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,.06)' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, borderRadius: 2, background: colors[plan] || 'rgba(255,255,255,.2)', minWidth: count > 0 ? 4 : 0 }} />
                 </div>
+              </div>
+            )
+          })}
+
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 10 }}>Status</span>
+            {data.by_status && Object.entries(data.by_status).filter(([,c]: any) => c > 0).map(([status, count]: any) => (
+              <div key={status} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
+                <StatusBadge status={status} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.5)' }}>{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Platform totals */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+        <div style={statCard}>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Total Bookings</span>
+          <span style={{ fontSize: 24, fontWeight: 700, color: 'rgba(130,150,220,.7)' }}>{totalBookings.toLocaleString()}</span>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.25)' }}>across all workspaces</span>
+        </div>
+        <div style={statCard}>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Total Clients</span>
+          <span style={{ fontSize: 24, fontWeight: 700, color: 'rgba(130,220,170,.7)' }}>{totalClients.toLocaleString()}</span>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.25)' }}>across all workspaces</span>
+        </div>
+        <div style={statCard}>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Total Staff</span>
+          <span style={{ fontSize: 24, fontWeight: 700, color: 'rgba(220,170,100,.7)' }}>{totalStaff.toLocaleString()}</span>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.25)' }}>active barbers/stylists</span>
+        </div>
+      </div>
+
+      {/* Workspaces table */}
+      <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>All Workspaces</span>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={tbl}>
+            <thead>
+              <tr>
+                <th style={th}>Business</th>
+                <th style={th}>Plan</th>
+                <th style={th}>Status</th>
+                <th style={th}>Bookings</th>
+                <th style={th}>Clients</th>
+                <th style={th}>Staff</th>
+                <th style={th}>SMS</th>
+                <th style={th}>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data.workspaces || []).map((ws: any) => (
+                <tr key={ws.id} style={{ transition: 'background .15s' }} onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,.02)')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  <td style={td}>
+                    <div style={{ fontWeight: 600, color: 'rgba(255,255,255,.7)' }}>{ws.name || ws.id}</div>
+                    {ws.slug && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', marginTop: 2 }}>/{ws.slug}</div>}
+                  </td>
+                  <td style={td}>
+                    <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'capitalize', color: ws.plan === 'salon' ? 'rgba(130,220,170,.7)' : ws.plan === 'custom' ? 'rgba(220,170,100,.7)' : 'rgba(130,150,220,.7)' }}>{ws.plan}</span>
+                  </td>
+                  <td style={td}><StatusBadge status={ws.status} /></td>
+                  <td style={{ ...td, fontVariantNumeric: 'tabular-nums' }}>{ws.bookings?.toLocaleString()}</td>
+                  <td style={{ ...td, fontVariantNumeric: 'tabular-nums' }}>{ws.clients?.toLocaleString()}</td>
+                  <td style={{ ...td, fontVariantNumeric: 'tabular-nums' }}>{ws.staff}</td>
+                  <td style={td}>
+                    {ws.sms_number ? (
+                      <span style={{ fontSize: 11, color: 'rgba(130,220,170,.6)' }}>{ws.sms_number}</span>
+                    ) : (
+                      <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)' }}>{ws.sms_status === 'none' ? '--' : ws.sms_status}</span>
+                    )}
+                  </td>
+                  <td style={{ ...td, fontSize: 11, color: 'rgba(255,255,255,.3)' }}>
+                    {ws.created_at ? new Date(ws.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '--'}
+                  </td>
+                </tr>
               ))}
-              {!data.top_referrers?.length && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.2)' }}>No data</span>}
-            </div>
-          </div>
-
-          {/* Devices + Funnel */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {/* Device breakdown */}
-            <div style={card}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 12 }}>Devices</span>
-              {data.devices && Object.entries(data.devices).map(([device, count]: any) => {
-                const total = Object.values(data.devices).reduce((a: number, b: any) => a + b, 0) as number
-                const pct = total ? Math.round((count / total) * 100) : 0
-                return (
-                  <div key={device} style={{ marginBottom: 8 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'rgba(255,255,255,.5)', marginBottom: 4 }}>
-                      <span style={{ textTransform: 'capitalize' }}>{device}</span>
-                      <span>{pct}% ({count})</span>
-                    </div>
-                    <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,.06)' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, borderRadius: 2, background: device === 'desktop' ? 'rgba(130,150,220,.6)' : device === 'mobile' ? 'rgba(130,220,170,.6)' : 'rgba(220,170,100,.6)' }} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Conversion funnel */}
-            <div style={card}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 12 }}>Conversion Funnel</span>
-              {data.funnel && (() => {
-                const max = Math.max(data.funnel.landing, 1)
-                const steps = [
-                  { label: 'Landing /', value: data.funnel.landing, color: 'rgba(130,150,220,.6)' },
-                  { label: 'Signup page', value: data.funnel.signup, color: 'rgba(220,170,100,.6)' },
-                  { label: 'Completed', value: data.funnel.completed, color: 'rgba(130,220,170,.6)' },
-                ]
-                return steps.map((s, i) => (
-                  <div key={i} style={{ marginBottom: 10 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'rgba(255,255,255,.5)', marginBottom: 4 }}>
-                      <span>{s.label}</span>
-                      <span>{s.value}</span>
-                    </div>
-                    <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,.06)' }}>
-                      <div style={{ height: '100%', width: `${(s.value / max) * 100}%`, borderRadius: 3, background: s.color, transition: 'width .3s' }} />
-                    </div>
-                  </div>
-                ))
-              })()}
-            </div>
-          </div>
-        </>
-      )}
+              {(!data.workspaces || data.workspaces.length === 0) && (
+                <tr><td colSpan={8} style={{ ...td, textAlign: 'center', color: 'rgba(255,255,255,.2)' }}>No workspaces yet</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </>
   )
 }

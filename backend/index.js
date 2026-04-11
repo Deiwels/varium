@@ -1619,6 +1619,112 @@ app.get('/api/vurium-dev/ping', requireSuperadmin, (req, res) => {
   res.json({ ok: true, email: req.adminUser.email });
 });
 
+// ── Platform metrics (superadmin only) ──
+app.get('/api/vurium-dev/platform', requireSuperadmin, async (req, res) => {
+  try {
+    // 1. All workspaces
+    const wsSnap = await db.collection('workspaces').get();
+    const workspaces = [];
+    wsSnap.forEach(d => workspaces.push({ id: d.id, ...d.data() }));
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now - 30 * 86400000).toISOString();
+    const sevenDaysAgo = new Date(now - 7 * 86400000).toISOString();
+
+    // 2. Aggregate workspace metrics
+    const byPlan = { individual: 0, salon: 0, custom: 0 };
+    const byStatus = { trialing: 0, active: 0, past_due: 0, canceled: 0, inactive: 0 };
+    const signupsLast30d = [];
+    const signupsLast7d = [];
+    let totalRevenue = 0;
+    let trialCount = 0;
+    let paidCount = 0;
+
+    for (const ws of workspaces) {
+      const plan = ws.plan_type || 'individual';
+      if (byPlan[plan] !== undefined) byPlan[plan]++;
+      const status = ws.billing_status || 'inactive';
+      if (byStatus[status] !== undefined) byStatus[status]++;
+      else byStatus.inactive++;
+
+      if (ws.created_at >= thirtyDaysAgo) signupsLast30d.push(ws);
+      if (ws.created_at >= sevenDaysAgo) signupsLast7d.push(ws);
+
+      if (status === 'trialing') trialCount++;
+      if (status === 'active') paidCount++;
+    }
+
+    // 3. Signups by day (last 30d)
+    const signupsByDay = {};
+    for (const ws of workspaces) {
+      if (ws.created_at >= thirtyDaysAgo) {
+        const day = (ws.created_at || '').substring(0, 10);
+        if (day) signupsByDay[day] = (signupsByDay[day] || 0) + 1;
+      }
+    }
+
+    // 4. Per-workspace details (bookings, clients, revenue counts)
+    const wsDetails = [];
+    for (const ws of workspaces) {
+      try {
+        const settingsDoc = await db.collection('workspaces').doc(ws.id).collection('settings').doc('config').get();
+        const settings = settingsDoc.exists ? settingsDoc.data() : {};
+
+        // Count bookings
+        const bookingsSnap = await db.collection('workspaces').doc(ws.id).collection('bookings').count().get();
+        const bookingCount = bookingsSnap.data().count || 0;
+
+        // Count clients
+        const clientsSnap = await db.collection('workspaces').doc(ws.id).collection('clients').count().get();
+        const clientCount = clientsSnap.data().count || 0;
+
+        // Count staff
+        const barbersSnap = await db.collection('workspaces').doc(ws.id).collection('barbers').where('active', '==', true).count().get();
+        const staffCount = barbersSnap.data().count || 0;
+
+        wsDetails.push({
+          id: ws.id,
+          name: settings.shop_name || ws.name || ws.id,
+          slug: ws.slug || '',
+          plan: ws.plan_type || 'individual',
+          status: ws.billing_status || 'inactive',
+          trial_ends: ws.trial_ends_at || null,
+          created_at: ws.created_at || '',
+          bookings: bookingCount,
+          clients: clientCount,
+          staff: staffCount,
+          sms_status: settings.sms_registration_status || 'none',
+          sms_number: settings.sms_from_number || '',
+        });
+      } catch { /* skip broken workspace */ }
+    }
+
+    // Sort by created_at desc
+    wsDetails.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+
+    // 5. Trial conversion rate
+    const trialConverted = workspaces.filter(w => w.trial_used === true).length;
+    const totalTrials = workspaces.filter(w => w.trial_ends_at).length;
+    const conversionRate = totalTrials ? Math.round((trialConverted / totalTrials) * 100) : 0;
+
+    res.json({
+      total_workspaces: workspaces.length,
+      by_plan: byPlan,
+      by_status: byStatus,
+      signups_30d: signupsLast30d.length,
+      signups_7d: signupsLast7d.length,
+      signups_by_day: signupsByDay,
+      trial_count: trialCount,
+      paid_count: paidCount,
+      trial_conversion_rate: conversionRate,
+      workspaces: wsDetails,
+    });
+  } catch (e) {
+    console.error('Platform metrics error:', e);
+    res.status(500).json({ error: 'Failed to fetch platform metrics' });
+  }
+});
+
 // ── Analytics tracker ingest (unauthenticated, rate-limited) ──
 const trackerLimiter = {};
 app.post('/t', express.json({ limit: '1kb' }), (req, res) => {

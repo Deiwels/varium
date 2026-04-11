@@ -4,7 +4,8 @@ import { useRouter, usePathname } from 'next/navigation'
 import { API } from '@/lib/api'
 
 const NAV = [
-  { href: '/developer', label: 'Analytics', icon: '\u2728' },
+  { href: '/developer', label: 'Overview', icon: '\u{1F4CA}' },
+  { href: '/developer/analytics', label: 'Analytics', icon: '\u2728' },
   { href: '/developer/email', label: 'Email', icon: '\u2709\uFE0F' },
 ]
 
