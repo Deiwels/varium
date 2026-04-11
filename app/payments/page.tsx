@@ -250,6 +250,9 @@ export default function PaymentsPage() {
     tips:  visible.reduce((s, p) => s + (p.tip || 0), 0),
     fees:  visible.reduce((s, p) => s + (p.fee || 0), 0),
     net:   visible.reduce((s, p) => s + (p.net || 0), 0),
+    cash:  visible.filter(p => p.method === 'cash').reduce((s, p) => s + (p.amount || 0) + (p.tip || 0), 0),
+    zelle: visible.filter(p => p.method === 'zelle').reduce((s, p) => s + (p.amount || 0) + (p.tip || 0), 0),
+    card:  visible.filter(p => ['card','applepay','terminal'].includes(p.method)).reduce((s, p) => s + (p.amount || 0) + (p.tip || 0), 0),
   }
 
   function getClientName(p: Payment): string {
@@ -360,11 +363,24 @@ export default function PaymentsPage() {
         </div>
 
         {/* KPI strip */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.12)', flexShrink: 0, overflowX: 'auto' as const }}>
+        <div className="pay-kpis" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.12)', flexShrink: 0, overflowX: 'auto' as const }}>
           {[{ label: 'Gross', val: kpis.gross }, { label: 'Tips', val: kpis.tips }, { label: 'Fees', val: kpis.fees }, { label: 'Net', val: kpis.net }].map(k => (
             <div key={k.label} style={{ padding: '10px 16px', borderRight: '1px solid rgba(255,255,255,.06)' }}>
               <div style={{ ...lbl, marginBottom: 4 }}>{k.label}</div>
               <div style={{ fontWeight: 900, fontSize: 15 }}>{fmtMoney(k.val)}</div>
+            </div>
+          ))}
+        </div>
+        {/* Cash / Zelle / Card breakdown */}
+        <div className="pay-kpis" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0, overflowX: 'auto' as const }}>
+          {[
+            { label: 'Cash', val: kpis.cash, color: 'rgba(220,190,130,1)', border: 'rgba(255,207,63,.18)', bg: 'rgba(255,207,63,.04)' },
+            { label: 'Zelle', val: kpis.zelle, color: 'rgba(130,150,220,.9)', border: 'rgba(130,150,220,.18)', bg: 'rgba(130,150,220,.04)' },
+            { label: 'Card', val: kpis.card, color: 'rgba(255,255,255,.7)', border: 'rgba(255,255,255,.06)', bg: 'rgba(255,255,255,.02)' },
+          ].map(k => (
+            <div key={k.label} style={{ padding: '10px 16px', borderRight: `1px solid ${k.border}`, background: k.bg }}>
+              <div style={{ ...lbl, marginBottom: 4 }}>{k.label}</div>
+              <div style={{ fontWeight: 900, fontSize: 15, color: k.color }}>{fmtMoney(k.val)}</div>
             </div>
           ))}
         </div>
@@ -439,9 +455,10 @@ export default function PaymentsPage() {
               <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.25)', fontSize: 13 }}>No transactions</div>
             ) : visible.map((p, idx) => {
               const cn = getClientName(p)
+              const methodColor = p.method === 'cash' ? 'rgba(255,207,63,.35)' : p.method === 'zelle' ? 'rgba(130,150,220,.35)' : 'rgba(255,255,255,.06)'
               return (
                 <div key={p.id} className="pay-card-item" onClick={() => { setSelectedId(p.id); setMobileDetail(true) }}
-                  style={{ padding: '12px 14px', borderRadius: 14, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', cursor: 'pointer', animationDelay: `${Math.min(idx * 30, 300)}ms` }}>
+                  style={{ padding: '12px 14px', borderRadius: 14, border: `1px solid ${methodColor}`, background: 'rgba(255,255,255,.03)', cursor: 'pointer', animationDelay: `${Math.min(idx * 30, 300)}ms` }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
                       <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, flexShrink: 0, color: 'rgba(255,255,255,.60)' }}>{cn ? initials(cn) : '–'}</div>

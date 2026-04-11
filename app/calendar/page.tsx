@@ -1208,7 +1208,8 @@ export default function CalendarPage() {
       const isBlock = b.status === 'block' || b.type === 'block' || b.booking_type === 'block' || b.client_name === 'BLOCKED'
       const isModelOrTraining = b.booking_type === 'model' || b.booking_type === 'training'
       let rawServiceIds: string[] = (Array.isArray(b.service_ids) && b.service_ids.length > 0) ? b.service_ids.map(String) : b.service_id ? String(b.service_id).split(',').map((s: string) => s.trim()).filter(Boolean) : []
-      let svcs = servicesArg.filter(s => rawServiceIds.includes(s.id))
+      // Preserve duplicates + order: map each id to its resolved service object (not filter)
+      let svcs = rawServiceIds.map(id => servicesArg.find(s => s.id === id)).filter(Boolean) as typeof servicesArg
       // Fallback: if service_name has " + " but we don't have all services resolved, try by name
       const svcNameStr = String(b.service_name || '')
       if (svcNameStr.includes(' + ') && svcs.length < svcNameStr.split(' + ').length) {
