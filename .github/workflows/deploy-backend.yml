@@ -76,7 +76,9 @@ jobs:
             --set-env-vars "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" \
             --set-env-vars "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" \
             --set-env-vars "ADMIN_NOTIFY_EMAIL=${{ secrets.ADMIN_NOTIFY_EMAIL }}" \
-            --set-env-vars "FRONTEND_URL=https://vurium.com"
+            --set-env-vars "FRONTEND_URL=https://vurium.com" \
+            --set-env-vars "GMAIL_CLIENT_ID=${{ secrets.GMAIL_CLIENT_ID }}" \
+            --set-env-vars "GMAIL_CLIENT_SECRET=${{ secrets.GMAIL_CLIENT_SECRET }}"
 
       - name: Show URL
         run: |

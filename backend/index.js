@@ -12,6 +12,7 @@ const https = require('https');
 const http2 = require('http2');
 const { z } = require('zod');
 const { Firestore } = require('@google-cloud/firestore');
+const { google } = require('googleapis');
 
 const app = express();
 app.set('trust proxy', true);
@@ -1954,6 +1955,272 @@ app.patch('/api/vurium-dev/emails/:id', requireSuperadmin, async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: 'Failed to update email' });
+  }
+});
+
+// ── Gmail API Integration ────────────────────────────────────────────────────
+const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID || '';
+const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET || '';
+const GMAIL_REDIRECT_URI = BACKEND_PUBLIC_URL + '/api/vurium-dev/gmail/callback';
+const GMAIL_SCOPES = [
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/gmail.modify',
+];
+
+function makeOAuth2Client() {
+  return new google.auth.OAuth2(GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REDIRECT_URI);
+}
+
+async function saveGmailTokens(account, tokens) {
+  const ref = db.collection('vurium_config').doc('gmail_tokens');
+  await ref.set({ [account]: tokens }, { merge: true });
+}
+
+async function getGmailTokens(account) {
+  const doc = await db.collection('vurium_config').doc('gmail_tokens').get();
+  if (!doc.exists) return null;
+  return doc.data()[account] || null;
+}
+
+async function getGmailClient(account) {
+  const tokens = await getGmailTokens(account);
+  if (!tokens || !tokens.refresh_token) return null;
+  const oauth2 = makeOAuth2Client();
+  oauth2.setCredentials({
+    refresh_token: tokens.refresh_token,
+    access_token: tokens.access_token || undefined,
+    expiry_date: tokens.expires_at || 0,
+  });
+  // auto-refresh if expired
+  if (!tokens.access_token || (tokens.expires_at && Date.now() > tokens.expires_at - 60000)) {
+    const { credentials } = await oauth2.refreshAccessToken();
+    await saveGmailTokens(account, {
+      refresh_token: tokens.refresh_token,
+      access_token: credentials.access_token,
+      expires_at: credentials.expiry_date,
+    });
+    oauth2.setCredentials(credentials);
+  }
+  return google.gmail({ version: 'v1', auth: oauth2 });
+}
+
+function getHeader(headers, name) {
+  const h = headers.find(h => h.name.toLowerCase() === name.toLowerCase());
+  return h ? h.value : '';
+}
+
+function decodeBody(part) {
+  if (part.body && part.body.data) {
+    return Buffer.from(part.body.data, 'base64url').toString('utf-8');
+  }
+  return '';
+}
+
+function extractBody(payload) {
+  // direct body
+  if (payload.mimeType === 'text/html' && payload.body?.data) {
+    return { html: decodeBody(payload), text: '' };
+  }
+  if (payload.mimeType === 'text/plain' && payload.body?.data) {
+    return { html: '', text: decodeBody(payload) };
+  }
+  // multipart
+  let html = '', text = '';
+  if (payload.parts) {
+    for (const part of payload.parts) {
+      if (part.mimeType === 'text/html' && part.body?.data) html = decodeBody(part);
+      else if (part.mimeType === 'text/plain' && part.body?.data) text = decodeBody(part);
+      else if (part.mimeType?.startsWith('multipart/') && part.parts) {
+        const nested = extractBody(part);
+        if (nested.html) html = nested.html;
+        if (nested.text) text = nested.text;
+      }
+    }
+  }
+  return { html, text };
+}
+
+function buildRawEmail({ from, to, subject, html, inReplyTo, references }) {
+  const boundary = 'boundary_' + crypto.randomBytes(16).toString('hex');
+  const headers = [
+    `From: ${from}`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+  ];
+  if (inReplyTo) headers.push(`In-Reply-To: ${inReplyTo}`, `References: ${references || inReplyTo}`);
+  const body = [
+    `--${boundary}`,
+    `Content-Type: text/html; charset="UTF-8"`,
+    ``,
+    html,
+    `--${boundary}--`,
+  ].join('\r\n');
+  const raw = headers.join('\r\n') + '\r\n\r\n' + body;
+  return Buffer.from(raw).toString('base64url');
+}
+
+// Gmail OAuth: Start authorization
+app.get('/api/vurium-dev/gmail/auth', requireSuperadmin, (req, res) => {
+  const account = req.query.account;
+  if (!account) return res.status(400).json({ error: 'account query param required' });
+  if (!GMAIL_CLIENT_ID) return res.status(500).json({ error: 'Gmail OAuth not configured' });
+  const oauth2 = makeOAuth2Client();
+  const url = oauth2.generateAuthUrl({
+    access_type: 'offline',
+    prompt: 'consent',
+    scope: GMAIL_SCOPES,
+    login_hint: account,
+    state: account,
+  });
+  res.json({ url });
+});
+
+// Gmail OAuth: Callback from Google
+app.get('/api/vurium-dev/gmail/callback', async (req, res) => {
+  try {
+    const { code, state: account } = req.query;
+    if (!code || !account) return res.status(400).send('Missing code or account');
+    const oauth2 = makeOAuth2Client();
+    const { tokens } = await oauth2.getToken(code);
+    await saveGmailTokens(account, {
+      refresh_token: tokens.refresh_token,
+      access_token: tokens.access_token,
+      expires_at: tokens.expiry_date,
+    });
+    res.redirect(`https://vurium.com/developer/email?connected=${encodeURIComponent(account)}`);
+  } catch (e) {
+    console.error('Gmail callback error:', e.message);
+    res.redirect(`https://vurium.com/developer/email?error=oauth_failed`);
+  }
+});
+
+// Gmail: Connection status for all mailboxes
+app.get('/api/vurium-dev/gmail/status', requireSuperadmin, async (req, res) => {
+  try {
+    const doc = await db.collection('vurium_config').doc('gmail_tokens').get();
+    const data = doc.exists ? doc.data() : {};
+    const status = {};
+    for (const account of Object.keys(data)) {
+      status[account] = !!data[account]?.refresh_token;
+    }
+    res.json({ status });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to get Gmail status' });
+  }
+});
+
+// Gmail: List messages
+app.get('/api/vurium-dev/gmail/messages', requireSuperadmin, async (req, res) => {
+  try {
+    const { account, maxResults = '20', pageToken, q } = req.query;
+    if (!account) return res.status(400).json({ error: 'account required' });
+    const gmail = await getGmailClient(account);
+    if (!gmail) return res.status(400).json({ error: 'Account not connected', needsAuth: true });
+
+    const listParams = { userId: 'me', maxResults: parseInt(maxResults) };
+    if (pageToken) listParams.pageToken = pageToken;
+    if (q) listParams.q = q;
+
+    const list = await gmail.users.messages.list(listParams);
+    if (!list.data.messages || list.data.messages.length === 0) {
+      return res.json({ messages: [], nextPageToken: null });
+    }
+
+    const messages = await Promise.all(
+      list.data.messages.map(async (m) => {
+        const msg = await gmail.users.messages.get({ userId: 'me', id: m.id, format: 'metadata', metadataHeaders: ['From', 'To', 'Subject', 'Date'] });
+        const headers = msg.data.payload?.headers || [];
+        return {
+          id: msg.data.id,
+          threadId: msg.data.threadId,
+          snippet: msg.data.snippet,
+          from: getHeader(headers, 'From'),
+          to: getHeader(headers, 'To'),
+          subject: getHeader(headers, 'Subject'),
+          date: getHeader(headers, 'Date'),
+          labelIds: msg.data.labelIds || [],
+          isUnread: (msg.data.labelIds || []).includes('UNREAD'),
+        };
+      })
+    );
+
+    res.json({ messages, nextPageToken: list.data.nextPageToken || null });
+  } catch (e) {
+    console.error('Gmail list error:', e.message);
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+});
+
+// Gmail: Get single message
+app.get('/api/vurium-dev/gmail/messages/:id', requireSuperadmin, async (req, res) => {
+  try {
+    const { account } = req.query;
+    if (!account) return res.status(400).json({ error: 'account required' });
+    const gmail = await getGmailClient(account);
+    if (!gmail) return res.status(400).json({ error: 'Account not connected', needsAuth: true });
+
+    const msg = await gmail.users.messages.get({ userId: 'me', id: req.params.id, format: 'full' });
+    const headers = msg.data.payload?.headers || [];
+    const { html, text } = extractBody(msg.data.payload);
+
+    res.json({
+      id: msg.data.id,
+      threadId: msg.data.threadId,
+      from: getHeader(headers, 'From'),
+      to: getHeader(headers, 'To'),
+      subject: getHeader(headers, 'Subject'),
+      date: getHeader(headers, 'Date'),
+      messageId: getHeader(headers, 'Message-ID') || getHeader(headers, 'Message-Id'),
+      labelIds: msg.data.labelIds || [],
+      isUnread: (msg.data.labelIds || []).includes('UNREAD'),
+      body_html: html,
+      body_text: text,
+    });
+  } catch (e) {
+    console.error('Gmail get error:', e.message);
+    res.status(500).json({ error: 'Failed to fetch message' });
+  }
+});
+
+// Gmail: Send email
+app.post('/api/vurium-dev/gmail/send', requireSuperadmin, async (req, res) => {
+  try {
+    const { account, to, subject, body_html } = req.body;
+    if (!account || !to || !subject) return res.status(400).json({ error: 'account, to, subject required' });
+    const gmail = await getGmailClient(account);
+    if (!gmail) return res.status(400).json({ error: 'Account not connected', needsAuth: true });
+
+    const raw = buildRawEmail({ from: account, to, subject, html: body_html || '' });
+    const result = await gmail.users.messages.send({ userId: 'me', requestBody: { raw } });
+    res.json({ ok: true, id: result.data.id, threadId: result.data.threadId });
+  } catch (e) {
+    console.error('Gmail send error:', e.message);
+    res.status(500).json({ error: 'Failed to send email' });
+  }
+});
+
+// Gmail: Reply to email
+app.post('/api/vurium-dev/gmail/reply', requireSuperadmin, async (req, res) => {
+  try {
+    const { account, to, subject, body_html, threadId, messageId } = req.body;
+    if (!account || !to || !subject || !threadId) return res.status(400).json({ error: 'account, to, subject, threadId required' });
+    const gmail = await getGmailClient(account);
+    if (!gmail) return res.status(400).json({ error: 'Account not connected', needsAuth: true });
+
+    const raw = buildRawEmail({
+      from: account, to, subject,
+      html: body_html || '',
+      inReplyTo: messageId,
+      references: messageId,
+    });
+    const result = await gmail.users.messages.send({ userId: 'me', requestBody: { raw, threadId } });
+    res.json({ ok: true, id: result.data.id, threadId: result.data.threadId });
+  } catch (e) {
+    console.error('Gmail reply error:', e.message);
+    res.status(500).json({ error: 'Failed to send reply' });
   }
 });
 
