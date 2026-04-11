@@ -1510,6 +1510,7 @@ app.post('/contact', (req, res) => {
 // Must be before the workspace auth middleware below
 // ============================================================
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
+const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || ADMIN_EMAIL; // forward inbound emails here
 const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || (JWT_SECRET + '_admin');
 
 function requireSuperadmin(req, res, next) {
@@ -1873,11 +1874,15 @@ app.post('/api/vurium-dev/email/inbound', express.json({ limit: '5mb' }), async 
     const { from, to, subject, html, text } = req.body || {};
     if (!from) return res.status(400).json({ error: 'Missing from' });
 
+    const senderEmail = typeof from === 'string' ? from : (from?.address || from?.email || JSON.stringify(from));
+    const recipientEmail = typeof to === 'string' ? to : (Array.isArray(to) ? to.map(t => t?.address || t).join(', ') : JSON.stringify(to));
+    const cleanSubject = safeStr(subject || '(no subject)').substring(0, 500);
+
     await db.collection('vurium_emails').add({
       direction: 'inbound',
-      from: typeof from === 'string' ? from : (from?.address || from?.email || JSON.stringify(from)),
-      to: typeof to === 'string' ? to : (Array.isArray(to) ? to.map(t => t?.address || t).join(', ') : JSON.stringify(to)),
-      subject: safeStr(subject || '(no subject)').substring(0, 500),
+      from: senderEmail,
+      to: recipientEmail,
+      subject: cleanSubject,
       body_html: (html || '').substring(0, 100000),
       body_text: (text || '').substring(0, 50000),
       status: 'received',
@@ -1885,6 +1890,26 @@ app.post('/api/vurium-dev/email/inbound', express.json({ limit: '5mb' }), async 
       created_at: toIso(new Date()),
     });
 
+    // Forward notification to admin's personal email
+    if (ADMIN_NOTIFY_EMAIL) {
+      const notifyHtml = vuriumEmailTemplate('New Email Received', `
+        <p style="margin:0 0 12px;color:rgba(255,255,255,.6);">You received a new email on <strong style="color:rgba(255,255,255,.8);">${recipientEmail}</strong></p>
+        <div style="margin:16px 0;padding:16px 20px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);">
+          <p style="margin:0 0 8px;font-size:12px;color:rgba(255,255,255,.35);">FROM</p>
+          <p style="margin:0 0 16px;color:rgba(255,255,255,.7);">${senderEmail}</p>
+          <p style="margin:0 0 8px;font-size:12px;color:rgba(255,255,255,.35);">SUBJECT</p>
+          <p style="margin:0 0 16px;font-weight:600;color:rgba(255,255,255,.8);">${cleanSubject}</p>
+          <p style="margin:0 0 8px;font-size:12px;color:rgba(255,255,255,.35);">PREVIEW</p>
+          <p style="margin:0;color:rgba(255,255,255,.5);font-size:13px;">${safeStr(text || '').substring(0, 300)}${(text || '').length > 300 ? '...' : ''}</p>
+        </div>
+        <p style="margin:16px 0 0;text-align:center;">
+          <a href="https://vurium.com/developer/email" style="display:inline-block;padding:10px 28px;border-radius:999px;background:rgba(130,150,220,.15);color:rgba(130,150,220,.95);font-weight:700;font-size:13px;text-decoration:none;border:1px solid rgba(130,150,220,.2);">Open in Developer Panel</a>
+        </p>
+      `, 'Vurium', null, 'modern');
+      sendEmail(ADMIN_NOTIFY_EMAIL, `[Vurium] ${cleanSubject} — from ${senderEmail}`, notifyHtml, 'Vurium').catch(() => {});
+    }
+
+    console.log('[DEV-EMAIL] Inbound from', senderEmail, 'subject:', cleanSubject);
     res.json({ ok: true });
   } catch (e) {
     console.error('Inbound email error:', e);
