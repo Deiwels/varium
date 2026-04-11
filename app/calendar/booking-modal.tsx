@@ -1114,7 +1114,11 @@ export function BookingModal({
     }
   }, [isOpen, existingEvent?.id, barberId, startMin])
 
-  const selectedSvcs = services.filter(s => serviceIds.includes(s.id))
+  // selectedSvcs preserves order + duplicates (so '2x Haircut' works).
+  // Each entry in serviceIds maps to the resolved service object in the same position.
+  const selectedSvcs = serviceIds
+    .map(id => services.find(s => s.id === id))
+    .filter(Boolean) as typeof services
   const durMin = selectedSvcs.reduce((sum, s) => sum + (s.durationMin || 30), 0) || 30
   const barberServices = services.filter(s => !s.barberIds.length || s.barberIds.includes(selBarberId))
 
@@ -1123,7 +1127,7 @@ export function BookingModal({
   for (let m = 9 * 60; m <= 21 * 60 - 5; m += 5) slots.push(m)
 
   function checkOverlap(force?: boolean): boolean {
-    const selSvcs = services.filter(s => serviceIds.includes(s.id))
+    const selSvcs = serviceIds.map(id => services.find(s => s.id === id)).filter(Boolean) as typeof services
     const totalDur = selSvcs.reduce((sum, s) => sum + (s.durationMin || 30), 0) || 30
     const endMin = selStartMin + totalDur
     if (!allEvents || force) return true
@@ -1152,7 +1156,7 @@ export function BookingModal({
     }
     setOverlapWarning(null)
     setSaving(true)
-    const selSvcs = services.filter(s => serviceIds.includes(s.id))
+    const selSvcs = serviceIds.map(id => services.find(s => s.id === id)).filter(Boolean) as typeof services
     const totalDur = selSvcs.reduce((sum, s) => sum + (s.durationMin || 30), 0) || 30
     try {
       await onSave({
@@ -1371,21 +1375,27 @@ export function BookingModal({
               const totalPrice = selectedSvcs.reduce((sum, s) => sum + (s.price ? Number(String(s.price).replace(/[^\d.]/g, '')) : 0), 0)
               const totalDur = selectedSvcs.reduce((sum, s) => sum + (s.durationMin || 30), 0)
 
-              function toggleService(id: string) {
-                setServiceIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+              // Count how many times a service id occurs in serviceIds
+              function qtyOf(id: string): number {
+                let n = 0
+                for (const x of serviceIds) if (x === id) n++
+                return n
+              }
+              function addService(id: string) {
+                setServiceIds(prev => [...prev, id])
+              }
+              function removeOne(id: string) {
+                setServiceIds(prev => {
+                  const idx = prev.lastIndexOf(id)
+                  if (idx < 0) return prev
+                  return [...prev.slice(0, idx), ...prev.slice(idx + 1)]
+                })
               }
 
               const rowStyle = (checked: boolean): React.CSSProperties => ({
                 display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 10,
-                cursor: 'pointer', transition: 'background .15s',
+                transition: 'background .15s',
                 background: checked ? 'rgba(130,150,220,.08)' : 'transparent',
-              })
-
-              const checkboxStyle = (checked: boolean): React.CSSProperties => ({
-                width: 18, height: 18, borderRadius: 6, flexShrink: 0,
-                border: checked ? '1.5px solid rgba(130,150,220,.6)' : '1.5px solid rgba(255,255,255,.15)',
-                background: checked ? 'rgba(130,150,220,.20)' : 'rgba(255,255,255,.04)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s',
               })
 
               const dividerStyle: React.CSSProperties = {
@@ -1394,17 +1404,40 @@ export function BookingModal({
               }
               const lineStyle: React.CSSProperties = { flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }
 
+              const qtyBtnStyle: React.CSSProperties = {
+                width: 24, height: 24, borderRadius: 8, flexShrink: 0,
+                border: '1px solid rgba(130,150,220,.35)', background: 'rgba(130,150,220,.12)',
+                color: 'rgba(200,210,245,.95)', cursor: 'pointer', fontWeight: 800, fontSize: 14,
+                fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: 0, lineHeight: 1,
+              }
+              const addBtnStyle: React.CSSProperties = {
+                width: 24, height: 24, borderRadius: 8, flexShrink: 0,
+                border: '1.5px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.04)',
+                color: 'rgba(255,255,255,.55)', cursor: 'pointer', fontWeight: 800, fontSize: 14,
+                fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: 0, lineHeight: 1,
+              }
+
               function ServiceRow({ s }: { s: Service }) {
-                const checked = serviceIds.includes(s.id)
+                const qty = qtyOf(s.id)
+                const checked = qty > 0
                 const bp = s.price ? Number(String(s.price).replace(/[^\d.]/g, '')) : 0
                 return (
-                  <div style={rowStyle(checked)} onClick={() => toggleService(s.id)}
+                  <div style={rowStyle(checked)}
                     onMouseEnter={e => { if (!checked) e.currentTarget.style.background = 'rgba(255,255,255,.03)' }}
                     onMouseLeave={e => { if (!checked) e.currentTarget.style.background = 'transparent' }}>
-                    <div style={checkboxStyle(checked)}>
-                      {checked && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(130,150,220,.9)" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                    </div>
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: checked ? 700 : 500, color: checked ? '#e8e8ed' : 'rgba(255,255,255,.65)' }}>{s.name}</span>
+                    {qty === 0 ? (
+                      <button type="button" onClick={() => addService(s.id)} style={addBtnStyle} aria-label={`Add ${s.name}`}>+</button>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                        <button type="button" onClick={() => removeOne(s.id)} style={qtyBtnStyle} aria-label={`Remove one ${s.name}`}>−</button>
+                        <span style={{ minWidth: 18, textAlign: 'center', fontSize: 12, fontWeight: 800, color: 'rgba(200,210,245,.95)' }}>{qty}</span>
+                        <button type="button" onClick={() => addService(s.id)} style={qtyBtnStyle} aria-label={`Add another ${s.name}`}>+</button>
+                      </div>
+                    )}
+                    <span onClick={() => { if (qty === 0) addService(s.id) }}
+                      style={{ flex: 1, fontSize: 13, fontWeight: checked ? 700 : 500, color: checked ? '#e8e8ed' : 'rgba(255,255,255,.65)', cursor: qty === 0 ? 'pointer' : 'default' }}>{s.name}</span>
                     <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', whiteSpace: 'nowrap' }}>{s.durationMin || 30}min</span>
                     {bp > 0 && <span style={{ fontSize: 11, color: 'rgba(130,220,170,.55)', fontWeight: 600, whiteSpace: 'nowrap' }}>${bp.toFixed(2)}</span>}
                   </div>
@@ -1419,22 +1452,39 @@ export function BookingModal({
                       {servicesOpen ? 'Hide' : 'Edit'}
                     </button>
                   </div>
-                  {/* Collapsed: show selected services summary */}
-                  {!servicesOpen && serviceIds.length > 0 && (
-                    <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', padding: '8px 12px' }}>
-                      {selectedSvcs.map(s => {
-                        const bp = s.price ? Number(String(s.price).replace(/[^\d.]/g, '')) : 0
-                        return (
-                          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0', fontSize: 13 }}>
-                            <span style={{ color: 'rgba(130,150,220,.7)', fontSize: 10 }}>{'\u2713'}</span>
-                            <span style={{ flex: 1, fontWeight: 600, color: '#e8e8ed' }}>{s.name}</span>
-                            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>{s.durationMin || 30}min</span>
-                            {bp > 0 && <span style={{ fontSize: 11, color: 'rgba(130,220,170,.55)', fontWeight: 600 }}>${bp.toFixed(2)}</span>}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
+                  {/* Collapsed: show selected services summary (grouped by id, showing qty) */}
+                  {!servicesOpen && serviceIds.length > 0 && (() => {
+                    // Group preserving first-occurrence order
+                    const order: string[] = []
+                    const qtyMap: Record<string, number> = {}
+                    for (const id of serviceIds) {
+                      if (qtyMap[id] == null) { qtyMap[id] = 0; order.push(id) }
+                      qtyMap[id]++
+                    }
+                    return (
+                      <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', padding: '8px 12px' }}>
+                        {order.map(id => {
+                          const s = services.find(x => x.id === id)
+                          if (!s) return null
+                          const qty = qtyMap[id]
+                          const bp = s.price ? Number(String(s.price).replace(/[^\d.]/g, '')) : 0
+                          const lineDur = (s.durationMin || 30) * qty
+                          const linePrice = bp * qty
+                          return (
+                            <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0', fontSize: 13 }}>
+                              <span style={{ color: 'rgba(130,150,220,.7)', fontSize: 10 }}>{'\u2713'}</span>
+                              <span style={{ flex: 1, fontWeight: 600, color: '#e8e8ed' }}>
+                                {qty > 1 && <span style={{ color: 'rgba(130,150,220,.8)', marginRight: 4 }}>{qty}×</span>}
+                                {s.name}
+                              </span>
+                              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>{lineDur}min</span>
+                              {linePrice > 0 && <span style={{ fontSize: 11, color: 'rgba(130,220,170,.55)', fontWeight: 600 }}>${linePrice.toFixed(2)}</span>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
                   {!servicesOpen && serviceIds.length === 0 && (
                     <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', padding: '10px 12px', fontSize: 12, color: 'rgba(255,255,255,.35)', cursor: 'pointer' }} onClick={() => setServicesOpen(true)}>
                       No services selected — tap Edit to add
