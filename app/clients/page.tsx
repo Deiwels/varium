@@ -8,7 +8,9 @@ import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Client {
   id: string; name: string; phone?: string; email?: string; notes?: string
-  status?: string; client_status?: string; tags?: string[]; preferred_barber?: string; barber?: string
+  status?: string; client_status?: string; status_override?: string | null
+  client_status_computed?: string
+  tags?: string[]; preferred_barber?: string; barber?: string
   last_visit?: string; visits?: number; spend?: number; no_shows?: number
   bookings?: Booking[]; photos?: string[]
 }
@@ -146,8 +148,14 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
 
   async function patch(body: any) {
     const updated = await apiFetch(`/api/clients/${encodeURIComponent(clientId)}`, { method:'PATCH', body:JSON.stringify(body) })
-    setDetailed(prev => ({ ...prev, ...body }))
-    onUpdate({ ...(detailed||{}), ...body } as Client)
+    // Optimistic merge: if the override changed, recompute the displayed client_status
+    const merged: any = { ...(detailed || {}), ...body }
+    if ('status_override' in body) {
+      merged.status_override = body.status_override || null
+      merged.client_status = body.status_override || merged.client_status_computed || merged.client_status || 'new'
+    }
+    setDetailed(merged)
+    onUpdate(merged as Client)
     return updated
   }
 
@@ -286,14 +294,27 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
 
       {/* Status */}
       <div>
-        <div style={{ fontSize:10, letterSpacing:'.14em', textTransform:'uppercase', color:'rgba(255,255,255,.40)', marginBottom:8 }}>Status</div>
-        <div style={{ display:'flex', gap:6, flexWrap:'wrap' as const }}>
-          {(['vip','active','new','risk'] as const).map(s => (
-            <button key={s} onClick={() => patch({ status:s })}
-              style={{ height:32, padding:'0 14px', borderRadius:999, border:`1px solid ${c.status===s ? (STATUS_STYLE[s]?.borderColor||'rgba(255,255,255,.18)') : 'rgba(255,255,255,.12)'}`, background:c.status===s ? (STATUS_STYLE[s]?.background||'rgba(255,255,255,.06)') : 'rgba(255,255,255,.04)', color:c.status===s ? (STATUS_STYLE[s]?.color||'#fff') : 'rgba(255,255,255,.65)', cursor:'pointer', fontWeight:700, fontSize:11, fontFamily:'inherit' }}>
-              {STATUS_LABELS[s]}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+          <div style={{ fontSize:10, letterSpacing:'.14em', textTransform:'uppercase', color:'rgba(255,255,255,.40)' }}>Status</div>
+          {(c as any).status_override && (
+            <button onClick={() => patch({ status_override: null })}
+              style={{ height:24, padding:'0 10px', borderRadius:999, border:'1px solid rgba(255,255,255,.12)', background:'rgba(255,255,255,.04)', color:'rgba(255,255,255,.55)', cursor:'pointer', fontWeight:700, fontSize:9, fontFamily:'inherit', letterSpacing:'.08em', textTransform:'uppercase' }}
+              title="Clear manual override and use auto-classification">
+              Auto
             </button>
-          ))}
+          )}
+        </div>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' as const }}>
+          {(['vip','active','new','at_risk'] as const).map(s => {
+            const current = (c.client_status || c.status || 'new')
+            const isActive = current === s
+            return (
+              <button key={s} onClick={() => patch({ status_override: s })}
+                style={{ height:32, padding:'0 14px', borderRadius:999, border:`1px solid ${isActive ? (STATUS_STYLE[s]?.borderColor||'rgba(255,255,255,.18)') : 'rgba(255,255,255,.12)'}`, background:isActive ? (STATUS_STYLE[s]?.background||'rgba(255,255,255,.06)') : 'rgba(255,255,255,.04)', color:isActive ? (STATUS_STYLE[s]?.color||'#fff') : 'rgba(255,255,255,.65)', cursor:'pointer', fontWeight:700, fontSize:11, fontFamily:'inherit' }}>
+                {STATUS_LABELS[s]}
+              </button>
+            )
+          })}
         </div>
       </div>
 

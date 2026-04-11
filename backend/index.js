@@ -1034,6 +1034,7 @@ const ClientPatchSchema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   notes: z.string().max(2000).optional(),
   status: z.string().max(40).optional(),
+  status_override: z.string().max(40).nullable().optional(),
   preferred_barber: z.string().max(80).optional(),
   tags: z.array(z.string().max(50)).optional(),
   photo_url: z.string().max(5000).optional().or(z.literal('')),
@@ -1815,24 +1816,26 @@ function ensureWithinSchedule(barberData, startAt, endAt, timeZone = 'America/Ch
 }
 
 // Client classification
+const NOSHOW_STATUSES = new Set(['noshow', 'no_show', 'no-show']);
+function isNoshow(s) { return NOSHOW_STATUSES.has(String(s || '').toLowerCase()); }
 function classifyClient(clientName, bookings) {
   const now = new Date();
   const clientBookings = bookings.filter(b => String(b.client_name || '') === clientName);
   const totalVisits = clientBookings.length;
-  const noShows = clientBookings.filter(b => String(b.status || '') === 'noshow').length;
+  const noShows = clientBookings.filter(b => isNoshow(b.status)).length;
   const completedVisits = totalVisits - noShows;
   const sorted = [...clientBookings].sort((a, b) => String(a.start_at || '').localeCompare(String(b.start_at || '')));
   let visitsAfterLastNoshow = 0, bigTipsAfterLastNoshow = 0, foundNoshow = false;
   for (const b of sorted) {
-    if (String(b.status || '') === 'noshow') { foundNoshow = true; visitsAfterLastNoshow = 0; bigTipsAfterLastNoshow = 0; }
+    if (isNoshow(b.status)) { foundNoshow = true; visitsAfterLastNoshow = 0; bigTipsAfterLastNoshow = 0; }
     else { visitsAfterLastNoshow++; if (Number(b.tip || 0) >= 30) bigTipsAfterLastNoshow++; }
   }
-  const bigTipCount = clientBookings.filter(b => Number(b.tip || 0) >= 30 && String(b.status || '') !== 'noshow').length;
+  const bigTipCount = clientBookings.filter(b => Number(b.tip || 0) >= 30 && !isNoshow(b.status)).length;
   let lastVisitDate = null;
   for (const b of clientBookings) { const d = b.start_at ? new Date(b.start_at) : null; if (d && (!lastVisitDate || d > lastVisitDate)) lastVisitDate = d; }
   const daysSinceLastVisit = lastVisitDate ? (now - lastVisitDate) / (1000 * 60 * 60 * 24) : Infinity;
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
-  const recentVisits = clientBookings.filter(b => { const d = b.start_at ? new Date(b.start_at) : null; return d && d >= sixtyDaysAgo && String(b.status || '') !== 'noshow'; }).length;
+  const recentVisits = clientBookings.filter(b => { const d = b.start_at ? new Date(b.start_at) : null; return d && d >= sixtyDaysAgo && !isNoshow(b.status); }).length;
   if (noShows >= 1 && foundNoshow) {
     if (bigTipsAfterLastNoshow >= 5) return 'vip';
     if (visitsAfterLastNoshow >= 10) return 'active';
@@ -2972,7 +2975,7 @@ app.get('/api/clients', async (req, res) => {
       } catch {}
     }
 
-    // Auto-classify
+    // Auto-classify (with manual override support)
     try {
       const clientNames = list.map(c => String(c.name || '')).filter(Boolean);
       if (clientNames.length > 0) {
@@ -2982,7 +2985,12 @@ app.get('/api/clients', async (req, res) => {
           const bSnap = await req.ws('bookings').where('client_name', 'in', batch).orderBy('start_at', 'desc').limit(1000).get();
           allBookings.push(...bSnap.docs.map(d => d.data()));
         }
-        list = list.map(c => ({ ...c, client_status: classifyClient(String(c.name || ''), allBookings) }));
+        list = list.map(c => {
+          const computed = classifyClient(String(c.name || ''), allBookings);
+          // status_override (if explicitly set) wins over auto-classification
+          const override = c.status_override || null;
+          return { ...c, client_status: override || computed, client_status_computed: computed };
+        });
       }
     } catch (e) { console.warn('classifyClient error:', e?.message); }
     res.json(list);
@@ -3073,9 +3081,12 @@ app.get('/api/clients/:id', async (req, res) => {
     const decName = decryptPII(data.name);
     const decEmail = decryptPII(data.email);
     const decPhone = data.phone ? decryptPhone(data.phone) : data.phone;
-    const bSnap = await req.ws('bookings').where('client_name', '==', decName).orderBy('start_at', 'desc').limit(20).get();
+    const bSnap = await req.ws('bookings').where('client_name', '==', decName).orderBy('start_at', 'desc').limit(200).get();
     const bookings = bSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    res.json({ id: doc.id, ...data, name: decName, email: decEmail, phone: decPhone, bookings });
+    const computed = classifyClient(decName, bookings);
+    const override = data.status_override || null;
+    const client_status = override || computed;
+    res.json({ id: doc.id, ...data, name: decName, email: decEmail, phone: decPhone, bookings, client_status, client_status_computed: computed });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
@@ -3093,6 +3104,7 @@ app.patch('/api/clients/:id', async (req, res) => {
     if (b.email != null) patch.email = encryptPII(sanitizeHtml(safeStr(b.email)));
     if (b.notes != null) patch.notes = sanitizeHtml(safeStr(b.notes));
     if (b.status != null) patch.status = safeStr(b.status);
+    if (b.status_override !== undefined) patch.status_override = b.status_override ? safeStr(b.status_override) : null;
     if (b.preferred_barber != null) patch.preferred_barber = safeStr(b.preferred_barber);
     if (Array.isArray(b.tags)) patch.tags = b.tags.map(t => sanitizeHtml(safeStr(t))).filter(Boolean);
     if (b.photo_url != null) patch.photo_url = safeStr(b.photo_url) || null;
@@ -3145,6 +3157,22 @@ app.get('/api/bookings', async (req, res) => {
     if (req.user.role === 'student' && Array.isArray(req.user.mentor_barber_ids)) {
       list = list.filter(b => req.user.mentor_barber_ids.includes(b.barber_id));
     }
+    // Enrich each booking with client_status from auto-classification (no-show → at_risk etc.)
+    try {
+      const uniqueNames = [...new Set(list.map(b => String(b.client_name || '')).filter(Boolean))];
+      if (uniqueNames.length > 0) {
+        // Pull the wider booking history needed for classification
+        const historyBookings = [];
+        for (let i = 0; i < uniqueNames.length; i += 30) {
+          const batch = uniqueNames.slice(i, i + 30);
+          const hSnap = await req.ws('bookings').where('client_name', 'in', batch).orderBy('start_at', 'desc').limit(2000).get();
+          historyBookings.push(...hSnap.docs.map(d => d.data()));
+        }
+        const statusByName = new Map();
+        for (const name of uniqueNames) statusByName.set(name, classifyClient(name, historyBookings));
+        list = list.map(b => ({ ...b, client_status: statusByName.get(String(b.client_name || '')) || 'new' }));
+      }
+    } catch (e) { console.warn('booking client_status enrich error:', e?.message); }
     res.json(list);
 
     // Background auto-reconcile: check Square for unmatched payments (throttled, max once per 2 min per workspace)
