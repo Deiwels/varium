@@ -1599,7 +1599,7 @@ app.post('/api/vurium-dev/auth/verify', express.json(), (req, res) => {
     const sessionToken = jwt.sign({ email: payload.email, role: 'superadmin' }, ADMIN_JWT_SECRET, { expiresIn: '24h' });
 
     res.cookie('vurium_admin_token', sessionToken, {
-      httpOnly: true, secure: true, sameSite: 'lax',
+      httpOnly: true, secure: true, sameSite: 'none',
       path: '/', maxAge: 86400000, // 24h
     });
     res.json({ ok: true });
@@ -1610,7 +1610,7 @@ app.post('/api/vurium-dev/auth/verify', express.json(), (req, res) => {
 
 // Logout
 app.post('/api/vurium-dev/auth/logout', (req, res) => {
-  res.cookie('vurium_admin_token', '', { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 0 });
+  res.cookie('vurium_admin_token', '', { httpOnly: true, secure: true, sameSite: 'none', path: '/', maxAge: 0 });
   res.json({ ok: true });
 });
 
