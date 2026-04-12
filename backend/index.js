@@ -2380,21 +2380,53 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const AnthropicClient = Anthropic.default || Anthropic;
 const anthropic = ANTHROPIC_API_KEY ? new AnthropicClient({ apiKey: ANTHROPIC_API_KEY }) : null;
 
-const DIAGNOSTIC_SYSTEM_PROMPT = `You are the AI diagnostics engine for VuriumBook — a multi-tenant SaaS platform for barbershops and salons. Each workspace has subcollections: bookings, clients, barbers, users, settings, audit_logs. The platform uses Stripe for billing, Telnyx for SMS, Resend for email, and runs on Google Cloud Run with Firestore.
+const DIAGNOSTIC_SYSTEM_PROMPT = `You are the AI product advisor and diagnostics engine for VuriumBook — a multi-tenant SaaS platform for barbershops and salons.
 
-You will receive aggregated platform health metrics. Analyze them and return a JSON object with:
-- health_score: 0-100 (100 = perfect health)
-- summary: 1-2 sentence overview
-- issues: array of found issues, each with:
+PLATFORM ARCHITECTURE:
+- Multi-tenant: each workspace = one barbershop/salon business
+- Subcollections per workspace: bookings, clients, barbers, services, users, settings, audit_logs
+- Billing: Stripe (plans: individual, salon, custom). Trial period, then paid subscription.
+- SMS: Telnyx (appointment reminders 24h and 2h before, booking confirmations)
+- Email: Resend (branded transactional emails from noreply@vurium.com)
+- Frontend: Next.js on Vercel (vurium.com), Backend: Express on Cloud Run
+- Database: Google Cloud Firestore
+- Features: online booking page, client management, barber scheduling, services catalog, cash reports, payroll, memberships, analytics, push notifications (iOS/Android)
+
+YOUR ROLE — You are NOT just a monitoring tool. You are a smart product advisor who:
+1. FINDS BUGS & CODE ISSUES: Analyze data patterns that indicate bugs (e.g., bookings without clients, orphaned data, failed payments with no retry, SMS not sent for bookings)
+2. SUGGESTS IMPROVEMENTS: Based on usage patterns, suggest code/UX improvements (e.g., if most bookings happen on mobile, suggest mobile-first optimizations; if clients rarely rebook, suggest loyalty features)
+3. PROPOSES NEW FEATURES: Based on what successful barbershop/salon SaaS platforms offer, propose features that would increase retention and revenue (e.g., waitlist, no-show tracking, client reviews, automated marketing, gift cards)
+4. ANALYZES USER BEHAVIOR: Look at booking patterns, client engagement, workspace activity to understand how users actually use the platform and where they struggle
+5. GROWTH INSIGHTS: Analyze trial conversion, churn signals, feature adoption to suggest growth strategies
+
+You will receive aggregated platform metrics including:
+- Workspace details (names, plans, billing status, booking/client counts)
+- Booking patterns (today's bookings, completion rates, payment status)
+- User engagement (active workspaces, feature usage)
+- SMS/Email delivery stats
+- Security events
+- Analytics (pageviews, visitor patterns)
+
+Return a JSON object with:
+- health_score: 0-100 (considers both technical health AND product health)
+- summary: 2-3 sentence overview of platform state and key insight
+- issues: array of findings, each with:
   - severity: "critical" | "warning" | "info"
-  - category: "errors" | "data_integrity" | "security" | "performance" | "user_experience"
-  - title: short issue title
-  - description: detailed explanation
-  - recommendation: actionable fix suggestion
+  - category: "bug" | "improvement" | "new_feature" | "user_behavior" | "growth" | "security" | "performance"
+  - title: concise title (max 60 chars)
+  - description: detailed explanation with specific data points
+  - recommendation: actionable suggestion with concrete steps
 
-Focus on: API error spikes, booking conflicts, SMS/email delivery failures, security events (brute force, mass operations), expired trials without conversion, data anomalies, performance degradation.
+PRIORITIES:
+- Bugs and data integrity issues = critical
+- UX improvements based on actual user behavior = warning
+- New feature ideas and growth strategies = info
+- Be specific, reference actual numbers from the data
+- Think like a product manager + engineer combined
+- Consider what would make a barbershop owner's life easier
+- Suggest features that competing platforms (Square Appointments, Fresha, Booksy, Vagaro) offer
 
-IMPORTANT: Return ONLY valid JSON, no markdown, no code fences.`;
+IMPORTANT: Return ONLY valid JSON, no markdown, no code fences. Aim for 5-10 actionable findings per scan.`;
 
 async function collectDiagnosticMetrics() {
   const now = new Date();
@@ -2462,39 +2494,82 @@ async function collectDiagnosticMetrics() {
   const wsDetails = [];
   for (const ws of sampleWs) {
     try {
-      // Total bookings count
-      const bCountSnap = await db.collection('workspaces').doc(ws.id).collection('bookings').count().get();
+      const wsRef = db.collection('workspaces').doc(ws.id);
+      // Total counts
+      const [bCountSnap, cCountSnap, barberCountSnap, serviceCountSnap] = await Promise.all([
+        wsRef.collection('bookings').count().get(),
+        wsRef.collection('clients').count().get(),
+        wsRef.collection('barbers').count().get(),
+        wsRef.collection('services').count().get(),
+      ]);
       const bCount = bCountSnap.data().count || 0;
-      // Total clients count
-      const cCountSnap = await db.collection('workspaces').doc(ws.id).collection('clients').count().get();
       const cCount = cCountSnap.data().count || 0;
-      // Recent bookings (last 50 ordered by start_at desc, check date in JS)
-      let todayCount = 0, wsUnpaid = 0;
+      const barberCount = barberCountSnap.data().count || 0;
+      const serviceCount = serviceCountSnap.data().count || 0;
+
+      // Recent bookings analysis (last 100)
+      let todayCount = 0, weekCount = 0, wsUnpaid = 0, completed = 0, cancelled = 0, noShow = 0;
+      const bookingsByDay = {};
+      const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
       try {
-        const recentSnap = await db.collection('workspaces').doc(ws.id).collection('bookings')
-          .orderBy('start_at', 'desc').limit(50).get();
+        const recentSnap = await wsRef.collection('bookings').orderBy('start_at', 'desc').limit(100).get();
         recentSnap.forEach(d => {
           const b = d.data();
           const bDate = (b.start_at || b.date || '').slice(0, 10);
           if (bDate === today) todayCount++;
+          if (b.start_at && b.start_at >= weekAgo) weekCount++;
+          if (bDate) bookingsByDay[bDate] = (bookingsByDay[bDate] || 0) + 1;
+          if (b.status === 'completed') completed++;
+          if (b.status === 'cancelled' || b.status === 'canceled') cancelled++;
+          if (b.status === 'no_show' || b.no_show) noShow++;
           if (b.status === 'completed' && (!b.payment_status || b.payment_status === 'unpaid')) wsUnpaid++;
         });
       } catch { }
+
+      // Workspace settings check
+      let hasOnlineBooking = false, hasSmsEnabled = false, hasLogo = false;
+      try {
+        const settingsDoc = await wsRef.collection('settings').doc('config').get();
+        if (settingsDoc.exists) {
+          const s = settingsDoc.data();
+          hasOnlineBooking = !!s?.online_booking_enabled;
+          hasSmsEnabled = !!s?.sms_enabled;
+          hasLogo = !!s?.logo_url;
+        }
+      } catch { }
+
       totalBookings += bCount;
       totalClients += cCount;
       totalBookingsToday += todayCount;
       unpaidCompleted += wsUnpaid;
-      wsDetails.push({ name: ws.name, plan: ws.plan, status: ws.billing_status, bookings: bCount, clients: cCount, today: todayCount });
+      wsDetails.push({
+        name: ws.name, plan: ws.plan, status: ws.billing_status,
+        bookings: bCount, clients: cCount, barbers: barberCount, services: serviceCount,
+        bookings_today: todayCount, bookings_this_week: weekCount,
+        completed, cancelled, no_show: noShow, unpaid: wsUnpaid,
+        online_booking: hasOnlineBooking, sms_enabled: hasSmsEnabled, has_logo: hasLogo,
+        busiest_days: Object.entries(bookingsByDay).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([d, c]) => ({ date: d, count: c })),
+      });
     } catch (e) { console.warn('Diagnostics: workspace scan failed for', ws.id, e.message); }
   }
 
-  // Analytics — use count() to avoid pulling all docs
+  // Analytics — pageviews + top pages
   let pageviews24h = 0;
+  const topPages = {};
+  const devices = { desktop: 0, mobile: 0, tablet: 0 };
   try {
     const aSnap = await db.collection('vurium_analytics').orderBy('ts', 'desc').limit(1000).get();
     aSnap.forEach(d => {
       const data = d.data();
-      if (data.ts && data.ts >= h24Iso) pageviews24h++;
+      if (data.ts && data.ts >= h24Iso) {
+        pageviews24h++;
+        const page = data.path || data.page || '/';
+        topPages[page] = (topPages[page] || 0) + 1;
+        const dev = (data.device || 'desktop').toLowerCase();
+        if (dev.includes('mobile') || dev.includes('phone')) devices.mobile++;
+        else if (dev.includes('tablet')) devices.tablet++;
+        else devices.desktop++;
+      }
     });
   } catch (e) { console.warn('Diagnostics: analytics query failed:', e.message); }
 
@@ -2505,7 +2580,11 @@ async function collectDiagnosticMetrics() {
     sms: smsStats,
     email: emailStats,
     bookings: { total_all_time: totalBookings, total_today: totalBookingsToday, unpaid_completed: unpaidCompleted, total_clients: totalClients, sampled_workspaces: sampleWs.length },
-    analytics: { pageviews_24h: pageviews24h },
+    analytics: {
+      pageviews_24h: pageviews24h,
+      top_pages: Object.entries(topPages).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([p, c]) => ({ page: p, views: c })),
+      devices,
+    },
   };
 }
 

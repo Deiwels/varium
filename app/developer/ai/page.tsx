@@ -48,10 +48,15 @@ const SEV_COLORS: Record<string, { bg: string; text: string }> = {
 }
 
 const CAT_LABELS: Record<string, string> = {
+  bug: 'Bug',
+  improvement: 'Improve',
+  new_feature: 'Feature',
+  user_behavior: 'Behavior',
+  growth: 'Growth',
+  security: 'Security',
+  performance: 'Perf',
   errors: 'Errors',
   data_integrity: 'Data',
-  security: 'Security',
-  performance: 'Performance',
   user_experience: 'UX',
 }
 
