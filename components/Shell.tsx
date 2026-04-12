@@ -405,6 +405,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
   const [showProfile, setShowProfile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [unreadChat, setUnreadChat] = useState<string | null>(null)
+  const [auditWarnings, setAuditWarnings] = useState(0)
   const [showPinOverlay, setShowPinOverlay] = useState(false)
   const [pinInput, setPinInput] = useState('')
   const [pinError, setPinError] = useState('')
@@ -696,6 +697,22 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
       localStorage.setItem('VB_REQ_LAST_SEEN', now)
     }
   }, [pathname])
+
+  // Poll audit warnings for payroll badge (owner only)
+  useEffect(() => {
+    if (status !== 'ok' || !user || user.role !== 'owner') return
+    const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
+    if (!token) return
+    async function checkAudit() {
+      try {
+        const r = await fetch(`${API}/api/payroll/audit/status`, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } })
+        if (r.ok) { const d = await r.json(); setAuditWarnings(d.warnings_count || 0) }
+      } catch {}
+    }
+    checkAudit()
+    const iv = setInterval(checkAudit, 5 * 60 * 1000) // every 5 min
+    return () => clearInterval(iv)
+  }, [status, user?.role])
 
   if (status === 'noauth') {
     return <div style={{ background: 'transparent', minHeight: '100vh' }} />
@@ -1001,11 +1018,13 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
             }).map(item => {
               const active = pathname === item.href || (item.id === 'settings' && ['/settings', '/billing', '/waitlist', '/portfolio', '/attendance', '/cash', '/membership', '/expenses', '/payroll', '/payments'].some(p => pathname.startsWith(p)))
               const hasUnread = item.id === 'messages' && !!unreadChat && pathname !== '/messages'
+              const hasAuditBadge = item.id === 'settings' && auditWarnings > 0 && pathname !== '/payroll'
               return (
-                <Link key={item.id} href={item.href} className={`pill-item${active ? ' active' : ''}`}>
-                  <div className={`pill-ico${hasUnread ? ' has-unread' : ''}`}>
+                <Link key={item.id} href={hasAuditBadge ? '/payroll' : item.href} className={`pill-item${active ? ' active' : ''}`}>
+                  <div className={`pill-ico${hasUnread || hasAuditBadge ? ' has-unread' : ''}`}>
                     <Icon id={item.id} color="#fff" />
                     {hasUnread && <div className="pill-unread-dot" />}
+                    {hasAuditBadge && <div className="pill-unread-dot" style={{ background: 'rgba(255,207,63,.9)' }} />}
                   </div>
                   <span className="pill-label">{item.label}</span>
                 </Link>

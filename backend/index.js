@@ -5257,6 +5257,14 @@ app.get('/api/payroll/audit', requirePlanFeature('payroll'), requireRole('owner'
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
+app.get('/api/payroll/audit/status', async (req, res) => {
+  try {
+    const doc = await req.ws('settings').doc('payroll_audit').get();
+    if (!doc.exists) return res.json({ warnings_count: 0, warnings: [] });
+    res.json(doc.data());
+  } catch (e) { res.json({ warnings_count: 0, warnings: [] }); }
+});
+
 app.get('/api/payroll/rules', requirePlanFeature('payroll'), requireRole('owner'), async (req, res) => {
   try {
     const snap = await req.ws('payroll_rules').get();
@@ -8043,11 +8051,97 @@ function resetSecurityCounters() {
 }
 
 // Run background jobs every 3 minutes
+// ─── Periodic Payroll Audit ──────────────────────────────────────────────────
+let lastAuditRun = 0;
+async function runPayrollAudit() {
+  if (Date.now() - lastAuditRun < 6 * 60 * 60 * 1000) return; // every 6 hours
+  lastAuditRun = Date.now();
+  try {
+    const wsSnap = await db.collection('workspaces').get();
+    for (const wsDoc of wsSnap.docs) {
+      try {
+        const wsData = wsDoc.data() || {};
+        const plan = wsData.plan_type || 'individual';
+        if (plan === 'individual') continue; // skip free plans
+        const wsCol = (col) => db.collection(`workspaces/${wsDoc.id}/${col}`);
+        // Date range: last 7 days
+        const now = new Date();
+        const from = new Date(now); from.setDate(from.getDate() - 7);
+        const fromStr = from.toISOString();
+        const toStr = now.toISOString();
+        const fromDate = fromStr.slice(0, 10);
+        const toDate = toStr.slice(0, 10);
+
+        // Fetch data
+        const [bookingsSnap, cashSnap] = await Promise.all([
+          wsCol('bookings').where('start_at', '>=', fromStr).where('start_at', '<=', toStr).get(),
+          wsCol('cash_reports').orderBy('date', 'desc').limit(30).get(),
+        ]);
+        const bookings = bookingsSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(b => b.status !== 'cancelled');
+        const warnings = [];
+
+        // Check 1: Unpaid completed bookings
+        const unpaid = bookings.filter(b => !b.paid && b.status !== 'noshow' && b.status !== 'no_show');
+        const unpaidAmt = unpaid.reduce((s, b) => s + Number(b.service_amount || b.amount || 0), 0);
+        if (unpaid.length > 0) warnings.push(`${unpaid.length} unpaid booking${unpaid.length > 1 ? 's' : ''} ($${unpaidAmt.toFixed(2)})`);
+
+        // Check 2: Cash not counted
+        const cashBookings = bookings.filter(b => b.paid && (b.payment_method || '').toLowerCase() === 'cash');
+        const expectedCash = cashBookings.reduce((s, b) => s + Number(b.service_amount || b.amount || 0) + Number(b.tip || b.tip_amount || 0), 0);
+        const cashReports = cashSnap.docs.map(d => d.data());
+        const reportDates = new Set(cashReports.map(r => r.date));
+        const cashDates = new Set(cashBookings.map(b => (b.start_at || '').slice(0, 10)));
+        const uncountedDays = [...cashDates].filter(d => !reportDates.has(d));
+        if (uncountedDays.length > 0 && expectedCash > 0) warnings.push(`Cash not counted for ${uncountedDays.length} day${uncountedDays.length > 1 ? 's' : ''} ($${expectedCash.toFixed(2)} expected)`);
+
+        // Check 3: Missing service amounts
+        const noAmount = bookings.filter(b => b.paid && !b.service_amount && !b.amount);
+        if (noAmount.length > 0) warnings.push(`${noAmount.length} paid booking${noAmount.length > 1 ? 's' : ''} missing service amount`);
+
+        if (warnings.length === 0) continue; // no issues, skip notification
+
+        // Build notification
+        const title = `Payroll Audit: ${warnings.length} issue${warnings.length > 1 ? 's' : ''}`;
+        const body = warnings.join(' · ');
+
+        // Send push to owner
+        sendCrmPushToRoles(wsCol, ['owner'], '⚡ ' + title, body, { screen: 'payroll' }, null, null).catch(() => {});
+
+        // Send email to owner
+        const usersSnap = await wsCol('users').where('role', '==', 'owner').limit(1).get();
+        if (!usersSnap.empty) {
+          const owner = usersSnap.docs[0].data();
+          const email = owner.email || owner.username;
+          if (email && email.includes('@')) {
+            const shopName = wsData.shop_name || wsData.name || 'Your shop';
+            const warningsHtml = warnings.map(w => `<li style="margin-bottom:6px;color:#e8e8ed;">${w}</li>`).join('');
+            const html = vuriumEmailTemplate('Payroll Audit Alert', `
+              <p style="color:rgba(255,255,255,.6);margin-bottom:16px;">Automatic payroll audit found issues for the last 7 days:</p>
+              <ul style="padding-left:18px;margin-bottom:20px;">${warningsHtml}</ul>
+              <p style="color:rgba(255,255,255,.4);font-size:13px;">Open your Payroll page and click <b>⚡ Audit</b> for full details.</p>
+            `, shopName, '', 'dark-cosmos');
+            sendEmail(email, '⚡ ' + title + ' — ' + shopName, html, 'Vurium').catch(() => {});
+          }
+        }
+
+        // Store last audit result for in-app badge
+        await wsCol('settings').doc('payroll_audit').set({
+          last_run: toIso(new Date()),
+          warnings_count: warnings.length,
+          warnings,
+        }, { merge: true }).catch(() => {});
+
+      } catch (wsErr) { /* skip workspace on error */ }
+    }
+  } catch (e) { console.warn('runPayrollAudit error:', e?.message); }
+}
+
 setInterval(() => {
   runAutoReminders().catch(() => {});
   runAutoMemberships().catch(() => {});
   runRetentionCleanup().catch(() => {});
   resetSecurityCounters();
+  runPayrollAudit().catch(() => {});
 }, 3 * 60 * 1000);
 
 // ============================================================
