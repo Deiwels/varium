@@ -428,14 +428,13 @@ export default function PublicBookingPage() {
     }
   }
 
-  // "Add another" for already-selected service → always show barber picker (if multi-barber)
+  // "Add another" for already-selected service → show barber picker (if multi-barber)
   function handleAddAnother(s: Service) {
-    const eligibleBarbers = barbers.filter(b =>
-      !s.barber_ids || s.barber_ids.length === 0 || s.barber_ids.includes(b.id)
-    )
-    if (!isSolo && eligibleBarbers.length > 1) {
+    if (!isSolo) {
+      // Always show barber picker in multi-barber shops so client can choose who to assign it to
       setBarberPickerService(s)
     } else {
+      // Solo shop: just add another with the same barber
       addLine(s.id, selectedBarber?.id || barbers[0]?.id || '')
     }
   }
@@ -922,9 +921,8 @@ export default function PublicBookingPage() {
         {/* Barber picker popup — shown when adding a service that multiple barbers can do */}
         {barberPickerService && (() => {
           const svc = barberPickerService
-          const eligible = barbers.filter(b =>
-            !svc.barber_ids || svc.barber_ids.length === 0 || svc.barber_ids.includes(b.id)
-          )
+          // Show all barbers — the client can decide who to assign this service to
+          const eligible = barbers
           return (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, backdropFilter: 'blur(6px)' }}
               onClick={e => { if (e.target === e.currentTarget) setBarberPickerService(null) }}>
@@ -971,39 +969,40 @@ export default function PublicBookingPage() {
             const qty = qtyOf(s.id)
             const isSelected = qty > 0
             return (
-              <div style={{
+              <div onClick={() => {
+                if (isSelected) { handleAddAnother(s) } else { handleServiceTap(s) }
+              }} style={{
                 ...card,
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 border: `1.5px solid ${isSelected ? 'rgba(130,150,220,.4)' : t.cardBorder}`,
                 background: isSelected ? (isLightTheme ? 'rgba(99,102,241,.04)' : 'rgba(130,150,220,.06)') : t.card,
                 padding: '14px 18px',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 0 }}
-                  onClick={() => { if (!isSelected) handleServiceTap(s) }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 0 }}>
                   {qty === 0 ? (
                     <div style={{
                       width: 22, height: 22, borderRadius: 6, flexShrink: 0,
                       border: `1.5px solid ${isLightTheme ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.15)'}`,
-                      background: 'transparent', cursor: 'pointer',
+                      background: 'transparent',
                     }} />
                   ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
                       <button onClick={(e) => { e.stopPropagation(); handleServiceTap(s) }} style={{
-                        width: 24, height: 24, borderRadius: 7, border: '1.5px solid rgba(130,150,220,.4)',
+                        width: 28, height: 28, borderRadius: 8, border: '1.5px solid rgba(130,150,220,.4)',
                         background: 'rgba(130,150,220,.12)', color: 'rgba(130,150,220,.9)',
-                        cursor: 'pointer', fontWeight: 800, fontSize: 14, fontFamily: 'inherit',
+                        cursor: 'pointer', fontWeight: 800, fontSize: 16, fontFamily: 'inherit',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
                       }}>−</button>
-                      <span style={{ minWidth: 18, textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'rgba(130,150,220,.9)' }}>{qty}</span>
+                      <span style={{ minWidth: 20, textAlign: 'center', fontSize: 15, fontWeight: 700, color: 'rgba(130,150,220,.9)' }}>{qty}</span>
                       <button onClick={(e) => { e.stopPropagation(); handleAddAnother(s) }} style={{
-                        width: 24, height: 24, borderRadius: 7, border: '1.5px solid rgba(130,150,220,.4)',
+                        width: 28, height: 28, borderRadius: 8, border: '1.5px solid rgba(130,150,220,.4)',
                         background: 'rgba(130,150,220,.12)', color: 'rgba(130,150,220,.9)',
-                        cursor: 'pointer', fontWeight: 800, fontSize: 14, fontFamily: 'inherit',
+                        cursor: 'pointer', fontWeight: 800, fontSize: 16, fontFamily: 'inherit',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
                       }}>+</button>
                     </div>
                   )}
-                  <div style={{ cursor: qty === 0 ? 'pointer' : 'default' }}>
+                  <div>
                     <div style={{ fontSize: 15, fontWeight: 500, color: textMain }}>{s.name}</div>
                     <div style={{ fontSize: 12, color: textMuted, marginTop: 2 }}>{s.duration_minutes} min</div>
                   </div>
