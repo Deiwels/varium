@@ -1960,8 +1960,8 @@ app.patch('/api/vurium-dev/emails/:id', requireSuperadmin, async (req, res) => {
 });
 
 // ── Gmail API Integration ────────────────────────────────────────────────────
-const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID || '';
-const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET || '';
+const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || '';
+const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET || '';
 const GMAIL_REDIRECT_URI = BACKEND_PUBLIC_URL + '/api/vurium-dev/gmail/callback';
 const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly',
