@@ -251,11 +251,16 @@ export default function DashboardPage() {
     // Restore clock state from localStorage (fast restore before API fetch)
     try {
       const cs = JSON.parse(localStorage.getItem('VB_CLOCK_STATE') || 'null')
-      if (cs && cs.date === isoToday() && cs.clockedIn) {
+      if (cs && cs.clockedIn) {
         setClockedIn(true)
         setClockInTime(cs.clockInTime || null)
         setTodayMinutes(cs.todayMinutes || 0)
       }
+    } catch {}
+    // Restore clock_in_enabled setting
+    try {
+      const cie = localStorage.getItem('VB_CLOCK_IN_ENABLED')
+      if (cie === 'true') setDashSettings(prev => ({ ...prev, clock_in_enabled: true }))
     } catch {}
     // Restore clock-out summary
     try { const saved = JSON.parse(localStorage.getItem('VB_CLOCKOUT_SUMMARY') || 'null'); if (saved && saved.date === isoToday()) setClockOutSummary(saved.data) } catch {}
@@ -400,7 +405,7 @@ export default function DashboardPage() {
     const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
     const headers: Record<string,string> = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
     // Load workspace timezone + clock_in_enabled (available to all users)
-    try { const tz = await fetch(`${API}/api/settings/timezone`, { headers }).then(r => r.json()); if (tz?.timezone) _dashTz = tz.timezone; if (tz?.clock_in_enabled !== undefined) setDashSettings(prev => ({ ...prev, clock_in_enabled: tz.clock_in_enabled })) } catch {}
+    try { const tz = await fetch(`${API}/api/settings/timezone`, { headers }).then(r => r.json()); if (tz?.timezone) _dashTz = tz.timezone; if (tz?.clock_in_enabled !== undefined) { setDashSettings(prev => ({ ...prev, clock_in_enabled: tz.clock_in_enabled })); try { localStorage.setItem('VB_CLOCK_IN_ENABLED', tz.clock_in_enabled ? 'true' : 'false') } catch {} } } catch {}
     const today = isoToday()
     const range = getDateRange(earningsPeriod, earningsOffset)
     if (!bookings.length && !myPayroll) setLoading(true) // only show loading on first load
