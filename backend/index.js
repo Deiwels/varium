@@ -1848,7 +1848,7 @@ app.post('/api/vurium-dev/email/send', requireSuperadmin, async (req, res) => {
     const { to, subject, body_html } = req.body;
     if (!to || !subject) return res.status(400).json({ error: 'Missing to or subject' });
 
-    const html = vuriumEmailTemplate(subject, body_html || '<p>No content</p>', 'Vurium', null, 'modern');
+    const html = vuriumEmailTemplate(subject, body_html || '<p>No content</p>', 'Vurium', 'https://vurium.com/logo.jpg', 'dark-luxury');
     const result = await sendEmail(to, subject, html, 'Vurium');
 
     // Save outbound email
@@ -2194,7 +2194,8 @@ app.post('/api/vurium-dev/gmail/send', requireSuperadmin, async (req, res) => {
     const gmail = await getGmailClient(account);
     if (!gmail) return res.status(400).json({ error: 'Account not connected', needsAuth: true });
 
-    const raw = buildRawEmail({ from: account, to, subject, html: body_html || '' });
+    const styledHtml = vuriumEmailTemplate(subject, body_html || '', 'Vurium', 'https://vurium.com/logo.jpg', 'dark-luxury');
+    const raw = buildRawEmail({ from: account, to, subject, html: styledHtml });
     const result = await gmail.users.messages.send({ userId: 'me', requestBody: { raw } });
     res.json({ ok: true, id: result.data.id, threadId: result.data.threadId });
   } catch (e) {
@@ -2211,9 +2212,10 @@ app.post('/api/vurium-dev/gmail/reply', requireSuperadmin, async (req, res) => {
     const gmail = await getGmailClient(account);
     if (!gmail) return res.status(400).json({ error: 'Account not connected', needsAuth: true });
 
+    const styledHtml = vuriumEmailTemplate(subject, body_html || '', 'Vurium', 'https://vurium.com/logo.jpg', 'dark-luxury');
     const raw = buildRawEmail({
       from: account, to, subject,
-      html: body_html || '',
+      html: styledHtml,
       inReplyTo: messageId,
       references: messageId,
     });
