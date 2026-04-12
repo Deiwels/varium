@@ -8175,16 +8175,32 @@ async function runPayrollAudit() {
         const noAmount = bookings.filter(b => b.paid && !b.service_amount && !b.amount);
         if (noAmount.length > 0) warnings.push(`${noAmount.length} paid booking${noAmount.length > 1 ? 's' : ''} missing service amount`);
 
+        // Store audit result for in-app badge
+        await wsCol('settings').doc('payroll_audit').set({
+          last_run: toIso(new Date()),
+          warnings_count: warnings.length,
+          warnings,
+        }, { merge: true }).catch(() => {});
+
         if (warnings.length === 0) continue; // no issues, skip notification
 
-        // Build notification
+        // Check if already notified for this set of warnings (no spam)
+        const prevDoc = await wsCol('settings').doc('payroll_audit').get().catch(() => null);
+        const prevData = prevDoc?.exists ? prevDoc.data() : {};
+        const prevHash = (prevData.notified_hash || '');
+        const currentHash = warnings.sort().join('|');
+        if (prevHash === currentHash) continue; // same warnings, already notified
+
+        // Mark as notified
+        await wsCol('settings').doc('payroll_audit').update({ notified_hash: currentHash }).catch(() => {});
+
         const title = `Payroll Audit: ${warnings.length} issue${warnings.length > 1 ? 's' : ''}`;
         const body = warnings.join(' · ');
 
-        // Send push to owner
-        sendCrmPushToRoles(wsCol, ['owner'], '⚡ ' + title, body, { screen: 'payroll' }, null, null).catch(() => {});
+        // Send push to owner (once)
+        sendCrmPushToRoles(wsCol, ['owner'], title, body, { screen: 'payroll' }, null, null).catch(() => {});
 
-        // Send email to owner
+        // Send email to owner (once)
         const usersSnap = await wsCol('users').where('role', '==', 'owner').limit(1).get();
         if (!usersSnap.empty) {
           const owner = usersSnap.docs[0].data();
@@ -8195,18 +8211,11 @@ async function runPayrollAudit() {
             const html = vuriumEmailTemplate('Payroll Audit Alert', `
               <p style="color:rgba(255,255,255,.6);margin-bottom:16px;">Automatic payroll audit found issues for the last 7 days:</p>
               <ul style="padding-left:18px;margin-bottom:20px;">${warningsHtml}</ul>
-              <p style="color:rgba(255,255,255,.4);font-size:13px;">Open your Payroll page and click <b>⚡ Audit</b> for full details.</p>
+              <p style="color:rgba(255,255,255,.4);font-size:13px;">Open your Payroll page and run Audit for full details.</p>
             `, shopName, '', 'dark-cosmos');
-            sendEmail(email, '⚡ ' + title + ' — ' + shopName, html, 'Vurium').catch(() => {});
+            sendEmail(email, title + ' — ' + shopName, html, 'Vurium').catch(() => {});
           }
         }
-
-        // Store last audit result for in-app badge
-        await wsCol('settings').doc('payroll_audit').set({
-          last_run: toIso(new Date()),
-          warnings_count: warnings.length,
-          warnings,
-        }, { merge: true }).catch(() => {});
 
       } catch (wsErr) { /* skip workspace on error */ }
     }

@@ -1018,13 +1018,13 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
             }).map(item => {
               const active = pathname === item.href || (item.id === 'settings' && ['/settings', '/billing', '/waitlist', '/portfolio', '/attendance', '/cash', '/membership', '/expenses', '/payroll', '/payments'].some(p => pathname.startsWith(p)))
               const hasUnread = item.id === 'messages' && !!unreadChat && pathname !== '/messages'
-              const hasAuditBadge = item.id === 'settings' && auditWarnings > 0 && pathname !== '/payroll'
+              const hasAuditBadge = item.id === 'dashboard' && auditWarnings > 0
               return (
-                <Link key={item.id} href={hasAuditBadge ? '/payroll' : item.href} className={`pill-item${active ? ' active' : ''}`}>
-                  <div className={`pill-ico${hasUnread || hasAuditBadge ? ' has-unread' : ''}`}>
+                <Link key={item.id} href={item.href} className={`pill-item${active ? ' active' : ''}`}>
+                  <div className={`pill-ico${hasUnread ? ' has-unread' : ''}`} style={{ position: 'relative' }}>
                     <Icon id={item.id} color="#fff" />
                     {hasUnread && <div className="pill-unread-dot" />}
-                    {hasAuditBadge && <div className="pill-unread-dot" style={{ background: 'rgba(255,207,63,.9)' }} />}
+                    {hasAuditBadge && <div style={{ position: 'absolute', top: -2, right: -2, width: 14, height: 14, borderRadius: 999, background: '#ff3b30', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 900, color: '#fff', border: '2px solid #010101' }}>!</div>}
                   </div>
                   <span className="pill-label">{item.label}</span>
                 </Link>

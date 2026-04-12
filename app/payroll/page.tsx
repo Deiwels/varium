@@ -674,7 +674,7 @@ export default function PayrollPage() {
                 style={{ height: 38, width: 38, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 15, opacity: loading ? .5 : 1, fontFamily: 'inherit' }}>↻</button>
               <button onClick={runAudit} disabled={auditLoading}
                 style={{ height: 38, padding: '0 16px', borderRadius: 999, border: `1px solid ${showAudit ? 'rgba(130,150,220,.30)' : 'rgba(130,150,220,.15)'}`, background: showAudit ? 'rgba(130,150,220,.10)' : 'rgba(130,150,220,.05)', color: 'rgba(130,150,220,.8)', cursor: 'pointer', fontWeight: 800, fontSize: 12, fontFamily: 'inherit', opacity: auditLoading ? .5 : 1 }}>
-                {auditLoading ? 'Checking…' : '⚡ Audit'}
+                {auditLoading ? 'Checking…' : 'Audit'}
               </button>
               <button onClick={exportCSV}
                 style={{ height: 38, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.50)', cursor: 'pointer', fontWeight: 800, fontSize: 12, fontFamily: 'inherit' }}>
@@ -708,7 +708,7 @@ export default function PayrollPage() {
             <div style={{ ...card, padding: '14px 16px', border: '1px solid rgba(130,150,220,.15)', background: 'linear-gradient(180deg,rgba(130,150,220,.06),rgba(0,0,0,.20))' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 14 }}>⚡</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(130,150,220,.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   <span style={{ ...lbl, fontSize: 10, color: 'rgba(130,150,220,.7)' }}>Smart audit</span>
                   {auditData && (
                     <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
