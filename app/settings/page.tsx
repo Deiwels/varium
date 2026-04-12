@@ -1667,18 +1667,21 @@ export default function SettingsPage() {
                       { id: 'bold', label: 'Bold', color: 'rgba(255,255,255,.12)' },
                       { id: 'dark-luxury', label: 'Dark Luxury', color: 'rgba(255,255,255,.12)' },
                       { id: 'colorful', label: 'Colorful', color: 'rgba(255,255,255,.12)' },
+                      { id: 'ai', label: 'AI Style', color: 'rgba(130,150,220,.15)' },
                       ...(currentPlan === 'custom' ? [{ id: 'custom', label: 'Custom', color: 'rgba(255,255,255,.12)' }] : []),
                     ].map(t => {
                       const sc = s.site_config || {}
                       const selected = (sc.template || 'modern') === t.id
                       return (
-                        <button key={t.id} onClick={() => set('site_config', { ...sc, template: t.id })}
-                          style={{ padding: '16px 8px', borderRadius: 12, border: `1px solid ${selected ? 'rgba(255,255,255,.2)' : 'rgba(255,255,255,.06)'}`, background: selected ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', transition: 'all .2s', fontFamily: 'inherit' }}>
-                          <div style={{ fontSize: 12, fontWeight: selected ? 600 : 400, color: selected ? '#fff' : 'rgba(255,255,255,.45)' }}>{t.label}</div>
+                        <button key={t.id} onClick={() => { if (t.id !== 'ai') set('site_config', { ...sc, template: t.id }) ; else set('site_config', { ...sc, template: 'ai' }) }}
+                          style={{ padding: '16px 8px', borderRadius: 12, border: `1px solid ${selected ? (t.id === 'ai' ? 'rgba(130,150,220,.3)' : 'rgba(255,255,255,.2)') : 'rgba(255,255,255,.06)'}`, background: selected ? (t.id === 'ai' ? 'rgba(130,150,220,.08)' : 'rgba(255,255,255,.06)') : 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', transition: 'all .2s', fontFamily: 'inherit' }}>
+                          <div style={{ fontSize: 12, fontWeight: selected ? 600 : 400, color: selected ? (t.id === 'ai' ? 'rgba(130,150,220,.9)' : '#fff') : 'rgba(255,255,255,.45)' }}>{t.label}</div>
                         </button>
                       )
                     })}
                   </div>
+                  {/* AI Style Generator */}
+                  {(s.site_config?.template === 'ai') && <AIStyleGenerator siteConfig={s.site_config || {}} onGenerated={(css: string, prompt: string) => set('site_config', { ...(s.site_config || {}), template: 'ai', ai_css: css, ai_prompt: prompt })} />}
                 </SectionCard>
                 ) : (
                 <div style={{ padding: '16px 20px', borderRadius: 14, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)' }}>
@@ -1849,5 +1852,67 @@ export default function SettingsPage() {
         </div>
       )}
     </Shell>
+  )
+}
+
+function AIStyleGenerator({ siteConfig, onGenerated }: { siteConfig: any; onGenerated: (css: string, prompt: string) => void }) {
+  const [prompt, setPrompt] = useState(siteConfig.ai_prompt || '')
+  const [generating, setGenerating] = useState(false)
+  const [generated, setGenerated] = useState(!!siteConfig.ai_css)
+  const [error, setError] = useState('')
+
+  async function handleGenerate() {
+    if (!prompt.trim() || generating) return
+    setGenerating(true)
+    setError('')
+    try {
+      const res = await apiFetch('/api/ai/generate-style', {
+        method: 'POST',
+        body: JSON.stringify({ prompt: prompt.trim() }),
+      })
+      if (res.error) throw new Error(res.error)
+      onGenerated(res.css, prompt.trim())
+      setGenerated(true)
+    } catch (e: any) {
+      setError(e.message || 'Failed to generate style')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 16, padding: '20px 24px', borderRadius: 14, border: '1px solid rgba(130,150,220,.12)', background: 'rgba(130,150,220,.04)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2" stroke="rgba(130,150,220,.7)" strokeWidth="1.3"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3M3.05 3.05l2.12 2.12M10.83 10.83l2.12 2.12M3.05 12.95l2.12-2.12M10.83 5.17l2.12-2.12" stroke="rgba(130,150,220,.7)" strokeWidth="1.3" strokeLinecap="round"/></svg>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(130,150,220,.9)' }}>AI Style Generator</span>
+      </div>
+      <p style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', marginBottom: 12, lineHeight: 1.5 }}>
+        Describe your desired style in natural language. AI will generate custom CSS for your booking page.
+      </p>
+      <textarea
+        value={prompt}
+        onChange={e => setPrompt(e.target.value)}
+        placeholder="e.g. Dark minimalist with gold accents, luxury feel, elegant serif fonts, rounded cards with soft shadows..."
+        rows={3}
+        maxLength={500}
+        style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.25)', color: '#fff', padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.5, outline: 'none' }}
+      />
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}>
+        <button onClick={handleGenerate} disabled={generating || !prompt.trim()}
+          style={{ height: 36, padding: '0 20px', borderRadius: 999, border: 'none', cursor: 'pointer', background: 'rgba(130,150,220,.15)', color: 'rgba(130,150,220,.9)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', opacity: generating || !prompt.trim() ? 0.5 : 1, transition: 'opacity .2s' }}>
+          {generating ? 'Generating...' : generated ? 'Regenerate' : 'Generate Style'}
+        </button>
+        {generated && !generating && (
+          <span style={{ fontSize: 12, color: 'rgba(130,220,170,.7)' }}>Style applied to your booking page</span>
+        )}
+        {error && <span style={{ fontSize: 12, color: 'rgba(220,100,100,.7)' }}>{error}</span>}
+      </div>
+      {siteConfig.ai_css && (
+        <details style={{ marginTop: 12 }}>
+          <summary style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', cursor: 'pointer' }}>View generated CSS</summary>
+          <pre style={{ marginTop: 8, padding: 12, borderRadius: 8, background: 'rgba(0,0,0,.3)', fontSize: 11, color: 'rgba(255,255,255,.4)', overflow: 'auto', maxHeight: 200, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{siteConfig.ai_css}</pre>
+        </details>
+      )}
+    </div>
   )
 }

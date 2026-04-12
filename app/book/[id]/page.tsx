@@ -699,6 +699,7 @@ export default function PublicBookingPage() {
     'dark-luxury': { bg: '#0c0a08', text: '#e8dcc8', card: 'rgba(200,170,120,.04)', cardBorder: 'rgba(200,170,120,.1)', accent: '#c8a87a', headerBg: 'rgba(12,10,8,.7)' },
     colorful:     { bg: '#fafafa', text: '#2a2a2a', card: 'rgba(0,0,0,.03)', cardBorder: 'rgba(0,0,0,.06)', accent: '#6366f1', headerBg: 'rgba(255,255,255,.9)' },
     custom:       { bg: '#000', text: '#e9e9e9', card: 'rgba(255,255,255,.04)', cardBorder: 'rgba(255,255,255,.08)', accent: '#0a84ff', headerBg: 'rgba(0,0,0,.5)' },
+    ai:           { bg: 'transparent', text: '#f0f0f5', card: 'rgba(255,255,255,.025)', cardBorder: 'rgba(255,255,255,.06)', accent: '#fff', headerBg: 'rgba(0,0,0,.5)' },
   }
   // Individual: always Vurium (modern). Salon/Custom: use selected template.
   const activeTemplate = (effectivePlan === 'salon' || effectivePlan === 'custom') ? template : 'modern'
@@ -740,7 +741,10 @@ export default function PublicBookingPage() {
     : ''
 
   return (
-    <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter, -apple-system, sans-serif', color: t.text, position: 'relative' }}>
+    <div className="booking-page" style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter, -apple-system, sans-serif', color: t.text, position: 'relative' }}>
+
+      {/* AI-generated CSS */}
+      {activeTemplate === 'ai' && siteConfig?.ai_css && <style dangerouslySetInnerHTML={{ __html: siteConfig.ai_css }} />}
 
       {/* Space background — bold & dark-luxury get their own stars; Vurium uses global cosmos from layout */}
       {!isLightTheme && activeTemplate !== 'modern' && (
@@ -755,7 +759,7 @@ export default function PublicBookingPage() {
       {!isLightTheme && activeTemplate !== 'modern' && <div className="noise-overlay" />}
 
       {/* Header */}
-      <header style={{ padding: '20px 24px', borderBottom: `1px solid ${t.cardBorder}`, background: t.headerBg, backdropFilter: isLightTheme ? 'none' : 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
+      <header className="bp-header" style={{ padding: '20px 24px', borderBottom: `1px solid ${t.cardBorder}`, background: t.headerBg, backdropFilter: isLightTheme ? 'none' : 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {config.hero_media_url && <img src={config.hero_media_url} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }} />}
           <span style={{ fontSize: 16, fontWeight: 600, color: t.text }}>{shopName}</span>
@@ -777,7 +781,7 @@ export default function PublicBookingPage() {
           {/* Default sections — hidden when "custom" template is active */}
           {activeTemplate !== 'custom' && (<>
           {/* Hero */}
-          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+          <div className="bp-hero" style={{ textAlign: 'center', marginBottom: 48 }}>
             {config.hero_media_url && (
               <div style={{ width: '100%', height: 200, borderRadius: 16, overflow: 'hidden', marginBottom: 24, border: '1px solid rgba(255,255,255,.06)' }}>
                 <img src={config.hero_media_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -799,10 +803,10 @@ export default function PublicBookingPage() {
           {/* Team */}
           {barbers.length > 1 && (
             <div style={{ marginBottom: 40 }}>
-              <div style={{ fontSize: 12, color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Our {getStaffLabel(businessType, true)}</div>
+              <div className="bp-section-title" style={{ fontSize: 12, color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Our {getStaffLabel(businessType, true)}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 12 }}>
                 {barbers.map(b => (
-                  <div key={b.id} style={{ textAlign: 'center', padding: '16px 8px', borderRadius: 14, border: `1px solid ${t.cardBorder}`, background: t.card }}>
+                  <div key={b.id} className="bp-card" style={{ textAlign: 'center', padding: '16px 8px', borderRadius: 14, border: `1px solid ${t.cardBorder}`, background: t.card }}>
                     <div style={{
                       width: 48, height: 48, borderRadius: 999, margin: '0 auto 10px',
                       background: b.photo_url ? `url(${b.photo_url}) center/cover` : (isLightTheme ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.06)'),
@@ -853,7 +857,7 @@ export default function PublicBookingPage() {
           {/* Book Now CTA — hidden for custom template since buttons are in custom HTML */}
           {activeTemplate !== 'custom' && (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <button onClick={() => setShowBooking(true)} style={{
+            <button className="bp-btn" onClick={() => setShowBooking(true)} style={{
               padding: '16px 48px', borderRadius: 14, fontSize: 16, fontWeight: 600, fontFamily: 'inherit',
               background: isLightTheme ? t.accent : 'rgba(255,255,255,.1)',
               border: `1px solid ${isLightTheme ? t.accent : 'rgba(255,255,255,.15)'}`,
@@ -1506,7 +1510,7 @@ export default function PublicBookingPage() {
       </main>
       )}
 
-      <footer style={{ padding: '20px 24px', borderTop: `1px solid ${borderSoft}`, textAlign: 'center', position: 'relative', zIndex: 2 }}>
+      <footer className="bp-footer" style={{ padding: '20px 24px', borderTop: `1px solid ${borderSoft}`, textAlign: 'center', position: 'relative', zIndex: 2 }}>
         <a href="https://vurium.com/vuriumbook" target="_blank" rel="noopener" style={{ fontSize: 11, color: isLightTheme ? 'rgba(0,0,0,.18)' : 'rgba(255,255,255,.12)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           <img src="/logo-white.jpg" alt="" style={{ width: 14, height: 14, borderRadius: 3, opacity: isLightTheme ? 0.35 : 0.25, filter: isLightTheme ? 'none' : 'invert(1)' }} />
           Powered by VuriumBook&trade;

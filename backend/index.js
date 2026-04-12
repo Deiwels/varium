@@ -6420,6 +6420,65 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
+// ── AI Style Generator ───────────────────────────────────────────────────────
+const AI_STYLE_SYSTEM_PROMPT = `You are a CSS style generator for a barbershop/salon booking page. The user will describe their desired visual style in natural language. Generate CSS that transforms the page's appearance.
+
+AVAILABLE CSS CLASSES (target these):
+- .booking-page — main page wrapper (background, font-family, color)
+- .bp-header — top header bar with logo and shop name
+- .bp-hero — hero section with title and subtitle
+- .bp-card — cards for services, barbers, time slots
+- .bp-btn — primary action buttons (Book, Next, Confirm)
+- .bp-btn-secondary — secondary buttons
+- .bp-input — input fields and textareas
+- .bp-section-title — section headings (Services, Team, etc.)
+- .bp-chip — small pills/tags (duration, price)
+- .bp-footer — page footer
+
+RULES:
+1. ONLY output pure CSS. No HTML, no markdown, no code fences, no comments.
+2. DO NOT change layout properties (display, position, flex-direction, grid). Only style: colors, backgrounds, fonts, border-radius, box-shadow, borders, padding adjustments, opacity, gradients.
+3. Use the classes above. You can also use nested selectors like .bp-card:hover.
+4. Keep it elegant and professional — this is for real businesses.
+5. You may import Google Fonts via @import at the top if the style calls for a specific font.
+6. Make sure text remains readable (sufficient contrast).
+7. Generate 20-40 lines of focused CSS.`;
+
+app.post('/api/ai/generate-style', requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    if (!anthropic) return res.status(503).json({ error: 'AI not configured' });
+    const { prompt } = req.body || {};
+    if (!prompt || typeof prompt !== 'string' || prompt.length < 3) return res.status(400).json({ error: 'Please describe your desired style' });
+    if (prompt.length > 500) return res.status(400).json({ error: 'Description too long (max 500 chars)' });
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      system: AI_STYLE_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: `Generate CSS for this style: ${prompt}` }],
+    });
+
+    let css = response.content[0]?.text || '';
+    // Strip markdown code fences if present
+    css = css.replace(/```css\n?/gi, '').replace(/```\n?/gi, '').trim();
+    // Sanitize CSS
+    css = css.replace(/@import\b(?!.*fonts\.googleapis)/gi, '/* blocked */').replace(/expression\s*\(/gi, '').replace(/javascript\s*:/gi, '');
+
+    // Save to workspace
+    const wsDoc = await req.wsDoc().get();
+    const sc = wsDoc.exists ? (wsDoc.data()?.site_config || {}) : {};
+    await req.wsDoc().update({
+      site_config: { ...sc, template: 'ai', ai_css: css, ai_prompt: prompt },
+      updated_at: toIso(new Date()),
+    });
+
+    res.json({ ok: true, css, prompt });
+  } catch (e) {
+    console.error('AI style generation error:', e.message);
+    res.status(500).json({ error: 'Failed to generate style' });
+  }
+});
+
 // ============================================================
 // AUDIT LOGS
 // ============================================================
