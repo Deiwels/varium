@@ -407,7 +407,8 @@ export default function PublicBookingPage() {
   }
 
   // When tapping a service in the checkbox list:
-  // - If not selected yet: add it with primary barber (or show picker if multi-barber)
+  // - If not selected yet: add with primary barber, OR show picker if multi-barber
+  //   and there's already a primary service in the cart (so client can split between barbers)
   // - If already selected: remove the last instance of it
   function handleServiceTap(s: Service) {
     const hasIt = bookingLines.some(l => l.serviceId === s.id)
@@ -416,11 +417,14 @@ export default function PublicBookingPage() {
       const idx = bookingLines.map(l => l.serviceId).lastIndexOf(s.id)
       if (idx >= 0) removeLineAt(idx)
     } else {
-      // Multi-barber shop + service available to multiple barbers → show picker
-      const eligibleBarbers = barbers.filter(b =>
-        !s.barber_ids || s.barber_ids.length === 0 || s.barber_ids.includes(b.id)
-      )
-      if (!isSolo && eligibleBarbers.length > 1 && bookingLines.some(l => l.serviceId === s.id)) {
+      // If multi-barber shop AND there's already a primary service selected → show picker
+      // so the client can choose which barber to assign this new service to
+      const hasPrimaryAlready = bookingLines.some(l => {
+        const svc = services.find(sv => sv.id === l.serviceId)
+        return svc && svc.service_type !== 'addon'
+      })
+      const isThisPrimary = s.service_type !== 'addon'
+      if (!isSolo && isThisPrimary && hasPrimaryAlready) {
         setBarberPickerService(s)
       } else {
         addLine(s.id, selectedBarber?.id || barbers[0]?.id || '')
