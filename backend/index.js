@@ -2400,6 +2400,7 @@ async function collectDiagnosticMetrics() {
   const now = new Date();
   const h24 = new Date(now - 24 * 60 * 60 * 1000);
   const h24Iso = h24.toISOString();
+  const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
 
   // Workspace stats
   const wsSnap = await db.collection('workspaces').get();
@@ -2414,70 +2415,96 @@ async function collectDiagnosticMetrics() {
     if (!w.trial_active && !['active', 'trialing'].includes(w.billing_status)) expiredTrials++;
   });
 
-  // Security events 24h
+  // Security events (last 100, filter by time in JS)
   let securityEvents = [];
   try {
-    const secSnap = await db.collection('global_security_log').where('timestamp', '>=', h24Iso).orderBy('timestamp', 'desc').limit(100).get();
+    const secSnap = await db.collection('global_security_log').orderBy('timestamp', 'desc').limit(100).get();
     const byType = {};
-    secSnap.forEach(d => { const t = d.data().type || 'unknown'; byType[t] = (byType[t] || 0) + 1; });
+    secSnap.forEach(d => {
+      const data = d.data();
+      if (data.timestamp && data.timestamp >= h24Iso) {
+        const t = data.type || 'unknown';
+        byType[t] = (byType[t] || 0) + 1;
+      }
+    });
     securityEvents = Object.entries(byType).map(([type, count]) => ({ type, count }));
-  } catch { }
+  } catch (e) { console.warn('Diagnostics: security_log query failed:', e.message); }
 
-  // SMS stats 24h
+  // SMS stats (last 200, filter in JS)
   let smsStats = { sent: 0, failed: 0 };
   try {
-    const smsSnap = await db.collection('sms_logs').where('created_at', '>=', h24Iso).limit(500).get();
+    const smsSnap = await db.collection('sms_logs').orderBy('created_at', 'desc').limit(200).get();
     smsSnap.forEach(d => {
       const s = d.data();
-      if (s.status === 'sent' || s.status === 'delivered') smsStats.sent++;
-      else smsStats.failed++;
+      if (s.created_at && s.created_at >= h24Iso) {
+        if (s.status === 'sent' || s.status === 'delivered') smsStats.sent++;
+        else smsStats.failed++;
+      }
     });
-  } catch { }
+  } catch (e) { console.warn('Diagnostics: sms_logs query failed:', e.message); }
 
-  // Email stats 24h
+  // Email stats (last 200, filter in JS)
   let emailStats = { sent: 0, failed: 0 };
   try {
-    const emSnap = await db.collection('vurium_emails').where('created_at', '>=', h24Iso).limit(500).get();
+    const emSnap = await db.collection('vurium_emails').orderBy('created_at', 'desc').limit(200).get();
     emSnap.forEach(d => {
       const e = d.data();
-      if (e.status === 'sent' || e.status === 'delivered') emailStats.sent++;
-      else emailStats.failed++;
+      if (e.created_at && e.created_at >= h24Iso) {
+        if (e.status === 'sent' || e.status === 'delivered') emailStats.sent++;
+        else emailStats.failed++;
+      }
     });
-  } catch { }
+  } catch (e) { console.warn('Diagnostics: vurium_emails query failed:', e.message); }
 
-  // Sample 10 most recent workspaces for booking checks
+  // Sample up to 10 workspaces for booking/client counts
   const sampleWs = workspaces.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, 10);
-  let totalBookings24h = 0, unpaidCompleted = 0, bookingIssues = [];
+  let totalBookings = 0, totalClients = 0, totalBookingsToday = 0, unpaidCompleted = 0;
+  const wsDetails = [];
   for (const ws of sampleWs) {
     try {
-      const bSnap = await db.collection('workspaces').doc(ws.id).collection('bookings')
-        .where('start_at', '>=', h24Iso).limit(200).get();
-      let wsBookings = 0, wsUnpaid = 0;
-      bSnap.forEach(d => {
-        wsBookings++;
-        const b = d.data();
-        if (b.status === 'completed' && (!b.payment_status || b.payment_status === 'unpaid')) wsUnpaid++;
-      });
-      totalBookings24h += wsBookings;
+      // Total bookings count
+      const bCountSnap = await db.collection('workspaces').doc(ws.id).collection('bookings').count().get();
+      const bCount = bCountSnap.data().count || 0;
+      // Total clients count
+      const cCountSnap = await db.collection('workspaces').doc(ws.id).collection('clients').count().get();
+      const cCount = cCountSnap.data().count || 0;
+      // Recent bookings (last 50 ordered by start_at desc, check date in JS)
+      let todayCount = 0, wsUnpaid = 0;
+      try {
+        const recentSnap = await db.collection('workspaces').doc(ws.id).collection('bookings')
+          .orderBy('start_at', 'desc').limit(50).get();
+        recentSnap.forEach(d => {
+          const b = d.data();
+          const bDate = (b.start_at || b.date || '').slice(0, 10);
+          if (bDate === today) todayCount++;
+          if (b.status === 'completed' && (!b.payment_status || b.payment_status === 'unpaid')) wsUnpaid++;
+        });
+      } catch { }
+      totalBookings += bCount;
+      totalClients += cCount;
+      totalBookingsToday += todayCount;
       unpaidCompleted += wsUnpaid;
-      if (wsUnpaid > 3) bookingIssues.push({ workspace: ws.name, unpaid: wsUnpaid, total: wsBookings });
-    } catch { }
+      wsDetails.push({ name: ws.name, plan: ws.plan, status: ws.billing_status, bookings: bCount, clients: cCount, today: todayCount });
+    } catch (e) { console.warn('Diagnostics: workspace scan failed for', ws.id, e.message); }
   }
 
-  // Analytics 24h
+  // Analytics — use count() to avoid pulling all docs
   let pageviews24h = 0;
   try {
-    const aSnap = await db.collection('vurium_analytics').where('ts', '>=', h24Iso).limit(5000).get();
-    pageviews24h = aSnap.size;
-  } catch { }
+    const aSnap = await db.collection('vurium_analytics').orderBy('ts', 'desc').limit(1000).get();
+    aSnap.forEach(d => {
+      const data = d.data();
+      if (data.ts && data.ts >= h24Iso) pageviews24h++;
+    });
+  } catch (e) { console.warn('Diagnostics: analytics query failed:', e.message); }
 
   return {
     timestamp: now.toISOString(),
-    workspaces: { total: workspaces.length, by_plan: byPlan, by_status: byStatus, expired_trials: expiredTrials },
+    workspaces: { total: workspaces.length, by_plan: byPlan, by_status: byStatus, expired_trials: expiredTrials, details: wsDetails },
     security: { events_24h: securityEvents },
     sms: smsStats,
     email: emailStats,
-    bookings: { total_24h: totalBookings24h, unpaid_completed: unpaidCompleted, issues: bookingIssues, sampled_workspaces: sampleWs.length },
+    bookings: { total_all_time: totalBookings, total_today: totalBookingsToday, unpaid_completed: unpaidCompleted, total_clients: totalClients, sampled_workspaces: sampleWs.length },
     analytics: { pageviews_24h: pageviews24h },
   };
 }
