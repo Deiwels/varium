@@ -640,6 +640,67 @@ async function scheduleReminders(wsCol, bookingId, booking, timeZone, shopName, 
 }
 
 // ============================================================
+// SATISFACTION PING — post-visit SMS + email with Google review link
+// ============================================================
+async function scheduleSatisfactionPing(wsId, wsCol, bookingId, bookingData) {
+  try {
+    const settingsDoc = await wsCol('settings').doc('config').get();
+    const settings = settingsDoc.exists ? settingsDoc.data() : {};
+    if (settings.satisfaction_sms_enabled === false) return;
+    const googleReviewUrl = settings.google_review_url;
+    const shopName = settings.shop_name || '';
+    const timeZone = settings.timezone || 'America/Chicago';
+
+    // Deduplicate — don't schedule if satisfaction reminder already exists for this booking
+    const existingSnap = await wsCol('sms_reminders').where('booking_id', '==', bookingId).where('type', '==', 'satisfaction').limit(1).get();
+    if (!existingSnap.empty) return;
+
+    const phone = bookingData.client_phone || bookingData.phone_norm;
+    const phoneNorm = phone ? normPhone(phone) : null;
+    const clientName = bookingData.client_name || 'there';
+    const barberName = bookingData.barber_name || 'your specialist';
+    const sendAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours from now
+    const smsConf = await getWorkspaceSmsConfig(wsId);
+
+    // Schedule SMS (if phone + Google review URL available)
+    if (phone && googleReviewUrl) {
+      const prefix = shopName ? `${shopName}: ` : '';
+      const message = `${prefix}Hi ${clientName}! Thanks for your visit with ${barberName}. We'd love your feedback — leave a review here: ${googleReviewUrl} Msg & data rates may apply. Reply STOP to opt out, HELP for help.`;
+      await wsCol('sms_reminders').add({
+        booking_id: bookingId, phone, phone_norm: phoneNorm,
+        from_number: smsConf.fromNumber || null, type: 'satisfaction',
+        send_at: toIso(sendAt), sent: false, message, created_at: toIso(new Date()),
+      });
+    }
+
+    // Send satisfaction email (immediate, with Google review link)
+    const clientEmail = bookingData.client_email;
+    if (clientEmail) {
+      const cfg = await getWorkspaceEmailConfig(wsId);
+      const { logoUrl, template, contactInfo } = cfg;
+      const et = EMAIL_THEMES[template] || EMAIL_THEMES.modern;
+      const isLt = ['classic', 'colorful'].includes(template);
+      const cardBg = isLt ? 'rgba(0,0,0,.03)' : 'rgba(255,255,255,.04)';
+      const serviceName = bookingData.service_name || 'your appointment';
+      const reviewLink = googleReviewUrl || `https://vurium.com/book/${wsId}`;
+      const stars = [1, 2, 3, 4, 5].map(n => {
+        const starUrl = googleReviewUrl || reviewLink;
+        return `<a href="${starUrl}" style="text-decoration:none;font-size:32px;margin:0 4px;" title="${n} star${n > 1 ? 's' : ''}">⭐</a>`;
+      }).join('');
+      sendEmail(clientEmail, `How was your visit${shopName ? ' at ' + shopName : ''}?`, vuriumEmailTemplate('How was your visit?', `
+        <p style="color:${et.muted};margin-bottom:16px;">Hi ${clientName}! We hope you enjoyed ${serviceName} with ${barberName}.</p>
+        <div style="padding:20px;border-radius:14px;background:${cardBg};border:1px solid ${et.border};margin:16px 0;text-align:center;">
+          <p style="color:${et.text};font-size:15px;font-weight:500;margin-bottom:12px;">Rate your experience</p>
+          <div style="margin-bottom:16px;">${stars}</div>
+          <a href="${reviewLink}" style="display:inline-block;padding:12px 28px;border-radius:10px;background:${isLt ? 'rgba(0,0,0,.05)' : 'rgba(255,255,255,.08)'};border:1px solid ${et.border};color:${et.text};text-decoration:none;font-size:14px;font-weight:600;">Leave a Google Review</a>
+        </div>
+        <p style="color:${et.muted};font-size:12px;text-align:center;">Your feedback helps us improve and helps others find us!</p>
+      `, shopName, logoUrl, template, contactInfo), shopName).catch(() => {});
+    }
+  } catch (e) { console.warn('scheduleSatisfactionPing error:', e?.message); }
+}
+
+// ============================================================
 // APNs PUSH NOTIFICATIONS
 // ============================================================
 let _apnsJwt = null;
@@ -4121,6 +4182,11 @@ app.patch('/api/bookings/:id', async (req, res) => {
         `, shopName, logoUrl, template, cfg.contactInfo), shopName).catch(() => {});
       }
 
+      // Satisfaction ping — schedule SMS + email 2h after completion
+      if ((patch.status === 'done' || patch.status === 'completed') && existingData.status !== 'done' && existingData.status !== 'completed') {
+        scheduleSatisfactionPing(req.wsId, req.ws, req.params.id, { ...existingData, ...savedData }).catch(() => {});
+      }
+
       // Cancelled via status change
       if (patch.status === 'cancelled' && existingData.status !== 'cancelled') {
         sendEmail(clientEmail, 'Appointment Cancelled', vuriumEmailTemplate('Appointment Cancelled', `
@@ -5825,7 +5891,8 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
       'clock_in_enabled', 'waitlist_enabled', 'portfolio_enabled', 'membership_enabled', 'cash_register_enabled',
       'dash_shortcuts', 'dash_widgets', 'business_type',
       'sms_from_number', 'sms_brand_name', 'telnyx_campaign_id', 'telnyx_brand_id', 'sms_registration_status',
-      'sms_messaging_profile_id', 'sms_number_type', 'sms_registered_at', 'sms_status_updated_at'];
+      'sms_messaging_profile_id', 'sms_number_type', 'sms_registered_at', 'sms_status_updated_at',
+      'google_review_url', 'satisfaction_sms_enabled'];
     const patch = { updated_at: toIso(new Date()) };
     for (const key of ALLOWED_SETTINGS) {
       if (b[key] !== undefined) patch[key] = typeof b[key] === 'string' ? sanitizeHtml(b[key]) : b[key];
