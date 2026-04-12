@@ -13,7 +13,7 @@ const http2 = require('http2');
 const { z } = require('zod');
 const { Firestore } = require('@google-cloud/firestore');
 const { google } = require('googleapis');
-const Anthropic = require('@anthropic-ai/sdk').default;
+const Anthropic = require('@anthropic-ai/sdk');
 
 const app = express();
 app.set('trust proxy', true);
@@ -2377,7 +2377,8 @@ app.post('/api/vurium-dev/gmail/reply', requireSuperadmin, async (req, res) => {
 
 // ── AI Diagnostics System ────────────────────────────────────────────────────
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
-const anthropic = ANTHROPIC_API_KEY ? new Anthropic({ apiKey: ANTHROPIC_API_KEY }) : null;
+const AnthropicClient = Anthropic.default || Anthropic;
+const anthropic = ANTHROPIC_API_KEY ? new AnthropicClient({ apiKey: ANTHROPIC_API_KEY }) : null;
 
 const DIAGNOSTIC_SYSTEM_PROMPT = `You are the AI diagnostics engine for VuriumBook — a multi-tenant SaaS platform for barbershops and salons. Each workspace has subcollections: bookings, clients, barbers, users, settings, audit_logs. The platform uses Stripe for billing, Telnyx for SMS, Resend for email, and runs on Google Cloud Run with Firestore.
 
