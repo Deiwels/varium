@@ -142,13 +142,15 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
     setPhoneLoading(null)
   }
 
+  const [clientHistory, setClientHistory] = useState<any>(null)
   useEffect(() => {
     const cached = clients.find(c => c.id === clientId)
     if (cached) { setDetailed(cached); setNotes(cached.notes || '') }
-    setLoading(true)
+    setLoading(true); setClientHistory(null)
     apiFetch(`/api/clients/${encodeURIComponent(clientId)}`).then(d => {
       setDetailed(d); setNotes(d.notes || ''); onUpdate(d); setLoading(false)
     }).catch(() => setLoading(false))
+    apiFetch(`/api/clients/${encodeURIComponent(clientId)}/history`).then(setClientHistory).catch(() => {})
   }, [clientId])
 
   async function patch(body: any) {
@@ -225,10 +227,12 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
   if (!detailed) return null
 
   const c = detailed
-  const visits = c.visits || (c.bookings?.length || 0)
-  const spend = c.spend || (c.bookings||[]).reduce((s,b) => s + Number((b as any).service_price||(b as any).price||0), 0)
-  const noShows = c.no_shows || (c.bookings||[]).filter(b => b.status==='noshow').length
-  const lastVisit = c.last_visit || (c.bookings?.[0]?.start_at||'')
+  const visits = clientHistory?.visits ?? c.visits ?? (c.bookings?.length || 0)
+  const spend = clientHistory?.spend ?? c.spend ?? (c.bookings||[]).reduce((s,b) => s + Number((b as any).service_price||(b as any).price||0), 0)
+  const noShows = clientHistory?.no_shows ?? c.no_shows ?? (c.bookings||[]).filter(b => b.status==='noshow').length
+  const lastVisit = clientHistory?.last_visit ?? c.last_visit ?? (c.bookings?.[0]?.start_at||'')
+  const tips = clientHistory?.tips ?? 0
+  const avgTip = clientHistory?.avg_tip ?? 0
   const barber = c.preferred_barber || c.barber || '—'
 
   const row = (label: string, value: React.ReactNode) => (
@@ -267,9 +271,16 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
 
       {/* KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8 }}>
-        {[{v:visits, l:'Visits'},{v:'$'+Number(spend).toFixed(0), l:'Spend'},{v:noShows, l:'No-shows'}].map(k => (
+        {[
+          {v:visits, l:'Visits', c:'rgba(130,150,220,.8)'},
+          {v:'$'+Number(spend).toFixed(0), l:'Spent', c:'rgba(130,220,170,.7)'},
+          {v:noShows, l:'No-shows', c: noShows > 0 ? 'rgba(255,107,107,.8)' : 'rgba(255,255,255,.5)'},
+          {v:'$'+Number(tips).toFixed(0), l:'Tips', c:'rgba(255,207,63,.7)'},
+          {v:'$'+Number(avgTip).toFixed(0), l:'Avg tip', c:'rgba(255,207,63,.5)'},
+          {v: clientHistory?.square_customer_id ? 'Yes' : 'No', l:'Square', c: clientHistory?.square_customer_id ? 'rgba(130,220,170,.7)' : 'rgba(255,255,255,.3)'},
+        ].map(k => (
           <div key={k.l} style={{ padding:'10px 12px', borderRadius:14, border:'1px solid rgba(255,255,255,.10)', background:'rgba(0,0,0,.14)' }}>
-            <div style={{ fontWeight:900, fontSize:18 }}>{k.v}</div>
+            <div style={{ fontWeight:900, fontSize:18, color: k.c }}>{k.v}</div>
             <div style={{ fontSize:10, letterSpacing:'.12em', textTransform:'uppercase', color:'rgba(255,255,255,.45)', marginTop:4 }}>{k.l}</div>
           </div>
         ))}

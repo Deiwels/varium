@@ -267,6 +267,13 @@ function ClientSearch({ onSelect, isOwnerOrAdmin, canViewPhone, canCallClient, c
   const lbl: React.CSSProperties = { fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,.45)', display: 'block', marginBottom: 5 }
 
   // ── Selected client card ──────────────────────────────────────────────────
+  const [clientHistory, setClientHistory] = useState<any>(null)
+  useEffect(() => {
+    setClientHistory(null)
+    if (selected?.id && !selected.id.startsWith('local_')) {
+      apiFetch(`/api/clients/${encodeURIComponent(selected.id)}/history`).then(setClientHistory).catch(() => {})
+    }
+  }, [selected?.id])
   const [editingNotes, setEditingNotes] = useState(false)
   const [clientNotes, setClientNotes] = useState(selected?.notes || '')
   const [savingNotes, setSavingNotes] = useState(false)
@@ -357,7 +364,7 @@ function ClientSearch({ onSelect, isOwnerOrAdmin, canViewPhone, canCallClient, c
                 <div style={{ fontWeight: 900, fontSize: 15 }}>{selected.name}</div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,.50)', marginTop: 2 }}>
                   {canViewPhone ? (selected.phone || 'No phone') : maskPhone(selected.phone || '')}
-                  {selected.visitCount ? ` · ${selected.visitCount} visit${selected.visitCount !== 1 ? 's' : ''}` : ' · New client'}
+                  {clientHistory ? ` · ${clientHistory.client_status === 'new' ? 'New client' : clientHistory.visits + ' visit' + (clientHistory.visits !== 1 ? 's' : '')}` : (selected.visitCount ? ` · ${selected.visitCount} visit${selected.visitCount !== 1 ? 's' : ''}` : ' · New client')}
                 </div>
               </div>
             </div>
@@ -379,6 +386,23 @@ function ClientSearch({ onSelect, isOwnerOrAdmin, canViewPhone, canCallClient, c
               <button onClick={() => setEditingInfo(true)} style={{ height: 30, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' }}>Edit</button>
               <button onClick={clear} style={{ height: 30, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' }}>Change</button>
             </div>
+          </div>
+        )}
+
+        {/* Client stats */}
+        {clientHistory && (
+          <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', padding: '8px 14px', display: 'flex', gap: 0, background: 'rgba(0,0,0,.08)' }}>
+            {[
+              { label: 'Visits', value: clientHistory.visits || 0, color: 'rgba(130,150,220,.7)' },
+              { label: 'Spent', value: `$${Math.round(clientHistory.spend || 0)}`, color: 'rgba(130,220,170,.6)' },
+              { label: 'Tips', value: `$${Math.round(clientHistory.tips || 0)}`, color: 'rgba(255,207,63,.6)' },
+              { label: 'No-shows', value: clientHistory.no_shows || 0, color: clientHistory.no_shows > 0 ? 'rgba(255,107,107,.7)' : 'rgba(255,255,255,.3)' },
+            ].map(s => (
+              <div key={s.label} style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: s.color }}>{s.value}</div>
+                <div style={{ fontSize: 8, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.30)', marginTop: 1 }}>{s.label}</div>
+              </div>
+            ))}
           </div>
         )}
 
