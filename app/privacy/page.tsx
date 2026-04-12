@@ -73,31 +73,40 @@ export default function PrivacyPage() {
         <h3 style={{ ...heading, fontSize: 16, marginTop: 24 }}>Program A &mdash; Appointment Notifications (Customer Care)</h3>
         <div style={highlight}>
           <p style={{ ...text, marginBottom: 14 }}>
-            We collect and use phone numbers to send appointment-related SMS messages including booking confirmations, reminders, schedule changes, and cancellation notices. By providing your phone number and checking the SMS consent box at https://vurium.com/book/[workspace] during the online booking process, you explicitly opt in to receive these text messages from Vurium and the business you are booking with.
+            We collect and use phone numbers to send appointment-related SMS messages including booking confirmations, reminders, schedule changes, and cancellation notices. By providing your phone number and checking the SMS consent box at https://vurium.com/book/[workspace] during the online booking process, you explicitly opt in to receive these text messages from VuriumBook about your appointment with the business you are booking with.
           </p>
           <ul style={{ ...list, marginBottom: 0 }}>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Types:</strong> Appointment confirmations, reminders (24 hours and 2 hours before your visit), schedule changes, and cancellation notices.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Program Name:</strong> VuriumBook Appointment Notifications.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Sender:</strong> VuriumBook (operated by Vurium Inc.).</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Types:</strong> Appointment confirmations, reminders (24 hours and 2 hours before your visit), schedule changes, and cancellation notices. No marketing or promotional content is sent under this program.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Frequency:</strong> Up to 5 messages per booking, depending on appointment activity.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message and data rates may apply.</strong> Contact your wireless carrier for details about your plan.</li>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Opt-Out:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>STOP</strong> to any message to opt out. No further messages will be sent. You may also email support@vurium.com to unsubscribe.</li>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Help:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>HELP</strong> to any message for assistance, or email support@vurium.com.</li>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>No Sharing:</strong> We will not sell, rent, or share your mobile phone number or SMS opt-in data with third parties for their marketing purposes.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Opt-Out:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>STOP</strong> to any message to opt out. No further appointment messages will be sent. Your booking will remain active. You may also email support@vurium.com to unsubscribe.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Help:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>HELP</strong> to any message for assistance, or email support@vurium.com or call (847) 630-1884.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>No Sharing:</strong> We will not sell, rent, or share your mobile phone number or SMS opt-in data with third parties for their marketing purposes. All categories of data sharing described in this Privacy Policy exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties except service providers that help us deliver these messages (such as telecommunications providers and messaging platforms), solely to provide the messaging service.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Separate Consent:</strong> SMS consent is separate from any other form of consent (such as email communications) and applies only to appointment-related text messages from VuriumBook.</li>
             <li>Consent to receive SMS is <strong style={{ color: 'rgba(255,255,255,.55)' }}>not a condition</strong> of purchasing any service or making a booking.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Customer Care:</strong> For questions about this SMS program, contact support@vurium.com or call (847) 630-1884.</li>
           </ul>
         </div>
 
         <h3 style={{ ...heading, fontSize: 16, marginTop: 24 }}>Program B &mdash; Account Verification &amp; Security Codes (2FA)</h3>
         <div style={highlight}>
           <p style={{ ...text, marginBottom: 14 }}>
-            We use SMS to help secure VuriumBook&trade; business-owner accounts. If you enter your mobile number and request verification (for example, by clicking &quot;Send code&quot; or &quot;Verify&quot;), we may send one-time authentication messages such as phone number verification codes during account signup, login verification codes, and password reset codes.
+            We use SMS to help secure VuriumBook&trade; accounts. If you enter your mobile number and request verification (for example, by clicking &quot;Send code&quot; or &quot;Verify&quot;), we may send one-time authentication messages such as phone number verification codes during account signup, login verification codes, and password reset codes.
           </p>
           <ul style={{ ...list, marginBottom: 0 }}>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Program Name:</strong> VuriumBook Account Verification.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Sender:</strong> VuriumBook (operated by Vurium Inc.).</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Types:</strong> One-time verification codes for signup, login, and password reset only. No marketing, no appointment notifications.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Frequency:</strong> Varies based on your requests, typically 1&ndash;2 messages per verification attempt.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message and data rates may apply.</strong> Your wireless carrier may charge message and data rates.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Opt-Out:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>STOP</strong> to opt out of SMS verification codes. If you opt out, you may need to use an alternate verification method (such as email) or contact support.</li>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Help:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>HELP</strong> for assistance, or email support@vurium.com.</li>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>No Sharing:</strong> Your mobile information will not be sold or shared with third parties for promotional or marketing purposes. All categories of sharing described in this Privacy Policy exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties except service providers that help us deliver these messages.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Help:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>HELP</strong> for assistance, or email support@vurium.com or call (847) 630-1884.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>No Sharing:</strong> Your mobile information will not be sold or shared with third parties for promotional or marketing purposes. All categories of sharing described in this Privacy Policy exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties except service providers that help us deliver these messages (such as telecommunications providers and messaging platforms), solely to provide the messaging service.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Separate Consent:</strong> SMS consent for verification codes is separate from any other form of consent and applies only to account security messages from VuriumBook.</li>
+            <li>Consent to receive SMS is <strong style={{ color: 'rgba(255,255,255,.55)' }}>not a condition</strong> of creating an account or using any service.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Customer Care:</strong> For questions about this SMS program, contact support@vurium.com or call (847) 630-1884.</li>
           </ul>
         </div>
 

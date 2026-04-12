@@ -58,30 +58,37 @@ export default function TermsPage() {
         <h2 id="sms" style={heading}>4. SMS / Text Messaging Program Terms</h2>
         <div style={highlight}>
           <p style={{ ...text, marginBottom: 14 }}>
-            VuriumBook provides appointment-related text messaging as part of the booking experience. By opting in to SMS at the time of booking, you agree to the following:
+            VuriumBook provides appointment-related text messaging as part of the booking experience. Messages are sent by VuriumBook (operated by Vurium Inc.) on behalf of the business you are booking with. By opting in to SMS at the time of booking, you agree to the following:
           </p>
           <ul style={{ ...list, marginBottom: 0 }}>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Program Description:</strong> Transactional text messages related to your appointments with businesses using VuriumBook.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Program Name:</strong> VuriumBook Appointment Notifications.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Program Description:</strong> Transactional text messages sent by VuriumBook related to your appointments with businesses using the VuriumBook platform. No marketing or promotional content is sent under this program.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Types:</strong> Booking confirmations, appointment reminders (24-hour and 2-hour), schedule changes, and cancellation notices.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Frequency:</strong> Up to 5 messages per booking.</li>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Opt-Out:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>STOP</strong> to any message to opt out. No further messages will be sent. Your booking will remain active.</li>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Help:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>HELP</strong> for assistance, or email support@vurium.com.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Opt-Out:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>STOP</strong> to any message to opt out. No further appointment messages will be sent. Your booking will remain active.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Help:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>HELP</strong> for assistance, or email support@vurium.com or call (847) 630-1884.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message and data rates may apply.</strong> Check with your wireless carrier.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Supported Carriers:</strong> Major US carriers are supported. Carriers are not liable for delayed or undelivered messages.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Separate Consent:</strong> SMS consent is separate from any other form of consent and applies only to appointment-related text messages from VuriumBook.</li>
             <li>Consent to receive SMS is <strong style={{ color: 'rgba(255,255,255,.55)' }}>not required</strong> to use the booking service or make a purchase.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Customer Care:</strong> For questions about this SMS program, contact support@vurium.com or call (847) 630-1884.</li>
           </ul>
         </div>
 
         <h3 style={{ ...heading, fontSize: 16, marginTop: 24 }}>4.2 Account Verification &amp; Security Codes (2FA)</h3>
         <div style={highlight}>
           <p style={{ ...text, marginBottom: 14 }}>
-            VuriumBook&trade; may send one-time SMS messages to help verify and secure business-owner accounts (for example, verification codes during signup, login codes, and password reset codes). These messages are transactional and security-related.
+            VuriumBook&trade; (operated by Vurium Inc.) may send one-time SMS messages to help verify and secure your account (for example, verification codes during signup, login codes, and password reset codes). These messages are transactional and security-related. No marketing or promotional content is sent under this program.
           </p>
           <ul style={{ ...list, marginBottom: 0 }}>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Program Name:</strong> VuriumBook Account Verification.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Frequency:</strong> Varies based on your requests, typically 1&ndash;2 messages per verification attempt.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message and data rates may apply.</strong></li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Opt-Out:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>STOP</strong> to opt out of SMS security codes. If you opt out, you may need to use an alternative verification method or contact support.</li>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Help:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>HELP</strong> for assistance, or contact support@vurium.com.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Help:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>HELP</strong> for assistance, or contact support@vurium.com or call (847) 630-1884.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Separate Consent:</strong> SMS consent for verification codes is separate from any other form of consent.</li>
+            <li>Consent to receive SMS is <strong style={{ color: 'rgba(255,255,255,.55)' }}>not a condition</strong> of creating an account or using any service.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Customer Care:</strong> For questions, contact support@vurium.com or call (847) 630-1884.</li>
           </ul>
         </div>
 
