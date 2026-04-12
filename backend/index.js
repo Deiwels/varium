@@ -4467,9 +4467,13 @@ app.get('/api/payments', async (req, res) => {
     if (to) payments = payments.filter(p => (p.created_at || '').slice(0, 10) <= to.slice(0, 10));
     // Normalize each payment to a consistent format for the frontend
     const normalized = payments.map(p => {
-      const amount = Number(p.amount_cents || 0) / 100;
-      const tip = Number(p.tip_cents || p.tip_amount || 0) / 100;
-      const fee = Number(p.fee_cents || p.fee_amount || 0) / 100;
+      // For local payments: service_amount is in dollars, amount_cents is total (incl tax/fees)
+      // For Square: amount_cents is service amount in cents
+      const isLocal = p.source === 'local';
+      const amount = isLocal && p.service_amount ? Number(p.service_amount) : Number(p.amount_cents || 0) / 100;
+      // tip_amount is in dollars for local, tip_cents is in cents for Square
+      const tip = p.tip_cents ? Number(p.tip_cents) / 100 : Number(p.tip_amount || 0);
+      const fee = p.fee_cents ? Number(p.fee_cents) / 100 : Number(p.fee_amount || 0);
       const method = p.payment_method || p.method || (p.card_brand ? 'card' : 'other');
       const rawStatus = (p.status || '').toLowerCase();
       const status = rawStatus === 'completed' ? 'paid' : rawStatus;
