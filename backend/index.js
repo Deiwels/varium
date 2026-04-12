@@ -1,7 +1,7 @@
 // ============================================================
-// Vurium SaaS — Multi-Tenant Backend
+// Vurium SaaS — Multi-Tenant Backend (v3.1.0)
 // Cloud Run: https://vuriumbook-api-431945333485.us-central1.run.app
-// Based on Element CRM, adapted for multi-tenant SaaS
+// AI Diagnostics powered by Claude Sonnet
 // ============================================================
 const express = require('express');
 const cors = require('cors');
