@@ -539,6 +539,7 @@ const EMAIL_THEMES = {
   classic:      { bg: '#f5f5f5', card: '#ffffff', border: 'rgba(0,0,0,.08)', text: '#1a1a1a', muted: 'rgba(0,0,0,.5)', accent: '#333', footer: 'rgba(0,0,0,.2)' },
   bold:         { bg: '#080808', card: '#111111', border: 'rgba(255,255,255,.1)', text: '#ffffff', muted: 'rgba(255,255,255,.55)', accent: '#fff', footer: 'rgba(255,255,255,.18)' },
   'dark-luxury': { bg: '#0c0a08', card: '#12100e', border: 'rgba(200,170,120,.12)', text: '#e8dcc8', muted: 'rgba(200,170,120,.5)', accent: '#c8a87a', footer: 'rgba(200,170,120,.2)' },
+  'dark-cosmos': { bg: '#010101', card: '#0a0a0e', border: 'rgba(255,255,255,.05)', text: '#f0f0f5', muted: 'rgba(255,255,255,.40)', accent: 'rgba(130,150,220,.7)', footer: 'rgba(255,255,255,.15)' },
   colorful:     { bg: '#fafafa', card: '#ffffff', border: 'rgba(99,102,241,.12)', text: '#2a2a2a', muted: 'rgba(0,0,0,.45)', accent: '#6366f1', footer: 'rgba(99,102,241,.3)' },
   custom:       { bg: '#000000', card: '#0d0d0d', border: 'rgba(255,255,255,.08)', text: '#e9e9e9', muted: 'rgba(255,255,255,.5)', accent: '#0a84ff', footer: 'rgba(255,255,255,.15)' },
 };
@@ -1499,7 +1500,7 @@ app.post('/contact', (req, res) => {
     ${company ? `<p style="margin:0 0 12px;"><strong>Company:</strong> ${company}</p>` : ''}
     <p style="margin:0 0 4px;"><strong>Message:</strong></p>
     <p style="margin:0;white-space:pre-wrap;">${message}</p>
-  `, 'Vurium', 'https://vurium.com/logo.jpg', 'dark-luxury');
+  `, 'Vurium', 'https://vurium.com/logo.jpg', 'dark-cosmos');
 
   sendEmail('support@vurium.com', `[Contact] ${name} — ${company || 'No company'}`, html, 'Vurium Contact')
     .then(() => res.json({ ok: true }))
@@ -1563,7 +1564,7 @@ app.post('/api/vurium-dev/auth/request', express.json(), (req, res) => {
       <a href="${link}" style="display:inline-block;padding:12px 32px;border-radius:999px;background:rgba(130,150,220,.2);color:rgba(130,150,220,.95);font-weight:700;font-size:14px;text-decoration:none;border:1px solid rgba(130,150,220,.3);">Sign in to Developer Panel</a>
     </p>
     <p style="margin:16px 0 0;font-size:12px;color:rgba(255,255,255,.25);">If you didn't request this, ignore this email. This link can only be used once.</p>
-  `, 'Vurium', 'https://vurium.com/logo.jpg', 'dark-luxury');
+  `, 'Vurium', 'https://vurium.com/logo.jpg', 'dark-cosmos');
 
   sendEmail(ADMIN_EMAIL, 'Vurium Developer — Sign In Link', html, 'Vurium')
     .then((result) => {
@@ -1848,7 +1849,7 @@ app.post('/api/vurium-dev/email/send', requireSuperadmin, async (req, res) => {
     const { to, subject, body_html } = req.body;
     if (!to || !subject) return res.status(400).json({ error: 'Missing to or subject' });
 
-    const html = vuriumEmailTemplate(subject, body_html || '<p>No content</p>', 'Vurium', 'https://vurium.com/logo.jpg', 'dark-luxury');
+    const html = vuriumEmailTemplate(subject, body_html || '<p>No content</p>', 'Vurium', 'https://vurium.com/logo.jpg', 'dark-cosmos');
     const result = await sendEmail(to, subject, html, 'Vurium');
 
     // Save outbound email
@@ -1907,7 +1908,7 @@ app.post('/api/vurium-dev/email/inbound', express.json({ limit: '5mb' }), async 
         <p style="margin:16px 0 0;text-align:center;">
           <a href="https://vurium.com/developer/email" style="display:inline-block;padding:10px 28px;border-radius:999px;background:rgba(130,150,220,.15);color:rgba(130,150,220,.95);font-weight:700;font-size:13px;text-decoration:none;border:1px solid rgba(130,150,220,.2);">Open in Developer Panel</a>
         </p>
-      `, 'Vurium', 'https://vurium.com/logo.jpg', 'dark-luxury');
+      `, 'Vurium', 'https://vurium.com/logo.jpg', 'dark-cosmos');
       sendEmail(ADMIN_NOTIFY_EMAIL, `[Vurium] ${cleanSubject} — from ${senderEmail}`, notifyHtml, 'Vurium').catch(() => {});
     }
 
@@ -2194,7 +2195,7 @@ app.post('/api/vurium-dev/gmail/send', requireSuperadmin, async (req, res) => {
     const gmail = await getGmailClient(account);
     if (!gmail) return res.status(400).json({ error: 'Account not connected', needsAuth: true });
 
-    const styledHtml = vuriumEmailTemplate(subject, body_html || '', 'Vurium', 'https://vurium.com/logo.jpg', 'dark-luxury');
+    const styledHtml = vuriumEmailTemplate(subject, body_html || '', 'Vurium', 'https://vurium.com/logo.jpg', 'dark-cosmos');
     const raw = buildRawEmail({ from: account, to, subject, html: styledHtml });
     const result = await gmail.users.messages.send({ userId: 'me', requestBody: { raw } });
     res.json({ ok: true, id: result.data.id, threadId: result.data.threadId });
@@ -2212,7 +2213,7 @@ app.post('/api/vurium-dev/gmail/reply', requireSuperadmin, async (req, res) => {
     const gmail = await getGmailClient(account);
     if (!gmail) return res.status(400).json({ error: 'Account not connected', needsAuth: true });
 
-    const styledHtml = vuriumEmailTemplate(subject, body_html || '', 'Vurium', 'https://vurium.com/logo.jpg', 'dark-luxury');
+    const styledHtml = vuriumEmailTemplate(subject, body_html || '', 'Vurium', 'https://vurium.com/logo.jpg', 'dark-cosmos');
     const raw = buildRawEmail({
       from: account, to, subject,
       html: styledHtml,
