@@ -58,7 +58,7 @@ export default function TermsPage() {
         <h2 id="sms" style={heading}>4. SMS / Text Messaging Program Terms</h2>
         <div style={highlight}>
           <p style={{ ...text, marginBottom: 14 }}>
-            VuriumBook provides appointment-related text messaging as part of the booking experience. Messages are sent by VuriumBook (operated by Vurium Inc.) on behalf of the business you are booking with. By opting in to SMS at the time of booking, you agree to the following:
+            VuriumBook provides appointment-related text messaging as part of the booking experience. Messages are sent by VuriumBook (operated by Vurium Inc.) about your appointment with the business you are booking with. Messages include the business name solely to help you identify which appointment the notification refers to. By opting in to SMS at the time of booking, you agree to the following:
           </p>
           <ul style={{ ...list, marginBottom: 0 }}>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Program Name:</strong> VuriumBook Appointment Notifications.</li>

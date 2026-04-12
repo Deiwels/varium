@@ -118,6 +118,9 @@ export default function PrivacyPage() {
           <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Business Partners:</strong> The specific barbershop, salon, or service provider you book an appointment with receives your booking information to fulfill your appointment. These businesses act as independent data controllers for the data they receive.</li>
           <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Legal Compliance:</strong> When required by law, subpoena, or legal process.</li>
         </ul>
+        <p style={text}>
+          <strong style={{ color: 'rgba(255,255,255,.55)' }}>SMS Opt-In Data Protection:</strong> Notwithstanding the above, all categories of data sharing described in this section exclude text messaging originator opt-in data and consent. Your mobile phone number, SMS opt-in status, and consent information will not be sold, rented, shared, or transferred to any third parties for promotional or marketing purposes. This information is shared only with service providers (such as telecommunications providers and messaging platforms) solely to deliver the messaging services described in our SMS programs above.
+        </p>
 
         {/* 6. International Data Transfers */}
         <h2 style={heading}>6. International Data Transfers</h2>
