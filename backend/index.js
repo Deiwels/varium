@@ -4304,9 +4304,15 @@ app.get('/api/clients/:id', async (req, res) => {
     const decName = decryptPII(data.name);
     const decEmail = decryptPII(data.email);
     const decPhone = data.phone ? decryptPhone(data.phone) : data.phone;
+    const bMap = new Map();
     const bSnap = await req.ws('bookings').where('client_name', '==', decName).orderBy('start_at', 'desc').limit(200).get();
-    const bookings = bSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const computed = classifyClient(decName, bookings);
+    for (const d of bSnap.docs) bMap.set(d.id, { id: d.id, ...d.data() });
+    if (data.phone_norm && data.phone_norm.length >= 10) {
+      const pSnap = await req.ws('bookings').where('phone_norm', '==', data.phone_norm).orderBy('start_at', 'desc').limit(200).get();
+      for (const d of pSnap.docs) { if (!bMap.has(d.id)) bMap.set(d.id, { id: d.id, ...d.data() }); }
+    }
+    const bookings = [...bMap.values()].sort((a, b) => String(b.start_at || '').localeCompare(String(a.start_at || '')));
+    const computed = classifyClient(decName, bookings, undefined, data.phone_norm);
     const override = data.status_override || null;
     const client_status = override || computed;
     res.json({ id: doc.id, ...data, name: decName, email: decEmail, phone: decPhone, bookings, client_status, client_status_computed: computed });
@@ -4319,9 +4325,17 @@ app.get('/api/clients/:id/history', async (req, res) => {
     if (!doc.exists) return res.status(404).json({ error: 'Client not found' });
     const data = doc.data();
     const decName = decryptPII(data.name);
-    // Local bookings
+    const clientPhoneNorm = data.phone_norm || '';
+    // Local bookings — by name AND by phone
     const bSnap = await req.ws('bookings').where('client_name', '==', decName).orderBy('start_at', 'desc').limit(200).get();
-    const bookings = bSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const bookingsMap = new Map();
+    for (const d of bSnap.docs) bookingsMap.set(d.id, { id: d.id, ...d.data() });
+    // Also fetch by phone_norm to catch same client with different name
+    if (clientPhoneNorm && clientPhoneNorm.length >= 10) {
+      const pSnap = await req.ws('bookings').where('phone_norm', '==', clientPhoneNorm).orderBy('start_at', 'desc').limit(200).get();
+      for (const d of pSnap.docs) { if (!bookingsMap.has(d.id)) bookingsMap.set(d.id, { id: d.id, ...d.data() }); }
+    }
+    const bookings = [...bookingsMap.values()].sort((a, b) => String(b.start_at || '').localeCompare(String(a.start_at || '')));
     const localVisits = bookings.filter(b => !isNoshow(b.status) && b.status !== 'cancelled').length;
     const noShows = bookings.filter(b => isNoshow(b.status)).length;
     const localSpend = bookings.reduce((sum, b) => sum + (Number(b.service_amount || b.amount || 0)), 0);
@@ -4352,7 +4366,7 @@ app.get('/api/clients/:id/history', async (req, res) => {
     const totalTips = localTips + sqTips;
     const avgTip = totalVisits > 0 ? Math.round((totalTips / totalVisits) * 100) / 100 : 0;
     // Classify with Square data
-    const computed = classifyClient(decName, bookings, { visits: sqVisits, tips: sqTips, spend: sqSpend });
+    const computed = classifyClient(decName, bookings, { visits: sqVisits, tips: sqTips, spend: sqSpend }, clientPhoneNorm);
     const override = data.status_override || null;
     const client_status = override || computed;
     res.json({
