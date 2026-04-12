@@ -114,8 +114,8 @@ export default function VuriumBook() {
         </div>
         <div className="shooting-star shooting-star-1" />
         <div className="shooting-star shooting-star-2" />
-        <div className="nebula-layer" style={{ width: 800, height: 450, top: '6%', left: '-14%', background: 'rgba(30,45,110,.06)' }} />
-        <div className="nebula-layer" style={{ width: 550, height: 300, top: '35%', right: '-10%', background: 'rgba(55,35,100,.04)', animationDelay: '.5s' }} />
+        <div className="nebula-layer" style={{ width: 800, height: 450, top: '6%', left: '-14%', background: 'radial-gradient(ellipse at center, rgba(30,45,110,.12) 0%, transparent 70%)' }} />
+        <div className="nebula-layer" style={{ width: 550, height: 300, top: '35%', right: '-10%', background: 'radial-gradient(ellipse at center, rgba(55,35,100,.08) 0%, transparent 70%)', animationDelay: '.5s' }} />
       </div>
       <div className="horizon-grid" />
       <div className="noise-overlay" />

@@ -123,7 +123,7 @@ export default function SignInPage() {
           <div className="stars-wrap stars-wrap-far"><div className="stars stars-far" /></div>
           <div className="stars-wrap stars-wrap-mid"><div className="stars stars-mid" /></div>
           <div className="stars-wrap stars-wrap-near"><div className="stars stars-near" /></div>
-          <div className="nebula-layer" style={{ width: 600, height: 350, top: '10%', left: '-10%', background: 'rgba(30,45,110,.06)' }} />
+          <div className="nebula-layer" style={{ width: 600, height: 350, top: '10%', left: '-10%', background: 'radial-gradient(ellipse at center, rgba(30,45,110,.12) 0%, transparent 70%)' }} />
         </div>
         <div className="noise-overlay" />
 
@@ -181,8 +181,8 @@ export default function SignInPage() {
         <div className="stars-wrap stars-wrap-mid"><div className="stars stars-mid" /></div>
         <div className="stars-wrap stars-wrap-near"><div className="stars stars-near" /></div>
         <div className="shooting-star shooting-star-1" />
-        <div className="nebula-layer" style={{ width: 800, height: 450, top: '6%', left: '-14%', background: 'rgba(30,45,110,.06)' }} />
-        <div className="nebula-layer" style={{ width: 550, height: 300, top: '35%', right: '-10%', background: 'rgba(55,35,100,.04)', animationDelay: '.5s' }} />
+        <div className="nebula-layer" style={{ width: 800, height: 450, top: '6%', left: '-14%', background: 'radial-gradient(ellipse at center, rgba(30,45,110,.12) 0%, transparent 70%)' }} />
+        <div className="nebula-layer" style={{ width: 550, height: 300, top: '35%', right: '-10%', background: 'radial-gradient(ellipse at center, rgba(55,35,100,.08) 0%, transparent 70%)', animationDelay: '.5s' }} />
       </div>
       <div className="noise-overlay" />
 

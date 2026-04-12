@@ -332,15 +332,15 @@ html {
 }
 
 /* ── Nebula glow layers ── */
+/* Use radial-gradient instead of filter:blur() — same visual, 100x cheaper.
+   blur(140px) on a 900x500 element is one of the most expensive CSS operations. */
 .nebula-layer {
   position: absolute;
   border-radius: 50%;
-  filter: blur(140px);
   pointer-events: none;
   opacity: 0;
   animation: nebula-fade 3s ease-out forwards;
-  will-change: transform, opacity;
-  contain: strict;
+  will-change: opacity;
 }
 
 @keyframes nebula-fade {

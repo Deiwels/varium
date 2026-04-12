@@ -621,8 +621,8 @@ export default function PublicBookingPage() {
           <div className="stars-wrap stars-wrap-far"><div className="stars stars-far" /></div>
           <div className="stars-wrap stars-wrap-mid"><div className="stars stars-mid" /></div>
           <div className="stars-wrap stars-wrap-near"><div className="stars stars-near" /></div>
-          <div className="nebula-layer" style={{ width: 600, height: 350, top: '8%', left: '-10%', background: 'rgba(30,45,110,.05)' }} />
-          <div className="nebula-layer" style={{ width: 400, height: 250, top: '40%', right: '-8%', background: 'rgba(55,35,100,.03)', animationDelay: '.5s' }} />
+          <div className="nebula-layer" style={{ width: 600, height: 350, top: '8%', left: '-10%', background: 'radial-gradient(ellipse at center, rgba(30,45,110,.10) 0%, transparent 70%)' }} />
+          <div className="nebula-layer" style={{ width: 400, height: 250, top: '40%', right: '-8%', background: 'radial-gradient(ellipse at center, rgba(55,35,100,.06) 0%, transparent 70%)', animationDelay: '.5s' }} />
         </div>
       )}
       {!isLightTheme && activeTemplate !== 'modern' && <div className="noise-overlay" />}

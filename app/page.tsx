@@ -150,8 +150,8 @@ export default function Home() {
 
         <div className="shooting-star shooting-star-1" />
         <div className="shooting-star shooting-star-2" />
-        <div className="nebula-layer neb-1" style={{ width: 900, height: 500, top: '5%', left: '-18%', background: 'rgba(15,20,50,.06)', animationDelay: '.2s' }} />
-        <div className="nebula-layer neb-2" style={{ width: 700, height: 400, top: '20%', right: '-12%', background: 'rgba(30,20,55,.04)', animationDelay: '.6s' }} />
+        <div className="nebula-layer neb-1" style={{ width: 900, height: 500, top: '5%', left: '-18%', background: 'radial-gradient(ellipse at center, rgba(15,20,50,.12) 0%, transparent 70%)', animationDelay: '.2s' }} />
+        <div className="nebula-layer neb-2" style={{ width: 700, height: 400, top: '20%', right: '-12%', background: 'radial-gradient(ellipse at center, rgba(30,20,55,.08) 0%, transparent 70%)', animationDelay: '.6s' }} />
       </div>
       <div className="horizon-grid" />
       <div className="noise-overlay" />

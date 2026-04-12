@@ -143,11 +143,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }} />
           ))}
 
-          {/* Nebula glow effects — use will-change to promote to GPU layer, contain to isolate repaints */}
-          <div className="nebula-glow nebula-layer" style={{ position: 'absolute', width: 800, height: 450, top: '0%', left: '-12%', background: 'rgba(30,45,110,.05)', borderRadius: '50%', filter: 'blur(140px)', willChange: 'transform', contain: 'strict' }} />
-          <div className="nebula-glow nebula-layer" style={{ position: 'absolute', width: 600, height: 350, bottom: '5%', right: '-8%', background: 'rgba(55,35,100,.04)', borderRadius: '50%', filter: 'blur(140px)', willChange: 'transform', contain: 'strict' }} />
-          <div className="nebula-glow nebula-layer" style={{ position: 'absolute', width: 400, height: 280, top: '40%', left: '20%', background: 'rgba(40,30,80,.025)', borderRadius: '50%', filter: 'blur(120px)', willChange: 'transform', contain: 'strict' }} />
-          <div className="nebula-glow nebula-layer" style={{ position: 'absolute', width: 300, height: 200, top: '15%', right: '15%', background: 'rgba(25,50,100,.02)', borderRadius: '50%', filter: 'blur(100px)', willChange: 'transform', contain: 'strict' }} />
+          {/* Nebula glow — radial-gradient instead of blur(140px) for performance */}
+          <div className="nebula-glow nebula-layer" style={{ position: 'absolute', width: 800, height: 450, top: '0%', left: '-12%', background: 'radial-gradient(ellipse at center, rgba(30,45,110,.10) 0%, transparent 70%)', borderRadius: '50%' }} />
+          <div className="nebula-glow nebula-layer" style={{ position: 'absolute', width: 600, height: 350, bottom: '5%', right: '-8%', background: 'radial-gradient(ellipse at center, rgba(55,35,100,.08) 0%, transparent 70%)', borderRadius: '50%' }} />
+          <div className="nebula-glow nebula-layer" style={{ position: 'absolute', width: 400, height: 280, top: '40%', left: '20%', background: 'radial-gradient(ellipse at center, rgba(40,30,80,.05) 0%, transparent 70%)', borderRadius: '50%' }} />
+          <div className="nebula-glow nebula-layer" style={{ position: 'absolute', width: 300, height: 200, top: '15%', right: '15%', background: 'radial-gradient(ellipse at center, rgba(25,50,100,.04) 0%, transparent 70%)', borderRadius: '50%' }} />
         </div>
 
         <CosmosParallax />
