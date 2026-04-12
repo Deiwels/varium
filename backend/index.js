@@ -1499,7 +1499,7 @@ app.post('/contact', (req, res) => {
     ${company ? `<p style="margin:0 0 12px;"><strong>Company:</strong> ${company}</p>` : ''}
     <p style="margin:0 0 4px;"><strong>Message:</strong></p>
     <p style="margin:0;white-space:pre-wrap;">${message}</p>
-  `, 'Vurium', null, 'modern');
+  `, 'Vurium', 'https://vurium.com/logo.jpg', 'dark-luxury');
 
   sendEmail('support@vurium.com', `[Contact] ${name} — ${company || 'No company'}`, html, 'Vurium Contact')
     .then(() => res.json({ ok: true }))
@@ -1563,7 +1563,7 @@ app.post('/api/vurium-dev/auth/request', express.json(), (req, res) => {
       <a href="${link}" style="display:inline-block;padding:12px 32px;border-radius:999px;background:rgba(130,150,220,.2);color:rgba(130,150,220,.95);font-weight:700;font-size:14px;text-decoration:none;border:1px solid rgba(130,150,220,.3);">Sign in to Developer Panel</a>
     </p>
     <p style="margin:16px 0 0;font-size:12px;color:rgba(255,255,255,.25);">If you didn't request this, ignore this email. This link can only be used once.</p>
-  `, 'Vurium', null, 'modern');
+  `, 'Vurium', 'https://vurium.com/logo.jpg', 'dark-luxury');
 
   sendEmail(ADMIN_EMAIL, 'Vurium Developer — Sign In Link', html, 'Vurium')
     .then((result) => {
@@ -1907,7 +1907,7 @@ app.post('/api/vurium-dev/email/inbound', express.json({ limit: '5mb' }), async 
         <p style="margin:16px 0 0;text-align:center;">
           <a href="https://vurium.com/developer/email" style="display:inline-block;padding:10px 28px;border-radius:999px;background:rgba(130,150,220,.15);color:rgba(130,150,220,.95);font-weight:700;font-size:13px;text-decoration:none;border:1px solid rgba(130,150,220,.2);">Open in Developer Panel</a>
         </p>
-      `, 'Vurium', null, 'modern');
+      `, 'Vurium', 'https://vurium.com/logo.jpg', 'dark-luxury');
       sendEmail(ADMIN_NOTIFY_EMAIL, `[Vurium] ${cleanSubject} — from ${senderEmail}`, notifyHtml, 'Vurium').catch(() => {});
     }
 
