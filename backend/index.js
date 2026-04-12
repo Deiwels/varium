@@ -2441,10 +2441,12 @@ async function collectDiagnosticMetrics() {
   let expiredTrials = 0;
   wsSnap.forEach(d => {
     const w = d.data();
-    workspaces.push({ id: d.id, name: w.business_name || d.id, plan: w.plan || 'none', billing_status: w.billing_status || 'inactive', created_at: w.created_at });
-    byPlan[w.plan || 'none'] = (byPlan[w.plan || 'none'] || 0) + 1;
-    byStatus[w.billing_status || 'inactive'] = (byStatus[w.billing_status || 'inactive'] || 0) + 1;
-    if (!w.trial_active && !['active', 'trialing'].includes(w.billing_status)) expiredTrials++;
+    const plan = w.plan_type || w.plan || 'none';
+    const status = w.billing_status || 'inactive';
+    workspaces.push({ id: d.id, name: w.name || d.id, plan, billing_status: status, created_at: w.created_at, slug: w.slug || '' });
+    byPlan[plan] = (byPlan[plan] || 0) + 1;
+    byStatus[status] = (byStatus[status] || 0) + 1;
+    if (!w.trial_active && !['active', 'trialing'].includes(status)) expiredTrials++;
   });
 
   // Security events (last 100, filter by time in JS)
@@ -2495,11 +2497,25 @@ async function collectDiagnosticMetrics() {
   for (const ws of sampleWs) {
     try {
       const wsRef = db.collection('workspaces').doc(ws.id);
-      // Total counts
+
+      // Read settings for shop name and feature flags
+      let shopName = ws.name || ws.id, hasOnlineBooking = false, hasSmsEnabled = false, hasLogo = false;
+      try {
+        const settingsDoc = await wsRef.collection('settings').doc('config').get();
+        if (settingsDoc.exists) {
+          const cfg = settingsDoc.data();
+          shopName = cfg?.shop_name || ws.name || ws.id;
+          hasOnlineBooking = !!cfg?.online_booking_enabled;
+          hasSmsEnabled = !!cfg?.sms_enabled;
+          hasLogo = !!cfg?.logo_url;
+        }
+      } catch { }
+
+      // Total counts (parallel)
       const [bCountSnap, cCountSnap, barberCountSnap, serviceCountSnap] = await Promise.all([
         wsRef.collection('bookings').count().get(),
         wsRef.collection('clients').count().get(),
-        wsRef.collection('barbers').count().get(),
+        wsRef.collection('barbers').where('active', '==', true).count().get(),
         wsRef.collection('services').count().get(),
       ]);
       const bCount = bCountSnap.data().count || 0;
@@ -2526,24 +2542,12 @@ async function collectDiagnosticMetrics() {
         });
       } catch { }
 
-      // Workspace settings check
-      let hasOnlineBooking = false, hasSmsEnabled = false, hasLogo = false;
-      try {
-        const settingsDoc = await wsRef.collection('settings').doc('config').get();
-        if (settingsDoc.exists) {
-          const s = settingsDoc.data();
-          hasOnlineBooking = !!s?.online_booking_enabled;
-          hasSmsEnabled = !!s?.sms_enabled;
-          hasLogo = !!s?.logo_url;
-        }
-      } catch { }
-
       totalBookings += bCount;
       totalClients += cCount;
       totalBookingsToday += todayCount;
       unpaidCompleted += wsUnpaid;
       wsDetails.push({
-        name: ws.name, plan: ws.plan, status: ws.billing_status,
+        name: shopName, plan: ws.plan, status: ws.billing_status,
         bookings: bCount, clients: cCount, barbers: barberCount, services: serviceCount,
         bookings_today: todayCount, bookings_this_week: weekCount,
         completed, cancelled, no_show: noShow, unpaid: wsUnpaid,
