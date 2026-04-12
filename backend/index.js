@@ -3033,10 +3033,13 @@ function ensureWithinSchedule(barberData, startAt, endAt, timeZone = 'America/Ch
 // Client classification
 const NOSHOW_STATUSES = new Set(['noshow', 'no_show', 'no-show']);
 function isNoshow(s) { return NOSHOW_STATUSES.has(String(s || '').toLowerCase()); }
-function classifyClient(clientName, bookings) {
+function classifyClient(clientName, bookings, squareExtra) {
+  // squareExtra: optional { visits: number, tips: number, spend: number } from Square
   const now = new Date();
   const clientBookings = bookings.filter(b => String(b.client_name || '') === clientName);
-  const totalVisits = clientBookings.length;
+  const sqVisits = squareExtra?.visits || 0;
+  const sqBigTips = squareExtra?.tips ? Math.floor(squareExtra.tips / 30) : 0; // estimate big tip count from total tips
+  const totalVisits = clientBookings.length + sqVisits;
   const noShows = clientBookings.filter(b => isNoshow(b.status)).length;
   const completedVisits = totalVisits - noShows;
   const sorted = [...clientBookings].sort((a, b) => String(a.start_at || '').localeCompare(String(b.start_at || '')));
@@ -3045,7 +3048,7 @@ function classifyClient(clientName, bookings) {
     if (isNoshow(b.status)) { foundNoshow = true; visitsAfterLastNoshow = 0; bigTipsAfterLastNoshow = 0; }
     else { visitsAfterLastNoshow++; if (Number(b.tip || 0) >= 30) bigTipsAfterLastNoshow++; }
   }
-  const bigTipCount = clientBookings.filter(b => Number(b.tip || 0) >= 30 && !isNoshow(b.status)).length;
+  const bigTipCount = clientBookings.filter(b => Number(b.tip || 0) >= 30 && !isNoshow(b.status)).length + sqBigTips;
   let lastVisitDate = null;
   for (const b of clientBookings) { const d = b.start_at ? new Date(b.start_at) : null; if (d && (!lastVisitDate || d > lastVisitDate)) lastVisitDate = d; }
   const daysSinceLastVisit = lastVisitDate ? (now - lastVisitDate) / (1000 * 60 * 60 * 24) : Infinity;
@@ -3058,7 +3061,7 @@ function classifyClient(clientName, bookings) {
   }
   if (daysSinceLastVisit >= 90 && totalVisits >= 3) return 'at_risk';
   if (bigTipCount >= 1) return 'vip';
-  if (recentVisits >= 2) return 'active';
+  if (recentVisits >= 2 || sqVisits >= 2) return 'active';
   if (completedVisits <= 1) return 'new';
   return 'active';
 }
@@ -4305,6 +4308,58 @@ app.get('/api/clients/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
+app.get('/api/clients/:id/history', async (req, res) => {
+  try {
+    const doc = await req.ws('clients').doc(req.params.id).get();
+    if (!doc.exists) return res.status(404).json({ error: 'Client not found' });
+    const data = doc.data();
+    const decName = decryptPII(data.name);
+    // Local bookings
+    const bSnap = await req.ws('bookings').where('client_name', '==', decName).orderBy('start_at', 'desc').limit(200).get();
+    const bookings = bSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const localVisits = bookings.filter(b => !isNoshow(b.status) && b.status !== 'cancelled').length;
+    const noShows = bookings.filter(b => isNoshow(b.status)).length;
+    const localSpend = bookings.reduce((sum, b) => sum + (Number(b.service_amount || b.amount || 0)), 0);
+    const localTips = bookings.reduce((sum, b) => sum + (Number(b.tip || b.tip_amount || 0)), 0);
+    let lastVisit = bookings[0]?.start_at || null;
+    // Square payments (if connected)
+    let sqVisits = 0, sqSpend = 0, sqTips = 0, sqPayments = [];
+    const squareCustId = data.square_customer_id;
+    if (squareCustId) {
+      try {
+        const headers = await squareHeaders(req.ws);
+        const sqRes = await squareFetch(`/v2/payments?customer_id=${encodeURIComponent(squareCustId)}&limit=100`, { headers });
+        if (sqRes.ok) {
+          const sqData = await sqRes.json();
+          sqPayments = (sqData.payments || []).filter(p => p.status === 'COMPLETED');
+          sqVisits = sqPayments.length;
+          sqSpend = sqPayments.reduce((sum, p) => sum + ((p.amount_money?.amount || 0) / 100), 0);
+          sqTips = sqPayments.reduce((sum, p) => sum + ((p.tip_money?.amount || 0) / 100), 0);
+          // Update lastVisit if Square has more recent
+          for (const p of sqPayments) {
+            if (p.created_at && (!lastVisit || p.created_at > lastVisit)) lastVisit = p.created_at;
+          }
+        }
+      } catch {} // Square not connected or error — skip silently
+    }
+    const totalVisits = localVisits + sqVisits;
+    const totalSpend = localSpend + sqSpend;
+    const totalTips = localTips + sqTips;
+    const avgTip = totalVisits > 0 ? Math.round((totalTips / totalVisits) * 100) / 100 : 0;
+    // Classify with Square data
+    const computed = classifyClient(decName, bookings, { visits: sqVisits, tips: sqTips, spend: sqSpend });
+    const override = data.status_override || null;
+    const client_status = override || computed;
+    res.json({
+      visits: totalVisits, local_visits: localVisits, square_visits: sqVisits,
+      spend: Math.round(totalSpend * 100) / 100, tips: Math.round(totalTips * 100) / 100, avg_tip: avgTip,
+      no_shows: noShows, last_visit: lastVisit,
+      client_status, client_status_computed: computed,
+      square_customer_id: squareCustId || null,
+    });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
 app.patch('/api/clients/:id', async (req, res) => {
   try {
     const v = validate(ClientPatchSchema, req.body || {});
@@ -4383,8 +4438,21 @@ app.get('/api/bookings', async (req, res) => {
           const hSnap = await req.ws('bookings').where('client_name', 'in', batch).orderBy('start_at', 'desc').limit(2000).get();
           historyBookings.push(...hSnap.docs.map(d => d.data()));
         }
+        // Check if any clients have Square history (by looking up client records)
+        const sqExtraByName = new Map();
+        try {
+          const clientSnap = await req.ws('clients').where('square_customer_id', '!=', '').limit(200).get();
+          for (const cd of clientSnap.docs) {
+            const cData = cd.data();
+            const cName = decryptPII(cData.name);
+            if (cName && uniqueNames.includes(cName) && cData.square_customer_id) {
+              // Mark as having Square history — at minimum they're not "new"
+              sqExtraByName.set(cName, { visits: 2, tips: 0, spend: 0 });
+            }
+          }
+        } catch {}
         const statusByName = new Map();
-        for (const name of uniqueNames) statusByName.set(name, classifyClient(name, historyBookings));
+        for (const name of uniqueNames) statusByName.set(name, classifyClient(name, historyBookings, sqExtraByName.get(name)));
         list = list.map(b => ({ ...b, client_status: statusByName.get(String(b.client_name || '')) || 'new' }));
       }
     } catch (e) { console.warn('booking client_status enrich error:', e?.message); }
@@ -6425,28 +6493,39 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
 });
 
 // ── AI Style Generator ───────────────────────────────────────────────────────
-const AI_STYLE_SYSTEM_PROMPT = `You are a CSS style generator for a barbershop/salon booking page. The user will describe their desired visual style in natural language. Generate CSS that transforms the page's appearance.
+const AI_STYLE_SYSTEM_PROMPT = `You generate CSS for a barbershop/salon booking page built with React inline styles. Since the page uses inline styles, ALL your CSS properties MUST use !important to override them.
 
-AVAILABLE CSS CLASSES (target these):
-- .booking-page — main page wrapper (background, font-family, color)
-- .bp-header — top header bar with logo and shop name
-- .bp-hero — hero section with title and subtitle
-- .bp-card — cards for services, barbers, time slots
-- .bp-btn — primary action buttons (Book, Next, Confirm)
-- .bp-btn-secondary — secondary buttons
-- .bp-input — input fields and textareas
-- .bp-section-title — section headings (Services, Team, etc.)
-- .bp-chip — small pills/tags (duration, price)
+TARGET CLASSES:
+- .booking-page — main wrapper. Set background, font-family, color here.
+- .booking-page * — to override text colors globally
+- .bp-header — top bar with logo and business name
+- .bp-hero — hero section with title, subtitle, and optional image
+- .bp-hero h1 — main heading
+- .bp-hero p — subtitle text
+- .bp-card — cards (services, barbers, time slots)
+- .bp-btn — primary action buttons (Book Now, Next, Confirm)
+- .bp-input — input fields
+- .bp-section-title — section labels (Our Team, etc.)
 - .bp-footer — page footer
 
-RULES:
-1. ONLY output pure CSS. No HTML, no markdown, no code fences, no comments.
-2. DO NOT change layout properties (display, position, flex-direction, grid). Only style: colors, backgrounds, fonts, border-radius, box-shadow, borders, padding adjustments, opacity, gradients.
-3. Use the classes above. You can also use nested selectors like .bp-card:hover.
-4. Keep it elegant and professional — this is for real businesses.
-5. You may import Google Fonts via @import at the top if the style calls for a specific font.
-6. Make sure text remains readable (sufficient contrast).
-7. Generate 20-40 lines of focused CSS.`;
+CRITICAL RULES:
+1. EVERY property MUST have !important (e.g., background: #1a1a2e !important;)
+2. Output ONLY pure CSS. No markdown, no code fences, no comments, no explanations.
+3. DO NOT change: display, position, flex-direction, grid-template, width, height, z-index.
+4. DO change: background, color, font-family, font-weight, border, border-radius, box-shadow, text-shadow, letter-spacing, opacity, gradient backgrounds.
+5. The page default is dark (#010101 background, white text). Your CSS overrides these defaults.
+6. You may use @import url('https://fonts.googleapis.com/...') for Google Fonts.
+7. Ensure text contrast is readable.
+8. Use .booking-page as parent scope for all selectors.
+9. Generate 15-30 lines of focused, elegant CSS.
+
+EXAMPLE OUTPUT for "luxury gold dark":
+.booking-page { background: #0a0a0a !important; font-family: 'Playfair Display', serif !important; }
+.booking-page .bp-header { background: rgba(10,10,10,.95) !important; border-bottom: 1px solid rgba(200,170,100,.2) !important; }
+.booking-page .bp-hero h1 { color: #c9a84c !important; font-family: 'Playfair Display', serif !important; }
+.booking-page .bp-card { background: rgba(200,170,100,.05) !important; border: 1px solid rgba(200,170,100,.15) !important; }
+.booking-page .bp-btn { background: rgba(200,170,100,.15) !important; color: #c9a84c !important; border: 1px solid rgba(200,170,100,.3) !important; }
+.booking-page .bp-footer { border-top: 1px solid rgba(200,170,100,.1) !important; }`;
 
 app.post('/api/ai/generate-style', requireRole('owner', 'admin'), async (req, res) => {
   try {
