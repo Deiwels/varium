@@ -2558,15 +2558,22 @@ app.get('/api/vurium-dev/ai/scans', requireSuperadmin, async (req, res) => {
   try {
     const snap = await db.collection('vurium_diagnostics').orderBy('started_at', 'desc').limit(20).get();
     const scans = [];
+    let isFirst = true;
     snap.forEach(d => {
       const data = d.data();
-      scans.push({
+      const scan = {
         id: d.id, status: data.status, triggered_by: data.triggered_by,
         started_at: data.started_at, completed_at: data.completed_at,
         health_score: data.health_score || null, summary: data.summary || '',
         issue_counts: data.issue_counts || { critical: 0, warning: 0, info: 0 },
         duration_ms: data.duration_ms || null,
-      });
+      };
+      // Include full issues for the latest completed scan
+      if (isFirst && data.status === 'completed' && data.issues) {
+        scan.issues = data.issues;
+      }
+      if (data.status === 'completed') isFirst = false;
+      scans.push(scan);
     });
     const lastCompleted = scans.find(s => s.status === 'completed');
     const nextScanAt = lastCompleted ? new Date(new Date(lastCompleted.started_at).getTime() + 30 * 60 * 1000).toISOString() : null;

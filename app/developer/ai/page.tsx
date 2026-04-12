@@ -170,19 +170,16 @@ export default function AIDiagnosticsPage() {
       )}
 
       {/* Current issues */}
-      {latest && expandedData[latest.id]?.issues && expandedData[latest.id].issues!.length > 0 && (
+      {latest?.issues && latest.issues.length > 0 && (
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.25)', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 12 }}>Current Issues</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {expandedData[latest.id].issues!.map((issue, i) => (
+            {latest.issues.map((issue, i) => (
               <IssueCard key={i} issue={issue} />
             ))}
           </div>
         </div>
       )}
-
-      {/* Auto-load latest scan details */}
-      {latest && !expandedData[latest.id] && <AutoLoad id={latest.id} onLoad={(data) => setExpandedData(prev => ({ ...prev, [latest.id]: data }))} />}
 
       {/* Scan history */}
       <div style={{ ...card, overflow: 'hidden' }}>
