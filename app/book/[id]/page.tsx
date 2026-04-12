@@ -924,28 +924,30 @@ export default function PublicBookingPage() {
           // Show all barbers — the client can decide who to assign this service to
           const eligible = barbers
           return (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, backdropFilter: 'blur(6px)' }}
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.70)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}
               onClick={e => { if (e.target === e.currentTarget) setBarberPickerService(null) }}>
-              <div style={{ width: 'min(360px, 92vw)', borderRadius: 18, border: `1px solid ${borderSoft}`, background: isLightTheme ? '#fff' : 'rgba(18,18,28,.96)', padding: '20px', backdropFilter: 'blur(20px)' }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: textMain, marginBottom: 4 }}>Who is this for?</div>
-                <div style={{ fontSize: 13, color: textMuted, marginBottom: 16 }}>{svc.name} — {svc.duration_minutes} min{svc.price_cents > 0 ? ` · ${fmtPrice(svc.price_cents)}` : ''}</div>
+              <div style={{ width: 'min(360px, 92vw)', borderRadius: 22, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(6,6,12,.97)', padding: '24px 20px', boxShadow: '0 24px 80px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#e8e8ed', marginBottom: 4, letterSpacing: '.01em' }}>Who is this for?</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.40)', marginBottom: 18 }}>{svc.name} — {svc.duration_minutes} min{svc.price_cents > 0 ? ` · ${fmtPrice(svc.price_cents)}` : ''}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {eligible.map(b => (
                     <button key={b.id} onClick={() => { addLine(svc.id, b.id); setBarberPickerService(null) }}
-                      style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer', border: `1.5px solid ${borderSoft}`, background: bgSubtle, textAlign: 'left', fontFamily: 'inherit' }}>
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, cursor: 'pointer', border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', textAlign: 'left', fontFamily: 'inherit', transition: 'all .15s', width: '100%' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,.08)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.14)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)' }}>
                       {b.photo_url ? (
-                        <img src={b.photo_url} alt="" style={{ width: 36, height: 36, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
+                        <img src={b.photo_url} alt="" style={{ width: 40, height: 40, borderRadius: 12, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(255,255,255,.08)' }} />
                       ) : (
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: isLightTheme ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 600, color: textMuted, flexShrink: 0 }}>{b.name.charAt(0)}</div>
+                        <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,.50)', flexShrink: 0 }}>{b.name.charAt(0)}</div>
                       )}
                       <div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: textMain }}>{b.name}</div>
-                        {b.level && <div style={{ fontSize: 11, color: textDim, marginTop: 1 }}>{b.level}</div>}
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#e8e8ed' }}>{b.name}</div>
+                        {b.level && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 2 }}>{b.level}</div>}
                       </div>
                     </button>
                   ))}
                 </div>
-                <button onClick={() => setBarberPickerService(null)} style={{ width: '100%', marginTop: 12, padding: '10px', borderRadius: 10, border: `1px solid ${borderSoft}`, background: 'none', color: textMuted, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Cancel</button>
+                <button onClick={() => setBarberPickerService(null)} style={{ width: '100%', marginTop: 14, padding: '11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.45)', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', transition: 'all .15s' }}>Cancel</button>
               </div>
             </div>
           )
