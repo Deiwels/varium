@@ -21,6 +21,8 @@ export default function DevVerifyPage() {
     })
       .then(async r => {
         if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Verification failed') }
+        const d = await r.json().catch(() => ({}))
+        if (d.token) try { localStorage.setItem('vurium_dev_token', d.token) } catch {}
         setStatus('success')
         setTimeout(() => router.replace('/developer'), 1000)
       })

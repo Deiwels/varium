@@ -11,10 +11,10 @@ const statCard: React.CSSProperties = {
 }
 
 function adminFetch(path: string) {
-  return fetch(`${API}${path}`, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-  }).then(r => r.json())
+  const token = typeof window !== 'undefined' ? localStorage.getItem('vurium_dev_token') || '' : ''
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  return fetch(`${API}${path}`, { credentials: 'include', headers }).then(r => r.json())
 }
 
 function MiniChart({ data, color }: { data: { label: string; value: number }[]; color: string }) {

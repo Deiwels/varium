@@ -21,6 +21,9 @@ function IconBack() {
 function IconLogout() {
   return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 2H3a1 1 0 00-1 1v8a1 1 0 001 1h2M9 10l3-3-3-3M12 7H5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
 }
+function IconMenu() {
+  return <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+}
 
 const NAV = [
   { href: '/developer', label: 'Overview', Icon: IconOverview },
@@ -29,9 +32,21 @@ const NAV = [
   { href: '/developer/ai', label: 'AI Diagnostics', Icon: IconAI },
 ]
 
+function getDevToken(): string {
+  try { return localStorage.getItem('vurium_dev_token') || '' } catch { return '' }
+}
+
+function devHeaders(): HeadersInit {
+  const token = getDevToken()
+  const h: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) h['Authorization'] = `Bearer ${token}`
+  return h
+}
+
 export default function DeveloperLayout({ children }: { children: React.ReactNode }) {
   const [ok, setOk] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [menuOpen, setMenuOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
 
@@ -39,11 +54,14 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (isAuthPage) { setOk(true); setLoading(false); return }
-    fetch(`${API}/api/vurium-dev/ping`, { credentials: 'include' })
+    fetch(`${API}/api/vurium-dev/ping`, { credentials: 'include', headers: devHeaders() })
       .then(r => { if (!r.ok) throw new Error(); return r.json() })
       .then(() => { setOk(true); setLoading(false) })
       .catch(() => { router.replace('/developer/login') })
   }, [router, isAuthPage])
+
+  // Close menu on navigation
+  useEffect(() => { setMenuOpen(false) }, [pathname])
 
   if (loading) return null
   if (isAuthPage) return <div style={{ position: 'relative', zIndex: 2 }}>{children}</div>
@@ -51,11 +69,31 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 2 }}>
-      <aside style={{
+      {/* Mobile header */}
+      <div className="dev-mobile-header" style={{
+        display: 'none', position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
+        height: 56, padding: '0 16px', alignItems: 'center', gap: 12,
+        background: 'rgba(6,6,10,.95)', borderBottom: '1px solid rgba(255,255,255,.06)',
+      }}>
+        <button onClick={() => setMenuOpen(!menuOpen)} style={{
+          background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'rgba(255,255,255,.6)',
+        }}><IconMenu /></button>
+        <img src="/logo.jpg" alt="V" style={{ width: 24, height: 24, borderRadius: 6 }} />
+        <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.8)' }}>Developer</span>
+      </div>
+
+      {/* Sidebar overlay for mobile */}
+      {menuOpen && <div onClick={() => setMenuOpen(false)} style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 98,
+      }} className="dev-mobile-overlay" />}
+
+      {/* Sidebar */}
+      <aside className="dev-sidebar" style={{
         width: 220, flexShrink: 0, padding: '24px 16px',
         borderRight: '1px solid rgba(255,255,255,.06)',
         background: 'rgba(6,6,10,.88)',
         display: 'flex', flexDirection: 'column', gap: 2,
+        ...(menuOpen ? {} : {}),
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', marginBottom: 24 }}>
           <img src="/logo.jpg" alt="V" style={{ width: 28, height: 28, borderRadius: 8 }} />
@@ -92,7 +130,8 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
             <IconBack /> VuriumBook
           </a>
           <button onClick={async () => {
-            await fetch(`${API}/api/vurium-dev/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {})
+            await fetch(`${API}/api/vurium-dev/auth/logout`, { method: 'POST', credentials: 'include', headers: devHeaders() }).catch(() => {})
+            try { localStorage.removeItem('vurium_dev_token') } catch {}
             router.replace('/developer/login')
           }} style={{
             display: 'flex', alignItems: 'center', gap: 8,
@@ -105,9 +144,22 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      <main style={{ flex: 1, padding: '32px 40px', maxWidth: 1200, overflow: 'auto' }}>
+      <main className="dev-main" style={{ flex: 1, padding: '32px 40px', maxWidth: 1200, overflow: 'auto' }}>
         {children}
       </main>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .dev-mobile-header { display: flex !important; }
+          .dev-sidebar {
+            position: fixed !important; top: 0; left: 0; bottom: 0; z-index: 99;
+            transform: ${menuOpen ? 'translateX(0)' : 'translateX(-100%)'};
+            transition: transform .25s ease;
+            padding-top: 16px !important;
+          }
+          .dev-main { padding: 72px 16px 24px !important; }
+        }
+      `}</style>
     </div>
   )
 }

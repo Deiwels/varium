@@ -14,7 +14,10 @@ const th: React.CSSProperties = { fontSize: 10, fontWeight: 600, color: 'rgba(25
 const td: React.CSSProperties = { fontSize: 13, color: 'rgba(255,255,255,.55)', padding: '10px 10px', borderBottom: '1px solid rgba(255,255,255,.03)' }
 
 function devFetch(path: string) {
-  return fetch(`${API}${path}`, { credentials: 'include', headers: { 'Content-Type': 'application/json' } }).then(r => r.json())
+  const token = typeof window !== 'undefined' ? localStorage.getItem('vurium_dev_token') || '' : ''
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  return fetch(`${API}${path}`, { credentials: 'include', headers }).then(r => r.json())
 }
 
 function StatusBadge({ status }: { status: string }) {

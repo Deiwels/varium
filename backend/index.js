@@ -1664,7 +1664,7 @@ const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || ADMIN_EMAIL; // for
 const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || (JWT_SECRET + '_admin');
 
 function requireSuperadmin(req, res, next) {
-  const token = req.cookies?.vurium_admin_token || '';
+  const token = req.cookies?.vurium_admin_token || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : '') || '';
   if (!token) return res.status(401).json({ error: 'Not authenticated' });
   try {
     const payload = jwt.verify(token, ADMIN_JWT_SECRET);
@@ -1753,7 +1753,7 @@ app.post('/api/vurium-dev/auth/verify', express.json(), (req, res) => {
       httpOnly: true, secure: true, sameSite: 'none',
       path: '/', maxAge: 86400000, // 24h
     });
-    res.json({ ok: true });
+    res.json({ ok: true, token: sessionToken });
   } catch {
     res.status(401).json({ error: 'Invalid or expired link' });
   }

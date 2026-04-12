@@ -16,10 +16,12 @@ export default function EmailDetailPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
+    const token = localStorage.getItem('vurium_dev_token') || ''
+    const headers: Record<string, string> = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
     fetch(`${API}/api/vurium-dev/emails/${id}`, {
       credentials: 'include',
-      headers: { Authorization: `Bearer ${token}` },
+      headers,
     })
       .then(r => { if (!r.ok) throw new Error(); return r.json() })
       .then(d => { setEmail(d); setLoading(false) })

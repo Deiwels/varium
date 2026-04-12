@@ -19,11 +19,10 @@ const btnPrimary: React.CSSProperties = {
 }
 
 function devFetch(path: string, opts?: RequestInit) {
-  return fetch(`${API}${path}`, {
-    credentials: 'include',
-    ...opts,
-    headers: { 'Content-Type': 'application/json', ...(opts?.headers || {}) },
-  }).then(r => r.json())
+  const token = typeof window !== 'undefined' ? localStorage.getItem('vurium_dev_token') || '' : ''
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(opts?.headers as Record<string, string> || {}) }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  return fetch(`${API}${path}`, { credentials: 'include', ...opts, headers }).then(r => r.json())
 }
 
 const MAILBOXES = [
