@@ -50,7 +50,7 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
       <aside style={{
         width: 220, flexShrink: 0, padding: '24px 16px',
         borderRight: '1px solid rgba(255,255,255,.06)',
-        background: 'rgba(0,0,0,.4)', backdropFilter: 'blur(20px)',
+        background: 'rgba(6,6,10,.88)',
         display: 'flex', flexDirection: 'column', gap: 2,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', marginBottom: 24 }}>

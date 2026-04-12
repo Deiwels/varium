@@ -5,7 +5,7 @@ import { API } from '@/lib/api'
 
 const card: React.CSSProperties = {
   borderRadius: 16, border: '1px solid rgba(255,255,255,.06)',
-  background: 'rgba(255,255,255,.03)', backdropFilter: 'blur(12px)',
+  background: 'rgba(255,255,255,.03)',
 }
 const inp: React.CSSProperties = {
   width: '100%', height: 40, borderRadius: 10, border: '1px solid rgba(255,255,255,.10)',

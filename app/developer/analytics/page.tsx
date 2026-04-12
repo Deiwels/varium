@@ -4,7 +4,7 @@ import { API } from '@/lib/api'
 
 const card: React.CSSProperties = {
   borderRadius: 16, border: '1px solid rgba(255,255,255,.06)',
-  background: 'rgba(255,255,255,.03)', backdropFilter: 'blur(12px)', padding: '20px 24px',
+  background: 'rgba(255,255,255,.03)', padding: '20px 24px',
 }
 const statCard: React.CSSProperties = {
   ...card, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 160,

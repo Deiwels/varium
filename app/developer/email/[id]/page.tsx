@@ -37,7 +37,7 @@ export default function EmailDetailPage() {
 
       <div style={{
         borderRadius: 16, border: '1px solid rgba(255,255,255,.06)',
-        background: 'rgba(255,255,255,.03)', backdropFilter: 'blur(12px)', padding: '24px 28px',
+        background: 'rgba(255,255,255,.03)', padding: '24px 28px',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
           <div>

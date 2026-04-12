@@ -31,7 +31,7 @@ export default function DevLoginPage() {
       <div style={{
         width: '100%', maxWidth: 380, borderRadius: 20,
         border: '1px solid rgba(255,255,255,.08)',
-        background: 'rgba(255,255,255,.03)', backdropFilter: 'blur(16px)',
+        background: 'rgba(255,255,255,.03)', 
         padding: '40px 32px', textAlign: 'center',
       }}>
         <img src="/logo.jpg" alt="Vurium" style={{ width: 48, height: 48, borderRadius: 12, marginBottom: 16 }} />
