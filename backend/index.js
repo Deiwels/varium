@@ -5110,6 +5110,153 @@ app.get('/api/payroll', requirePlanFeature('payroll'), requireRole('owner'), asy
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
+// ─── Payroll Smart Audit ─────────────────────────────────────────────────────
+app.get('/api/payroll/audit', requirePlanFeature('payroll'), requireRole('owner'), async (req, res) => {
+  try {
+    const from = safeStr(req.query?.from || '');
+    const to = safeStr(req.query?.to || '');
+    const checks = [];
+
+    // Fetch all data in parallel
+    let bQuery = req.ws('bookings');
+    if (from) bQuery = bQuery.where('start_at', '>=', from);
+    if (to) bQuery = bQuery.where('start_at', '<=', to);
+    let eQuery = req.ws('expenses');
+    const fromDate = from ? from.slice(0, 10) : '';
+    const toDate = to ? to.slice(0, 10) : '';
+    if (fromDate) eQuery = eQuery.where('date', '>=', fromDate);
+    if (toDate) eQuery = eQuery.where('date', '<=', toDate);
+
+    const [bookingsSnap, paymentsSnap, attSnap, expSnap, rulesSnap, cashSnap, usersSnap] = await Promise.all([
+      bQuery.get(),
+      req.ws('payment_requests').orderBy('created_at', 'desc').limit(500).get(),
+      req.ws('attendance').orderBy('date', 'desc').limit(300).get(),
+      eQuery.get(),
+      req.ws('payroll_rules').get(),
+      req.ws('cash_reports').orderBy('date', 'desc').limit(60).get(),
+      req.ws('users').get(),
+    ]);
+
+    const bookings = bookingsSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(b => b.status !== 'cancelled');
+    const payments = paymentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const attendance = attSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const expenses = expSnap.docs;
+    const rules = {};
+    rulesSnap.docs.forEach(d => { rules[d.id] = d.data(); });
+    const cashReports = cashSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const admins = usersSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.role === 'admin' && u.active !== false);
+
+    // ── Check 1: Unpaid completed bookings ──
+    const completed = bookings.filter(b => !b.paid && b.status !== 'noshow' && b.status !== 'no_show');
+    const unpaidAmount = completed.reduce((s, b) => s + Number(b.service_amount || b.amount || 0), 0);
+    checks.push({
+      id: 'unpaid_bookings',
+      status: completed.length > 0 ? 'warning' : 'ok',
+      label: 'Unpaid bookings',
+      detail: completed.length > 0
+        ? `${completed.length} booking${completed.length > 1 ? 's' : ''} not paid — $${unpaidAmount.toFixed(2)} uncollected`
+        : 'All bookings are paid',
+      count: completed.length, amount: unpaidAmount,
+    });
+
+    // ── Check 2: Booking ↔ Payment match ──
+    const paidBookings = bookings.filter(b => b.paid);
+    const paymentBookingIds = new Set(payments.map(p => p.booking_id).filter(Boolean));
+    const paidNoPayment = paidBookings.filter(b => !paymentBookingIds.has(b.id) && b.payment_method !== 'cash');
+    const orphanPayments = payments.filter(p => {
+      if (!p.booking_id) return true;
+      const inRange = !fromDate || (p.created_at || '').slice(0, 10) >= fromDate;
+      const inRangeTo = !toDate || (p.created_at || '').slice(0, 10) <= toDate;
+      return inRange && inRangeTo && !bookings.find(b => b.id === p.booking_id);
+    });
+    const matchIssues = paidNoPayment.length + orphanPayments.length;
+    checks.push({
+      id: 'booking_payment_match',
+      status: matchIssues > 0 ? 'warning' : 'ok',
+      label: 'Booking ↔ Payment match',
+      detail: matchIssues > 0
+        ? `${paidNoPayment.length} paid booking${paidNoPayment.length !== 1 ? 's' : ''} without payment record, ${orphanPayments.length} orphan payment${orphanPayments.length !== 1 ? 's' : ''}`
+        : `All ${paidBookings.length} paid bookings have matching payments`,
+      count: matchIssues,
+    });
+
+    // ── Check 3: Cash reconciliation ──
+    const cashBookings = paidBookings.filter(b => (b.payment_method || '').toLowerCase() === 'cash');
+    const expectedCash = cashBookings.reduce((s, b) => s + Number(b.service_amount || b.amount || 0) + Number(b.tip || b.tip_amount || 0), 0);
+    const reportMap = new Map(cashReports.map(r => [r.date, r]));
+    // Sum cash reports for dates in our range
+    let countedCash = 0;
+    let hasReports = false;
+    const datesWithCash = new Set(cashBookings.map(b => (b.start_at || '').slice(0, 10)));
+    datesWithCash.forEach(date => {
+      const r = reportMap.get(date);
+      if (r) { countedCash += Number(r.amount || r.actual_cash || 0); hasReports = true; }
+    });
+    const cashDiff = hasReports ? countedCash - expectedCash : null;
+    checks.push({
+      id: 'cash_reconciliation',
+      status: !hasReports && expectedCash > 0 ? 'warning' : (cashDiff !== null && Math.abs(cashDiff) > 1) ? 'warning' : 'ok',
+      label: 'Cash reconciliation',
+      detail: !hasReports && expectedCash > 0
+        ? `$${expectedCash.toFixed(2)} cash expected but no count submitted`
+        : hasReports
+          ? `Expected $${expectedCash.toFixed(2)}, counted $${countedCash.toFixed(2)}${cashDiff !== null ? ` (${cashDiff >= 0 ? '+' : ''}$${cashDiff.toFixed(2)})` : ''}`
+          : 'No cash transactions in period',
+      diff: cashDiff,
+    });
+
+    // ── Check 4: Admin attendance ──
+    const adminDetails = [];
+    for (const admin of admins) {
+      const attRecords = attendance.filter(a => a.user_id === admin.id);
+      const totalMins = attRecords.reduce((s, a) => {
+        let mins = Number(a.duration_minutes || 0);
+        if (!a.clock_out && a.clock_in) mins += Math.max(0, Math.round((Date.now() - new Date(a.clock_in).getTime()) / 60000));
+        return s + mins;
+      }, 0);
+      const hours = totalMins / 60;
+      const rule = rules[admin.id] || {};
+      const hourlyRate = Number(rule.hourly_rate || 0);
+      adminDetails.push({ name: admin.name || admin.username, hours, rate: hourlyRate, shifts: attRecords.length });
+    }
+    const adminIssues = adminDetails.filter(a => a.hours === 0 && a.rate > 0);
+    checks.push({
+      id: 'admin_hours',
+      status: adminIssues.length > 0 ? 'warning' : admins.length === 0 ? 'ok' : 'ok',
+      label: 'Admin attendance',
+      detail: admins.length === 0 ? 'No admin users configured'
+        : adminDetails.map(a => `${a.name}: ${a.hours.toFixed(1)}h (${a.shifts} shifts)`).join(', ')
+        + (adminIssues.length > 0 ? ` — ⚠ ${adminIssues.map(a => a.name).join(', ')} has $${adminIssues[0]?.rate}/hr but 0 hours` : ''),
+    });
+
+    // ── Check 5: Totals consistency ──
+    const grossServices = paidBookings.reduce((s, b) => s + Number(b.service_amount || b.amount || 0), 0);
+    const grossTips = paidBookings.reduce((s, b) => s + Number(b.tip || b.tip_amount || 0), 0);
+    const expensesTotal = expenses.reduce((s, d) => s + Number(d.data()?.amount || 0), 0);
+    checks.push({
+      id: 'totals_check',
+      status: 'ok',
+      label: 'Period totals',
+      detail: `Services $${grossServices.toFixed(2)} · Tips $${grossTips.toFixed(2)} · ${paidBookings.length} paid bookings · Expenses $${expensesTotal.toFixed(2)}`,
+    });
+
+    // ── Check 6: Bookings without service amount ──
+    const noAmount = paidBookings.filter(b => !b.service_amount && !b.amount);
+    checks.push({
+      id: 'missing_amounts',
+      status: noAmount.length > 0 ? 'warning' : 'ok',
+      label: 'Service amounts',
+      detail: noAmount.length > 0
+        ? `${noAmount.length} paid booking${noAmount.length !== 1 ? 's' : ''} missing service amount — payroll may be inaccurate`
+        : 'All paid bookings have service amounts',
+      count: noAmount.length,
+    });
+
+    const summary = { ok: checks.filter(c => c.status === 'ok').length, warnings: checks.filter(c => c.status === 'warning').length, errors: checks.filter(c => c.status === 'error').length };
+    res.json({ checks, summary });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
 app.get('/api/payroll/rules', requirePlanFeature('payroll'), requireRole('owner'), async (req, res) => {
   try {
     const snap = await req.ws('payroll_rules').get();

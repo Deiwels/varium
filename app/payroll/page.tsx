@@ -391,6 +391,9 @@ export default function PayrollPage() {
   const [expensesByCategory, setExpensesByCategory] = useState<Record<string, number>>({})
   const [adminSchedules, setAdminSchedules] = useState<Record<string, any[]>>({})
   const [rulesModal, setRulesModal] = useState('')
+  const [auditData, setAuditData] = useState<{ checks: any[]; summary: { ok: number; warnings: number; errors: number } } | null>(null)
+  const [auditLoading, setAuditLoading] = useState(false)
+  const [showAudit, setShowAudit] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -552,6 +555,15 @@ export default function PayrollPage() {
 
   useEffect(() => { load() }, [load])
 
+  async function runAudit() {
+    setAuditLoading(true); setShowAudit(true)
+    try {
+      const data = await apiFetch(`/api/payroll/audit?from=${encodeURIComponent(from+'T00:00:00.000Z')}&to=${encodeURIComponent(to+'T23:59:59.999Z')}`)
+      setAuditData(data)
+    } catch { setAuditData(null) }
+    setAuditLoading(false)
+  }
+
   const visible = filterBarber ? barbers.filter(b => b.barber_id === filterBarber) : barbers
 
   function toggleExpand(id: string) {
@@ -660,6 +672,10 @@ export default function PayrollPage() {
               </select>
               <button onClick={load} disabled={loading}
                 style={{ height: 38, width: 38, borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.60)', cursor: 'pointer', fontSize: 15, opacity: loading ? .5 : 1, fontFamily: 'inherit' }}>↻</button>
+              <button onClick={runAudit} disabled={auditLoading}
+                style={{ height: 38, padding: '0 16px', borderRadius: 999, border: `1px solid ${showAudit ? 'rgba(130,150,220,.30)' : 'rgba(130,150,220,.15)'}`, background: showAudit ? 'rgba(130,150,220,.10)' : 'rgba(130,150,220,.05)', color: 'rgba(130,150,220,.8)', cursor: 'pointer', fontWeight: 800, fontSize: 12, fontFamily: 'inherit', opacity: auditLoading ? .5 : 1 }}>
+                {auditLoading ? 'Checking…' : '⚡ Audit'}
+              </button>
               <button onClick={exportCSV}
                 style={{ height: 38, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.50)', cursor: 'pointer', fontWeight: 800, fontSize: 12, fontFamily: 'inherit' }}>
                 Export CSV
@@ -686,6 +702,48 @@ export default function PayrollPage() {
               </div>
             ))}
           </div>
+
+          {/* Audit panel */}
+          {showAudit && (
+            <div style={{ ...card, padding: '14px 16px', border: '1px solid rgba(130,150,220,.15)', background: 'linear-gradient(180deg,rgba(130,150,220,.06),rgba(0,0,0,.20))' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 14 }}>⚡</span>
+                  <span style={{ ...lbl, fontSize: 10, color: 'rgba(130,150,220,.7)' }}>Smart audit</span>
+                  {auditData && (
+                    <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
+                      {auditData.summary.ok > 0 && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, background: 'rgba(143,240,177,.08)', border: '1px solid rgba(143,240,177,.20)', color: 'rgba(130,220,170,.7)', fontWeight: 800 }}>✓ {auditData.summary.ok}</span>}
+                      {auditData.summary.warnings > 0 && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, background: 'rgba(255,207,63,.08)', border: '1px solid rgba(255,207,63,.20)', color: 'rgba(220,190,130,.7)', fontWeight: 800 }}>⚠ {auditData.summary.warnings}</span>}
+                      {auditData.summary.errors > 0 && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, background: 'rgba(255,107,107,.08)', border: '1px solid rgba(255,107,107,.20)', color: 'rgba(220,130,160,.7)', fontWeight: 800 }}>✕ {auditData.summary.errors}</span>}
+                    </div>
+                  )}
+                </div>
+                <button onClick={() => setShowAudit(false)} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.08)', background: 'transparent', color: 'rgba(255,255,255,.35)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+              </div>
+              {auditLoading ? (
+                <div style={{ padding: 16, textAlign: 'center', color: 'rgba(255,255,255,.35)', fontSize: 12 }}>Analyzing bookings, payments, attendance…</div>
+              ) : auditData ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {auditData.checks.map((c: any) => {
+                    const color = c.status === 'ok' ? { icon: '✓', border: 'rgba(143,240,177,.15)', bg: 'rgba(143,240,177,.04)', text: 'rgba(130,220,170,.7)' }
+                      : c.status === 'error' ? { icon: '✕', border: 'rgba(255,107,107,.15)', bg: 'rgba(255,107,107,.04)', text: 'rgba(220,130,160,.7)' }
+                      : { icon: '⚠', border: 'rgba(255,207,63,.15)', bg: 'rgba(255,207,63,.04)', text: 'rgba(220,190,130,.7)' }
+                    return (
+                      <div key={c.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 10px', borderRadius: 12, border: `1px solid ${color.border}`, background: color.bg }}>
+                        <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0, marginTop: 1 }}>{color.icon}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 11, fontWeight: 800, color: color.text, marginBottom: 2 }}>{c.label}</div>
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', lineHeight: 1.4 }}>{c.detail}</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div style={{ padding: 16, textAlign: 'center', color: 'rgba(255,255,255,.25)', fontSize: 12 }}>Failed to load audit data</div>
+              )}
+            </div>
+          )}
 
           {/* Table */}
           <div style={card}>
