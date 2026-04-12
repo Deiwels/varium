@@ -106,6 +106,8 @@ function InlinePaymentForm({ onSuccess, onError, amount, isLight }: {
 interface Barber { id: string; name: string; photo_url?: string; level?: string; schedule?: any }
 interface Service { id: string; name: string; duration_minutes: number; price_cents: number; barber_ids?: string[]; service_type?: string }
 interface Config { shop_name?: string; hero_media_url?: string; bannerText?: string; bannerEnabled?: boolean; timezone?: string }
+// Each selected service is tied to a specific barber
+interface BookingLine { barberId: string; serviceId: string }
 
 function escapeHtml(s: string): string {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
@@ -178,7 +180,8 @@ export default function PublicBookingPage() {
 
   // Booking state
   const [step, setStep] = useState(0) // 0=barber, 1=services(multi), 2=date/time, 3=info, 4=done
-  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([])
+  const [bookingLines, setBookingLines] = useState<BookingLine[]>([])
+  const [barberPickerService, setBarberPickerService] = useState<Service | null>(null) // popup state
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null)
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedSlot, setSelectedSlot] = useState('')
@@ -270,12 +273,36 @@ export default function PublicBookingPage() {
 
   const isSolo = barbers.length <= 1
 
-  // Computed from multi-select
-  const selectedServices = services.filter(s => selectedServiceIds.includes(s.id))
+  // Backward-compat: derive selectedServiceIds from bookingLines
+  const selectedServiceIds = bookingLines.map(l => l.serviceId)
+  // Resolve each line to its service, preserving duplicates
+  const selectedServices = bookingLines.map(l => services.find(s => s.id === l.serviceId)).filter(Boolean) as Service[]
   const selectedService = selectedServices.length > 0 ? selectedServices[0] : null
   const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration_minutes, 0) || 30
   const totalPrice = selectedServices.reduce((sum, s) => sum + s.price_cents, 0)
   const combinedServiceName = selectedServices.map(s => s.name).join(' + ')
+
+  // Multi-barber helpers
+  // Group booking lines by barber → { barberId: { barber, lines, duration } }
+  const linesByBarber = (() => {
+    const map: Record<string, { barber: Barber | undefined; lines: BookingLine[]; serviceIds: string[]; duration: number; serviceName: string }> = {}
+    for (const l of bookingLines) {
+      if (!map[l.barberId]) {
+        const b = barbers.find(br => br.id === l.barberId)
+        map[l.barberId] = { barber: b, lines: [], serviceIds: [], duration: 0, serviceName: '' }
+      }
+      const svc = services.find(s => s.id === l.serviceId)
+      map[l.barberId].lines.push(l)
+      map[l.barberId].serviceIds.push(l.serviceId)
+      map[l.barberId].duration += svc?.duration_minutes || 30
+    }
+    for (const bid of Object.keys(map)) {
+      map[bid].serviceName = map[bid].serviceIds.map(id => services.find(s => s.id === id)?.name || 'Service').join(' + ')
+    }
+    return map
+  })()
+  const involvedBarberIds = Object.keys(linesByBarber)
+  const isMultiBarber = involvedBarberIds.length > 1
 
   useEffect(() => {
     if (!wsId) return
@@ -331,41 +358,96 @@ export default function PublicBookingPage() {
     }).catch(() => { setError('Unable to connect. Check your internet and try again.') }).finally(() => setLoading(false))
   }, [wsId])
 
-  // Load slots when barber + date selected
+  // Load slots when barber(s) + date selected
+  // For multi-barber: fetch availability for each barber individually, then intersect
   useEffect(() => {
-    if (!selectedBarber || !selectedDate || !resolvedWsId) return
+    if (bookingLines.length === 0 || !selectedDate || !resolvedWsId) return
+    // Single barber → simple fetch (backward compat)
+    if (!isMultiBarber) {
+      const bid = involvedBarberIds[0] || selectedBarber?.id
+      if (!bid) return
+      setSlotsLoading(true); setSlots([]); setSelectedSlot(''); setShowWaitlistForm(false); setWaitlistDone(false)
+      api(`/public/availability/${resolvedWsId}`, {
+        method: 'POST',
+        body: JSON.stringify({ barber_id: bid, date: selectedDate, duration_minutes: totalDuration }),
+      }).then(d => setSlots(d.slots || []))
+        .catch(() => setError('Could not load available times. Please try again.'))
+        .finally(() => setSlotsLoading(false))
+      return
+    }
+    // Multi-barber → fetch per-barber availability, intersect
     setSlotsLoading(true); setSlots([]); setSelectedSlot(''); setShowWaitlistForm(false); setWaitlistDone(false)
-    // Send date as YYYY-MM-DD (already in workspace timezone from getDates) — backend handles timezone conversion
-    api(`/public/availability/${resolvedWsId}`, {
-      method: 'POST',
-      body: JSON.stringify({
-        barber_id: selectedBarber.id,
-        date: selectedDate,
-        duration_minutes: totalDuration,
-      }),
-    }).then(d => setSlots(d.slots || []))
-      .catch(() => setError('Could not load available times. Please try again.'))
+    const fetches = involvedBarberIds.map(bid =>
+      api(`/public/availability/${resolvedWsId}`, {
+        method: 'POST',
+        body: JSON.stringify({ barber_id: bid, date: selectedDate, duration_minutes: linesByBarber[bid].duration }),
+      }).then(d => new Set<string>(d.slots || []))
+    )
+    Promise.all(fetches).then(sets => {
+      if (sets.length === 0) { setSlots([]); return }
+      // Intersection: a slot is available only if it appears in ALL sets
+      const intersection = [...sets[0]].filter(s => sets.every(set => set.has(s)))
+      intersection.sort()
+      setSlots(intersection)
+    }).catch(() => setError('Could not load available times. Please try again.'))
       .finally(() => setSlotsLoading(false))
-  }, [selectedBarber, selectedDate, totalDuration, resolvedWsId])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(involvedBarberIds), JSON.stringify(Object.fromEntries(involvedBarberIds.map(b => [b, linesByBarber[b]?.duration]))), selectedDate, resolvedWsId])
 
   function selectBarber(b: Barber) {
     setSelectedBarber(b)
     setStep(1)
   }
 
-  function toggleService(s: Service) {
-    setSelectedServiceIds(prev =>
-      prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id]
+  function addLine(serviceId: string, barberId: string) {
+    setBookingLines(prev => [...prev, { barberId, serviceId }])
+  }
+  function removeLineAt(idx: number) {
+    setBookingLines(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  // When tapping a service in the checkbox list:
+  // - If not selected yet: add it with primary barber (or show picker if multi-barber)
+  // - If already selected: remove the last instance of it
+  function handleServiceTap(s: Service) {
+    const hasIt = bookingLines.some(l => l.serviceId === s.id)
+    if (hasIt) {
+      // Remove last instance of this service
+      const idx = bookingLines.map(l => l.serviceId).lastIndexOf(s.id)
+      if (idx >= 0) removeLineAt(idx)
+    } else {
+      // Multi-barber shop + service available to multiple barbers → show picker
+      const eligibleBarbers = barbers.filter(b =>
+        !s.barber_ids || s.barber_ids.length === 0 || s.barber_ids.includes(b.id)
+      )
+      if (!isSolo && eligibleBarbers.length > 1 && bookingLines.some(l => l.serviceId === s.id)) {
+        setBarberPickerService(s)
+      } else {
+        addLine(s.id, selectedBarber?.id || barbers[0]?.id || '')
+      }
+    }
+  }
+
+  // "Add another" for already-selected service → always show barber picker (if multi-barber)
+  function handleAddAnother(s: Service) {
+    const eligibleBarbers = barbers.filter(b =>
+      !s.barber_ids || s.barber_ids.length === 0 || s.barber_ids.includes(b.id)
     )
+    if (!isSolo && eligibleBarbers.length > 1) {
+      setBarberPickerService(s)
+    } else {
+      addLine(s.id, selectedBarber?.id || barbers[0]?.id || '')
+    }
   }
 
   function confirmServices() {
-    if (selectedServiceIds.length === 0) return
+    if (bookingLines.length === 0) return
     setStep(2)
   }
 
   async function handleBook() {
-    if (!clientName || !clientEmail || !clientPhone || !selectedBarber || !selectedSlot) return
+    if (!clientName || !clientEmail || !clientPhone || !selectedSlot) return
+    if (bookingLines.length === 0) return
     if (!isValidEmail(clientEmail)) { setError('Please enter a valid email address.'); return }
     if (!isValidPhone(clientPhone)) { setError('Please enter a valid phone number.'); return }
     setBookLoading(true); setError('')
@@ -373,24 +455,45 @@ export default function PublicBookingPage() {
       const noteWithPhoto = referencePhoto
         ? (clientNote ? `${clientNote}\nReference photo attached: ${referencePhoto.name}` : `Reference photo attached: ${referencePhoto.name}`)
         : clientNote
-      const res = await api(`/public/bookings/${resolvedWsId}`, {
-        method: 'POST',
-        body: JSON.stringify({
-          barber_id: selectedBarber.id,
-          barber_name: selectedBarber.name,
-          start_at: selectedSlot,
-          client_name: clientName,
-          client_phone: clientPhone || undefined,
-          client_email: clientEmail || undefined,
-          sms_consent: clientPhone ? smsConsent : undefined,
-          service_id: selectedService?.id,
-          service_ids: selectedServiceIds,
-          service_name: combinedServiceName || 'Appointment',
-          duration_minutes: totalDuration,
-          customer_note: noteWithPhoto || undefined,
-          reference_photo: referencePhoto ? { data_url: referencePhoto.dataUrl, file_name: referencePhoto.name } : undefined,
-        }),
-      })
+      const photoPayload = referencePhoto ? { data_url: referencePhoto.dataUrl, file_name: referencePhoto.name } : undefined
+
+      let res: any
+      if (isMultiBarber) {
+        const groups = involvedBarberIds.map(bid => ({
+          barber_id: bid,
+          barber_name: linesByBarber[bid].barber?.name || '',
+          service_ids: linesByBarber[bid].serviceIds,
+          service_name: linesByBarber[bid].serviceName,
+          duration_minutes: linesByBarber[bid].duration,
+        }))
+        res = await api(`/public/bookings-group/${resolvedWsId}`, {
+          method: 'POST',
+          body: JSON.stringify({
+            start_at: selectedSlot, client_name: clientName,
+            client_phone: clientPhone || undefined, client_email: clientEmail || undefined,
+            sms_consent: clientPhone ? smsConsent : undefined,
+            customer_note: noteWithPhoto || undefined,
+            reference_photo: photoPayload, bookings: groups,
+          }),
+        })
+      } else {
+        const bid = involvedBarberIds[0] || selectedBarber?.id || ''
+        res = await api(`/public/bookings/${resolvedWsId}`, {
+          method: 'POST',
+          body: JSON.stringify({
+            barber_id: bid,
+            barber_name: linesByBarber[bid]?.barber?.name || selectedBarber?.name,
+            start_at: selectedSlot, client_name: clientName,
+            client_phone: clientPhone || undefined, client_email: clientEmail || undefined,
+            sms_consent: clientPhone ? smsConsent : undefined,
+            service_id: selectedService?.id, service_ids: selectedServiceIds,
+            service_name: combinedServiceName || 'Appointment',
+            duration_minutes: totalDuration,
+            customer_note: noteWithPhoto || undefined,
+            reference_photo: photoPayload,
+          }),
+        })
+      }
       if (res.error) {
         if (res.error.includes('outside') || res.error.includes('OUTSIDE')) {
           setSelectedSlot(''); setStep(2); throw new Error('This time slot is no longer available. Please choose another time.')
@@ -404,33 +507,54 @@ export default function PublicBookingPage() {
   }
 
   async function handlePayOnlineFlow() {
-    if (!clientName || !clientEmail || !clientPhone || !selectedBarber || !selectedSlot || selectedServiceIds.length === 0) return
+    if (!clientName || !clientEmail || !clientPhone || !selectedSlot || bookingLines.length === 0) return
     if (!isValidEmail(clientEmail)) { setError('Please enter a valid email address.'); return }
     if (!isValidPhone(clientPhone)) { setError('Please enter a valid phone number.'); return }
     setPaymentLoading(true); setError('')
     try {
-      // 1. Create booking first
+      // 1. Create booking(s) first
       const payNoteWithPhoto = referencePhoto
         ? (clientNote ? `${clientNote}\nReference photo attached: ${referencePhoto.name}` : `Reference photo attached: ${referencePhoto.name}`)
         : clientNote
-      const bookRes = await api(`/public/bookings/${resolvedWsId}`, {
-        method: 'POST',
-        body: JSON.stringify({
-          barber_id: selectedBarber.id,
-          barber_name: selectedBarber.name,
-          start_at: selectedSlot,
-          client_name: clientName,
-          client_phone: clientPhone || undefined,
-          client_email: clientEmail || undefined,
-          sms_consent: clientPhone ? smsConsent : undefined,
-          service_id: selectedService?.id,
-          service_ids: selectedServiceIds,
-          service_name: combinedServiceName || 'Appointment',
-          duration_minutes: totalDuration,
-          customer_note: payNoteWithPhoto || undefined,
-          reference_photo: referencePhoto ? { data_url: referencePhoto.dataUrl, file_name: referencePhoto.name } : undefined,
-        }),
-      })
+      const photoPayload = referencePhoto ? { data_url: referencePhoto.dataUrl, file_name: referencePhoto.name } : undefined
+
+      let bookRes: any
+      if (isMultiBarber) {
+        const groups = involvedBarberIds.map(bid => ({
+          barber_id: bid,
+          barber_name: linesByBarber[bid].barber?.name || '',
+          service_ids: linesByBarber[bid].serviceIds,
+          service_name: linesByBarber[bid].serviceName,
+          duration_minutes: linesByBarber[bid].duration,
+        }))
+        bookRes = await api(`/public/bookings-group/${resolvedWsId}`, {
+          method: 'POST',
+          body: JSON.stringify({
+            start_at: selectedSlot, client_name: clientName,
+            client_phone: clientPhone || undefined, client_email: clientEmail || undefined,
+            sms_consent: clientPhone ? smsConsent : undefined,
+            customer_note: payNoteWithPhoto || undefined,
+            reference_photo: photoPayload, bookings: groups,
+          }),
+        })
+      } else {
+        const bid = involvedBarberIds[0] || selectedBarber?.id || ''
+        bookRes = await api(`/public/bookings/${resolvedWsId}`, {
+          method: 'POST',
+          body: JSON.stringify({
+            barber_id: bid,
+            barber_name: linesByBarber[bid]?.barber?.name || selectedBarber?.name,
+            start_at: selectedSlot, client_name: clientName,
+            client_phone: clientPhone || undefined, client_email: clientEmail || undefined,
+            sms_consent: clientPhone ? smsConsent : undefined,
+            service_id: selectedService?.id, service_ids: selectedServiceIds,
+            service_name: combinedServiceName || 'Appointment',
+            duration_minutes: totalDuration,
+            customer_note: payNoteWithPhoto || undefined,
+            reference_photo: photoPayload,
+          }),
+        })
+      }
       if (bookRes.error) {
         if (bookRes.error.includes('outside') || bookRes.error.includes('OUTSIDE')) {
           setSelectedSlot(''); setStep(2); throw new Error('This time slot is no longer available. Please choose another time.')
@@ -466,7 +590,7 @@ export default function PublicBookingPage() {
   }
 
   function resetBooking() {
-    setStep(isSolo ? 1 : 0); setSelectedServiceIds([]); setSelectedSlot('')
+    setStep(isSolo ? 1 : 0); setBookingLines([]); setSelectedSlot('')
     setSelectedDate(''); setClientName(''); setClientPhone('')
     setClientNote(''); setReferencePhoto(null); setBooked(false); setError('')
     setPayOnline(false); setPaymentClientSecret(''); setPaymentBookingId('')
@@ -743,7 +867,7 @@ export default function PublicBookingPage() {
 
         {/* Back to landing (salon/custom only) */}
         {effectivePlan !== 'individual' && !booked && (
-          <button onClick={() => { setShowBooking(false); setStep(isSolo ? 1 : 0); setSelectedServiceIds([]); setSelectedSlot('') }} style={{ marginBottom: 16, padding: '6px 14px', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', background: 'none', border: `1px solid ${borderSoft}`, color: textMuted }}>← Back</button>
+          <button onClick={() => { setShowBooking(false); setStep(isSolo ? 1 : 0); setBookingLines([]); setSelectedSlot('') }} style={{ marginBottom: 16, padding: '6px 14px', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', background: 'none', border: `1px solid ${borderSoft}`, color: textMuted }}>← Back</button>
         )}
 
         {/* Progress */}
@@ -795,13 +919,99 @@ export default function PublicBookingPage() {
           </div>
         )}
 
-        {/* Step 1: Services — multi-select with checkboxes, grouped by type */}
+        {/* Barber picker popup — shown when adding a service that multiple barbers can do */}
+        {barberPickerService && (() => {
+          const svc = barberPickerService
+          const eligible = barbers.filter(b =>
+            !svc.barber_ids || svc.barber_ids.length === 0 || svc.barber_ids.includes(b.id)
+          )
+          return (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, backdropFilter: 'blur(6px)' }}
+              onClick={e => { if (e.target === e.currentTarget) setBarberPickerService(null) }}>
+              <div style={{ width: 'min(360px, 92vw)', borderRadius: 18, border: `1px solid ${borderSoft}`, background: isLightTheme ? '#fff' : 'rgba(18,18,28,.96)', padding: '20px', backdropFilter: 'blur(20px)' }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: textMain, marginBottom: 4 }}>Who is this for?</div>
+                <div style={{ fontSize: 13, color: textMuted, marginBottom: 16 }}>{svc.name} — {svc.duration_minutes} min{svc.price_cents > 0 ? ` · ${fmtPrice(svc.price_cents)}` : ''}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {eligible.map(b => (
+                    <button key={b.id} onClick={() => { addLine(svc.id, b.id); setBarberPickerService(null) }}
+                      style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer', border: `1.5px solid ${borderSoft}`, background: bgSubtle, textAlign: 'left', fontFamily: 'inherit' }}>
+                      {b.photo_url ? (
+                        <img src={b.photo_url} alt="" style={{ width: 36, height: 36, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: isLightTheme ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 600, color: textMuted, flexShrink: 0 }}>{b.name.charAt(0)}</div>
+                      )}
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: textMain }}>{b.name}</div>
+                        {b.level && <div style={{ fontSize: 11, color: textDim, marginTop: 1 }}>{b.level}</div>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setBarberPickerService(null)} style={{ width: '100%', marginTop: 12, padding: '10px', borderRadius: 10, border: `1px solid ${borderSoft}`, background: 'none', color: textMuted, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Cancel</button>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Step 1: Services — multi-select with qty counter + barber picker */}
         {step === 1 && (() => {
+          // Show all services available to the primary barber (or all if solo)
           const filteredServices = services.filter(s =>
             !s.barber_ids || s.barber_ids.length === 0 || (selectedBarber && s.barber_ids.includes(selectedBarber.id))
           )
           const primaryServices = filteredServices.filter(s => s.service_type !== 'addon')
           const addonServices = filteredServices.filter(s => s.service_type === 'addon')
+
+          // Count qty of each service across all booking lines
+          function qtyOf(svcId: string) {
+            return bookingLines.filter(l => l.serviceId === svcId).length
+          }
+
+          function ServiceCard({ s }: { s: Service }) {
+            const qty = qtyOf(s.id)
+            const isSelected = qty > 0
+            return (
+              <div style={{
+                ...card,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                border: `1.5px solid ${isSelected ? 'rgba(130,150,220,.4)' : t.cardBorder}`,
+                background: isSelected ? (isLightTheme ? 'rgba(99,102,241,.04)' : 'rgba(130,150,220,.06)') : t.card,
+                padding: '14px 18px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 0 }}
+                  onClick={() => { if (!isSelected) handleServiceTap(s) }}>
+                  {qty === 0 ? (
+                    <div style={{
+                      width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                      border: `1.5px solid ${isLightTheme ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.15)'}`,
+                      background: 'transparent', cursor: 'pointer',
+                    }} />
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                      <button onClick={(e) => { e.stopPropagation(); handleServiceTap(s) }} style={{
+                        width: 24, height: 24, borderRadius: 7, border: '1.5px solid rgba(130,150,220,.4)',
+                        background: 'rgba(130,150,220,.12)', color: 'rgba(130,150,220,.9)',
+                        cursor: 'pointer', fontWeight: 800, fontSize: 14, fontFamily: 'inherit',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                      }}>−</button>
+                      <span style={{ minWidth: 18, textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'rgba(130,150,220,.9)' }}>{qty}</span>
+                      <button onClick={(e) => { e.stopPropagation(); handleAddAnother(s) }} style={{
+                        width: 24, height: 24, borderRadius: 7, border: '1.5px solid rgba(130,150,220,.4)',
+                        background: 'rgba(130,150,220,.12)', color: 'rgba(130,150,220,.9)',
+                        cursor: 'pointer', fontWeight: 800, fontSize: 14, fontFamily: 'inherit',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                      }}>+</button>
+                    </div>
+                  )}
+                  <div style={{ cursor: qty === 0 ? 'pointer' : 'default' }}>
+                    <div style={{ fontSize: 15, fontWeight: 500, color: textMain }}>{s.name}</div>
+                    <div style={{ fontSize: 12, color: textMuted, marginTop: 2 }}>{s.duration_minutes} min</div>
+                  </div>
+                </div>
+                {s.price_cents > 0 && <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(130,220,170,.7)', flexShrink: 0 }}>{fmtPrice(s.price_cents)}</div>}
+              </div>
+            )
+          }
 
           return (
             <div>
@@ -812,33 +1022,7 @@ export default function PublicBookingPage() {
                 <div style={{ marginBottom: addonServices.length > 0 ? 24 : 0 }}>
                   <div style={{ fontSize: 12, color: textMuted, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 10 }}>Services</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {primaryServices.map(s => {
-                      const isSelected = selectedServiceIds.includes(s.id)
-                      return (
-                        <div key={s.id} onClick={() => toggleService(s)} style={{
-                          ...card,
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                          border: `1.5px solid ${isSelected ? 'rgba(130,150,220,.4)' : t.cardBorder}`,
-                          background: isSelected ? (isLightTheme ? 'rgba(99,102,241,.04)' : 'rgba(130,150,220,.06)') : t.card,
-                          padding: '14px 18px',
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                            <div style={{
-                              width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-                              border: `1.5px solid ${isSelected ? 'rgba(130,150,220,.5)' : (isLightTheme ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.15)')}`,
-                              background: isSelected ? 'rgba(130,150,220,.15)' : 'transparent',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 13, color: 'rgba(130,150,220,.9)', fontWeight: 600,
-                            }}>{isSelected ? '✓' : ''}</div>
-                            <div>
-                              <div style={{ fontSize: 15, fontWeight: 500, color: textMain }}>{s.name}</div>
-                              <div style={{ fontSize: 12, color: textMuted, marginTop: 2 }}>{s.duration_minutes} min</div>
-                            </div>
-                          </div>
-                          {s.price_cents > 0 && <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(130,220,170,.7)', flexShrink: 0 }}>{fmtPrice(s.price_cents)}</div>}
-                        </div>
-                      )
-                    })}
+                    {primaryServices.map(s => <ServiceCard key={s.id} s={s} />)}
                   </div>
                 </div>
               )}
@@ -849,45 +1033,36 @@ export default function PublicBookingPage() {
                   <div style={{ height: 1, background: borderSoft, marginBottom: 16 }} />
                   <div style={{ fontSize: 12, color: textMuted, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 10 }}>Add-ons</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {addonServices.map(s => {
-                      const isSelected = selectedServiceIds.includes(s.id)
-                      return (
-                        <div key={s.id} onClick={() => toggleService(s)} style={{
-                          ...card,
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                          border: `1.5px solid ${isSelected ? 'rgba(130,150,220,.4)' : t.cardBorder}`,
-                          background: isSelected ? (isLightTheme ? 'rgba(99,102,241,.04)' : 'rgba(130,150,220,.06)') : t.card,
-                          padding: '14px 18px',
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                            <div style={{
-                              width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-                              border: `1.5px solid ${isSelected ? 'rgba(130,150,220,.5)' : (isLightTheme ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.15)')}`,
-                              background: isSelected ? 'rgba(130,150,220,.15)' : 'transparent',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 13, color: 'rgba(130,150,220,.9)', fontWeight: 600,
-                            }}>{isSelected ? '✓' : ''}</div>
-                            <div>
-                              <div style={{ fontSize: 15, fontWeight: 500, color: textMain }}>{s.name}</div>
-                              <div style={{ fontSize: 12, color: textMuted, marginTop: 2 }}>{s.duration_minutes} min</div>
-                            </div>
-                          </div>
-                          {s.price_cents > 0 && <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(130,220,170,.7)', flexShrink: 0 }}>{fmtPrice(s.price_cents)}</div>}
-                        </div>
-                      )
-                    })}
+                    {addonServices.map(s => <ServiceCard key={s.id} s={s} />)}
                   </div>
                 </div>
               )}
 
               {filteredServices.length === 0 && <div style={{ textAlign: 'center', color: textDim, padding: 40 }}>No services available</div>}
 
-              {/* Summary + Continue */}
-              {selectedServiceIds.length > 0 && (
-                <div style={{ marginTop: 20, padding: '14px 18px', borderRadius: 14, border: `1px solid ${borderSoft}`, background: bgSubtle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontSize: 13, color: textMuted }}>{selectedServiceIds.length} service{selectedServiceIds.length > 1 ? 's' : ''} selected</div>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: textSoft, marginTop: 2 }}>
+              {/* Your selection summary — shows each line with barber name */}
+              {bookingLines.length > 0 && (
+                <div style={{ marginTop: 20, padding: '14px 18px', borderRadius: 14, border: `1px solid ${borderSoft}`, background: bgSubtle }}>
+                  <div style={{ fontSize: 12, color: textMuted, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 10 }}>Your selection</div>
+                  {bookingLines.map((line, idx) => {
+                    const svc = services.find(sv => sv.id === line.serviceId)
+                    const barber = barbers.find(b => b.id === line.barberId)
+                    if (!svc) return null
+                    return (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: idx < bookingLines.length - 1 ? `1px solid ${borderSoft}` : 'none' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: textMain }}>{svc.name}</div>
+                          {!isSolo && barber && <div style={{ fontSize: 11, color: textMuted, marginTop: 1 }}>with {barber.name}</div>}
+                        </div>
+                        <div style={{ fontSize: 11, color: textDim, flexShrink: 0 }}>{svc.duration_minutes} min</div>
+                        {svc.price_cents > 0 && <div style={{ fontSize: 12, color: 'rgba(130,220,170,.65)', fontWeight: 600, flexShrink: 0 }}>{fmtPrice(svc.price_cents)}</div>}
+                        <button onClick={() => removeLineAt(idx)} style={{ width: 22, height: 22, borderRadius: 6, border: `1px solid ${isLightTheme ? 'rgba(0,0,0,.1)' : 'rgba(255,255,255,.1)'}`, background: 'none', color: textDim, cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>×</button>
+                      </div>
+                    )
+                  })}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTop: `1px solid ${borderSoft}` }}>
+                    <div style={{ fontSize: 13, color: textMuted }}>{bookingLines.length} service{bookingLines.length > 1 ? 's' : ''}{isMultiBarber ? ` · ${involvedBarberIds.length} team members` : ''}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: textSoft }}>
                       {totalDuration} min{totalPrice > 0 ? ` · ${fmtPrice(totalPrice)}` : ''}
                     </div>
                   </div>
@@ -898,11 +1073,11 @@ export default function PublicBookingPage() {
                 {!isSolo && (
                   <button onClick={() => setStep(0)} style={{ padding: '10px 20px', background: 'none', border: `1px solid ${borderSoft}`, borderRadius: 10, color: textMuted, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Back</button>
                 )}
-                <button onClick={confirmServices} disabled={selectedServiceIds.length === 0} style={{
+                <button onClick={confirmServices} disabled={bookingLines.length === 0} style={{
                   flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit',
-                  cursor: selectedServiceIds.length === 0 ? 'default' : 'pointer',
+                  cursor: bookingLines.length === 0 ? 'default' : 'pointer',
                   background: 'rgba(130,220,170,.1)', border: '1px solid rgba(130,220,170,.2)', color: 'rgba(130,220,170,.9)',
-                  opacity: selectedServiceIds.length === 0 ? 0.4 : 1,
+                  opacity: bookingLines.length === 0 ? 0.4 : 1,
                 }}>Continue</button>
               </div>
             </div>
@@ -912,7 +1087,12 @@ export default function PublicBookingPage() {
         {/* Step 2: Date & Time */}
         {step === 2 && (
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, color: textHeading }}>Pick date & time</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: isMultiBarber ? 8 : 20, color: textHeading }}>Pick date & time</h2>
+            {isMultiBarber && (
+              <div style={{ fontSize: 12, color: 'rgba(130,150,220,.7)', marginBottom: 16, padding: '8px 12px', borderRadius: 10, background: isLightTheme ? 'rgba(99,102,241,.05)' : 'rgba(130,150,220,.06)', border: `1px solid ${isLightTheme ? 'rgba(99,102,241,.12)' : 'rgba(130,150,220,.15)'}` }}>
+                Showing times when all {involvedBarberIds.length} team members are available
+              </div>
+            )}
 
             <div style={{ marginBottom: 24 }}>
               <div style={{ fontSize: 13, color: textMuted, marginBottom: 10 }}>Date</div>
@@ -1089,16 +1269,36 @@ export default function PublicBookingPage() {
 
             {/* Summary */}
             <div style={{ ...card, cursor: 'default', marginBottom: 24, padding: '16px 20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+              {isMultiBarber ? (
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 500, color: textMain }}>{combinedServiceName || 'Appointment'}</div>
-                  {!isSolo && <div style={{ fontSize: 13, color: textMuted, marginTop: 3 }}>with {selectedBarber?.name}</div>}
-                  <div style={{ fontSize: 12, color: textDim, marginTop: 2 }}>{totalDuration} min</div>
+                  {involvedBarberIds.map(bid => {
+                    const info = linesByBarber[bid]
+                    return (
+                      <div key={bid} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', padding: '6px 0', borderBottom: `1px solid ${borderSoft}` }}>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 500, color: textMain }}>{info.serviceName}</div>
+                          <div style={{ fontSize: 12, color: textMuted, marginTop: 2 }}>with {info.barber?.name} — {info.duration} min</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                    <div style={{ fontSize: 12, color: textDim }}>{bookingLines.length} services · {involvedBarberIds.length} team members</div>
+                    {totalPrice > 0 && <div style={{ fontSize: 17, fontWeight: 600, color: 'rgba(130,220,170,.7)' }}>{fmtPrice(totalPrice)}</div>}
+                  </div>
                 </div>
-                {totalPrice > 0 && (
-                  <div style={{ fontSize: 17, fontWeight: 600, color: 'rgba(130,220,170,.7)' }}>{fmtPrice(totalPrice)}</div>
-                )}
-              </div>
+              ) : (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 500, color: textMain }}>{combinedServiceName || 'Appointment'}</div>
+                    {!isSolo && <div style={{ fontSize: 13, color: textMuted, marginTop: 3 }}>with {selectedBarber?.name || linesByBarber[involvedBarberIds[0]]?.barber?.name}</div>}
+                    <div style={{ fontSize: 12, color: textDim, marginTop: 2 }}>{totalDuration} min</div>
+                  </div>
+                  {totalPrice > 0 && (
+                    <div style={{ fontSize: 17, fontWeight: 600, color: 'rgba(130,220,170,.7)' }}>{fmtPrice(totalPrice)}</div>
+                  )}
+                </div>
+              )}
               <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${borderSoft}`, fontSize: 14, fontWeight: 500, color: 'rgba(130,150,220,.7)' }}>
                 {fmtFullDate(selectedDate)} at {fmtTime(selectedSlot)}
               </div>
@@ -1272,7 +1472,11 @@ export default function PublicBookingPage() {
             }}>✓</div>
             <h2 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6, color: textMain }}>Booking Confirmed!</h2>
             <p style={{ color: textMuted, fontSize: 14, lineHeight: 1.6 }}>
-              {combinedServiceName || 'Appointment'}{!isSolo ? ` with ${selectedBarber?.name}` : ''}
+              {combinedServiceName || 'Appointment'}
+              {!isSolo && (isMultiBarber
+                ? ` with ${involvedBarberIds.map(bid => linesByBarber[bid]?.barber?.name).filter(Boolean).join(' & ')}`
+                : selectedBarber?.name ? ` with ${selectedBarber.name}` : ''
+              )}
             </p>
             <p style={{ color: 'rgba(130,150,220,.7)', fontSize: 16, fontWeight: 500, marginTop: 8, marginBottom: 20 }}>
               {fmtFullDate(selectedDate)} at {fmtTime(selectedSlot)}

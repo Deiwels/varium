@@ -7107,6 +7107,211 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
 });
 
 // ============================================================
+// PUBLIC: GROUP BOOKING (multiple barbers at same start_at, single transaction)
+// ============================================================
+app.post('/public/bookings-group/:workspace_id', async (req, res) => {
+  try {
+    const wsId = req.params.workspace_id;
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const wsData = wsDoc.data();
+    const effectivePlan = getEffectivePlan(wsData);
+    if (effectivePlan === 'expired') return res.status(403).json({ error: 'This business is not accepting bookings at this time.' });
+    const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
+    const body = req.body || {};
+    const groups = Array.isArray(body.bookings) ? body.bookings : [];
+    if (groups.length === 0 || groups.length > 5) return res.status(400).json({ error: 'Between 1 and 5 bookings required' });
+    const startAt = parseIso(body.start_at);
+    if (!startAt) return res.status(400).json({ error: 'start_at required' });
+    const clientName = sanitizeHtml(safeStr(body.client_name));
+    const clientPhone = safeStr(body.client_phone);
+    const clientEmail = sanitizeHtml(safeStr(body.client_email || '')).toLowerCase() || null;
+    const smsConsent = !!body.sms_consent;
+
+    // Client dedup (shared across all bookings in the group)
+    const phoneNorm = normPhone(clientPhone) || null;
+    let clientId = null;
+    if (clientEmail && !clientId) {
+      const existingByEmail = await wsCol('clients').where('email', '==', clientEmail).limit(1).get();
+      if (!existingByEmail.empty) {
+        clientId = existingByEmail.docs[0].id;
+        const existingData = existingByEmail.docs[0].data();
+        if (phoneNorm && !existingData.phone_norm) {
+          await existingByEmail.docs[0].ref.update({ phone: clientPhone, phone_norm: phoneNorm, updated_at: toIso(new Date()) });
+        }
+      }
+    }
+    if (phoneNorm && !clientId) {
+      const existingClient = await wsCol('clients').where('phone_norm', '==', phoneNorm).limit(1).get();
+      if (!existingClient.empty) {
+        clientId = existingClient.docs[0].id;
+        const existingName = existingClient.docs[0].data().name;
+        if (clientName && clientName !== existingName && clientName !== 'Walk-in') {
+          await existingClient.docs[0].ref.update({ name: clientName, updated_at: toIso(new Date()) });
+        }
+      } else {
+        const clientRef = await wsCol('clients').add({
+          name: encryptPII(clientName || 'Walk-in'),
+          phone: clientPhone ? encryptPhone(clientPhone) : null,
+          phone_norm: phoneNorm,
+          email: encryptPII(clientEmail),
+          client_status: 'new',
+          created_at: toIso(new Date()), updated_at: toIso(new Date()),
+        });
+        clientId = clientRef.id;
+      }
+    }
+    if (!clientId && clientEmail) {
+      const clientRef = await wsCol('clients').add({
+        name: encryptPII(clientName || 'Walk-in'),
+        phone: clientPhone ? encryptPhone(clientPhone) : null,
+        phone_norm: phoneNorm,
+        email: encryptPII(clientEmail),
+        client_status: 'new',
+        created_at: toIso(new Date()), updated_at: toIso(new Date()),
+      });
+      clientId = clientRef.id;
+    }
+
+    // Reference photo
+    let referencePhotoUrl = null;
+    if (body.reference_photo && typeof body.reference_photo === 'object') {
+      const dataUrl = safeStr(body.reference_photo.data_url || '');
+      if (dataUrl && dataUrl.startsWith('data:image/') && dataUrl.length < 800000) {
+        referencePhotoUrl = dataUrl;
+      }
+    }
+
+    const pubSettingsDocPre = await wsCol('settings').doc('config').get();
+    const pubTimeZone = pubSettingsDocPre.exists ? (pubSettingsDocPre.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+
+    // Validate each barber
+    const barberDocs = {};
+    for (const g of groups) {
+      const bid = safeStr(g.barber_id);
+      if (!bid) return res.status(400).json({ error: 'barber_id required for each booking' });
+      if (!barberDocs[bid]) {
+        const bdoc = await wsCol('barbers').doc(bid).get();
+        if (!bdoc.exists || bdoc.data()?.active === false) return res.status(404).json({ error: `Barber ${bid} not found` });
+        barberDocs[bid] = bdoc;
+      }
+    }
+
+    // Build booking docs and validate schedule
+    const bookingsRef = wsCol('bookings');
+    const bookingRefs = [];
+    const bookingDocs = [];
+    const clientToken = crypto.randomBytes(24).toString('hex');
+    for (const g of groups) {
+      const bid = safeStr(g.barber_id);
+      const durMin = Number(g.duration_minutes || 30);
+      const endAt = addMinutes(startAt, durMin);
+      try {
+        ensureWithinSchedule(barberDocs[bid].data(), startAt, endAt, pubTimeZone);
+      } catch (e) {
+        if (e.code === 'OUTSIDE_SCHEDULE') return res.status(400).json({ error: `Selected time is outside ${safeStr(g.barber_name) || 'barber'} working hours` });
+        throw e;
+      }
+      const ref = bookingsRef.doc();
+      bookingRefs.push(ref);
+      bookingDocs.push({
+        client_name: clientName || 'Walk-in',
+        client_phone: clientPhone || null,
+        client_email: clientEmail,
+        phone_norm: phoneNorm,
+        client_id: clientId,
+        barber_id: bid,
+        barber_name: sanitizeHtml(safeStr(g.barber_name)) || null,
+        service_id: Array.isArray(g.service_ids) && g.service_ids.length > 0 ? safeStr(g.service_ids[0]) : null,
+        service_ids: Array.isArray(g.service_ids) ? g.service_ids.map(s => safeStr(s)).filter(Boolean) : [],
+        service_name: sanitizeHtml(safeStr(g.service_name)) || null,
+        start_at: toIso(startAt), end_at: toIso(endAt),
+        duration_minutes: durMin,
+        status: 'booked', paid: false, source: 'website',
+        notes: encryptPII(sanitizeHtml(safeStr(body.customer_note || body.notes))) || null,
+        customer_note: encryptPII(sanitizeHtml(safeStr(body.customer_note))) || null,
+        reference_photo_url: referencePhotoUrl,
+        sms_consent: smsConsent,
+        sms_consent_ip: smsConsent ? getClientIp(req) : null,
+        sms_consent_ua: smsConsent ? safeStr(req.headers['user-agent'] || '').slice(0, 500) : null,
+        sms_consent_at: smsConsent ? toIso(new Date()) : null,
+        workspace_id: wsId,
+        client_token: clientToken,
+        group_booking: true,
+        group_size: groups.length,
+        created_by: { name: clientName || 'Client', role: 'client' },
+        created_at: toIso(new Date()), updated_at: toIso(new Date()),
+      });
+    }
+
+    // Atomic transaction: all-or-nothing
+    try {
+      await db.runTransaction(async (tx) => {
+        for (let i = 0; i < bookingRefs.length; i++) {
+          const bid = bookingDocs[i].barber_id;
+          const endAt = parseIso(bookingDocs[i].end_at);
+          await ensureNoConflictTx(tx, bookingsRef, { barberId: bid, startAt, endAt });
+          tx.set(bookingRefs[i], bookingDocs[i]);
+        }
+      });
+    } catch (e) {
+      if (e.code === 'CONFLICT' || String(e.message).includes('CONFLICT')) return res.status(409).json({ error: 'Slot already booked for one of the team members' });
+      throw e;
+    }
+
+    // SMS / Email notifications (send for the first booking only, mention all barbers)
+    const allBarberNames = groups.map(g => safeStr(g.barber_name)).filter(Boolean);
+    const allServiceNames = groups.map(g => safeStr(g.service_name)).filter(Boolean);
+    if (smsConsent && clientPhone) {
+      const settingsDoc = pubSettingsDocPre;
+      const pubSettingsData = settingsDoc.exists ? settingsDoc.data() : {};
+      const tz = pubSettingsData?.timezone || 'America/Chicago';
+      const pubShopName = safeStr(pubSettingsData?.shop_name || '');
+      const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+      const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
+      const pubPrefix = pubShopName ? `${pubShopName}: ` : '';
+      const pubSmsConf = await getWorkspaceSmsConfig(wsId);
+      const withText = allBarberNames.length > 1 ? `with ${allBarberNames.join(' & ')}` : `with ${allBarberNames[0] || 'your specialist'}`;
+      sendSms(clientPhone, `${pubPrefix}Your appointment is confirmed for ${dateStr} at ${timeStr} ${withText}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`, pubSmsConf.fromNumber, wsId).catch(() => {});
+      // Schedule reminders for first booking
+      scheduleReminders(wsCol, bookingRefs[0].id, bookingDocs[0], tz, pubShopName, pubSmsConf.fromNumber).catch(() => {});
+    }
+    if (clientEmail) {
+      const emailSettingsDoc = pubSettingsDocPre;
+      const emailSettingsData = emailSettingsDoc.exists ? emailSettingsDoc.data() : {};
+      const emailTz = emailSettingsData?.timezone || 'America/Chicago';
+      const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: emailTz });
+      const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: emailTz });
+      const emailShopName = safeStr(emailSettingsData?.shop_name || '');
+      const emailLogo = resolveEmailLogoUrl(wsId, emailSettingsData?.logo_url || '');
+      const emailContactInfo = { address: safeStr(emailSettingsData?.shop_address || ''), phone: safeStr(emailSettingsData?.shop_phone || '') };
+      const wsDocData2 = await db.collection('workspaces').doc(wsId).get();
+      const rawTemplate = wsDocData2.exists ? wsDocData2.data()?.site_config?.template : null;
+      const emailTemplate = ['modern','classic','bold','dark-luxury','colorful'].includes(rawTemplate) ? rawTemplate : 'modern';
+      const manageUrl = `https://vurium.com/manage-booking?ws=${wsId}&bid=${bookingRefs[0].id}&token=${clientToken}`;
+      const et = EMAIL_THEMES[emailTemplate] || EMAIL_THEMES.modern;
+      const isLt = ['classic','colorful'].includes(emailTemplate);
+      const cardBg = isLt ? 'rgba(0,0,0,.03)' : 'rgba(255,255,255,.04)';
+      const svcListHtml = groups.map(g => `<div style="padding:8px 0;border-bottom:1px solid ${et.border}"><div style="font-size:14px;font-weight:600;color:${et.text};">${sanitizeHtml(safeStr(g.service_name)) || 'Appointment'}</div><div style="color:${et.muted};font-size:13px;">with ${sanitizeHtml(safeStr(g.barber_name)) || 'your specialist'}</div></div>`).join('');
+      sendEmail(clientEmail, 'Booking Confirmed', vuriumEmailTemplate('Booking Confirmed', `
+        <p>Your appointment${groups.length > 1 ? 's have' : ' has'} been confirmed:</p>
+        <div style="padding:16px;border-radius:14px;background:${cardBg};border:1px solid ${et.border};margin:16px 0;">
+          ${svcListHtml}
+          <div style="color:${et.accent};font-weight:500;margin-top:10px;">${dateStr} at ${timeStr}</div>
+        </div>
+        <div style="text-align:center;margin:20px 0;">
+          <a href="${manageUrl}" style="display:inline-block;padding:12px 24px;border-radius:10px;background:${isLt ? 'rgba(0,0,0,.05)' : 'rgba(255,255,255,.08)'};border:1px solid ${et.border};color:${et.text};text-decoration:none;font-size:13px;font-weight:500;margin-right:8px;">Reschedule</a>
+          <a href="${manageUrl}&action=cancel" style="display:inline-block;padding:12px 24px;border-radius:10px;background:rgba(220,60,60,.08);border:1px solid rgba(220,60,60,.2);color:rgba(220,80,80,.8);text-decoration:none;font-size:13px;font-weight:500;">Cancel</a>
+        </div>
+      `, emailShopName, emailLogo, emailTemplate, emailContactInfo), emailShopName).catch(() => {});
+    }
+
+    const ids = bookingRefs.map(r => r.id);
+    res.status(201).json({ booking_ids: ids, booking_id: ids[0], id: ids[0] });
+  } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
 // PUBLIC CONFIG
 // ============================================================
 app.get('/public/config/:workspace_id', async (req, res) => {
