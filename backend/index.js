@@ -6563,6 +6563,7 @@ app.post('/api/payments/terminal', async (req, res) => {
     if (!amountCents || amountCents <= 0) return res.status(400).json({ error: 'amount required' });
     // For non-card payments (cash, zelle, other), just record locally
     if (paymentMethod !== 'card') {
+      const tipDollars = Number(b.tip_amount || b.tip || 0);
       const doc = {
         booking_id: bookingId, amount_cents: amountCents, payment_method: paymentMethod,
         status: 'completed', created_by: req.user.uid, created_at: toIso(new Date()),
@@ -6571,12 +6572,11 @@ app.post('/api/payments/terminal', async (req, res) => {
         service_amount: Number(b.service_amount || 0),
         tax_amount: Number(b.tax_amount || 0),
         fee_amount: Number(b.fee_amount || 0),
-        tip_amount: Number(b.tip_amount || 0),
+        tip_amount: tipDollars,
       };
       const ref = await req.ws('payment_requests').add(doc);
       if (bookingId) {
-        const bookingPatch = { payment_status: 'paid', paid: true, payment_method: paymentMethod, amount: amountCents / 100, updated_at: toIso(new Date()) };
-        if (b.tip_amount) bookingPatch.tip_amount = Number(b.tip_amount);
+        const bookingPatch = { payment_status: 'paid', paid: true, payment_method: paymentMethod, amount: amountCents / 100, tip: tipDollars, tip_amount: tipDollars, updated_at: toIso(new Date()) };
         if (b.tax_amount) bookingPatch.tax_amount = Number(b.tax_amount);
         if (b.fee_amount) bookingPatch.fee_amount = Number(b.fee_amount);
         if (b.service_amount) bookingPatch.service_amount = Number(b.service_amount);

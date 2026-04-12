@@ -914,7 +914,7 @@ function PaymentPanel({ ev, services, onPayment, allEvents, barberId, terminalEn
       })
       if (backendId) {
         await apiFetch('/api/bookings/' + encodeURIComponent(String(backendId)), {
-          method: 'PATCH', body: JSON.stringify({ paid: true, payment_method: method, tip, service_amount: effectiveBase, tax_amount: effectiveTax, fee_amount: effectiveFees, total_amount: effectiveTotal })
+          method: 'PATCH', body: JSON.stringify({ paid: true, payment_method: method, tip, tip_amount: tip, service_amount: effectiveBase, tax_amount: effectiveTax, fee_amount: effectiveFees, total_amount: effectiveTotal })
         })
       }
       setHint(`${method} payment recorded ✓`); onPayment(method, tip)
