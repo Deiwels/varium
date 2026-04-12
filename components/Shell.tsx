@@ -1018,7 +1018,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
             }).map(item => {
               const active = pathname === item.href || (item.id === 'settings' && ['/settings', '/billing', '/waitlist', '/portfolio', '/attendance', '/cash', '/membership', '/expenses', '/payroll', '/payments'].some(p => pathname.startsWith(p)))
               const hasUnread = item.id === 'messages' && !!unreadChat && pathname !== '/messages'
-              const hasAuditBadge = item.id === 'settings' && auditWarnings > 0 && !pathname.startsWith('/payroll')
+              const hasAuditBadge = false // badge is on Dashboard payroll icon, not bottom nav
               return (
                 <Link key={item.id} href={item.href} className={`pill-item${active ? ' active' : ''}`}>
                   <div className={`pill-ico${hasUnread ? ' has-unread' : ''}`} style={{ position: 'relative' }}>

@@ -246,6 +246,7 @@ export default function DashboardPage() {
 
   // Get current user from localStorage (deferred to avoid hydration mismatch)
   const [user, setUser] = useState<any>(null)
+  const [auditWarnings, setAuditWarnings] = useState(0)
   useEffect(() => {
     try { setUser(JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || 'null')) } catch {}
     // Restore clock state from localStorage (fast restore before API fetch)
@@ -268,6 +269,12 @@ export default function DashboardPage() {
   const role: string = user?.role || 'owner'
   const isBarber = role === 'barber'
   const isStudent = role === 'student'
+
+  // Fetch audit warnings for payroll badge (owner only)
+  useEffect(() => {
+    if (role !== 'owner') return
+    apiFetch('/api/payroll/audit/status').then(d => setAuditWarnings(d?.warnings_count || 0)).catch(() => {})
+  }, [role])
   const myBarberId: string = user?.barber_id || ''
   const myBarberName: string = user?.name || ''
 
@@ -1555,8 +1562,11 @@ export default function DashboardPage() {
                   {isEditing && !isActive && (
                     <div style={{ position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: 999, background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff', fontWeight: 700, zIndex: 2 }}>+</div>
                   )}
-                  <div style={{ width: 56, height: 56, borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.5)' }}>
+                  <div style={{ width: 56, height: 56, borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.5)', position: 'relative' }}>
                     {shortcutIcons[item.href] || <span style={{ fontSize: 16 }}>•</span>}
+                    {item.href === '/payroll' && auditWarnings > 0 && (
+                      <div style={{ position: 'absolute', top: -3, right: -3, width: 16, height: 16, borderRadius: 999, background: '#ff3b30', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 900, color: '#fff', border: '2px solid #010101' }}>!</div>
+                    )}
                   </div>
                   <span style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', textAlign: 'center', lineHeight: 1.2, fontWeight: 500 }}>{item.label}</span>
                 </a>
