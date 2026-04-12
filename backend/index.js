@@ -8375,7 +8375,7 @@ function resetSecurityCounters() {
 // ─── Periodic Payroll Audit ──────────────────────────────────────────────────
 let lastAuditRun = 0;
 async function runPayrollAudit() {
-  if (Date.now() - lastAuditRun < 6 * 60 * 60 * 1000) return; // every 6 hours
+  if (Date.now() - lastAuditRun < 30 * 60 * 1000) return; // in-memory: skip if ran less than 30 min ago
   lastAuditRun = Date.now();
   try {
     const wsSnap = await db.collection('workspaces').get();
@@ -8385,6 +8385,16 @@ async function runPayrollAudit() {
         const plan = wsData.plan_type || 'individual';
         if (plan === 'individual') continue;
         const wsCol = (col) => db.collection(`workspaces/${wsDoc.id}/${col}`);
+
+        // Per-workspace throttle: check last_run from Firestore (survives cold starts)
+        const auditDoc = await wsCol('settings').doc('payroll_audit').get().catch(() => null);
+        const auditData = auditDoc?.exists ? auditDoc.data() : {};
+        const lastRunStr = auditData?.last_run || '';
+        if (lastRunStr) {
+          const lastRunMs = new Date(lastRunStr).getTime();
+          if (Date.now() - lastRunMs < 6 * 60 * 60 * 1000) continue; // skip if ran < 6 hours ago
+        }
+
         const now = new Date();
         const from = new Date(now); from.setDate(from.getDate() - 7);
         const fromStr = from.toISOString();
@@ -8462,16 +8472,23 @@ async function runPayrollAudit() {
 
         await wsCol('settings').doc('payroll_audit').update({ notified_hash: currentHash }).catch(() => {});
 
-        // Send email ONLY to owner, ONLY once per new issue set
+        // Notify ONLY owner, ONLY once per new issue set
         const usersSnap = await wsCol('users').where('role', '==', 'owner').limit(1).get();
         if (!usersSnap.empty) {
+          const ownerId = usersSnap.docs[0].id;
           const owner = usersSnap.docs[0].data();
+          const settingsDoc = await wsCol('settings').doc('config').get().catch(() => null);
+          const shopName = settingsDoc?.exists ? safeStr(settingsDoc.data()?.shop_name || '') : '';
+          const displayName = shopName || wsData.name || 'Your shop';
+          const title = `Payroll Audit: ${warnings.length} issue${warnings.length > 1 ? 's' : ''} — ${displayName}`;
+          const body = warnings.join(' | ');
+
+          // Push to owner only
+          sendCrmPush(wsCol, ownerId, title, body, { screen: 'payroll' }, null).catch(() => {});
+
+          // Email to owner only
           const email = owner.email || owner.username;
           if (email && email.includes('@')) {
-            const settingsDoc = await wsCol('settings').doc('config').get().catch(() => null);
-            const shopName = settingsDoc?.exists ? safeStr(settingsDoc.data()?.shop_name || '') : '';
-            const displayName = shopName || wsData.name || 'Your shop';
-            const title = `Payroll Audit: ${warnings.length} issue${warnings.length > 1 ? 's' : ''} — ${displayName}`;
             const warningsHtml = warnings.map(w => `<li style="margin-bottom:8px;color:#e8e8ed;font-size:14px;">${w}</li>`).join('');
             const html = vuriumEmailTemplate('Payroll Audit', `
               <p style="color:rgba(255,255,255,.6);margin-bottom:16px;">Automatic audit found ${warnings.length} issue${warnings.length > 1 ? 's' : ''} for the last 7 days:</p>
