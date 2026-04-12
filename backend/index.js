@@ -13,6 +13,7 @@ const http2 = require('http2');
 const { z } = require('zod');
 const { Firestore } = require('@google-cloud/firestore');
 const { google } = require('googleapis');
+const Anthropic = require('@anthropic-ai/sdk').default;
 
 const app = express();
 app.set('trust proxy', true);
@@ -2371,6 +2372,233 @@ app.post('/api/vurium-dev/gmail/reply', requireSuperadmin, async (req, res) => {
   } catch (e) {
     console.error('Gmail reply error:', e.message);
     res.status(500).json({ error: 'Failed to send reply' });
+  }
+});
+
+// ── AI Diagnostics System ────────────────────────────────────────────────────
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+const anthropic = ANTHROPIC_API_KEY ? new Anthropic({ apiKey: ANTHROPIC_API_KEY }) : null;
+
+const DIAGNOSTIC_SYSTEM_PROMPT = `You are the AI diagnostics engine for VuriumBook — a multi-tenant SaaS platform for barbershops and salons. Each workspace has subcollections: bookings, clients, barbers, users, settings, audit_logs. The platform uses Stripe for billing, Telnyx for SMS, Resend for email, and runs on Google Cloud Run with Firestore.
+
+You will receive aggregated platform health metrics. Analyze them and return a JSON object with:
+- health_score: 0-100 (100 = perfect health)
+- summary: 1-2 sentence overview
+- issues: array of found issues, each with:
+  - severity: "critical" | "warning" | "info"
+  - category: "errors" | "data_integrity" | "security" | "performance" | "user_experience"
+  - title: short issue title
+  - description: detailed explanation
+  - recommendation: actionable fix suggestion
+
+Focus on: API error spikes, booking conflicts, SMS/email delivery failures, security events (brute force, mass operations), expired trials without conversion, data anomalies, performance degradation.
+
+IMPORTANT: Return ONLY valid JSON, no markdown, no code fences.`;
+
+async function collectDiagnosticMetrics() {
+  const now = new Date();
+  const h24 = new Date(now - 24 * 60 * 60 * 1000);
+  const h24Iso = h24.toISOString();
+
+  // Workspace stats
+  const wsSnap = await db.collection('workspaces').get();
+  const workspaces = [];
+  const byPlan = {}, byStatus = {};
+  let expiredTrials = 0;
+  wsSnap.forEach(d => {
+    const w = d.data();
+    workspaces.push({ id: d.id, name: w.business_name || d.id, plan: w.plan || 'none', billing_status: w.billing_status || 'inactive', created_at: w.created_at });
+    byPlan[w.plan || 'none'] = (byPlan[w.plan || 'none'] || 0) + 1;
+    byStatus[w.billing_status || 'inactive'] = (byStatus[w.billing_status || 'inactive'] || 0) + 1;
+    if (!w.trial_active && !['active', 'trialing'].includes(w.billing_status)) expiredTrials++;
+  });
+
+  // Security events 24h
+  let securityEvents = [];
+  try {
+    const secSnap = await db.collection('global_security_log').where('timestamp', '>=', h24Iso).orderBy('timestamp', 'desc').limit(100).get();
+    const byType = {};
+    secSnap.forEach(d => { const t = d.data().type || 'unknown'; byType[t] = (byType[t] || 0) + 1; });
+    securityEvents = Object.entries(byType).map(([type, count]) => ({ type, count }));
+  } catch { }
+
+  // SMS stats 24h
+  let smsStats = { sent: 0, failed: 0 };
+  try {
+    const smsSnap = await db.collection('sms_logs').where('created_at', '>=', h24Iso).limit(500).get();
+    smsSnap.forEach(d => {
+      const s = d.data();
+      if (s.status === 'sent' || s.status === 'delivered') smsStats.sent++;
+      else smsStats.failed++;
+    });
+  } catch { }
+
+  // Email stats 24h
+  let emailStats = { sent: 0, failed: 0 };
+  try {
+    const emSnap = await db.collection('vurium_emails').where('created_at', '>=', h24Iso).limit(500).get();
+    emSnap.forEach(d => {
+      const e = d.data();
+      if (e.status === 'sent' || e.status === 'delivered') emailStats.sent++;
+      else emailStats.failed++;
+    });
+  } catch { }
+
+  // Sample 10 most recent workspaces for booking checks
+  const sampleWs = workspaces.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, 10);
+  let totalBookings24h = 0, unpaidCompleted = 0, bookingIssues = [];
+  for (const ws of sampleWs) {
+    try {
+      const bSnap = await db.collection('workspaces').doc(ws.id).collection('bookings')
+        .where('start_at', '>=', h24Iso).limit(200).get();
+      let wsBookings = 0, wsUnpaid = 0;
+      bSnap.forEach(d => {
+        wsBookings++;
+        const b = d.data();
+        if (b.status === 'completed' && (!b.payment_status || b.payment_status === 'unpaid')) wsUnpaid++;
+      });
+      totalBookings24h += wsBookings;
+      unpaidCompleted += wsUnpaid;
+      if (wsUnpaid > 3) bookingIssues.push({ workspace: ws.name, unpaid: wsUnpaid, total: wsBookings });
+    } catch { }
+  }
+
+  // Analytics 24h
+  let pageviews24h = 0;
+  try {
+    const aSnap = await db.collection('vurium_analytics').where('ts', '>=', h24Iso).limit(5000).get();
+    pageviews24h = aSnap.size;
+  } catch { }
+
+  return {
+    timestamp: now.toISOString(),
+    workspaces: { total: workspaces.length, by_plan: byPlan, by_status: byStatus, expired_trials: expiredTrials },
+    security: { events_24h: securityEvents },
+    sms: smsStats,
+    email: emailStats,
+    bookings: { total_24h: totalBookings24h, unpaid_completed: unpaidCompleted, issues: bookingIssues, sampled_workspaces: sampleWs.length },
+    analytics: { pageviews_24h: pageviews24h },
+  };
+}
+
+async function runAIDiagnosticScan(triggeredBy = 'auto') {
+  const scanRef = db.collection('vurium_diagnostics').doc();
+  const startedAt = new Date().toISOString();
+
+  await scanRef.set({ status: 'running', triggered_by: triggeredBy, started_at: startedAt, completed_at: null });
+
+  try {
+    if (!anthropic) throw new Error('Anthropic API key not configured');
+
+    // Check for stuck scans (>5 min running)
+    const stuckSnap = await db.collection('vurium_diagnostics').where('status', '==', 'running').get();
+    stuckSnap.forEach(d => {
+      if (d.id !== scanRef.id) {
+        const s = d.data();
+        if (s.started_at && (Date.now() - new Date(s.started_at).getTime()) > 5 * 60 * 1000) {
+          d.ref.update({ status: 'failed', error: 'Scan timed out', completed_at: new Date().toISOString() });
+        }
+      }
+    });
+
+    const metrics = await collectDiagnosticMetrics();
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2048,
+      system: DIAGNOSTIC_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: `Analyze these platform health metrics and return JSON:\n\n${JSON.stringify(metrics, null, 2)}` }],
+    });
+
+    const rawText = response.content[0]?.text || '{}';
+    let analysis;
+    try {
+      analysis = JSON.parse(rawText);
+    } catch {
+      // Try extracting JSON from potential markdown
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      analysis = jsonMatch ? JSON.parse(jsonMatch[0]) : { health_score: 0, summary: 'Failed to parse AI response', issues: [] };
+    }
+
+    const completedAt = new Date().toISOString();
+    const issueCounts = { critical: 0, warning: 0, info: 0 };
+    (analysis.issues || []).forEach(i => { if (issueCounts[i.severity] !== undefined) issueCounts[i.severity]++; });
+
+    await scanRef.update({
+      status: 'completed',
+      completed_at: completedAt,
+      duration_ms: Date.now() - new Date(startedAt).getTime(),
+      health_score: analysis.health_score || 0,
+      summary: analysis.summary || '',
+      issues: analysis.issues || [],
+      issue_counts: issueCounts,
+      metrics_snapshot: metrics,
+      ai_model: 'claude-sonnet-4-20250514',
+      tokens_used: { input: response.usage?.input_tokens || 0, output: response.usage?.output_tokens || 0 },
+      error: null,
+    });
+
+    // Cleanup: keep only last 50 scans
+    const allScans = await db.collection('vurium_diagnostics').orderBy('started_at', 'desc').offset(50).get();
+    const batch = db.batch();
+    allScans.forEach(d => batch.delete(d.ref));
+    if (!allScans.empty) await batch.commit();
+
+    return scanRef.id;
+  } catch (e) {
+    console.error('AI diagnostic scan failed:', e.message);
+    await scanRef.update({ status: 'failed', completed_at: new Date().toISOString(), error: e.message });
+    return scanRef.id;
+  }
+}
+
+// AI Diagnostics: List scans
+app.get('/api/vurium-dev/ai/scans', requireSuperadmin, async (req, res) => {
+  try {
+    const snap = await db.collection('vurium_diagnostics').orderBy('started_at', 'desc').limit(20).get();
+    const scans = [];
+    snap.forEach(d => {
+      const data = d.data();
+      scans.push({
+        id: d.id, status: data.status, triggered_by: data.triggered_by,
+        started_at: data.started_at, completed_at: data.completed_at,
+        health_score: data.health_score || null, summary: data.summary || '',
+        issue_counts: data.issue_counts || { critical: 0, warning: 0, info: 0 },
+        duration_ms: data.duration_ms || null,
+      });
+    });
+    const lastCompleted = scans.find(s => s.status === 'completed');
+    const nextScanAt = lastCompleted ? new Date(new Date(lastCompleted.started_at).getTime() + 30 * 60 * 1000).toISOString() : null;
+    const isRunning = scans.some(s => s.status === 'running');
+    res.json({ scans, next_scan_at: nextScanAt, is_running: isRunning });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch scans' });
+  }
+});
+
+// AI Diagnostics: Trigger manual scan
+app.post('/api/vurium-dev/ai/scan', requireSuperadmin, async (req, res) => {
+  try {
+    if (!anthropic) return res.status(503).json({ error: 'AI diagnostics not configured (missing ANTHROPIC_API_KEY)' });
+    // Check for running scan
+    const runningSnap = await db.collection('vurium_diagnostics').where('status', '==', 'running').limit(1).get();
+    if (!runningSnap.empty) return res.status(409).json({ error: 'Scan already in progress' });
+    // Fire and forget
+    const scanId = await runAIDiagnosticScan('manual').catch(() => null);
+    res.json({ ok: true, scan_id: scanId });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to start scan' });
+  }
+});
+
+// AI Diagnostics: Get scan details
+app.get('/api/vurium-dev/ai/scans/:id', requireSuperadmin, async (req, res) => {
+  try {
+    const doc = await db.collection('vurium_diagnostics').doc(req.params.id).get();
+    if (!doc.exists) return res.status(404).json({ error: 'Scan not found' });
+    res.json({ id: doc.id, ...doc.data() });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch scan' });
   }
 });
 
@@ -8761,6 +8989,12 @@ setInterval(() => {
   runPayrollAudit().catch(() => {});
   runBookingAudit().catch(() => {});
 }, 3 * 60 * 1000);
+
+// AI Diagnostics — auto-scan every 30 minutes
+if (ANTHROPIC_API_KEY) {
+  setTimeout(() => runAIDiagnosticScan('auto').catch(e => console.warn('AI scan error:', e?.message)), 120000);
+  setInterval(() => runAIDiagnosticScan('auto').catch(e => console.warn('AI scan error:', e?.message)), 30 * 60 * 1000);
+}
 
 // ============================================================
 // STRIPE BILLING (env vars: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_*)

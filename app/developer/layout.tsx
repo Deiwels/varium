@@ -12,6 +12,9 @@ function IconAnalytics() {
 function IconEmail() {
   return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.3"/><path d="M1 5l7 4 7-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
 }
+function IconAI() {
+  return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3M3.05 3.05l2.12 2.12M10.83 10.83l2.12 2.12M3.05 12.95l2.12-2.12M10.83 5.17l2.12-2.12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+}
 function IconBack() {
   return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 3L5 7l4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
 }
@@ -23,6 +26,7 @@ const NAV = [
   { href: '/developer', label: 'Overview', Icon: IconOverview },
   { href: '/developer/analytics', label: 'Analytics', Icon: IconAnalytics },
   { href: '/developer/email', label: 'Email', Icon: IconEmail },
+  { href: '/developer/ai', label: 'AI Diagnostics', Icon: IconAI },
 ]
 
 export default function DeveloperLayout({ children }: { children: React.ReactNode }) {

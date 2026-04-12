@@ -78,7 +78,8 @@ jobs:
             --set-env-vars "ADMIN_NOTIFY_EMAIL=${{ secrets.ADMIN_NOTIFY_EMAIL }}" \
             --set-env-vars "FRONTEND_URL=https://vurium.com" \
             --set-env-vars "GMAIL_CLIENT_ID=${{ secrets.GMAIL_CLIENT_ID }}" \
-            --set-env-vars "GMAIL_CLIENT_SECRET=${{ secrets.GMAIL_CLIENT_SECRET }}"
+            --set-env-vars "GMAIL_CLIENT_SECRET=${{ secrets.GMAIL_CLIENT_SECRET }}" \
+            --set-env-vars "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}"
 
       - name: Show URL
         run: |
