@@ -870,7 +870,7 @@ export default function PublicBookingPage() {
 
       {/* ── BOOKING FLOW (all plans, or after Book Now for salon/custom) ── */}
       {(showBooking || effectivePlan === 'individual') && (
-      <main style={{ maxWidth: 560, margin: '0 auto', padding: '40px 20px 80px', position: 'relative', zIndex: 2 }}>
+      <main className="bp-booking-flow" style={{ maxWidth: 560, margin: '0 auto', padding: '40px 20px 80px', position: 'relative', zIndex: 2 }}>
 
         {/* Back to landing (salon/custom only) */}
         {effectivePlan !== 'individual' && !booked && (

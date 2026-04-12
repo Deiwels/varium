@@ -3033,10 +3033,15 @@ function ensureWithinSchedule(barberData, startAt, endAt, timeZone = 'America/Ch
 // Client classification
 const NOSHOW_STATUSES = new Set(['noshow', 'no_show', 'no-show']);
 function isNoshow(s) { return NOSHOW_STATUSES.has(String(s || '').toLowerCase()); }
-function classifyClient(clientName, bookings, squareExtra) {
+function classifyClient(clientName, bookings, squareExtra, phoneNorm) {
   // squareExtra: optional { visits: number, tips: number, spend: number } from Square
+  // phoneNorm: optional normalized phone to also match bookings by phone
   const now = new Date();
-  const clientBookings = bookings.filter(b => String(b.client_name || '') === clientName);
+  const clientBookings = bookings.filter(b => {
+    if (String(b.client_name || '') === clientName) return true;
+    if (phoneNorm && phoneNorm.length >= 10 && String(b.phone_norm || '') === phoneNorm) return true;
+    return false;
+  });
   const sqVisits = squareExtra?.visits || 0;
   const sqBigTips = squareExtra?.tips ? Math.floor(squareExtra.tips / 30) : 0; // estimate big tip count from total tips
   const totalVisits = clientBookings.length + sqVisits;
@@ -4430,29 +4435,50 @@ app.get('/api/bookings', async (req, res) => {
     // Enrich each booking with client_status from auto-classification (no-show → at_risk etc.)
     try {
       const uniqueNames = [...new Set(list.map(b => String(b.client_name || '')).filter(Boolean))];
+      // Also collect unique phone_norms for phone-based matching
+      const phoneByName = new Map();
+      for (const b of list) {
+        const name = String(b.client_name || '');
+        const phone = String(b.phone_norm || '');
+        if (name && phone && phone.length >= 10) phoneByName.set(name, phone);
+      }
       if (uniqueNames.length > 0) {
-        // Pull the wider booking history needed for classification
+        // Pull the wider booking history needed for classification — by name AND phone
         const historyBookings = [];
         for (let i = 0; i < uniqueNames.length; i += 30) {
           const batch = uniqueNames.slice(i, i + 30);
           const hSnap = await req.ws('bookings').where('client_name', 'in', batch).orderBy('start_at', 'desc').limit(2000).get();
           historyBookings.push(...hSnap.docs.map(d => d.data()));
         }
-        // Check if any clients have Square history (by looking up client records)
+        // Also fetch bookings by phone_norm for clients whose name might differ
+        const uniquePhones = [...new Set([...phoneByName.values()])];
+        for (let i = 0; i < uniquePhones.length; i += 30) {
+          const batch = uniquePhones.slice(i, i + 30);
+          const pSnap = await req.ws('bookings').where('phone_norm', 'in', batch).orderBy('start_at', 'desc').limit(2000).get();
+          for (const d of pSnap.docs) {
+            const data = d.data();
+            if (!historyBookings.some(h => h.start_at === data.start_at && h.client_name === data.client_name)) {
+              historyBookings.push(data);
+            }
+          }
+        }
+        // Check if any clients have Square history or existing client records
         const sqExtraByName = new Map();
         try {
-          const clientSnap = await req.ws('clients').where('square_customer_id', '!=', '').limit(200).get();
-          for (const cd of clientSnap.docs) {
-            const cData = cd.data();
-            const cName = decryptPII(cData.name);
-            if (cName && uniqueNames.includes(cName) && cData.square_customer_id) {
-              // Mark as having Square history — at minimum they're not "new"
-              sqExtraByName.set(cName, { visits: 2, tips: 0, spend: 0 });
+          // Check by phone — find client records matching booking phones
+          for (const [name, phone] of phoneByName) {
+            if (sqExtraByName.has(name)) continue;
+            const cSnap = await req.ws('clients').where('phone_norm', '==', phone).limit(1).get();
+            if (!cSnap.empty) {
+              const cData = cSnap.docs[0].data();
+              if (cData.square_customer_id) {
+                sqExtraByName.set(name, { visits: 2, tips: 0, spend: 0 });
+              }
             }
           }
         } catch {}
         const statusByName = new Map();
-        for (const name of uniqueNames) statusByName.set(name, classifyClient(name, historyBookings, sqExtraByName.get(name)));
+        for (const name of uniqueNames) statusByName.set(name, classifyClient(name, historyBookings, sqExtraByName.get(name), phoneByName.get(name)));
         list = list.map(b => ({ ...b, client_status: statusByName.get(String(b.client_name || '')) || 'new' }));
       }
     } catch (e) { console.warn('booking client_status enrich error:', e?.message); }
@@ -6493,39 +6519,50 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
 });
 
 // ── AI Style Generator ───────────────────────────────────────────────────────
-const AI_STYLE_SYSTEM_PROMPT = `You generate CSS for a barbershop/salon booking page built with React inline styles. Since the page uses inline styles, ALL your CSS properties MUST use !important to override them.
+const AI_STYLE_SYSTEM_PROMPT = `You generate CSS for a barbershop/salon booking page. The page uses React inline styles, so ALL your CSS properties MUST use !important to override them.
 
-TARGET CLASSES:
-- .booking-page — main wrapper. Set background, font-family, color here.
-- .booking-page * — to override text colors globally
-- .bp-header — top bar with logo and business name
-- .bp-hero — hero section with title, subtitle, and optional image
-- .bp-hero h1 — main heading
-- .bp-hero p — subtitle text
-- .bp-card — cards (services, barbers, time slots)
-- .bp-btn — primary action buttons (Book Now, Next, Confirm)
+The page has a dark background (#010101) by default with white text. Your CSS completely reskins it.
+
+TARGET SELECTORS (use .booking-page as parent for ALL):
+- .booking-page — the entire page wrapper: background, font-family, color
+- .booking-page header — top bar with logo and shop name
+- .booking-page main — main content area
+- .booking-page footer — page footer with legal text
+- .booking-page h1, .booking-page h2 — headings
+- .booking-page p, .booking-page span, .booking-page div — text elements
+- .booking-page button — all buttons
+- .booking-page input, .booking-page textarea, .booking-page select — form fields
+- .bp-header — header bar
+- .bp-hero — hero/welcome section
+- .bp-card — cards for barbers, services, time slots
+- .bp-btn — primary action buttons (Book Now, Continue, Confirm)
 - .bp-input — input fields
-- .bp-section-title — section labels (Our Team, etc.)
-- .bp-footer — page footer
+- .bp-section-title — section labels
+- .bp-footer — footer
+- .bp-booking-flow — the booking steps area
 
-CRITICAL RULES:
-1. EVERY property MUST have !important (e.g., background: #1a1a2e !important;)
-2. Output ONLY pure CSS. No markdown, no code fences, no comments, no explanations.
-3. DO NOT change: display, position, flex-direction, grid-template, width, height, z-index.
-4. DO change: background, color, font-family, font-weight, border, border-radius, box-shadow, text-shadow, letter-spacing, opacity, gradient backgrounds.
-5. The page default is dark (#010101 background, white text). Your CSS overrides these defaults.
-6. You may use @import url('https://fonts.googleapis.com/...') for Google Fonts.
-7. Ensure text contrast is readable.
-8. Use .booking-page as parent scope for all selectors.
-9. Generate 15-30 lines of focused, elegant CSS.
+RULES:
+1. EVERY CSS property MUST have !important
+2. Output ONLY pure CSS. No markdown, no code fences, no comments.
+3. DO NOT change: display, position, flex-direction, grid-template, width, height, z-index, margin, padding.
+4. MUST change: background, color, font-family, font-weight, border, border-radius, box-shadow, text-shadow, letter-spacing.
+5. @import Google Fonts if a specific font is needed (MUST be first line).
+6. Ensure text contrast is readable.
+7. Style the ENTIRE page consistently — header, content, footer, buttons, inputs, cards.
+8. Generate 20-40 lines.
 
-EXAMPLE OUTPUT for "luxury gold dark":
-.booking-page { background: #0a0a0a !important; font-family: 'Playfair Display', serif !important; }
-.booking-page .bp-header { background: rgba(10,10,10,.95) !important; border-bottom: 1px solid rgba(200,170,100,.2) !important; }
-.booking-page .bp-hero h1 { color: #c9a84c !important; font-family: 'Playfair Display', serif !important; }
-.booking-page .bp-card { background: rgba(200,170,100,.05) !important; border: 1px solid rgba(200,170,100,.15) !important; }
-.booking-page .bp-btn { background: rgba(200,170,100,.15) !important; color: #c9a84c !important; border: 1px solid rgba(200,170,100,.3) !important; }
-.booking-page .bp-footer { border-top: 1px solid rgba(200,170,100,.1) !important; }`;
+EXAMPLE for "luxury gold dark":
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap');
+.booking-page { background: #0a0a0a !important; font-family: 'Playfair Display', serif !important; color: #e8dcc8 !important; }
+.booking-page header { background: rgba(10,10,10,.95) !important; border-bottom-color: rgba(200,170,100,.2) !important; }
+.booking-page header span { color: #c9a84c !important; }
+.booking-page h1, .booking-page h2 { color: #c9a84c !important; font-family: 'Playfair Display', serif !important; }
+.booking-page p, .booking-page div { color: rgba(200,170,100,.6) !important; }
+.booking-page button { background: rgba(200,170,100,.1) !important; color: #c9a84c !important; border-color: rgba(200,170,100,.25) !important; }
+.booking-page input, .booking-page textarea { background: rgba(200,170,100,.05) !important; border-color: rgba(200,170,100,.15) !important; color: #e8dcc8 !important; }
+.booking-page footer { background: rgba(200,170,100,.03) !important; border-top-color: rgba(200,170,100,.1) !important; }
+.booking-page footer * { color: rgba(200,170,100,.4) !important; }
+.booking-page a { color: rgba(200,170,100,.6) !important; }`;
 
 app.post('/api/ai/generate-style', requireRole('owner', 'admin'), async (req, res) => {
   try {
