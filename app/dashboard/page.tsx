@@ -248,6 +248,15 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   useEffect(() => {
     try { setUser(JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || 'null')) } catch {}
+    // Restore clock state from localStorage (fast restore before API fetch)
+    try {
+      const cs = JSON.parse(localStorage.getItem('VB_CLOCK_STATE') || 'null')
+      if (cs && cs.date === isoToday() && cs.clockedIn) {
+        setClockedIn(true)
+        setClockInTime(cs.clockInTime || null)
+        setTodayMinutes(cs.todayMinutes || 0)
+      }
+    } catch {}
     // Restore clock-out summary
     try { const saved = JSON.parse(localStorage.getItem('VB_CLOCKOUT_SUMMARY') || 'null'); if (saved && saved.date === isoToday()) setClockOutSummary(saved.data) } catch {}
   }, [])
@@ -477,11 +486,13 @@ export default function DashboardPage() {
       // Reviews
       setReviews(data.reviews?.reviews || [])
 
-      // Attendance
-      if (data.attStatus) {
-        setClockedIn(!!data.attStatus.clocked_in)
+      // Attendance — update state + persist to localStorage
+      if (data.attStatus && !data.attStatus.error) {
+        const isIn = !!data.attStatus.clocked_in
+        setClockedIn(isIn)
         setClockInTime(data.attStatus.clock_in || null)
         setTodayMinutes(data.attStatus.today_minutes || 0)
+        try { localStorage.setItem('VB_CLOCK_STATE', JSON.stringify({ clockedIn: isIn, clockInTime: data.attStatus.clock_in || null, todayMinutes: data.attStatus.today_minutes || 0, date: isoToday() })) } catch {}
       }
 
       // Staff on clock — deduplicate by user_id, keep latest clock_in
@@ -641,7 +652,11 @@ export default function DashboardPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed')
       if (wasClocked) {
-        // Clock out — fetch today's payroll for summary
+        // Clock out — clear clock state
+        setClockedIn(false)
+        setClockInTime(null)
+        try { localStorage.setItem('VB_CLOCK_STATE', JSON.stringify({ clockedIn: false, date: isoToday() })) } catch {}
+        // Fetch today's payroll for summary
         try {
           const today = isoToday()
           const pr = await fetch(`${API}/api/payroll?from=${today}T00:00:00.000Z&to=${today}T23:59:59.999Z`, { credentials: 'include', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } })
@@ -672,6 +687,10 @@ export default function DashboardPage() {
         // After animation, keep summary visible (don't clear it — stays until midnight)
         setTimeout(() => { setClockSuccess(null) }, 3500)
       } else {
+        // Clock in — persist state immediately
+        setClockedIn(true)
+        setClockInTime(data.clock_in || new Date().toISOString())
+        try { localStorage.setItem('VB_CLOCK_STATE', JSON.stringify({ clockedIn: true, clockInTime: data.clock_in || new Date().toISOString(), todayMinutes: 0, date: isoToday() })) } catch {}
         setClockSuccess('in')
         setTimeout(() => { setClockSuccess(null); loadAll() }, 1400)
       }
@@ -682,6 +701,7 @@ export default function DashboardPage() {
       setClockError(msg)
       setClockErrorAnim(true)
       setTimeout(() => setClockErrorAnim(false), 3200)
+      setTimeout(() => setClockError(''), 6000)
     }
     setClockLoading(false)
   }
