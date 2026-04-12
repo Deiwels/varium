@@ -640,6 +640,91 @@ async function scheduleReminders(wsCol, bookingId, booking, timeZone, shopName, 
 }
 
 // ============================================================
+// WAITLIST AUTO-FILL — notify waitlist clients when a cancellation opens a slot
+// ============================================================
+async function tryWaitlistAutoFill(wsId, cancelledBooking) {
+  try {
+    const wsCol = (col) => db.collection(`workspaces/${wsId}/${col}`);
+    const settingsDoc = await wsCol('settings').doc('config').get();
+    const settings = settingsDoc.exists ? settingsDoc.data() : {};
+    if (!settings.waitlist_enabled) return;
+    const timeZone = settings.timezone || 'America/Chicago';
+    const shopName = settings.shop_name || '';
+
+    const startAt = parseIso(cancelledBooking.start_at);
+    if (!startAt || startAt <= new Date()) return; // only future bookings
+    const barberId = cancelledBooking.barber_id;
+    if (!barberId) return;
+    const dateKey = getTzDateKey(startAt, timeZone);
+
+    // Find waitlist entries matching this barber + date
+    const waitSnap = await wsCol('waitlist').where('notified', '==', false).where('barber_id', '==', barberId).where('date', '==', dateKey).limit(10).get();
+    if (waitSnap.empty) return;
+
+    const barberDoc = await wsCol('barbers').doc(barberId).get();
+    if (!barberDoc.exists || barberDoc.data()?.active === false) return;
+    const barber = barberDoc.data();
+
+    // Check if the cancelled slot is actually free now
+    const slotEnd = parseIso(cancelledBooking.end_at) || addMinutes(startAt, cancelledBooking.duration_minutes || 30);
+    const busy = await getBusyIntervalsForBarber(wsCol, barberId, toIso(startAt), toIso(slotEnd));
+    const conflicting = busy.filter(iv => iv.start < slotEnd && startAt < iv.end);
+    if (conflicting.length > 0) return; // slot not actually free
+
+    const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone });
+    const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone });
+    const bookUrl = `https://vurium.com/book/${wsId}`;
+    const smsConf = await getWorkspaceSmsConfig(wsId);
+    const prefix = shopName ? `${shopName}: ` : '';
+
+    for (const wDoc of waitSnap.docs) {
+      const w = wDoc.data();
+      // Check preferred time window
+      if (w.preferred_start_min || w.preferred_end_min < 1440) {
+        const p = getTzParts(startAt, timeZone);
+        const slotMin = p.hour * 60 + p.minute;
+        if (slotMin < (w.preferred_start_min || 0) || slotMin >= (w.preferred_end_min || 1440)) continue;
+      }
+      const svcText = Array.isArray(w.service_names) && w.service_names.length ? w.service_names.join(', ') : 'your service';
+      // SMS
+      const wlPhoneNorm = normPhone(w.phone_raw || w.phone_norm);
+      if (wlPhoneNorm) {
+        const optOut = await wsCol('clients').where('phone_norm', '==', wlPhoneNorm).where('sms_opt_out', '==', true).limit(1).get();
+        if (optOut.empty) {
+          sendSms(wlPhoneNorm, `${prefix}A spot just opened up for ${svcText} with ${w.barber_name || 'your specialist'} on ${dateKey} at ${timeStr}. Book now: ${bookUrl} Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, smsConf.fromNumber, wsId).catch(() => {});
+        }
+      }
+      // Email
+      if (w.email) {
+        try {
+          const cfg = await getWorkspaceEmailConfig(wsId);
+          const t = EMAIL_THEMES[cfg.template] || EMAIL_THEMES.modern;
+          const isLt = ['classic', 'colorful'].includes(cfg.template);
+          const cardBg = isLt ? 'rgba(0,0,0,.03)' : 'rgba(255,255,255,.04)';
+          sendEmail(w.email, `A spot opened up – ${shopName || 'VuriumBook'}`, vuriumEmailTemplate('A Spot Opened Up!', `
+            <div style="text-align:center;margin-bottom:20px;">
+              <div style="width:48px;height:48px;margin:0 auto 12px;border-radius:999px;background:${isLt ? 'rgba(40,167,69,.08)' : 'rgba(130,220,170,.1)'};border:1px solid ${isLt ? 'rgba(40,167,69,.15)' : 'rgba(130,220,170,.15)'};text-align:center;line-height:48px;font-size:20px;">&#127881;</div>
+              <p style="font-size:15px;color:${t.text};margin:0;font-weight:600;">A spot just opened up!</p>
+            </div>
+            <div style="padding:16px;border-radius:14px;background:${cardBg};border:1px solid ${t.border};margin:16px 0;">
+              <div style="font-size:16px;font-weight:600;color:${t.text};">${svcText}</div>
+              <div style="color:${t.muted};margin-top:4px;">with ${w.barber_name || 'your specialist'}</div>
+              <div style="color:${t.accent};font-weight:500;margin-top:8px;">${dateStr} at ${timeStr}</div>
+            </div>
+            <div style="text-align:center;margin:24px 0 8px;">
+              <a href="${bookUrl}" style="display:inline-block;padding:14px 36px;border-radius:12px;font-size:15px;font-weight:600;text-decoration:none;color:${isLt ? '#fff' : 'rgba(130,220,170,.9)'};background:${isLt ? '#333' : 'rgba(130,220,170,.1)'};border:1px solid ${isLt ? '#333' : 'rgba(130,220,170,.2)'};">Book Now</a>
+            </div>
+            <p style="font-size:12px;color:${t.muted};text-align:center;margin-top:16px;">This slot may fill up quickly — book soon to secure your spot.</p>
+          `, cfg.shopName, cfg.logoUrl, cfg.template, cfg.contactInfo), cfg.shopName).catch(() => {});
+        } catch { /* skip email error */ }
+      }
+      await wDoc.ref.update({ notified: true, notified_at: toIso(new Date()), notified_slot: toIso(startAt), auto_fill: true });
+      break; // notify first matching waitlist entry only
+    }
+  } catch (e) { console.warn('tryWaitlistAutoFill error:', e?.message); }
+}
+
+// ============================================================
 // SATISFACTION PING — post-visit SMS + email with Google review link
 // ============================================================
 async function scheduleSatisfactionPing(wsId, wsCol, bookingId, bookingData) {
@@ -4197,6 +4282,8 @@ app.patch('/api/bookings/:id', async (req, res) => {
           </div>
           <p style="font-size:12px;color:${et.muted};">To book a new appointment, visit our booking page.</p>
         `, shopName, logoUrl, template, cfg.contactInfo), shopName).catch(() => {});
+        // Waitlist auto-fill — notify waitlist when cancellation opens a slot
+        tryWaitlistAutoFill(req.wsId, { ...existingData, ...savedData }).catch(() => {});
       }
     };
 
@@ -4254,6 +4341,8 @@ app.delete('/api/bookings/:id', async (req, res) => {
       }
     }
     sendCrmPushToBarber(req.ws, bookingData.barber_id, 'Booking Cancelled', `${bookingData.client_name || 'Client'} cancelled`, { type: 'booking_cancelled' }, 'push_cancel').catch(() => {});
+    // Waitlist auto-fill
+    tryWaitlistAutoFill(req.wsId, bookingData).catch(() => {});
     // Email cancellation notification
     if (bookingData.client_email) {
       const cfg = await getWorkspaceEmailConfig(req.wsId);
@@ -5320,6 +5409,38 @@ app.get('/api/payroll/audit', requirePlanFeature('payroll'), requireRole('owner'
         ? `${noAmount.length} paid booking${noAmount.length !== 1 ? 's' : ''} missing service amount — payroll may be inaccurate`
         : 'All paid bookings have service amounts',
       count: noAmount.length,
+    });
+
+    // ── Check 7: Square card payments vs bookings ──
+    const cardBookings = paidBookings.filter(b => ['terminal', 'card', 'applepay'].includes((b.payment_method || '').toLowerCase()));
+    const bookingCardTotal = cardBookings.reduce((s, b) => s + Number(b.service_amount || b.amount || 0) + Number(b.tip || b.tip_amount || 0), 0);
+    let squareTotal = 0;
+    let squareCount = 0;
+    let squareConnected = false;
+    try {
+      const sqHeaders = await squareHeaders(req.ws);
+      const params = new URLSearchParams();
+      if (from) params.set('begin_time', from);
+      if (to) params.set('end_time', to);
+      params.set('sort_order', 'DESC');
+      const sqResp = await squareFetch(`/v2/payments?${params}`, { headers: sqHeaders });
+      if (sqResp.ok) {
+        squareConnected = true;
+        const sqData = await sqResp.json();
+        const completed = (sqData.payments || []).filter(p => (p.status || '').toUpperCase() === 'COMPLETED');
+        squareCount = completed.length;
+        squareTotal = completed.reduce((s, p) => s + (Number(p.amount_money?.amount || 0) + Number(p.tip_money?.amount || 0)) / 100, 0);
+      }
+    } catch {} // Square not connected
+    const cardDiff = Math.abs(bookingCardTotal - squareTotal);
+    checks.push({
+      id: 'square_match',
+      status: !squareConnected ? 'ok' : cardDiff > 2 ? 'warning' : 'ok',
+      label: 'Square verification',
+      detail: !squareConnected ? 'Square not connected — skipped'
+        : cardDiff <= 2 ? `Bookings $${bookingCardTotal.toFixed(2)} = Square $${squareTotal.toFixed(2)} (${squareCount} payments)`
+        : `Mismatch: bookings $${bookingCardTotal.toFixed(2)} vs Square $${squareTotal.toFixed(2)} (diff $${cardDiff.toFixed(2)})`,
+      diff: squareConnected ? cardDiff : null,
     });
 
     const summary = { ok: checks.filter(c => c.status === 'ok').length, warnings: checks.filter(c => c.status === 'warning').length, errors: checks.filter(c => c.status === 'error').length };
@@ -7160,6 +7281,53 @@ app.post('/public/availability/:workspace_id', async (req, res) => {
 });
 
 // Smart recommendation helper — fetches alternative slots/barbers when booking fails
+// ── Booking Rate Limiter — max 3 bookings per phone/email per hour per workspace ──
+const _bookingRateMap = new Map(); // key: "wsId:phone|email" → [timestamps]
+const BOOKING_RATE_LIMIT = 3;
+const BOOKING_RATE_WINDOW = 60 * 60 * 1000; // 1 hour
+
+function checkBookingRateLimit(wsId, phone, email) {
+  const now = Date.now();
+  const keys = [];
+  const phoneNorm = phone ? normPhone(phone) : null;
+  if (phoneNorm) keys.push(`${wsId}:p:${phoneNorm}`);
+  if (email) keys.push(`${wsId}:e:${email.toLowerCase()}`);
+  for (const key of keys) {
+    const timestamps = _bookingRateMap.get(key) || [];
+    const recent = timestamps.filter(t => now - t < BOOKING_RATE_WINDOW);
+    if (recent.length >= BOOKING_RATE_LIMIT) return false;
+    _bookingRateMap.set(key, recent);
+  }
+  return true;
+}
+
+function recordBookingRateHit(wsId, phone, email) {
+  const now = Date.now();
+  const phoneNorm = phone ? normPhone(phone) : null;
+  if (phoneNorm) {
+    const key = `${wsId}:p:${phoneNorm}`;
+    const arr = (_bookingRateMap.get(key) || []).filter(t => now - t < BOOKING_RATE_WINDOW);
+    arr.push(now);
+    _bookingRateMap.set(key, arr);
+  }
+  if (email) {
+    const key = `${wsId}:e:${email.toLowerCase()}`;
+    const arr = (_bookingRateMap.get(key) || []).filter(t => now - t < BOOKING_RATE_WINDOW);
+    arr.push(now);
+    _bookingRateMap.set(key, arr);
+  }
+}
+
+// Clean up rate limit map periodically (every 10 min)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamps] of _bookingRateMap) {
+    const recent = timestamps.filter(t => now - t < BOOKING_RATE_WINDOW);
+    if (recent.length === 0) _bookingRateMap.delete(key);
+    else _bookingRateMap.set(key, recent);
+  }
+}, 10 * 60 * 1000);
+
 async function getSmartRecommendation(wsCol, barberId, startAt, durationMin, timeZone) {
   try {
     const rec = { message: '', alternative_slots: [], alternative_barbers: [] };
@@ -7232,6 +7400,10 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
     const smsConsent = !!booking.sms_consent;
     const durMin = Number(booking.duration_minutes || 30);
     if (!startAt || !barberId) return res.status(400).json({ error: 'start_at and barber_id required' });
+    // Rate limit: max 3 bookings per phone/email per hour
+    if (!checkBookingRateLimit(wsId, clientPhone, clientEmail)) {
+      return res.status(429).json({ error: 'Too many booking requests. Please try again later.' });
+    }
     const endAt = addMinutes(startAt, durMin);
     // Deduplicate client by phone or email — link to existing or create new
     const phoneNorm = normPhone(clientPhone) || null;
@@ -7402,6 +7574,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
           </div>
         `, emailShopName, emailLogo, emailTemplate, emailContactInfo), emailShopName).catch(() => {});
     }
+    recordBookingRateHit(wsId, clientPhone, clientEmail);
     res.status(201).json({ booking_id: bookingRef.id, id: bookingRef.id });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -7427,6 +7600,10 @@ app.post('/public/bookings-group/:workspace_id', async (req, res) => {
     const clientPhone = safeStr(body.client_phone);
     const clientEmail = sanitizeHtml(safeStr(body.client_email || '')).toLowerCase() || null;
     const smsConsent = !!body.sms_consent;
+    // Rate limit
+    if (!checkBookingRateLimit(wsId, clientPhone, clientEmail)) {
+      return res.status(429).json({ error: 'Too many booking requests. Please try again later.' });
+    }
 
     // Client dedup (shared across all bookings in the group)
     const phoneNorm = normPhone(clientPhone) || null;
@@ -8206,41 +8383,66 @@ async function runPayrollAudit() {
       try {
         const wsData = wsDoc.data() || {};
         const plan = wsData.plan_type || 'individual';
-        if (plan === 'individual') continue; // skip free plans
+        if (plan === 'individual') continue;
         const wsCol = (col) => db.collection(`workspaces/${wsDoc.id}/${col}`);
-        // Date range: last 7 days
         const now = new Date();
         const from = new Date(now); from.setDate(from.getDate() - 7);
         const fromStr = from.toISOString();
         const toStr = now.toISOString();
-        const fromDate = fromStr.slice(0, 10);
-        const toDate = toStr.slice(0, 10);
 
-        // Fetch data
         const [bookingsSnap, cashSnap] = await Promise.all([
           wsCol('bookings').where('start_at', '>=', fromStr).where('start_at', '<=', toStr).get(),
           wsCol('cash_reports').orderBy('date', 'desc').limit(30).get(),
         ]);
         const bookings = bookingsSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(b => b.status !== 'cancelled');
+        const paidBookings = bookings.filter(b => b.paid);
         const warnings = [];
 
         // Check 1: Unpaid completed bookings
         const unpaid = bookings.filter(b => !b.paid && b.status !== 'noshow' && b.status !== 'no_show');
         const unpaidAmt = unpaid.reduce((s, b) => s + Number(b.service_amount || b.amount || 0), 0);
-        if (unpaid.length > 0) warnings.push(`${unpaid.length} unpaid booking${unpaid.length > 1 ? 's' : ''} ($${unpaidAmt.toFixed(2)})`);
+        if (unpaid.length > 0) warnings.push(`${unpaid.length} unpaid bookings ($${unpaidAmt.toFixed(2)})`);
 
         // Check 2: Cash not counted
-        const cashBookings = bookings.filter(b => b.paid && (b.payment_method || '').toLowerCase() === 'cash');
-        const expectedCash = cashBookings.reduce((s, b) => s + Number(b.service_amount || b.amount || 0) + Number(b.tip || b.tip_amount || 0), 0);
-        const cashReports = cashSnap.docs.map(d => d.data());
-        const reportDates = new Set(cashReports.map(r => r.date));
-        const cashDates = new Set(cashBookings.map(b => (b.start_at || '').slice(0, 10)));
-        const uncountedDays = [...cashDates].filter(d => !reportDates.has(d));
-        if (uncountedDays.length > 0 && expectedCash > 0) warnings.push(`Cash not counted for ${uncountedDays.length} day${uncountedDays.length > 1 ? 's' : ''} ($${expectedCash.toFixed(2)} expected)`);
+        const cashBookings = paidBookings.filter(b => (b.payment_method || '').toLowerCase() === 'cash');
+        if (cashBookings.length > 0) {
+          const expectedCash = cashBookings.reduce((s, b) => s + Number(b.service_amount || b.amount || 0) + Number(b.tip || b.tip_amount || 0), 0);
+          const cashReports = cashSnap.docs.map(d => d.data());
+          const reportDates = new Set(cashReports.map(r => r.date));
+          const cashDates = new Set(cashBookings.map(b => (b.start_at || '').slice(0, 10)));
+          const uncountedDays = [...cashDates].filter(d => !reportDates.has(d));
+          if (uncountedDays.length > 0) warnings.push(`Cash not counted for ${uncountedDays.length} days ($${expectedCash.toFixed(2)} expected)`);
+        }
 
         // Check 3: Missing service amounts
-        const noAmount = bookings.filter(b => b.paid && !b.service_amount && !b.amount);
-        if (noAmount.length > 0) warnings.push(`${noAmount.length} paid booking${noAmount.length > 1 ? 's' : ''} missing service amount`);
+        const noAmount = paidBookings.filter(b => !b.service_amount && !b.amount);
+        if (noAmount.length > 0) warnings.push(`${noAmount.length} paid bookings missing service amount`);
+
+        // Check 4: Square card payments verification
+        const cardBookings = paidBookings.filter(b => ['terminal', 'card', 'applepay'].includes((b.payment_method || '').toLowerCase()));
+        if (cardBookings.length > 0) {
+          const bookingCardTotal = cardBookings.reduce((s, b) => s + Number(b.service_amount || b.amount || 0) + Number(b.tip || b.tip_amount || 0), 0);
+          let squareTotal = 0;
+          try {
+            const headers = await squareHeaders(wsCol);
+            const params = new URLSearchParams();
+            params.set('begin_time', fromStr);
+            params.set('end_time', toStr);
+            params.set('sort_order', 'DESC');
+            const sqResp = await squareFetch(`/v2/payments?${params}`, { headers });
+            if (sqResp.ok) {
+              const sqData = await sqResp.json();
+              const completed = (sqData.payments || []).filter(p => (p.status || '').toUpperCase() === 'COMPLETED');
+              squareTotal = completed.reduce((s, p) => s + (Number(p.amount_money?.amount || 0) + Number(p.tip_money?.amount || 0)) / 100, 0);
+            }
+          } catch {} // Square not connected — skip
+          if (squareTotal > 0) {
+            const diff = Math.abs(bookingCardTotal - squareTotal);
+            if (diff > 2) { // tolerance $2
+              warnings.push(`Card payments mismatch: bookings $${bookingCardTotal.toFixed(2)} vs Square $${squareTotal.toFixed(2)} (diff $${diff.toFixed(2)})`);
+            }
+          }
+        }
 
         // Store audit result for in-app badge
         await wsCol('settings').doc('payroll_audit').set({
@@ -8249,38 +8451,34 @@ async function runPayrollAudit() {
           warnings,
         }, { merge: true }).catch(() => {});
 
-        if (warnings.length === 0) continue; // no issues, skip notification
+        if (warnings.length === 0) continue;
 
-        // Check if already notified for this set of warnings (no spam)
+        // Anti-spam: only notify if warnings changed since last notification
         const prevDoc = await wsCol('settings').doc('payroll_audit').get().catch(() => null);
         const prevData = prevDoc?.exists ? prevDoc.data() : {};
-        const prevHash = (prevData.notified_hash || '');
-        const currentHash = warnings.sort().join('|');
-        if (prevHash === currentHash) continue; // same warnings, already notified
+        const prevHash = prevData.notified_hash || '';
+        const currentHash = [...warnings].sort().join('|');
+        if (prevHash === currentHash) continue;
 
-        // Mark as notified
         await wsCol('settings').doc('payroll_audit').update({ notified_hash: currentHash }).catch(() => {});
 
-        const title = `Payroll Audit: ${warnings.length} issue${warnings.length > 1 ? 's' : ''}`;
-        const body = warnings.join(' · ');
-
-        // Send push to owner (once)
-        sendCrmPushToRoles(wsCol, ['owner'], title, body, { screen: 'payroll' }, null, null).catch(() => {});
-
-        // Send email to owner (once)
+        // Send email ONLY to owner, ONLY once per new issue set
         const usersSnap = await wsCol('users').where('role', '==', 'owner').limit(1).get();
         if (!usersSnap.empty) {
           const owner = usersSnap.docs[0].data();
           const email = owner.email || owner.username;
           if (email && email.includes('@')) {
-            const shopName = wsData.shop_name || wsData.name || 'Your shop';
-            const warningsHtml = warnings.map(w => `<li style="margin-bottom:6px;color:#e8e8ed;">${w}</li>`).join('');
-            const html = vuriumEmailTemplate('Payroll Audit Alert', `
-              <p style="color:rgba(255,255,255,.6);margin-bottom:16px;">Automatic payroll audit found issues for the last 7 days:</p>
+            const settingsDoc = await wsCol('settings').doc('config').get().catch(() => null);
+            const shopName = settingsDoc?.exists ? safeStr(settingsDoc.data()?.shop_name || '') : '';
+            const displayName = shopName || wsData.name || 'Your shop';
+            const title = `Payroll Audit: ${warnings.length} issue${warnings.length > 1 ? 's' : ''} — ${displayName}`;
+            const warningsHtml = warnings.map(w => `<li style="margin-bottom:8px;color:#e8e8ed;font-size:14px;">${w}</li>`).join('');
+            const html = vuriumEmailTemplate('Payroll Audit', `
+              <p style="color:rgba(255,255,255,.6);margin-bottom:16px;">Automatic audit found ${warnings.length} issue${warnings.length > 1 ? 's' : ''} for the last 7 days:</p>
               <ul style="padding-left:18px;margin-bottom:20px;">${warningsHtml}</ul>
-              <p style="color:rgba(255,255,255,.4);font-size:13px;">Open your Payroll page and run Audit for full details.</p>
-            `, shopName, '', 'dark-cosmos');
-            sendEmail(email, title + ' — ' + shopName, html, 'Vurium').catch(() => {});
+              <p style="color:rgba(255,255,255,.4);font-size:13px;">Open Payroll and run Audit for details.</p>
+            `, displayName, '', 'dark-cosmos');
+            sendEmail(email, title, html, 'Vurium').catch(() => {});
           }
         }
 
@@ -8344,20 +8542,80 @@ async function runBookingAudit() {
           }
         }
 
-        // ── Check 2: Ghost barber bookings ──
+        // ── Check 2: Ghost barber bookings — notify client with alternatives ──
         const futureBookings = nonCancelledRecent.filter(b => b.start_at > now.toISOString());
+        const ghostBookings = [];
         for (const b of futureBookings) {
           if (b.barber_id && !allBarberIds.has(b.barber_id)) {
+            if (!b.ghost_barber_notified) ghostBookings.push(b);
             warnings.push({ severity: 'critical', check: 'ghost_barber', message: `Booking ${b.id} assigned to deleted barber ${b.barber_id} (client: ${b.client_name || 'unknown'}, ${(b.start_at || '').slice(0, 16)})` });
           } else if (b.barber_id && !activeBarberIds.has(b.barber_id)) {
+            if (!b.ghost_barber_notified) ghostBookings.push(b);
             warnings.push({ severity: 'critical', check: 'ghost_barber', message: `Booking ${b.id} assigned to inactive barber ${b.barber_name || b.barber_id} (client: ${b.client_name || 'unknown'}, ${(b.start_at || '').slice(0, 16)})` });
           }
         }
+        // Notify affected clients about ghost barber bookings
+        for (const b of ghostBookings.slice(0, 10)) {
+          try {
+            const manageUrl = b.client_token ? `https://vurium.com/manage-booking?ws=${wsDoc.id}&bid=${b.id}&token=${b.client_token}` : `https://vurium.com/book/${wsDoc.id}`;
+            const bookUrl = `https://vurium.com/book/${wsDoc.id}`;
+            // SMS notification
+            if (b.client_phone) {
+              const ghostPhoneNorm = normPhone(b.client_phone);
+              let ghostOptedOut = false;
+              if (ghostPhoneNorm) {
+                const goSnap = await wsCol('clients').where('phone_norm', '==', ghostPhoneNorm).where('sms_opt_out', '==', true).limit(1).get();
+                ghostOptedOut = !goSnap.empty;
+              }
+              if (!ghostOptedOut) {
+                const ghostSmsConf = await getWorkspaceSmsConfig(wsDoc.id);
+                const ghostPrefix = shopName ? `${shopName}: ` : '';
+                sendSms(b.client_phone, `${ghostPrefix}Your specialist ${b.barber_name || ''} is no longer available for your appointment on ${(b.start_at || '').slice(0, 10)}. Please rebook with another specialist: ${bookUrl} Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, ghostSmsConf.fromNumber, wsDoc.id).catch(() => {});
+              }
+            }
+            // Email notification
+            if (b.client_email) {
+              const cfg = await getWorkspaceEmailConfig(wsDoc.id);
+              const et = EMAIL_THEMES[cfg.template] || EMAIL_THEMES.modern;
+              const isLt = ['classic', 'colorful'].includes(cfg.template);
+              const cardBg = isLt ? 'rgba(0,0,0,.03)' : 'rgba(255,255,255,.04)';
+              const startAt = parseIso(b.start_at);
+              const dateStr = startAt ? startAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone }) : '';
+              const timeStr = startAt ? startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone }) : '';
+              sendEmail(b.client_email, `Action needed — your specialist is unavailable`, vuriumEmailTemplate('Specialist Unavailable', `
+                <p style="color:${et.muted};">We're sorry, but your specialist <b style="color:${et.text};">${b.barber_name || 'your specialist'}</b> is no longer available for your upcoming appointment.</p>
+                <div style="padding:16px;border-radius:14px;background:${cardBg};border:1px solid ${et.border};margin:16px 0;">
+                  <div style="font-size:16px;font-weight:600;color:${et.text};">${b.service_name || 'Appointment'}</div>
+                  <div style="color:${et.muted};margin-top:4px;">${dateStr}${timeStr ? ' at ' + timeStr : ''}</div>
+                </div>
+                <div style="text-align:center;margin:20px 0;">
+                  <a href="${manageUrl}" style="display:inline-block;padding:12px 24px;border-radius:10px;background:${isLt ? 'rgba(0,0,0,.05)' : 'rgba(255,255,255,.08)'};border:1px solid ${et.border};color:${et.text};text-decoration:none;font-size:14px;font-weight:600;margin-right:8px;">Reschedule</a>
+                  <a href="${bookUrl}" style="display:inline-block;padding:12px 24px;border-radius:10px;background:${isLt ? 'rgba(0,0,0,.05)' : 'rgba(130,150,220,.12)'};border:1px solid ${isLt ? 'rgba(0,0,0,.08)' : 'rgba(130,150,220,.2)'};color:${et.accent};text-decoration:none;font-size:14px;font-weight:600;">Book Another Specialist</a>
+                </div>
+              `, shopName, '', cfg.template, cfg.contactInfo), shopName).catch(() => {});
+            }
+            // Mark as notified so we don't spam on next audit cycle
+            await db.collection(`workspaces/${wsDoc.id}/bookings`).doc(b.id).update({
+              ghost_barber_notified: true, ghost_barber_notified_at: toIso(new Date()),
+            }).catch(() => {});
+          } catch { /* skip on error */ }
+        }
 
-        // ── Check 3: Stale "booked" status (past >2h, still "booked") ──
+        // ── Check 3: Stale "booked" status — AUTO-FIX to noshow ──
         const stale = nonCancelledRecent.filter(b => b.status === 'booked' && b.start_at && b.start_at < twoHoursAgo.toISOString());
         if (stale.length > 0) {
-          warnings.push({ severity: 'warning', check: 'stale_status', message: `${stale.length} past booking${stale.length > 1 ? 's' : ''} still in "booked" status (should be completed/noshow): ${stale.slice(0, 5).map(b => b.id).join(', ')}${stale.length > 5 ? '...' : ''}` });
+          // Auto-fix: mark stale bookings as noshow
+          let autoFixed = 0;
+          for (const b of stale) {
+            try {
+              await db.collection(`workspaces/${wsDoc.id}/bookings`).doc(b.id).update({
+                status: 'noshow', updated_at: toIso(new Date()),
+                auto_noshow: true, auto_noshow_at: toIso(new Date()),
+              });
+              autoFixed++;
+            } catch { /* skip on error */ }
+          }
+          warnings.push({ severity: 'warning', check: 'stale_status', message: `Auto-fixed ${autoFixed}/${stale.length} stale booking${stale.length > 1 ? 's' : ''} → noshow: ${stale.slice(0, 5).map(b => b.id).join(', ')}${stale.length > 5 ? '...' : ''}` });
         }
 
         // ── Check 4: Missing client data ──
@@ -9087,6 +9345,8 @@ app.post('/public/manage-booking/cancel', async (req, res) => {
         <p style="font-size:12px;color:${et.muted};">To book a new appointment, visit our booking page.</p>
       `, shopName, logoUrl, template, cfg.contactInfo), shopName).catch(() => {});
     }
+    // Waitlist auto-fill
+    tryWaitlistAutoFill(data.workspace_id || ws, data).catch(() => {});
     res.json({ ok: true, status: 'cancelled' });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
