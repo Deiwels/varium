@@ -15,29 +15,10 @@ const { Firestore } = require('@google-cloud/firestore');
 const { google } = require('googleapis');
 const Anthropic = require('@anthropic-ai/sdk');
 
-console.log('[BOOT] Starting VuriumBook backend');
-
-process.on('uncaughtException', (err) => {
-  console.error('[BOOT] Uncaught exception:', err?.message, err?.stack || '');
-});
-
-process.on('unhandledRejection', (reason) => {
-  console.error('[BOOT] Unhandled rejection:', reason);
-});
-
 const app = express();
 app.set('trust proxy', true);
+const db = new Firestore();
 const PORT = process.env.PORT || 8080;
-const FIRESTORE_PROJECT_ID = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || '';
-
-let db;
-try {
-  db = FIRESTORE_PROJECT_ID ? new Firestore({ projectId: FIRESTORE_PROJECT_ID }) : new Firestore();
-  console.log(`[BOOT] Firestore client ready (project=${FIRESTORE_PROJECT_ID || 'auto'})`);
-} catch (e) {
-  console.error('[BOOT] Firestore init failed:', e?.message);
-  db = new Firestore(); // fallback to auto-detect
-}
 
 // ============================================================
 // CONFIG
@@ -10160,7 +10141,7 @@ app.use((err, req, res, _next) => {
 // ============================================================
 // START
 // ============================================================
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
   console.log(`VuriumBook API running on port ${PORT}`);
   console.log(`Environment: ${NODE_ENV}`);
 });
