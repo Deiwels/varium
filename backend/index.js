@@ -209,6 +209,10 @@ function getEffectivePlan(wsData) {
   // Active or cancelling subscription → give the plan they paid for
   // 'cancelling' means auto-renew is off but current period is still active
   if (billingStatus === 'active' || billingStatus === 'cancelling') {
+    // Check Apple subscription expiry (webhook may be delayed)
+    if (wsData?.billing_source === 'apple' && wsData?.apple_expires_at) {
+      if (new Date(wsData.apple_expires_at) < new Date()) return 'expired';
+    }
     // Map legacy plan names
     if (planType === 'starter' || planType === 'free' || planType === 'trial') return 'individual';
     if (planType === 'pro') return 'salon';
@@ -7177,7 +7181,26 @@ app.post('/public/stripe-connect/create-payment-intent/:wsId', async (req, res) 
 // Stripe Connect webhook
 app.post('/api/webhooks/stripe-connect', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
-    const event = JSON.parse(req.body.toString());
+    // Verify Stripe Connect webhook signature (same logic as main Stripe webhook)
+    let event;
+    if (STRIPE_WEBHOOK_SECRET) {
+      const sig = req.headers['stripe-signature'];
+      if (sig) {
+        const payload = req.body.toString();
+        const timestamp = sig.split(',').find(s => s.startsWith('t='))?.slice(2);
+        const v1Sig = sig.split(',').find(s => s.startsWith('v1='))?.slice(3);
+        if (timestamp && v1Sig) {
+          if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return res.status(400).json({ error: 'Webhook too old' });
+          const expectedSig = crypto.createHmac('sha256', STRIPE_WEBHOOK_SECRET).update(`${timestamp}.${payload}`).digest('hex');
+          if (expectedSig !== v1Sig) return res.status(400).json({ error: 'Invalid signature' });
+        }
+        event = JSON.parse(payload);
+      } else {
+        event = JSON.parse(req.body.toString());
+      }
+    } else {
+      event = JSON.parse(req.body.toString());
+    }
     const obj = event.data?.object;
     if (!obj) return res.json({ ok: true });
     const wsId = obj.metadata?.workspace_id || '';
