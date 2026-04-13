@@ -66,6 +66,7 @@
   - The session PIN overlay in `components/Shell.tsx` now has a clear `Use password instead` escape hatch and supporting copy, so phone users no longer look visually trapped in a full-screen lock state
   - `Settings -> Taxes & Fees` and `Custom charges` now collapse into stacked/two-column mobile cards, keeping label, payment-method, and remove controls reachable on narrow screens instead of squeezing desktop grids
   - `Settings -> Payroll defaults` tip-option inputs now stack cleanly on phones too, and the Square Terminal preview chips wrap instead of overflowing
+  - SMS/Telnyx registration fields in `Settings` now stack on mobile as well, so business identity/contact/address blocks stop behaving like rigid desktop forms
 - [ ] P0.15 Timezone indicator on booking page — **IN PROGRESS**
   - Local implementation added to `app/book/[id]/page.tsx`
   - Pending: browser verification on live booking flow
@@ -74,7 +75,10 @@
   - Frontend now sends `idempotency_key` with booking creation to match backend duplicate-submit protection
   - Restored draft data is now surfaced back to the client with an inline notice on the details step, so saved info does not silently reappear without explanation
   - Pending: manual unavailable-slot/back-navigation verification
-- [ ] P0.17 Calendar mobile layout
+- [ ] P0.17 Calendar mobile layout — **IN PROGRESS**
+  - Calendar grid now allows horizontal pan on mobile when the full barber schedule is wider than the viewport, instead of clipping extra columns behind `overflowX: hidden`
+  - Calendar settings/team/service editors are being collapsed into single-column mobile layouts, and the weekly schedule grid now breaks to 2 columns on phone screens
+  - Pending: browser verification on an actual narrow viewport before marking done
 
 ## P1 — Queued
 
@@ -116,6 +120,7 @@
   - Booking empty states now explain what to do next instead of just saying "No services available" or "No times are currently open for this day"
   - Action-state copy is being softened too: booking/payment CTAs and clock-in widgets now show clearer in-progress text instead of raw `...` or terse debug-style wording
   - Inline payment submit text on the booking page now reads `Processing payment…` instead of a generic `Processing...`
+  - More raw three-dot action states were cleaned too (`Sending…`, `Adding…`, `Generating…`) so customer/admin surfaces stay consistent
 
 ## P2 — After Core Launch
 
@@ -137,6 +142,7 @@
   - Sell-side trust copy is also being cleaned up to avoid unsupported claims on public marketing pages
   - `/`, `/about`, `/faq`, and `/support` are now being softened too so public pages stop promising unverified SLAs, compliance badges, or overly specific security claims
   - `contact` success copy and the getting-started blog post were aligned with the same safer trial/setup wording so marketing messaging stays consistent across the site
+  - Additional exact-timeline claims were removed too (`24/7`, `under 2 minutes`, `within 30 days`) where we had not separately validated them as hard promises
 - [ ] P2.6 Table sorting (AI 2)
 - [ ] P2.7 Bulk actions (AI 2)
 - [ ] P2.8 Open Graph tags (AI 2) — **IN PROGRESS**
@@ -144,17 +150,29 @@
 
 ## SMS & 10DLC Compliance
 
-### Backend (Owner/AI 1) — DONE
-- [x] Telnyx Verify API endpoints (POST /api/verify/send + /check)
-- [x] Sole Proprietor endpoints fixed (messageFlow, optout, optin)
-- [x] Auto-TFN removed from signup
-- [x] SMS message formats compliant
-- [x] Docs updated
+### Backend (AI 1) — ALL DONE
+- [x] 1.1 Telnyx Verify API — already at `/public/verify/send/:wsId` + `/check/:wsId`
+- [x] 1.2 SP registration fields — **re-implemented** commit `2c8ce2c`
+  - messageFlow: WEBFORM → descriptive opt-in narrative
+  - optoutKeywords: added CANCEL,END,QUIT
+  - optinMessage: added "Consent is not a condition of purchase"
+  - SP status: pending_approval → active (auto-approves)
+  - embeddedLink: false
+- [x] 1.3 Auto-TFN removed from signup — **re-implemented** commit `2c8ce2c` (60 lines removed)
+- [x] 1.4 Message formats compliant
+- [x] 1.5 Docs updated
 
 ### Frontend (AI 2) — TODO
-- [ ] **2.1** Settings — SP Registration wizard UI (guide owner through Telnyx SP setup)
-- [ ] **2.2** Booking page — update CTA text (business name instead of VuriumBook)
-- [ ] **2.3** Consent metadata (SMS consent wording in booking flow)
+- [ ] **2.1** Settings — SP Registration wizard UI (guide owner through Telnyx SP setup) — **IN PROGRESS**
+  - `Settings -> SMS Notifications` no longer implies auto-provisioning; it now shows a manual self-serve setup state when SMS is not registered yet
+  - `SmsRegistrationForm` now walks owners through business profile, contact details, and sole-proprietor verification as a guided step flow instead of one long raw form
+  - Pending: browser verification of the step flow and OTP resume state
+- [ ] **2.2** Booking page — update CTA text (business name instead of VuriumBook) — **IN PROGRESS**
+  - Booking and waitlist SMS opt-in copy now uses a business-specific program name (`{shopName} Appointment Notifications`) instead of platform-first VuriumBook wording
+  - Terms and Privacy links stay clickable directly inside the opt-in label
+- [ ] **2.3** Consent metadata (SMS consent wording in booking flow) — **IN PROGRESS**
+  - Booking, pay-online, group booking, and waitlist submissions now send both `sms_consent_text` and `sms_consent_text_version`
+  - Pending: browser verification of the updated consent flow on a live booking page
 
 ### Pre-deploy
 - [ ] Create Telnyx Verify Profile → `TELNYX_VERIFY_PROFILE_ID`
