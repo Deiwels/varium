@@ -45,6 +45,8 @@
   - Frontend/backend path re-checked for `online_booking_enabled`, `waitlist_enabled`, `booking.cancellation_hours`, `display.show_prices`, `display.require_phone`, `display.allow_notes`
   - Pending: manual toggle → reload verification pass across categories
 - [ ] P0.11 Full customer path audit
+  - Session-expiry / stale-login black-screen fix added in `components/Shell.tsx`; protected pages now redirect to `/signin` instead of hanging on a blank screen
+  - Edited auth-loss redirects now use `replace('/signin')` to avoid back-navigation into stale protected screens
 - [ ] P0.12 Remove alert()/confirm() — **IN PROGRESS**
   - `app/billing/page.tsx` moved to styled dialog flow for cancel/manage actions
   - `app/settings/page.tsx` key owner flows moved off native `confirm()`; team password reset and owner delete-account also moved off browser `prompt()`
@@ -64,9 +66,12 @@
 
 ## P1 — Queued
 
-- [ ] P1.1 Fix N+1 queries (AI 1)
-- [ ] P1.2 Fix silent .catch() (AI 1)
-- [ ] P1.3 Firestore indexes (AI 1)
+- [x] P1.1 Fix N+1 queries (AI 1) — **DONE** commit `183209e` 2026-04-14
+  - Square webhook uses merchant_id for fast workspace lookup; fallback to scan only if not found
+- [x] P1.2 Fix silent .catch() (AI 1) — **DONE** commit `183209e` 2026-04-14
+  - Payment booking updates and payment_request creates now log errors instead of silently swallowing
+- [x] P1.3 Firestore indexes (AI 1) — **DONE** commit `183209e` 2026-04-14
+  - Added backend/firestore.indexes.json: bookings(status+start_at), (phone_norm+start_at), (barber_id+start_at)
 - [ ] P1.4 Webhook logging (AI 1)
 - [ ] P1.5 Button disabled states (AI 2)
 - [ ] P1.6 Dashboard timezone (AI 2) — **IN PROGRESS**
