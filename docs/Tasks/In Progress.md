@@ -24,14 +24,26 @@
 
 ## P0 — Launch Readiness (AI 2: Frontend)
 
-- [ ] P0.9 Settings mobile drill-down navigation
-- [ ] P0.10 Settings save/load verification
+- [ ] P0.9 Settings mobile drill-down navigation — **IN PROGRESS**
+  - Local implementation complete in `app/settings/page.tsx`
+  - Pending: browser/iPhone verification before marking done
+- [ ] P0.10 Settings save/load verification — **IN PROGRESS**
+  - Frontend/backend path re-checked for `online_booking_enabled`, `waitlist_enabled`, `booking.cancellation_hours`, `display.show_prices`, `display.require_phone`, `display.allow_notes`
+  - Pending: manual toggle → reload verification pass across categories
 - [ ] P0.11 Full customer path audit
-- [ ] P0.12 Remove alert()/confirm()
+- [ ] P0.12 Remove alert()/confirm() — **IN PROGRESS**
+  - `app/billing/page.tsx` moved to styled dialog flow for cancel/manage actions
+  - `app/settings/page.tsx` key owner flows moved off native `confirm()`; team password reset and owner delete-account also moved off browser `prompt()`
+  - `app/signin/page.tsx` forgot-password browser prompt replaced with branded modal
+  - Remaining work: broader scan across remaining AI 2 pages before marking done
 - [ ] P0.13 Role-based visibility verification
 - [ ] P0.14 Mobile usability on key pages
-- [ ] P0.15 Timezone indicator on booking page
-- [ ] P0.16 Fix form data loss on booking page
+- [ ] P0.15 Timezone indicator on booking page — **IN PROGRESS**
+  - Local implementation added to `app/book/[id]/page.tsx`
+  - Pending: browser verification on live booking flow
+- [ ] P0.16 Fix form data loss on booking page — **IN PROGRESS**
+  - Session draft persistence added for `name`, `email`, `phone`, `notes`, `smsConsent`
+  - Pending: manual unavailable-slot/back-navigation verification
 - [ ] P0.17 Calendar mobile layout
 
 ## P1 — Queued

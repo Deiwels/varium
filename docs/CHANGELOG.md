@@ -4,6 +4,18 @@
 
 ## April 13, 2026
 
+### Dashboard Widget System Overhaul
+- **Toggleable widgets** — All dashboard sections (Staff On Clock, My Earnings, Clock-In) converted from fixed layout to standard toggleable widgets in the grid
+- **Widget add/remove** — Long press to enter edit mode, red "-" to remove, "+" to re-add from available widgets list
+- **Drag-to-reorder (mobile)** — iPhone-style drag-and-drop in jiggle mode; floating clone follows finger, drop target highlights, layout persists to localStorage
+- **Shortcut persistence fix** — Removed shortcuts (Portfolio, Cash, etc.) now actually hide outside edit mode; core shortcuts (Calendar, History, Clients, Payments) always visible
+- **My Earnings widget** — Compact card with Services/Tips/Total columns + Day/Week/Month switcher (barber role only)
+- **Staff On Clock widget** — Shows staff name, clock-in time, elapsed minutes with green status dots (owner/admin only)
+- **Clock-In unlocked** — No longer locked at top; standard 2-col widget, removable and movable
+- **Barber schedule widgets removed** — Individual barber cards (Dan, Lili, etc.) with days/hours removed from dashboard
+- **Keyboard hides nav** — Bottom pill bar auto-hides when virtual keyboard opens (visualViewport API)
+- **Drag UX** — Prevented link drag, text selection, and iOS long-press menu in edit mode
+
 ### History Page (New)
 - **`/history` page** — Unified view of all booking and waitlist records with Dark Cosmos styling
 - **Waitlist integration** — Waitlist entries shown alongside bookings with gold indicators and dedicated statuses (waitlist, WL confirmed, WL removed)
