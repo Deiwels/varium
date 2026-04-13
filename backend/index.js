@@ -2807,6 +2807,23 @@ async function checkRateLimit(ip) {
   return { allowed: true };
 }
 
+// In-memory rate limiter for public endpoints (no Firestore cost)
+const publicRateLimits = new Map();
+function checkPublicRateLimit(ip, endpoint, maxPerMin = 20) {
+  const key = `${endpoint}_${ip}`;
+  const now = Date.now();
+  const entry = publicRateLimits.get(key);
+  if (!entry || now - entry.start > 60000) {
+    publicRateLimits.set(key, { start: now, count: 1 });
+    return true;
+  }
+  entry.count++;
+  if (entry.count > maxPerMin) return false;
+  return true;
+}
+// Cleanup old entries every 5 min
+setInterval(() => { const now = Date.now(); publicRateLimits.forEach((v, k) => { if (now - v.start > 120000) publicRateLimits.delete(k); }); }, 5 * 60 * 1000);
+
 async function resetRateLimit(ip) {
   const key = `ratelimit_login_${String(ip || 'unknown').replace(/[^a-zA-Z0-9._:-]/g, '_')}`;
   await db.collection('rate_limits').doc(key).delete().catch(() => {});
@@ -4199,7 +4216,8 @@ app.delete('/api/services/:id', requireRole('owner', 'admin'), async (req, res) 
 app.get('/api/clients', async (req, res) => {
   try {
     const q = safeStr(req.query?.q || '').toLowerCase();
-    const snap = await req.ws('clients').orderBy('created_at', 'desc').limit(500).get();
+    const pageLimit = Math.min(Math.max(Number(req.query?.limit) || 200, 1), 500);
+    const snap = await req.ws('clients').orderBy('created_at', 'desc').limit(pageLimit).get();
     let list = snap.docs.map(d => {
       const data = d.data();
       return { id: d.id, ...data, name: decryptPII(data.name), email: decryptPII(data.email), phone: data.phone ? decryptPhone(data.phone) : data.phone };
@@ -5075,7 +5093,8 @@ app.get('/api/payments', requireRole('owner', 'admin'), async (req, res) => {
     const to = safeStr(req.query?.to || '');
     const barberId = safeStr(req.query?.barber_id || '');
     // Local payment_requests
-    const prSnap = await req.ws('payment_requests').orderBy('created_at', 'desc').limit(1000).get();
+    const payLimit = Math.min(Math.max(Number(req.query?.limit) || 200, 1), 1000);
+    const prSnap = await req.ws('payment_requests').orderBy('created_at', 'desc').limit(payLimit).get();
     let payments = prSnap.docs.map(d => ({ id: d.id, source: 'local', ...d.data() }));
     // Try to get Square payments too
     try {
@@ -5649,10 +5668,11 @@ app.post('/api/messages/fix-dm', requireRole('owner'), async (req, res) => {
 app.get('/api/messages', requirePlanFeature('messages'), async (req, res) => {
   try {
     const chatType = safeStr(req.query?.chatType || 'general');
+    const msgLimit = Math.min(Math.max(Number(req.query?.limit) || 100, 1), 500);
     // 'team' includes old 'general' messages for backward compat
     const snap = chatType === 'team'
-      ? await req.ws('messages').where('chatType', 'in', ['team', 'general']).orderBy('createdAt', 'desc').limit(100).get()
-      : await req.ws('messages').where('chatType', '==', chatType).orderBy('createdAt', 'desc').limit(100).get();
+      ? await req.ws('messages').where('chatType', 'in', ['team', 'general']).orderBy('createdAt', 'desc').limit(msgLimit).get()
+      : await req.ws('messages').where('chatType', '==', chatType).orderBy('createdAt', 'desc').limit(msgLimit).get();
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -8019,7 +8039,10 @@ async function getSmartRecommendation(wsCol, barberId, startAt, durationMin, tim
   } catch { return null; }
 }
 
-app.post('/public/bookings/:workspace_id', async (req, res) => {
+app.post('/public/bookings/:workspace_id', (req, res, next) => {
+  if (!checkPublicRateLimit(getClientIp(req), 'booking', 10)) return res.status(429).json({ error: 'Too many booking requests. Please wait a moment.' });
+  next();
+}, async (req, res) => {
   try {
     const wsId = req.params.workspace_id;
     const wsDoc = await db.collection('workspaces').doc(wsId).get();
