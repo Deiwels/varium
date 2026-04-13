@@ -54,6 +54,7 @@ jobs:
             --min-instances 0 \
             --max-instances 10 \
             --set-env-vars "NODE_ENV=production" \
+            --set-env-vars "GCP_PROJECT_ID=$PROJECT_ID" \
             --set-env-vars "JWT_SECRET=${{ secrets.JWT_SECRET }}" \
             --set-env-vars "TELNYX_API_KEY=${{ secrets.TELNYX_API_KEY }}" \
             --set-env-vars "TELNYX_FROM=${{ secrets.TELNYX_FROM }}" \
@@ -80,6 +81,15 @@ jobs:
             --set-env-vars "GMAIL_CLIENT_ID=${{ secrets.GMAIL_CLIENT_ID }}" \
             --set-env-vars "GMAIL_CLIENT_SECRET=${{ secrets.GMAIL_CLIENT_SECRET }}" \
             --set-env-vars "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}"
+
+      - name: Show recent Cloud Run logs on failure
+        if: failure()
+        run: |
+          gcloud logging read \
+            "resource.type=cloud_run_revision AND resource.labels.service_name=$SERVICE_NAME" \
+            --project=$PROJECT_ID \
+            --limit=50 \
+            --format="value(timestamp,textPayload)"
 
       - name: Show URL
         run: |

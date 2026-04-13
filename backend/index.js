@@ -15,10 +15,29 @@ const { Firestore } = require('@google-cloud/firestore');
 const { google } = require('googleapis');
 const Anthropic = require('@anthropic-ai/sdk');
 
+console.log('[BOOT] Starting VuriumBook backend');
+
+process.on('uncaughtException', (err) => {
+  console.error('[BOOT] Uncaught exception:', err?.message, err?.stack || '');
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[BOOT] Unhandled rejection:', reason);
+});
+
 const app = express();
 app.set('trust proxy', true);
-const db = new Firestore();
 const PORT = process.env.PORT || 8080;
+const FIRESTORE_PROJECT_ID = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || '';
+
+let db;
+try {
+  db = FIRESTORE_PROJECT_ID ? new Firestore({ projectId: FIRESTORE_PROJECT_ID }) : new Firestore();
+  console.log(`[BOOT] Firestore client ready (project=${FIRESTORE_PROJECT_ID || 'auto'})`);
+} catch (e) {
+  console.error('[BOOT] Firestore init failed:', e?.message, e?.stack || '');
+  process.exit(1);
+}
 
 // ============================================================
 // CONFIG
@@ -8552,7 +8571,7 @@ app.post('/public/waitlist/:workspace_id', async (req, res) => {
     const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
     const settingsDoc = await wsCol('settings').doc('config').get();
     const settingsData = settingsDoc.exists ? settingsDoc.data() : {};
-    const waitlistAllowedByPlan = !!PLAN_DEFS[effectivePlan]?.features?.includes('waitlist');
+    const waitlistAllowedByPlan = !!PLAN_FEATURES[effectivePlan]?.features?.includes('waitlist');
     if (!waitlistAllowedByPlan || !settingsData?.waitlist_enabled) {
       return res.status(403).json({ error: 'Waitlist is currently disabled for this business.' });
     }
@@ -10141,7 +10160,7 @@ app.use((err, req, res, _next) => {
 // ============================================================
 // START
 // ============================================================
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`VuriumBook API running on port ${PORT}`);
   console.log(`Environment: ${NODE_ENV}`);
 });
