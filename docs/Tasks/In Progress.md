@@ -4,13 +4,22 @@
 
 ## P0 — Launch Readiness (AI 1: Backend)
 
-- [ ] P0.1 Webhook signature verification (Stripe + Square)
-- [ ] P0.2 Fix `spAmountCents` → `spServiceCents`
-- [ ] P0.3 Cloud Run stability + rollback runbook
+- [x] P0.1 Webhook signature verification (Stripe + Square) — **DONE** commit `b1bdbe9` 2026-04-14
+  - Stripe: HMAC-SHA256 verification of `stripe-signature` header
+  - Square: HMAC-SHA256 verification of `x-square-hmacsha256-signature` header
+  - Both reject invalid signatures with 400
+- [x] P0.2 Fix `spAmountCents` → `spServiceCents` — **DONE** commit `b1bdbe9` 2026-04-14
+  - 6 occurrences replaced in webhook + reconciliation handlers
+- [x] P0.3 Cloud Run stability + health check — **DONE** commit `b1bdbe9` 2026-04-14
+  - Added `GET /health` endpoint (status, uptime, timestamp)
+  - Memory 1Gi, CPU 1, timeout 300s
+  - Rollback: `gcloud run services update-traffic vuriumbook-api --to-revisions=PREVIOUS=100`
 - [ ] P0.4 Billing verification matrix
 - [ ] P0.5 Auth and security audit
 - [ ] P0.6 Data integrity — full chain verification
-- [ ] P0.7 Server-side price verification
+- [x] P0.7 Server-side price verification — **DONE** commit `b1bdbe9` 2026-04-14
+  - Compares payment amount vs booking service_amount
+  - Rejects if >2x or <0.5x expected (tolerance for tax/fees)
 - [ ] P0.8 Booking idempotency
 
 ## P0 — Launch Readiness (AI 2: Frontend)
