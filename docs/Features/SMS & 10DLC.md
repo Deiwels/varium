@@ -102,7 +102,21 @@ POST /v2/verifications/by_phone_number/{phone}/actions/verify → Verify code
 | Status | **Failed MNO Review — code 710** |
 | Failure reason | "Reseller / Non-compliant KYC" |
 
-**Will not be resubmitted.** Switching to per-business brand architecture instead.
+**Will not be resubmitted.** Switched to per-business brand architecture.
+
+### Per-business campaign: Element Barbershop (first customer)
+
+| Field | Value |
+|---|---|
+| Campaign ID | 4b30019d-826e-61b2-0eb0-915fdcaf1749 |
+| TCR Campaign ID | CICHCOJ |
+| Brand | Element Barbershop |
+| Use case | Low Volume Mixed |
+| Status | **Pending MNO Review** (submitted Apr 12, 2026) |
+| Sender in messages | `Element Barbershop:` |
+| Booking page | https://vurium.com/book/elementbarbershop |
+
+This is the correct per-business architecture — each business gets its own brand + campaign. No 710 risk because the sender matches the registered brand.
 
 ### Campaign 2 — CUSTOMER_CARE (VuriumBook Appointment Notifications)
 
@@ -339,7 +353,7 @@ For SMS upgrade (in Settings):
 |---|---|---|
 | `sendSms()` with Telnyx API v2 | ✅ Working | `backend/index.js:433-471` |
 | Auto-provision TFN on signup | ❌ **Removed** — SMS via Settings now | `backend/index.js:3274` (comment only) |
-| Telnyx Verify API (2FA OTP) | ✅ **NEW** — bypasses 10DLC | `backend/index.js` POST `/api/verify/send` + `/api/verify/check` |
+| Telnyx Verify API (2FA OTP) | ✅ **NEW** — bypasses 10DLC | `backend/index.js` POST `/public/verify/send/:wsId` + `/public/verify/check/:wsId` |
 | SP brand registration | ✅ Working | POST `/api/sms/register` (entityType=SOLE_PROPRIETOR) |
 | SP OTP verification | ✅ Working | POST `/api/sms/verify-otp` → auto-creates campaign + buys number |
 | Toll-free enable (Individual plan) | ✅ Working | POST `/api/sms/enable-tollfree` |
@@ -382,29 +396,29 @@ TELNYX_VERIFY_PROFILE_ID=<the-id-from-response>
 
 ---
 
-### AI 1 — Backend (`backend/index.js` + `docs/`) — ⚠️ NEEDS RE-IMPLEMENTATION
+### AI 1 — Backend (`backend/index.js` + `docs/`) — RESTORED
 
-**NOTE:** Backend changes were coded but lost due to concurrent edits by another AI. The following must be re-applied to `backend/index.js`:
-
-#### Task 1.1: Telnyx Verify API for login/signup OTP — ⚠️ REDO
+#### Task 1.1: Telnyx Verify API for login/signup OTP — ✅ RESTORED
 
 **New env var:** `TELNYX_VERIFY_PROFILE_ID`
 
-**Add these endpoints** (insert before `// SETTINGS` section):
+**Public signup/booking verify routes now stay stable while the provider can switch underneath them:**
 ```javascript
 const TELNYX_VERIFY_PROFILE_ID = process.env.TELNYX_VERIFY_PROFILE_ID || '';
 
-// POST /api/verify/send — Send OTP via Telnyx Verify API
+// POST /public/verify/send/:workspace_id — Send OTP via Telnyx Verify API
 // - Accept { phone }, rate limit 3 per phone per 10 min via rate_limits collection
 // - Call telnyxApi('POST', '/v2/verifications/sms', { phone_number, verify_profile_id, type: 'sms' })
+// - If TELNYX_VERIFY_PROFILE_ID is not set yet, fall back to the legacy local-code flow
 
-// POST /api/verify/check — Verify OTP code
+// POST /public/verify/check/:workspace_id — Verify OTP code
 // - Accept { phone, code }
 // - Call telnyxApi('POST', `/v2/verifications/by_phone_number/${phone}/actions/verify`, { code, verify_profile_id })
 // - Return { ok: true, verified: true/false }
+// - Invalid/expired Telnyx codes return 400; provider failures return 502
 ```
 
-#### Task 1.2: Fix SP brand registration — ⚠️ REDO
+#### Task 1.2: Fix SP brand registration — ✅ DONE
 
 Existing endpoints at `/api/sms/register` and `/api/sms/verify-otp` need these fixes:
 - `messageFlow`: change from `'WEBFORM'` to descriptive opt-in narrative string
@@ -412,7 +426,7 @@ Existing endpoints at `/api/sms/register` and `/api/sms/verify-otp` need these f
 - `optinMessage`: add "Consent is not a condition of purchase"
 - In `/api/sms/verify-otp`: change `sms_registration_status: 'pending_approval'` → `'active'` (SP auto-approves)
 
-#### Task 1.3: Disable auto-TFN on signup — ⚠️ REDO
+#### Task 1.3: Disable auto-TFN on signup — ✅ DONE
 
 In `/auth/signup` (around line 3274-3332), replace the auto-TFN provisioning block with:
 ```javascript
@@ -496,7 +510,7 @@ AI 1 (backend/index.js)           AI 2 (frontend)
 
 ### Verification checklist
 
-- [ ] Telnyx Verify: `/api/verify/send` → receive OTP → `/api/verify/check` → success
+- [ ] Telnyx Verify: `/public/verify/send/:wsId` → receive OTP → `/public/verify/check/:wsId` → success
 - [ ] SP Registration: Settings → fill form → OTP → verify → campaign active → number assigned
 - [ ] Booking SMS: create booking with consent → SMS delivered with `{shopName}: ...` + STOP
 - [ ] Reminders: scheduled 24h/2h reminders have correct format + STOP language
