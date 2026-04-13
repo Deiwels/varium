@@ -135,6 +135,7 @@ Type error: Cannot find name 'showConfirm'.
 - [ ] P1.7 Dashboard clarity (AI 2) — **IN PROGRESS**
   - Dashboard now shows an owner launch checklist instead of dropping new owners straight into widgets with no guidance
   - Desktop gets a fuller checklist card with direct links into setup categories; mobile gets a compact "Finish setup" banner that opens the next missing step
+  - Fixed a mobile/dashboard flicker where `Finish setup` could appear for a moment on stale default state and then disappear; the banner now waits for user hydration, settings/slug hydration, and the first dashboard load before rendering
 - [ ] P1.8 Booking UX polish (AI 2) — **IN PROGRESS**
   - Public booking now has clearer helper text across staff, services, date/time, and details steps so the flow feels less abrupt for first-time clients
   - Empty states are more actionable too: no-services explains the booking menu is not live yet, and no-times now points people to another date or the waitlist instead of stopping cold

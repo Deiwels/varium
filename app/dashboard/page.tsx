@@ -305,6 +305,7 @@ export default function DashboardPage() {
 
   // Get current user from localStorage (deferred to avoid hydration mismatch)
   const [user, setUser] = useState<any>(null)
+  const [userHydrated, setUserHydrated] = useState(false)
   const [auditWarnings, setAuditWarnings] = useState(0)
   useEffect(() => { _dashTz = dashTimezone }, [dashTimezone])
   useEffect(() => {
@@ -327,6 +328,7 @@ export default function DashboardPage() {
     } catch {}
     // Restore clock-out summary
     try { const saved = JSON.parse(localStorage.getItem('VB_CLOCKOUT_SUMMARY') || 'null'); if (saved && saved.date === isoToday()) setClockOutSummary(saved.data) } catch {}
+    setUserHydrated(true)
   }, [])
   const role: string = user?.role || 'owner'
   const isBarber = role === 'barber'
@@ -343,6 +345,7 @@ export default function DashboardPage() {
   // Dashboard shortcut settings + slug
   const [dashSettings, setDashSettings] = useState<Record<string, any>>({})
   const [slug, setSlug] = useState('')
+  const [launchChecklistMetaLoaded, setLaunchChecklistMetaLoaded] = useState(false)
   const [editingShortcuts, setEditingShortcuts] = useState(false)
   const [dashShortcuts, setDashShortcuts] = useState<string[]>([])
   // Widgets
@@ -356,15 +359,24 @@ export default function DashboardPage() {
   const editJustActivated = useRef(false)
 
   useEffect(() => {
-    apiFetch('/api/settings').then(d => {
-      setDashSettings(d || {})
+    let cancelled = false
+    ;(async () => {
+      const [settings, limits] = await Promise.all([
+        apiFetch('/api/settings').catch(() => null),
+        apiFetch('/api/account/limits').catch(() => null),
+      ])
+      if (cancelled) return
+      const d = settings || {}
+      setDashSettings(d)
       const saved = d?.dash_shortcuts
       setDashShortcuts(saved && saved.length ? saved : ['/payments', '/waitlist', '/portfolio', '/cash', '/membership'])
       const savedW = d?.dash_widgets
       if (savedW && savedW.length) widgetSettingsLoaded.current = true
       setDashWidgets(savedW && savedW.length ? savedW : ['clock', 'todays-earnings', 'mini-calendar', 'weekly-chart', 'new-clients', 'team-on-duty', 'expenses-month', 'site-analytics'])
-    }).catch(() => {})
-    apiFetch('/api/account/limits').then(d => { if (d?.slug) setSlug(d.slug) }).catch(() => {})
+      if (limits?.slug) setSlug(limits.slug)
+      setLaunchChecklistMetaLoaded(true)
+    })()
+    return () => { cancelled = true }
   }, [])
 
   // Auto-add my-earnings widget for barbers (once)
@@ -687,7 +699,7 @@ export default function DashboardPage() {
   ] : []
   const launchChecklistTotal = 4
   const launchChecklistDone = launchChecklistTotal - ownerLaunchChecklist.length
-  const showOwnerLaunchChecklist = isOwnerOrAdmin && ownerLaunchChecklist.length > 0
+  const showOwnerLaunchChecklist = userHydrated && launchChecklistMetaLoaded && !loading && isOwnerOrAdmin && ownerLaunchChecklist.length > 0
   const renderOwnerLaunchChecklist = (compact = false) => {
     if (!showOwnerLaunchChecklist) return null
     if (compact) {
