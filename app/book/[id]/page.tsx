@@ -764,7 +764,7 @@ export default function PublicBookingPage() {
       {/* Header */}
       <header className="bp-header" style={{ padding: '20px 24px', borderBottom: `1px solid ${t.cardBorder}`, background: t.headerBg, backdropFilter: isLightTheme ? 'none' : 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {config.hero_media_url && <img src={config.hero_media_url} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }} />}
+          {(config.hero_media_url || siteConfig?.hero_image) && <img src={config.hero_media_url || siteConfig?.hero_image} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }} />}
           <span style={{ fontSize: 16, fontWeight: 600, color: t.text }}>{shopName}</span>
         </div>
         <a href="https://vurium.com/vuriumbook" target="_blank" rel="noopener" style={{ fontSize: 11, color: isLightTheme ? 'rgba(0,0,0,.2)' : 'rgba(255,255,255,.15)', textDecoration: 'none' }}>Powered by VuriumBook&trade;</a>
@@ -785,9 +785,9 @@ export default function PublicBookingPage() {
           {activeTemplate !== 'custom' && (<>
           {/* Hero */}
           <div className="bp-hero" style={{ textAlign: 'center', marginBottom: 48 }}>
-            {config.hero_media_url && (
+            {(config.hero_media_url || siteConfig?.hero_image) && (
               <div style={{ width: '100%', height: 200, borderRadius: 16, overflow: 'hidden', marginBottom: 24, border: '1px solid rgba(255,255,255,.06)' }}>
-                <img src={config.hero_media_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={config.hero_media_url || siteConfig?.hero_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             )}
             <h1 style={{ fontSize: 28, fontWeight: 600, color: t.text, marginBottom: 8 }}>{shopName || config.shop_name || 'Welcome'}</h1>

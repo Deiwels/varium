@@ -6459,7 +6459,7 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
     const b = req.body || {};
     const ALLOWED_SETTINGS = ['timezone', 'shop_name', 'shop_address', 'shop_phone', 'shop_email',
       'booking_buffer_minutes', 'default_duration_minutes', 'currency', 'locale',
-      'sms_enabled', 'push_enabled', 'booking_confirmation', 'hero_url', 'logo_url',
+      'sms_enabled', 'push_enabled', 'booking_confirmation', 'hero_url', 'hero_media_url', 'logo_url',
       'geofence_lat', 'geofence_lng', 'geofence_radius_m', 'theme', 'custom_css',
       'dash_calendar', 'dash_clients', 'dash_payments', 'dash_waitlist', 'dash_portfolio',
       'dash_cash', 'dash_membership', 'dash_attendance', 'dash_expenses', 'dash_payroll',
