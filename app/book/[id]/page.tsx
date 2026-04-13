@@ -220,9 +220,12 @@ export default function PublicBookingPage() {
 
   // Parallax stars — idle/visibility optimized
   useEffect(() => {
-    // Hide global cosmos when page has own .space-bg to avoid double rendering
+    // Hide global cosmos when page has own .space-bg or AI template (full custom bg)
     const cosmos = document.getElementById('vurium-cosmos')
     if (cosmos) cosmos.style.display = 'none'
+    // Also hide noise overlay for AI template
+    const noise = document.querySelector('.noise-overlay') as HTMLElement
+    if (noise) noise.style.display = 'none'
 
     const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window
     let tx = 0, ty = 0, cx = 0, cy = 0
@@ -746,8 +749,8 @@ export default function PublicBookingPage() {
       {/* AI-generated CSS */}
       {activeTemplate === 'ai' && siteConfig?.ai_css && <style dangerouslySetInnerHTML={{ __html: siteConfig.ai_css }} />}
 
-      {/* Space background — bold & dark-luxury get their own stars; Vurium uses global cosmos from layout */}
-      {!isLightTheme && activeTemplate !== 'modern' && (
+      {/* Space background — bold & dark-luxury get their own stars; Vurium uses global cosmos from layout; AI template = clean canvas */}
+      {!isLightTheme && activeTemplate !== 'modern' && activeTemplate !== 'ai' && (
         <div className="space-bg" style={{ position: 'fixed' }}>
           <div className="stars-wrap stars-wrap-far"><div className="stars stars-far" /></div>
           <div className="stars-wrap stars-wrap-mid"><div className="stars stars-mid" /></div>
@@ -756,7 +759,7 @@ export default function PublicBookingPage() {
           <div className="nebula-layer" style={{ width: 400, height: 250, top: '40%', right: '-8%', background: 'radial-gradient(ellipse at center, rgba(55,35,100,.06) 0%, transparent 70%)', animationDelay: '.5s' }} />
         </div>
       )}
-      {!isLightTheme && activeTemplate !== 'modern' && <div className="noise-overlay" />}
+      {!isLightTheme && activeTemplate !== 'modern' && activeTemplate !== 'ai' && <div className="noise-overlay" />}
 
       {/* Header */}
       <header className="bp-header" style={{ padding: '20px 24px', borderBottom: `1px solid ${t.cardBorder}`, background: t.headerBg, backdropFilter: isLightTheme ? 'none' : 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>

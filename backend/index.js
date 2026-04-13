@@ -6533,50 +6533,45 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
 });
 
 // ── AI Style Generator ───────────────────────────────────────────────────────
-const AI_STYLE_SYSTEM_PROMPT = `You generate CSS for a barbershop/salon booking page. The page uses React inline styles, so ALL your CSS properties MUST use !important to override them.
+const AI_STYLE_SYSTEM_PROMPT = `You generate CSS for a barbershop/salon booking page. The page uses React inline styles, so ALL your CSS properties MUST use !important.
 
-The page has a dark background (#010101) by default with white text. Your CSS completely reskins it.
+The page has NO background decorations — it's a clean blank canvas (#010101 black). Your CSS has FULL control over the entire visual appearance including page background.
 
-TARGET SELECTORS (use .booking-page as parent for ALL):
-- .booking-page — the entire page wrapper: background, font-family, color
-- .booking-page header — top bar with logo and shop name
-- .booking-page main — main content area
-- .booking-page footer — page footer with legal text
+TARGET SELECTORS (use .booking-page as parent):
+- .booking-page — FULL PAGE: background (solid, gradient, or animated), font-family, color. This is min-height:100vh.
+- .booking-page header — top bar
+- .booking-page main — content area
+- .booking-page footer — bottom footer
 - .booking-page h1, .booking-page h2 — headings
-- .booking-page p, .booking-page span, .booking-page div — text elements
-- .booking-page button — all buttons
+- .booking-page p, .booking-page span, .booking-page div — text
+- .booking-page button — buttons
 - .booking-page input, .booking-page textarea, .booking-page select — form fields
-- .bp-header — header bar
-- .bp-hero — hero/welcome section
-- .bp-card — cards for barbers, services, time slots
-- .bp-btn — primary action buttons (Book Now, Continue, Confirm)
-- .bp-input — input fields
-- .bp-section-title — section labels
-- .bp-footer — footer
-- .bp-booking-flow — the booking steps area
+- .booking-page a — links
 
 RULES:
 1. EVERY CSS property MUST have !important
-2. Output ONLY pure CSS. No markdown, no code fences, no comments.
-3. DO NOT change: display, position, flex-direction, grid-template, width, height, z-index, margin, padding.
-4. MUST change: background, color, font-family, font-weight, border, border-radius, box-shadow, text-shadow, letter-spacing.
-5. @import Google Fonts if a specific font is needed (MUST be first line).
-6. Ensure text contrast is readable.
-7. Style the ENTIRE page consistently — header, content, footer, buttons, inputs, cards.
-8. Generate 20-40 lines.
+2. Output ONLY pure CSS. No markdown, no code fences, no explanations.
+3. DO NOT change: display, position, flex-direction, grid-template, width, height, z-index.
+4. YOU MUST SET .booking-page background (color, gradient, or pattern) — the page is blank without it.
+5. Style EVERYTHING: page background, header, footer, buttons, inputs, cards, text colors, fonts.
+6. @import Google Fonts if needed (MUST be first line).
+7. You CAN use CSS gradients, animations, ::before/::after pseudo-elements for decorative backgrounds.
+8. Ensure text contrast is readable.
+9. Generate 25-50 lines of rich, complete CSS.
 
 EXAMPLE for "luxury gold dark":
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap');
-.booking-page { background: #0a0a0a !important; font-family: 'Playfair Display', serif !important; color: #e8dcc8 !important; }
-.booking-page header { background: rgba(10,10,10,.95) !important; border-bottom-color: rgba(200,170,100,.2) !important; }
+.booking-page { background: linear-gradient(135deg, #0a0806 0%, #1a1510 50%, #0a0806 100%) !important; font-family: 'Playfair Display', serif !important; color: #e8dcc8 !important; min-height: 100vh !important; }
+.booking-page header { background: rgba(10,8,6,.9) !important; border-bottom: 1px solid rgba(200,170,100,.15) !important; backdrop-filter: blur(20px) !important; }
 .booking-page header span { color: #c9a84c !important; }
-.booking-page h1, .booking-page h2 { color: #c9a84c !important; font-family: 'Playfair Display', serif !important; }
-.booking-page p, .booking-page div { color: rgba(200,170,100,.6) !important; }
-.booking-page button { background: rgba(200,170,100,.1) !important; color: #c9a84c !important; border-color: rgba(200,170,100,.25) !important; }
-.booking-page input, .booking-page textarea { background: rgba(200,170,100,.05) !important; border-color: rgba(200,170,100,.15) !important; color: #e8dcc8 !important; }
-.booking-page footer { background: rgba(200,170,100,.03) !important; border-top-color: rgba(200,170,100,.1) !important; }
-.booking-page footer * { color: rgba(200,170,100,.4) !important; }
-.booking-page a { color: rgba(200,170,100,.6) !important; }`;
+.booking-page h1, .booking-page h2 { color: #c9a84c !important; font-family: 'Playfair Display', serif !important; text-shadow: 0 0 30px rgba(200,170,100,.15) !important; }
+.booking-page p, .booking-page div { color: rgba(200,170,100,.55) !important; }
+.booking-page button { background: linear-gradient(135deg, rgba(200,170,100,.12), rgba(200,170,100,.06)) !important; color: #c9a84c !important; border: 1px solid rgba(200,170,100,.25) !important; border-radius: 12px !important; box-shadow: 0 4px 20px rgba(200,170,100,.08) !important; }
+.booking-page button:hover { background: rgba(200,170,100,.18) !important; }
+.booking-page input, .booking-page textarea { background: rgba(200,170,100,.04) !important; border: 1px solid rgba(200,170,100,.12) !important; color: #e8dcc8 !important; border-radius: 10px !important; }
+.booking-page footer { background: rgba(10,8,6,.6) !important; border-top: 1px solid rgba(200,170,100,.08) !important; }
+.booking-page footer * { color: rgba(200,170,100,.35) !important; }
+.booking-page a { color: rgba(200,170,100,.7) !important; }`;
 
 app.post('/api/ai/generate-style', requireRole('owner', 'admin'), async (req, res) => {
   try {
