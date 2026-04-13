@@ -50,7 +50,9 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --port 8080 \
-            --memory 512Mi \
+            --memory 1Gi \
+            --cpu 1 \
+            --timeout 300 \
             --min-instances 0 \
             --max-instances 10 \
             --set-env-vars "NODE_ENV=production" \
