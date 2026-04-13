@@ -1339,6 +1339,7 @@ app.post('/api/webhooks/square', async (req, res) => {
     }
     const event = req.body;
     if (!event?.type) return res.json({ ok: true });
+    logWebhookEvent('square', event.type, '', { merchant_id: event.merchant_id, event_id: event.event_id }).catch(() => {});
     // Find workspace by merchant_id from event (avoid N+1 scan)
     const sqMerchantId = event.merchant_id || '';
     let targetWsId = '';
@@ -2859,6 +2860,18 @@ async function writeAuditLog(wsId, { action, resource_id, data, req }) {
   } catch (e) {
     console.warn('writeAuditLog error:', e?.message);
   }
+}
+
+// Log webhook events for debugging (stored per-workspace or globally)
+async function logWebhookEvent(source, eventType, wsId, data) {
+  try {
+    const doc = { source, event_type: eventType, workspace_id: wsId || '', data: typeof data === 'object' ? JSON.stringify(data).slice(0, 2000) : '', created_at: toIso(new Date()) };
+    if (wsId) {
+      await db.collection('workspaces').doc(wsId).collection('webhook_logs').add(doc);
+    } else {
+      await db.collection('webhook_logs').add(doc);
+    }
+  } catch {} // never block on logging failure
 }
 
 // ============================================================
@@ -7217,6 +7230,7 @@ app.post('/api/webhooks/stripe-connect', express.raw({ type: 'application/json' 
     const obj = event.data?.object;
     if (!obj) return res.json({ ok: true });
     const wsId = obj.metadata?.workspace_id || '';
+    logWebhookEvent('stripe_connect', event.type, wsId, { event_id: event.id }).catch(() => {});
     if (!wsId) return res.json({ ok: true });
     if (event.type === 'payment_intent.succeeded') {
       const bookingId = obj.metadata?.booking_id;
@@ -9780,6 +9794,7 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
     const obj = event.data?.object;
     if (!obj) return res.json({ ok: true });
     const wsId = obj.metadata?.workspace_id || obj.subscription_details?.metadata?.workspace_id || '';
+    logWebhookEvent('stripe', type, wsId, { event_id: event.id, customer: obj.customer }).catch(() => {});
     if (!wsId) {
       // Try to find workspace by customer ID
       if (obj.customer) {
@@ -9910,6 +9925,7 @@ app.post('/api/webhooks/apple', express.json({ limit: '1mb' }), async (req, res)
     const subtype = payload.subtype || '';
     const txInfo = decodeJWSPayload(payload?.data?.signedTransactionInfo) || {};
     const renewalInfo = decodeJWSPayload(payload?.data?.signedRenewalInfo) || {};
+    logWebhookEvent('apple', notificationType + (subtype ? '.' + subtype : ''), '', { originalTransactionId: txInfo.originalTransactionId }).catch(() => {});
 
     const originalTransactionId = txInfo.originalTransactionId || renewalInfo.originalTransactionId;
     if (!originalTransactionId) { res.json({ ok: true }); return; }
