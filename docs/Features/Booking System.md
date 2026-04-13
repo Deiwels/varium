@@ -7,8 +7,9 @@ Core feature — public-facing booking page for clients + admin management.
 
 ## Public Booking Flow
 1. Client opens `/book/{slug}` (resolved via `GET /public/resolve/:slugOrId`)
-2. Loads workspace config, services, barbers
-3. Selects service → barber → time slot
+2. Loads workspace config, services, barbers, `business_type`
+3. Dynamic terminology: "Our Barbers" / "Our Stylists" / "Our Masters" etc. based on `business_type` (via `lib/terminology.ts`)
+4. Selects service → barber → time slot
 4. Availability calculated via `POST /public/availability/:workspace_id`
 5. Booking created via `POST /public/bookings/:workspace_id`
 6. Group bookings: `POST /public/bookings-group/:workspace_id`

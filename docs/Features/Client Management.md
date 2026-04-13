@@ -1,5 +1,7 @@
 # Client Management
 
+> Part of [[Home]] > Features | See also: [[Booking System]], [[Database Schema]], [[API Routes]]
+
 ## Overview
 CRM-like client tracking with booking history and phone verification.
 

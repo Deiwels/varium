@@ -1,5 +1,7 @@
 # Tech Stack
 
+> Part of [[Home]] > Architecture | See also: [[Database Schema]], [[Auth Flow]], [[ARCHITECTURE]]
+
 ## Frontend
 - **Framework:** Next.js 15 (App Router)
 - **UI:** React 19, TypeScript

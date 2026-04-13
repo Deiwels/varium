@@ -1,13 +1,60 @@
 # Attendance & Payroll
 
+> Part of [[Home]] > Features | See also: [[API Routes]], [[Database Schema]]
+
 ## Attendance
-- `GET /api/attendance` — list records (filterable by from/to)
-- `GET /api/attendance/status` — current clock-in status
-- `POST /api/attendance/clock-in` — clock in (optional geofence validation)
-- `POST /api/attendance/clock-out` — clock out
-- `POST /api/attendance/admin-clock-out` — admin force clock out another user
-- Clock-in widget on Dashboard (admin/barber, when enabled in Settings)
-- Settings: shop address, geocode, geofence radius
+
+### Feature toggle
+- Owner enables in Settings > General > "Attendance & Clock-In"
+- Saves `clock_in_enabled` to workspace settings
+- When disabled, `/attendance` page shows disabled message
+- `GET /api/settings/timezone` returns `clock_in_enabled` (accessible to all users)
+
+### Geofence / Location
+- Owner enters shop address in Settings > General
+- "Set location from address" button geocodes via Nominatim (OpenStreetMap)
+- Saves `geofence_lat`, `geofence_lng`, `geofence_radius_m` (default 500m)
+- Clock-in rejected if user is outside radius: "You are too far (XXXm away, max XXXm)"
+- If geofence not configured, clock-in allowed but `at_shop: false`
+
+### Endpoints
+- `GET /api/attendance` — list records, returns `{ attendance: [...] }`, filterable by `from`/`to`
+- `GET /api/attendance/status` — current clock-in status, returns `clocked_in`, `today_minutes`, sums all today's records
+- `POST /api/attendance/clock-in` — clock in with GPS, stores `at_shop`, `distance_meters`, prevents double clock-in (409)
+- `POST /api/attendance/clock-out` — finds open record, calculates `duration_minutes`
+- `POST /api/attendance/admin-clock-out` — admin force clock out, calculates `duration_minutes`
+- All endpoints use workspace timezone for "today" (not UTC)
+
+### Attendance record fields
+```
+user_id, user_name, barber_id, role, date,
+clock_in, clock_out, duration_minutes,
+lat, lng, at_shop, distance_meters,
+auto_closed, admin_clock_out, admin_id
+```
+
+### Dashboard — Clock-In widget (`w_clockin`)
+- Standard 2-col widget in iPhone-style home screen grid
+- Visible only for admin/barber when `clock_in_enabled` is true
+- Non-removable (locked — no minus button in edit mode)
+- Tap to clock in (requests GPS), tap again to clock out
+- States: "Clock In / Off / tap to start" → "On Shift / 2h 15m / Clock Out"
+- Touch: `onTouchStart` cancels jiggle timer for reliable mobile taps
+
+### State persistence (localStorage)
+- `VB_CLOCK_STATE`: `{ clockedIn, clockInTime, todayMinutes, date }` — instant restore on app reopen
+- `VB_CLOCK_IN_ENABLED`: feature toggle — widget shows immediately before API fetch
+- `loadAll` syncs localStorage with server state every 30s
+
+### On Duty widget (`team-on-duty`)
+- Shows staff currently clocked in (owner/admin dashboard)
+- Deduplicated by `user_id` — shows only latest clock-in per person
+- Displays name, clock-in time, elapsed minutes
+
+### Payroll integration
+- Payroll page fetches attendance records and sums `duration_minutes` per barber
+- Admin hourly pay: `base_pay = hourly_rate * hours_worked`
+- Late minutes calculated from clock-in time vs barber schedule (2-min grace)
 
 ## Payroll
 

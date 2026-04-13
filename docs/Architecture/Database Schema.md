@@ -1,5 +1,7 @@
 # Firestore Database Schema
 
+> Part of [[Home]] > Architecture | See also: [[Tech Stack]], [[Firestore Collections]], [[API Routes]]
+
 ## Top-Level Collections
 
 | Collection | Purpose |

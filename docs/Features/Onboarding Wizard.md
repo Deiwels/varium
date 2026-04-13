@@ -1,5 +1,7 @@
 # Onboarding Wizard
 
+> Part of [[Home]] > Features | See also: [[Business Templates]], [[AI Style]], [[App Routes]]
+
 ## Overview
 4-step setup wizard that replaces the dashboard for new workspaces with no barbers and no services. Solves the activation crisis where 94% of trial workspaces stay empty.
 

@@ -1,5 +1,7 @@
 # Payments
 
+> Part of [[Home]] > Features | See also: [[Booking System]], [[Tech Stack]], [[API Routes]]
+
 ## Stripe Connect
 Primary payment processor with Connect for marketplace model.
 

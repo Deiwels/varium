@@ -1,5 +1,7 @@
 # Developer Panel
 
+> Part of [[Home]] > Features | See also: [[App Routes]], [[Auth Flow]], [[API Routes]]
+
 Private admin dashboard at `/developer` for managing the vurium.com platform. Only accessible by the platform owner via magic link authentication.
 
 ## Access

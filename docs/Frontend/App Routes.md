@@ -1,5 +1,7 @@
 # App Routes
 
+> Part of [[Home]] > Frontend | See also: [[Components]], [[Auth Flow]], [[API Routes]]
+
 > Next.js 15 App Router — 43 pages
 
 ## Public Pages
@@ -29,7 +31,7 @@
 | Route | Purpose |
 |-------|---------|
 | `/signin` | Sign in |
-| `/signup` | Sign up |
+| `/signup` | Sign up — collects business name, business type, timezone (required), email, password. Sends `business_type`, `shop_name`, `timezone` to backend. |
 | `/reset-password` | Password reset |
 
 ## Dashboard Pages (Authenticated)

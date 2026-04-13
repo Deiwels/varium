@@ -51,7 +51,8 @@
 
 | Feature | Description | Doc |
 |---------|-------------|-----|
-| Booking | Public booking, smart audit, auto-fix, satisfaction ping, waitlist auto-fill, rate limiter | [[Booking System]] |
+| Booking | Public booking, smart audit, auto-fix, satisfaction ping, rate limiter | [[Booking System]] |
+| Waitlist | Public self-join, preferred time range, email/SMS notifications, calendar ghost blocks, role permissions | [[Waitlist]] |
 | Payments | Stripe Connect, Square, terminals, Apple IAP | [[Payments]] |
 | Calendar | Calendar view, schedule overrides, mobile layout | Calendar & Scheduling |
 | Clients | CRM, booking history, phone verification | [[Client Management]] |

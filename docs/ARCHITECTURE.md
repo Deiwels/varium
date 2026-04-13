@@ -1,5 +1,7 @@
 # VuriumBook — Architecture Overview
 
+> [[Home]] > Plans & Process | See also: [[Tech Stack]], [[Database Schema]], [[Auth Flow]], [[API Routes]]
+
 ## Stack
 - **Frontend**: Next.js 15.1, React 19, TypeScript, inline styles (no Tailwind)
 - **Backend**: Express.js on Google Cloud Run

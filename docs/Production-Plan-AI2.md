@@ -1,5 +1,7 @@
 # Production Readiness Plan — AI 2 (Frontend, UX, Client Experience)
 
+> [[Home]] > Plans & Process | See also: [[Production-Plan-AI1]], [[AI-Work-Split]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]]
+
 > Scan date: 2026-04-13
 > Based on: frontend audit, docs audit, primary customer-flow review
 

@@ -1,5 +1,7 @@
 # Firestore Collections
 
+> Part of [[Home]] > Backend | See also: [[Database Schema]], [[API Routes]], [[Tech Stack]]
+
 ## Top-Level (11)
 
 | Collection | Purpose |

@@ -1,5 +1,7 @@
 # AI Work Split
 
+> [[Home]] > Plans & Process | See also: [[Production-Plan-AI1]], [[Production-Plan-AI2]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]]
+
 Two AI agents work on this project simultaneously. To avoid conflicts (duplicate variables, merge issues, broken deploys), each AI owns specific files.
 
 **Rule: never edit files owned by the other AI without explicit approval from the user.**

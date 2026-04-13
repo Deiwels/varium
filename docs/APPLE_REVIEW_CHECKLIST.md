@@ -1,5 +1,7 @@
 # Apple App Store Review Checklist — VuriumBook
 
+> [[Home]] > Plans & Process | See also: [[Tech Stack]], [[Auth Flow]]
+
 ## App Store Connect Configuration
 
 ### Subscriptions (App Store Connect → Subscriptions)

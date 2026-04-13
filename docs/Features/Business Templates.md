@@ -1,5 +1,7 @@
 # Business Templates
 
+> Part of [[Home]] > Features | See also: [[Onboarding Wizard]], [[Booking System]]
+
 ## Overview
 Pre-filled service templates used in the [[Onboarding Wizard]] Step 3. Located in `lib/onboarding-templates.ts`.
 

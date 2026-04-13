@@ -1,5 +1,7 @@
 # Authentication Flow
 
+> Part of [[Home]] > Architecture | See also: [[Tech Stack]], [[API Routes]], [[App Routes]]
+
 ## Methods
 1. **Email/Password** — `/auth/signup`, `/auth/login-email`
 2. **Apple Sign-In** — `/auth/apple-signin` + OAuth callback

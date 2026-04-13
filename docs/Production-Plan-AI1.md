@@ -1,5 +1,7 @@
 # Production Readiness Plan — AI 1 (Backend & Finance)
 
+> [[Home]] > Plans & Process | See also: [[Production-Plan-AI2]], [[AI-Work-Split]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]]
+
 > Scan date: 2026-04-13
 > Based on: full backend audit, frontend scan, public booking flow audit
 

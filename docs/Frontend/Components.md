@@ -1,5 +1,7 @@
 # Components
 
+> Part of [[Home]] > Frontend | See also: [[App Routes]], [[Tech Stack]]
+
 > Core reusable components in `/components/`
 
 | Component | Purpose |
