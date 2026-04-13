@@ -1370,8 +1370,8 @@ app.post('/api/webhooks/square', async (req, res) => {
     if (event.type === 'terminal.checkout.updated') {
       const checkout = event.data?.object?.checkout;
       if (!checkout?.id) return res.json({ ok: true });
-      // Search target workspace first, then fallback to all
-      const searchWsList = targetWsId ? [targetWsId] : (await db.collection('workspaces').get()).docs.map(d => d.id);
+      // Search target workspace first, then fallback to recent workspaces (limit 20)
+      const searchWsList = targetWsId ? [targetWsId] : (await db.collection('workspaces').orderBy('updated_at', 'desc').limit(20).get()).docs.map(d => d.id);
       for (const wsId of searchWsList) {
         const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
         const prSnap = await wsCol('payment_requests').where('checkout_id', '==', checkout.id).limit(1).get();
@@ -1431,7 +1431,7 @@ app.post('/api/webhooks/square', async (req, res) => {
         const spDate = (payment.created_at || '').slice(0, 10);
         const spNote = payment.note || '';
         // Search target workspace first, fallback to all
-        const searchList2 = targetWsId ? [targetWsId] : (await db.collection('workspaces').get()).docs.map(d => d.id);
+        const searchList2 = targetWsId ? [targetWsId] : (await db.collection('workspaces').orderBy('updated_at', 'desc').limit(20).get()).docs.map(d => d.id);
         for (const wsId2 of searchList2) {
           const ws = { id: wsId2 };
           const wsCol = (col) => db.collection('workspaces').doc(ws.id).collection(col);
@@ -8407,6 +8407,7 @@ app.post('/public/bookings-group/:workspace_id', async (req, res) => {
         sms_consent_ip: smsConsent ? getClientIp(req) : null,
         sms_consent_ua: smsConsent ? safeStr(req.headers['user-agent'] || '').slice(0, 500) : null,
         sms_consent_at: smsConsent ? toIso(new Date()) : null,
+        sms_consent_text: smsConsent ? safeStr(body.sms_consent_text || 'By providing your phone number, you agree to receive SMS appointment confirmations, reminders, and changes. Message frequency may vary, up to 5 msgs per booking. Msg & data rates may apply. Reply STOP to opt out. Reply HELP for help.').slice(0, 1000) : null,
         workspace_id: wsId,
         client_token: clientToken,
         group_booking: true,
@@ -8479,6 +8480,7 @@ app.post('/public/bookings-group/:workspace_id', async (req, res) => {
     }
 
     const ids = bookingRefs.map(r => r.id);
+    recordBookingRateHit(wsId, clientPhone, clientEmail);
     res.status(201).json({ booking_ids: ids, booking_id: ids[0], id: ids[0] });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
