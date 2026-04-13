@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import Shell from '@/components/Shell'
+import OnboardingWizard from '@/components/OnboardingWizard'
 import { apiFetch } from '@/lib/api'
 import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
 
@@ -174,6 +175,8 @@ export default function DashboardPage() {
   const [search, setSearch] = useState('')
   const [filterBarber, setFilterBarber] = useState('')
   const [barbers, setBarbers] = useState<any[]>([])
+  const [services, setServices] = useState<any[]>([])
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false)
 
   // Mobile iPhone home screen
   const [isMobile, setIsMobile] = useState(false)
@@ -249,6 +252,8 @@ export default function DashboardPage() {
   const [auditWarnings, setAuditWarnings] = useState(0)
   useEffect(() => {
     try { setUser(JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || 'null')) } catch {}
+    // Check onboarding dismissed
+    try { if (localStorage.getItem('VB_ONBOARDING_DISMISSED')) setOnboardingDismissed(true) } catch {}
     // Restore clock state from localStorage (fast restore before API fetch)
     try {
       const cs = JSON.parse(localStorage.getItem('VB_CLOCK_STATE') || 'null')
@@ -421,6 +426,7 @@ export default function DashboardPage() {
       const fetches: Record<string, Promise<any>> = {
         bookings: fetch(`${API}/api/bookings?from=${today}T00:00:00.000Z&to=${today}T23:59:59.999Z`, { headers }).then(r => r.json()).catch(() => null),
         barbers: fetch(`${API}/api/barbers`, { headers }).then(r => r.json()).catch(() => null),
+        services: fetch(`${API}/api/services`, { headers }).then(r => r.json()).catch(() => null),
         reviews: fetch(`${API}/api/reviews`, { headers }).then(r => r.json()).catch(() => null),
         attStatus: fetch(`${API}/api/attendance/status`, { credentials: 'include', headers }).then(r => r.json()).catch(() => null),
       }
@@ -479,6 +485,10 @@ export default function DashboardPage() {
       })
       setBarbers(parsedBarbers)
 
+      // Services
+      const svcData = data.services
+      const svcList = Array.isArray(svcData) ? svcData : (svcData?.services || [])
+      setServices(svcList)
 
       // Settings
       if (data.settings) {
@@ -733,8 +743,18 @@ export default function DashboardPage() {
     setAttLoading(false)
   }
 
+  const needsOnboarding = !loading && isOwnerOrAdmin && barbers.length === 0 && services.length === 0 && !onboardingDismissed
+
   return (
     <Shell page="dashboard">
+      {needsOnboarding ? (
+        <OnboardingWizard
+          settings={dashSettings}
+          slug={slug}
+          onComplete={() => { setOnboardingDismissed(false); loadAll() }}
+          onDismiss={() => { localStorage.setItem('VB_ONBOARDING_DISMISSED', '1'); setOnboardingDismissed(true) }}
+        />
+      ) : (<>
       {/* ── Mobile: iPhone Home Screen ── */}
       {isMobile && (() => {
         // All possible items with icons, widgets, sizes
@@ -1768,6 +1788,7 @@ export default function DashboardPage() {
       )}
 
       </div>}
+      </>)}
     </Shell>
   )
 }

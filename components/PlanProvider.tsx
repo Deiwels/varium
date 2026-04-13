@@ -13,6 +13,7 @@ interface PlanData {
   trial_active: boolean
   trial_ends_at: string | null
   trial_days_left: number
+  business_type: string | null
   loading: boolean
   expired: boolean // true if trial ended and no active subscription
 }
@@ -28,6 +29,7 @@ const defaultPlan: PlanData = {
   trial_active: false,
   trial_ends_at: null,
   trial_days_left: 0,
+  business_type: null,
   loading: true,
   expired: false,
 }
@@ -65,6 +67,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
           trial_active: !!d.trial_active,
           trial_ends_at: d.trial_ends_at || null,
           trial_days_left: d.trial_days_left || 0,
+          business_type: d.business_type || null,
           loading: false,
           expired: isExpired,
         })
