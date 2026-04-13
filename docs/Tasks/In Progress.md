@@ -72,7 +72,9 @@
   - Payment booking updates and payment_request creates now log errors instead of silently swallowing
 - [x] P1.3 Firestore indexes (AI 1) — **DONE** commit `183209e` 2026-04-14
   - Added backend/firestore.indexes.json: bookings(status+start_at), (phone_norm+start_at), (barber_id+start_at)
-- [ ] P1.4 Webhook logging (AI 1)
+- [x] P1.4 Webhook logging (AI 1) — **DONE** commit `460363a` 2026-04-14
+  - logWebhookEvent() helper stores to Firestore webhook_logs collection
+  - All 4 handlers log: Stripe, Square, Apple, Stripe Connect
 - [ ] P1.5 Button disabled states (AI 2)
 - [ ] P1.6 Dashboard timezone (AI 2) — **IN PROGRESS**
   - Dashboard key date/time formatting now rerenders after workspace timezone loads from `/api/settings/timezone`
