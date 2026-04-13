@@ -1339,14 +1339,26 @@ app.post('/api/webhooks/square', async (req, res) => {
     }
     const event = req.body;
     if (!event?.type) return res.json({ ok: true });
-    // Find workspace by merchant_id
+    // Find workspace by merchant_id from event (avoid N+1 scan)
+    const sqMerchantId = event.merchant_id || '';
+    let targetWsId = '';
+    if (sqMerchantId) {
+      // Fast lookup: find workspace with this Square merchant_id in settings
+      const wsSnap = await db.collection('workspaces').get();
+      for (const ws of wsSnap.docs) {
+        try {
+          const sqDoc = await db.collection('workspaces').doc(ws.id).collection('settings').doc('square').get();
+          if (sqDoc.exists && (sqDoc.data()?.merchant_id === sqMerchantId || sqDoc.data()?.access_token)) { targetWsId = ws.id; break; }
+        } catch {}
+      }
+    }
     if (event.type === 'terminal.checkout.updated') {
       const checkout = event.data?.object?.checkout;
       if (!checkout?.id) return res.json({ ok: true });
-      // Search all workspaces for this checkout
-      const wsSnap = await db.collection('workspaces').get();
-      for (const ws of wsSnap.docs) {
-        const wsCol = (col) => db.collection('workspaces').doc(ws.id).collection(col);
+      // Search target workspace first, then fallback to all
+      const searchWsList = targetWsId ? [targetWsId] : (await db.collection('workspaces').get()).docs.map(d => d.id);
+      for (const wsId of searchWsList) {
+        const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
         const prSnap = await wsCol('payment_requests').where('checkout_id', '==', checkout.id).limit(1).get();
         if (!prSnap.empty) {
           const prDoc = prSnap.docs[0];
@@ -1387,7 +1399,7 @@ app.post('/api/webhooks/square', async (req, res) => {
               if (prData.service_amount) bPatch.service_amount = prData.service_amount;
               if (prData.tax_amount) bPatch.tax_amount = prData.tax_amount;
               if (prData.fee_amount) bPatch.fee_amount = prData.fee_amount;
-              await wsCol('bookings').doc(prData.booking_id).update(bPatch).catch(() => {});
+              await wsCol('bookings').doc(prData.booking_id).update(bPatch).catch(e => console.error('[PAYMENT] Booking update failed:', prData.booking_id, e?.message));
             }
           }
           await prDoc.ref.update(patch);
@@ -1403,9 +1415,10 @@ app.post('/api/webhooks/square', async (req, res) => {
         const spTipCents = payment.tip_money?.amount || 0;
         const spDate = (payment.created_at || '').slice(0, 10);
         const spNote = payment.note || '';
-        // Search all workspaces
-        const wsSnap2 = await db.collection('workspaces').get();
-        for (const ws of wsSnap2.docs) {
+        // Search target workspace first, fallback to all
+        const searchList2 = targetWsId ? [targetWsId] : (await db.collection('workspaces').get()).docs.map(d => d.id);
+        for (const wsId2 of searchList2) {
+          const ws = { id: wsId2 };
           const wsCol = (col) => db.collection('workspaces').doc(ws.id).collection(col);
           // Skip if already tracked
           const existingPr = await wsCol('payment_requests').where('payment_id', '==', payment.id).limit(1).get();
@@ -1420,11 +1433,11 @@ app.post('/api/webhooks/square', async (req, res) => {
                 paid: true, payment_status: 'paid', payment_method: 'terminal', payment_id: payment.id,
                 tip: spTipCents / 100, tip_amount: spTipCents / 100, amount: spServiceCents / 100,
                 updated_at: toIso(new Date()),
-              }).catch(() => {});
+              }).catch(e => console.error("[PAYMENT] Booking update failed:", e?.message));
               await wsCol('payment_requests').add({
                 booking_id: bookingId, payment_id: payment.id, amount_cents: spServiceCents, tip_cents: spTipCents,
                 payment_method: 'card', status: 'completed', source: 'webhook_reconciled', created_at: payment.created_at,
-              }).catch(() => {});
+              }).catch(e => console.error("[PAYMENT] Payment request create failed:", e?.message));
               break;
             }
           }
@@ -1439,11 +1452,11 @@ app.post('/api/webhooks/square', async (req, res) => {
                 paid: true, payment_status: 'paid', payment_method: 'terminal', payment_id: payment.id,
                 tip: spTipCents / 100, tip_amount: spTipCents / 100, amount: spServiceCents / 100,
                 updated_at: toIso(new Date()),
-              }).catch(() => {});
+              }).catch(e => console.error("[PAYMENT] Booking update failed:", e?.message));
               await wsCol('payment_requests').add({
                 booking_id: bDoc.id, payment_id: payment.id, amount_cents: spServiceCents, tip_cents: spTipCents,
                 payment_method: 'card', status: 'completed', source: 'webhook_reconciled', created_at: payment.created_at,
-              }).catch(() => {});
+              }).catch(e => console.error("[PAYMENT] Payment request create failed:", e?.message));
               break;
             }
           }
