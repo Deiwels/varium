@@ -1320,6 +1320,19 @@ app.get('/api/square/oauth/callback', async (req, res) => {
 // ============================================================
 app.post('/api/webhooks/square', async (req, res) => {
   try {
+    // Verify Square webhook signature (HMAC-SHA256 using SQUARE_APP_SECRET as key)
+    if (SQUARE_APP_SECRET) {
+      const sig = req.headers['x-square-hmacsha256-signature'];
+      if (sig) {
+        const notificationUrl = `${process.env.FRONTEND_URL || 'https://vurium.com'}/api/webhooks/square`;
+        const payload = JSON.stringify(req.body);
+        const expectedSig = crypto.createHmac('sha256', SQUARE_APP_SECRET).update(notificationUrl + payload).digest('base64');
+        if (sig !== expectedSig) {
+          console.warn('[SQUARE] Invalid webhook signature');
+          return res.status(400).json({ error: 'Invalid signature' });
+        }
+      }
+    }
     const event = req.body;
     if (!event?.type) return res.json({ ok: true });
     // Find workspace by merchant_id
@@ -1401,11 +1414,11 @@ app.post('/api/webhooks/square', async (req, res) => {
             if (bDoc.exists && !bDoc.data()?.paid) {
               await wsCol('bookings').doc(bookingId).update({
                 paid: true, payment_status: 'paid', payment_method: 'terminal', payment_id: payment.id,
-                tip: spTipCents / 100, tip_amount: spTipCents / 100, amount: spAmountCents / 100,
+                tip: spTipCents / 100, tip_amount: spTipCents / 100, amount: spServiceCents / 100,
                 updated_at: toIso(new Date()),
               }).catch(() => {});
               await wsCol('payment_requests').add({
-                booking_id: bookingId, payment_id: payment.id, amount_cents: spAmountCents, tip_cents: spTipCents,
+                booking_id: bookingId, payment_id: payment.id, amount_cents: spServiceCents, tip_cents: spTipCents,
                 payment_method: 'card', status: 'completed', source: 'webhook_reconciled', created_at: payment.created_at,
               }).catch(() => {});
               break;
@@ -1420,11 +1433,11 @@ app.post('/api/webhooks/square', async (req, res) => {
             if (Math.abs(bCents - spServiceCents) <= 200) {
               await wsCol('bookings').doc(bDoc.id).update({
                 paid: true, payment_status: 'paid', payment_method: 'terminal', payment_id: payment.id,
-                tip: spTipCents / 100, tip_amount: spTipCents / 100, amount: spAmountCents / 100,
+                tip: spTipCents / 100, tip_amount: spTipCents / 100, amount: spServiceCents / 100,
                 updated_at: toIso(new Date()),
               }).catch(() => {});
               await wsCol('payment_requests').add({
-                booking_id: bDoc.id, payment_id: payment.id, amount_cents: spAmountCents, tip_cents: spTipCents,
+                booking_id: bDoc.id, payment_id: payment.id, amount_cents: spServiceCents, tip_cents: spTipCents,
                 payment_method: 'card', status: 'completed', source: 'webhook_reconciled', created_at: payment.created_at,
               }).catch(() => {});
               break;
@@ -5187,7 +5200,7 @@ app.post('/api/payments/reconcile', requireRole('owner', 'admin'), async (req, r
         // Create payment_request record
         await req.ws('payment_requests').add({
           checkout_id: null, booking_id: bestMatch.id, payment_id: sp.id,
-          amount_cents: spAmountCents, tip_cents: spTipCents,
+          amount_cents: spServiceCents, tip_cents: spTipCents,
           payment_method: 'card', status: 'completed',
           client_name: bestMatch.client_name || '', service_name: bestMatch.service_name || '',
           service_amount: Number(bestMatch.service_amount || 0),
@@ -5200,7 +5213,7 @@ app.post('/api/payments/reconcile', requireRole('owner', 'admin'), async (req, r
           paid: true, payment_status: 'paid', payment_method: 'terminal',
           payment_id: sp.id,
           tip: spTipCents / 100, tip_amount: spTipCents / 100,
-          amount: spAmountCents / 100,
+          amount: spServiceCents / 100,
           updated_at: toIso(new Date()),
         }).catch(() => {});
         // Remove from unpaid list
@@ -7304,6 +7317,24 @@ app.post('/api/payments/terminal', async (req, res) => {
     if (!deviceId) deviceId = safeStr(process.env.SQUARE_DEVICE_ID || '');
     const paymentMethod = safeStr(b.payment_method || 'card');
     if (!amountCents || amountCents <= 0) return res.status(400).json({ error: 'amount required' });
+    // Server-side price verification: if booking has service, check amount is reasonable
+    if (bookingId) {
+      try {
+        const bDoc = await req.ws('bookings').doc(bookingId).get();
+        if (bDoc.exists) {
+          const bData = bDoc.data();
+          const expectedCents = Math.round(Number(bData.service_amount || bData.amount || 0) * 100);
+          // Allow if no expected price (manual amount), or within 20% tolerance (tax/fees may vary)
+          if (expectedCents > 0 && amountCents > 0) {
+            const ratio = amountCents / expectedCents;
+            if (ratio > 2.0 || ratio < 0.5) {
+              console.warn(`[PAYMENT] Price mismatch: booking ${bookingId} expected ~${expectedCents}c, got ${amountCents}c`);
+              return res.status(400).json({ error: 'Amount does not match booking price' });
+            }
+          }
+        }
+      } catch {} // Don't block payment if check fails
+    }
     // For non-card payments (cash, zelle, other), just record locally
     if (paymentMethod !== 'card') {
       const tipDollars = Number(b.tip_amount || b.tip || 0);
@@ -9681,8 +9712,25 @@ app.post('/api/billing/apple-verify', requireRole('owner'), async (req, res) => 
 // We need a separate raw body endpoint
 app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
-    const event = JSON.parse(req.body.toString());
-    // In production, verify signature with STRIPE_WEBHOOK_SECRET
+    // Verify Stripe webhook signature
+    let event;
+    if (STRIPE_WEBHOOK_SECRET) {
+      const sig = req.headers['stripe-signature'];
+      if (!sig) return res.status(400).json({ error: 'Missing stripe-signature header' });
+      // Manual HMAC verification (no Stripe SDK dependency)
+      const payload = req.body.toString();
+      const timestamp = sig.split(',').find(s => s.startsWith('t='))?.slice(2);
+      const v1Sig = sig.split(',').find(s => s.startsWith('v1='))?.slice(3);
+      if (!timestamp || !v1Sig) return res.status(400).json({ error: 'Invalid signature format' });
+      // Check timestamp tolerance (5 min)
+      if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return res.status(400).json({ error: 'Webhook timestamp too old' });
+      const expectedSig = crypto.createHmac('sha256', STRIPE_WEBHOOK_SECRET).update(`${timestamp}.${payload}`).digest('hex');
+      if (expectedSig !== v1Sig) return res.status(400).json({ error: 'Invalid webhook signature' });
+      event = JSON.parse(payload);
+    } else {
+      console.warn('[STRIPE] STRIPE_WEBHOOK_SECRET not set — accepting unverified webhook');
+      event = JSON.parse(req.body.toString());
+    }
     const type = event.type;
     const obj = event.data?.object;
     if (!obj) return res.json({ ok: true });
@@ -10116,6 +10164,13 @@ app.get('/public/data-export/:token', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="vurium-data-export-${new Date().toISOString().slice(0, 10)}.json"`);
     res.json(found);
   } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// ============================================================
+// HEALTH CHECK (for Cloud Run startup probe)
+// ============================================================
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', uptime: Math.floor(process.uptime()), timestamp: new Date().toISOString() });
 });
 
 // ============================================================
