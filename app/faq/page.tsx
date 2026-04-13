@@ -7,7 +7,7 @@ const SECTIONS = [
     items: [
       { q: 'What is VuriumBook?', a: 'VuriumBook is an all-in-one appointment scheduling and business management platform built for barbershops, salons, and service businesses. It includes online booking, team calendars, payments, client CRM, waitlist management, and more.' },
       { q: 'Who is VuriumBook for?', a: 'VuriumBook is designed for barbershops, hair salons, beauty studios, spas, and any service-based business that takes appointments. Whether you\'re a solo practitioner or managing a multi-location franchise, VuriumBook scales to fit your needs.' },
-      { q: 'Do I need any technical skills to use it?', a: 'Not at all. VuriumBook is designed to be intuitive and easy to set up. Most businesses are fully operational within 15 minutes of signing up. No coding or technical knowledge required.' },
+      { q: 'Do I need any technical skills to use it?', a: 'Not at all. VuriumBook is designed to be intuitive and easy to set up. Many businesses can get the basics live quickly, then finish the rest step by step. No coding or technical knowledge required.' },
       { q: 'Is there a mobile app?', a: 'VuriumBook is a fully responsive web application that works beautifully on any device — phone, tablet, or desktop. You can access it directly from your browser without downloading anything.' },
     ],
   },
@@ -15,16 +15,16 @@ const SECTIONS = [
     title: 'Billing & Pricing',
     items: [
       { q: 'How much does VuriumBook cost?', a: 'We offer three plans: Individual at $29/month for solo practitioners, Salon at $79/month for teams up to 10, and Custom at $99/month for larger businesses. All plans include a 14-day free trial.' },
-      { q: 'Is there a free trial?', a: 'Yes! Every plan includes a 14-day free trial with full access to all features. No credit card required to start. You can upgrade, downgrade, or cancel at any time.' },
+      { q: 'Is there a free trial?', a: 'Yes! Every plan includes a 14-day free trial with full access to all features. Billing only begins if you choose to continue after the trial. You can upgrade, downgrade, or cancel at any time.' },
       { q: 'Can I change my plan later?', a: 'Absolutely. You can upgrade or downgrade your plan at any time from your billing settings. Changes take effect immediately, and we prorate charges accordingly.' },
-      { q: 'What payment methods do you accept?', a: 'We accept all major credit and debit cards (Visa, Mastercard, American Express) through our secure payment partner, Stripe. Annual billing is also available at a discounted rate.' },
+      { q: 'What payment methods do you accept?', a: 'We accept all major credit and debit cards (Visa, Mastercard, American Express) through our secure payment partner, Stripe.' },
     ],
   },
   {
     title: 'Security & Data',
     items: [
-      { q: 'Is my data secure?', a: 'Yes. All data is encrypted in transit (TLS 1.3) and at rest. We host on Google Cloud Platform with enterprise-grade infrastructure. We never sell or share your data with third parties.' },
-      { q: 'Are you GDPR compliant?', a: 'Yes. Vurium is fully GDPR compliant. We provide data processing agreements, support data portability requests, and give you full control over your customer data. See our Privacy Policy and DPA for details.' },
+      { q: 'Is my data secure?', a: 'We use practical protections for account access, data handling, and payments. Card payments are handled through trusted payment providers, and we publish our privacy terms so businesses know how customer data is handled.' },
+      { q: 'Are you GDPR compliant?', a: 'We support common privacy and data-handling requests, and we publish our Privacy Policy and Data Processing Agreement for businesses that need them. If you have a specific compliance question, contact us and we will walk you through the current setup.' },
       { q: 'Can I export my data?', a: 'Yes. You can export all of your data — clients, bookings, payment history — at any time from your settings. Your data belongs to you, always.' },
       { q: 'What happens to my data if I cancel?', a: 'If you cancel your subscription, your data is retained for 30 days in case you change your mind. After that, it is permanently and securely deleted from our servers.' },
     ],
@@ -32,10 +32,10 @@ const SECTIONS = [
   {
     title: 'Getting Started',
     items: [
-      { q: 'How do I sign up?', a: 'Visit vurium.com/signup to create your account. You\'ll be asked for basic information like your business name and email. The whole process takes under 2 minutes.' },
+      { q: 'How do I sign up?', a: 'Visit vurium.com/signup to create your account. You\'ll be asked for basic information like your business name and email, and you can keep configuring services, team members, and payments after the account is created.' },
       { q: 'How do my clients book appointments?', a: 'Each business gets a unique booking page (e.g., vurium.com/book/your-shop). Share this link on your website, social media, or Google Business profile. Clients can browse available times and book instantly.' },
       { q: 'Can I migrate from another booking system?', a: 'Yes. Our support team can help you import client lists and historical data from most popular booking platforms. Contact us at support@vurium.com for migration assistance.' },
-      { q: 'Do you offer onboarding support?', a: 'Absolutely. All paid plans include onboarding support via email. Salon and Custom plans include priority support and optional live walkthroughs to help you get set up.' },
+      { q: 'Do you offer onboarding support?', a: 'Absolutely. We can help you get your booking page, services, and team set up. If you need extra help, contact support and we will walk you through the next steps.' },
     ],
   },
 ]
@@ -104,7 +104,7 @@ export default function FaqPage() {
           <div className="glass-card" style={{ padding: 'clamp(32px, 5vw, 48px)', maxWidth: 520, margin: '0 auto' }}>
             <h2 style={{ fontSize: 20, fontWeight: 600, color: '#e8e8ed', marginBottom: 12 }}>Still have questions?</h2>
             <p style={{ fontSize: 14, fontWeight: 300, color: 'rgba(255,255,255,.35)', lineHeight: 1.6, marginBottom: 24 }}>
-              Our team is here to help. Reach out and we&apos;ll get back to you within 24 hours.
+              Our team is here to help. Reach out and we&apos;ll get back to you as soon as we can.
             </p>
             <a href="/contact" className="btn-primary">Contact Us</a>
           </div>

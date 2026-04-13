@@ -236,7 +236,7 @@ export default function Home() {
           Try VuriumBook free<br />for 14 days.
         </h2>
         <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', fontWeight: 300, color: 'rgba(255,255,255,.3)', maxWidth: 440, margin: '0 auto 40px', lineHeight: 1.6 }}>
-          No credit card required. Set up in minutes.
+          Start with a 14-day trial and get your booking page, services, and schedule set up at your own pace.
         </p>
         <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
           <a href="/signup?plan=salon" className="btn-primary">Start Free Trial</a>

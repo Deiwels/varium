@@ -159,7 +159,7 @@ export default function VuriumBook() {
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
           {[
-            { title: 'Online Booking', desc: 'Clients book 24/7 from your personal booking page. Auto-confirmations via SMS.', color: 'rgba(255,255,255,.3)' },
+            { title: 'Online Booking', desc: 'Clients book online from your personal booking page, with confirmation updates sent by SMS when enabled.', color: 'rgba(255,255,255,.3)' },
             { title: 'Smart Calendar', desc: 'Visual schedule for you or your entire team. Drag to reschedule, tap to create.', color: 'rgba(255,255,255,.25)' },
             { title: 'Payments & Tips', desc: 'Accept cards, Apple Pay, cash. Track tips, generate receipts automatically.', color: 'rgba(255,255,255,.25)' },
             { title: 'Client Management', desc: 'Full CRM: visit history, preferences, notes, contact info, classifications.', color: 'rgba(255,255,255,.25)' },
@@ -223,7 +223,7 @@ export default function VuriumBook() {
           </div>
           <div>
             <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginBottom: 8 }}>14-Day Free Trial</div>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>Every account starts with full access to all features for 14 days. Card required at signup, cancel anytime before trial ends.</p>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>Every account starts with full access to all features for 14 days. Billing begins only if you choose to continue after the trial.</p>
           </div>
         </div>
       </section>
@@ -285,10 +285,10 @@ export default function VuriumBook() {
           Common questions.
         </h2>
         {[
-          { q: 'Is there a free trial?', a: 'Yes — every plan includes a 14-day free trial with all features. No credit card required to start.' },
+          { q: 'Is there a free trial?', a: 'Yes — every plan includes a 14-day free trial with full access. Billing only begins if you choose to continue after the trial.' },
           { q: 'Can I switch plans later?', a: 'Absolutely. Upgrade, downgrade, or cancel anytime from your billing settings. Changes are prorated.' },
           { q: 'What happens after the trial?', a: 'Your account converts to the plan you selected. All your data, clients, and settings are preserved.' },
-          { q: 'Do you offer annual billing?', a: 'Yes. Annual plans save you ~20% compared to monthly billing. Contact us for details.' },
+          { q: 'Do you offer annual billing?', a: 'If you need annual billing for your business, contact sales and we can walk you through the available options.' },
           { q: 'What payment methods do you accept?', a: 'Visa, Mastercard, American Express, and more — processed securely through Stripe.' },
         ].map((item, i) => (
           <PricingFaqItem key={i} q={item.q} a={item.a} />
@@ -306,7 +306,7 @@ export default function VuriumBook() {
           Ready to grow your business?
         </h2>
         <p style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', fontWeight: 300, color: 'rgba(255,255,255,.35)', maxWidth: 440, margin: '0 auto 36px', lineHeight: 1.6 }}>
-          Join 1,000+ businesses already using VuriumBook to manage their day.
+          Start your free trial and see how VuriumBook fits your schedule, team, and clients.
         </p>
         <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
           <a href="/signup?plan=salon" className="btn-primary">Start Free Trial</a>

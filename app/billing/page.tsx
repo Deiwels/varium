@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import Shell from '@/components/Shell'
+import { useDialog } from '@/components/StyledDialog'
 import { apiFetch } from '@/lib/api'
 import { loadStripe, Appearance } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
@@ -190,7 +191,7 @@ function CheckoutForm({ plan, onSuccess, onCancel }: { plan: PlanDef; onSuccess:
         cursor: processing ? 'wait' : 'pointer', fontFamily: 'inherit',
         opacity: processing ? 0.5 : 1, transition: 'all .2s',
       }}>
-        {processing ? 'Processing...' : `Start 14-Day Free Trial — $${plan.price}/mo`}
+        {processing ? 'Preparing checkout…' : `Start 14-Day Free Trial — $${plan.price}/mo`}
       </button>
 
       {/* Cancel */}
@@ -212,12 +213,15 @@ function CheckoutForm({ plan, onSuccess, onCancel }: { plan: PlanDef; onSuccess:
 
 // ─── Main Page ──────────────────────────────────────────────────────────────
 export default function BillingPage() {
+  const { showAlert, showConfirm, showError } = useDialog()
   const [billing, setBilling] = useState<BillingStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [checkoutPlan, setCheckoutPlan] = useState<PlanDef | null>(null)
   const [clientSecret, setClientSecret] = useState('')
   const [intentType, setIntentType] = useState<'payment' | 'setup'>('payment')
   const [checkoutLoading, setCheckoutLoading] = useState('')
+  const [portalLoading, setPortalLoading] = useState(false)
+  const [cancelLoading, setCancelLoading] = useState(false)
 
   const loadBilling = useCallback(() => {
     apiFetch('/api/billing/status').then(setBilling).catch(() => {}).finally(() => setLoading(false))
@@ -266,7 +270,7 @@ export default function BillingPage() {
       try {
         const data = await apiFetch('/api/billing/checkout', { method: 'POST', body: JSON.stringify({ plan: plan.id }) })
         if (data.url) window.location.href = data.url
-      } catch (e: any) { alert(e.message || 'Failed') }
+      } catch (e: any) { await showError(e.message || 'Failed') }
       setCheckoutLoading('')
       return
     }
@@ -290,7 +294,7 @@ export default function BillingPage() {
     try {
       const data = await apiFetch('/api/billing/checkout', { method: 'POST', body: JSON.stringify({ plan: plan.id }) })
       if (data.url) { window.location.href = data.url; return }
-    } catch (e2: any) { alert(e2.message || 'Failed to start checkout') }
+    } catch (e2: any) { await showError(e2.message || 'Failed to start checkout') }
     setCheckoutLoading('')
   }
 
@@ -302,31 +306,40 @@ export default function BillingPage() {
   }
 
   async function handlePortal() {
+    setPortalLoading(true)
     try {
       const data = await apiFetch('/api/billing/portal', { method: 'POST' })
       if (data.url) window.location.href = data.url
-    } catch (e: any) { alert(e.message || 'Failed to open billing portal') }
+    } catch (e: any) { await showError(e.message || 'Failed to open billing portal') }
+    finally { setPortalLoading(false) }
   }
 
   async function handleCancel() {
+    setCancelLoading(true)
     const source = (billing as any)?.billing_source
-    if (source === 'apple') {
-      const ok = confirm('Your subscription was purchased through the Apple App Store.\n\nTo cancel, you must do it in iOS Settings → Apple ID → Subscriptions → Vurium.\n\nWe\'ll open the Apple subscription management page now.')
-      if (!ok) return
-      try {
+    try {
+      if (source === 'apple') {
+        const ok = await showConfirm(
+          'Your subscription was purchased through the Apple App Store.\n\nTo change or cancel it, you need to manage it in Apple Subscriptions. We\'ll open the Apple management page now.',
+          'Manage Apple Subscription'
+        )
+        if (!ok) return
         const r: any = await apiFetch('/api/billing/cancel', { method: 'POST' })
         loadBilling()
         const url = r?.manage_url || 'https://apps.apple.com/account/subscriptions'
         window.location.href = url
-      } catch (e: any) { alert(e.message || 'Failed to cancel') }
-      return
-    }
-    if (!confirm('Are you sure you want to cancel your subscription? You will lose access at the end of the billing period.')) return
-    try {
+        return
+      }
+      const ok = await showConfirm(
+        'Are you sure you want to cancel your subscription? You will keep access until the end of the current billing period.',
+        'Cancel Subscription'
+      )
+      if (!ok) return
       const data = await apiFetch('/api/billing/cancel', { method: 'POST' })
-      if (data.message) alert(data.message)
+      if (data.message) await showAlert(data.message, 'Subscription Updated')
       loadBilling()
-    } catch (e: any) { alert(e.message || 'Failed to cancel') }
+    } catch (e: any) { await showError(e.message || 'Failed to cancel') }
+    finally { setCancelLoading(false) }
   }
 
   const card: React.CSSProperties = {
@@ -344,23 +357,48 @@ export default function BillingPage() {
     inactive: { bg: 'rgba(255,255,255,.05)', text: 'rgba(255,255,255,.4)', label: 'Inactive' },
   }
 
+  const billingSource = (billing as any)?.billing_source || ''
+  const isNativePurchaseAvailable = typeof window !== 'undefined' && !!window.__VURIUM_IS_NATIVE && !!window.webkit?.messageHandlers?.purchase
+  const isAppleManaged = billingSource === 'apple'
+  const planMeta = PLANS.find(plan => plan.id === billing?.plan)
+  const planLabel = planMeta?.name
+    || (billing?.plan ? billing.plan.charAt(0).toUpperCase() + billing.plan.slice(1) : (billing?.trial_active ? 'Trial Access' : 'Choose a Plan'))
+  const sourceSummary = isAppleManaged
+    ? 'Managed through Apple App Store subscriptions.'
+    : billing?.stripe_subscription_id
+      ? 'Managed through VuriumBook billing on the web.'
+      : billing?.trial_active
+        ? (isNativePurchaseAvailable ? 'Trial active. Continue in the app when you are ready to keep billing managed through Apple.' : 'Trial active. Add a subscription before the trial ends to keep your workspace active.')
+        : 'No paid subscription is connected yet. Pick a plan whenever you are ready.'
+
   return (
     <Shell page="Billing">
+      <style>{`
+        .billing-status-card { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+        .billing-status-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .billing-plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+        @media (max-width: 768px) {
+          .billing-status-card { gap: 14px; }
+          .billing-status-actions { width: 100%; flex-direction: column; }
+          .billing-status-actions button { width: 100%; }
+          .billing-plan-grid { grid-template-columns: 1fr; }
+        }
+      `}</style>
       <div style={{ padding: 'clamp(20px,3vw,32px)', maxWidth: 900, margin: '0 auto' }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#e8e8ed', marginBottom: 8 }}>Billing & Plan</h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', marginBottom: 32 }}>Manage your subscription and payment details</p>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: 'rgba(255,255,255,.3)' }}>Loading...</div>
+          <div style={{ textAlign: 'center', padding: 60, color: 'rgba(255,255,255,.3)' }}>Loading billing details…</div>
         ) : (
           <>
             {/* Current status */}
             {billing && (
-              <div style={{ ...card, marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+              <div className="billing-status-card" style={{ ...card, marginBottom: 28 }}>
                 <div>
                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 8 }}>Current Plan</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 22, fontWeight: 700, color: '#e8e8ed', textTransform: 'capitalize' }}>{billing.plan}</span>
+                    <span style={{ fontSize: 22, fontWeight: 700, color: '#e8e8ed' }}>{planLabel}</span>
                     <span style={{
                       padding: '4px 12px', borderRadius: 999, fontSize: 11, fontWeight: 600,
                       background: (statusColors[billing.subscription_status] || statusColors.inactive).bg,
@@ -369,6 +407,9 @@ export default function BillingPage() {
                       {(statusColors[billing.subscription_status] || statusColors.inactive).label}
                     </span>
                   </div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.32)', marginTop: 8, lineHeight: 1.55 }}>
+                    {sourceSummary}
+                  </div>
                   {billing.trial_active && (
                     <p style={{ fontSize: 13, color: 'rgba(130,220,170,.6)', marginTop: 8 }}>
                       {billing.trial_days_left} days left in free trial
@@ -376,19 +417,21 @@ export default function BillingPage() {
                     </p>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div className="billing-status-actions">
                   {billing.stripe_subscription_id && (
-                    <button onClick={handlePortal} style={{
-                      padding: '10px 20px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer',
+                    <button onClick={handlePortal} disabled={portalLoading || cancelLoading} style={{
+                      padding: '10px 20px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: portalLoading || cancelLoading ? 'default' : 'pointer',
                       background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)',
-                    }}>Manage Payment</button>
+                      opacity: portalLoading || cancelLoading ? 0.55 : 1,
+                    }}>{portalLoading ? 'Opening billing…' : 'Manage Billing'}</button>
                   )}
-                  {(billing.stripe_subscription_id || billing.subscription_status === 'active') &&
+                  {(billing.stripe_subscription_id || billing.subscription_status === 'active' || isAppleManaged) &&
                     billing.subscription_status !== 'cancelling' && billing.subscription_status !== 'canceled' && (
-                    <button onClick={handleCancel} style={{
-                      padding: '10px 20px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer',
+                    <button onClick={handleCancel} disabled={cancelLoading || portalLoading} style={{
+                      padding: '10px 20px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: cancelLoading || portalLoading ? 'default' : 'pointer',
                       background: 'rgba(220,80,80,.06)', border: '1px solid rgba(220,80,80,.15)', color: 'rgba(220,130,130,.7)',
-                    }}>Cancel</button>
+                      opacity: cancelLoading || portalLoading ? 0.55 : 1,
+                    }}>{cancelLoading ? (isAppleManaged ? 'Opening Apple subscriptions…' : 'Cancelling subscription…') : (isAppleManaged ? 'Manage in Apple' : 'Cancel')}</button>
                   )}
                 </div>
               </div>
@@ -398,7 +441,7 @@ export default function BillingPage() {
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 16 }}>
               {billing?.stripe_subscription_id ? 'Change Plan' : 'Choose a Plan'}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+            <div className="billing-plan-grid">
               {PLANS.map(p => {
                 const isCurrent = billing?.plan === p.id
                 return (
@@ -429,14 +472,14 @@ export default function BillingPage() {
                       onClick={() => startCheckout(p)}
                       disabled={isCurrent || !!checkoutLoading}
                       style={{
-                        width: '100%', padding: '12px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: isCurrent ? 'default' : 'pointer',
+                        width: '100%', padding: '12px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: isCurrent || !!checkoutLoading ? 'default' : 'pointer',
                         background: isCurrent ? 'rgba(255,255,255,.03)' : p.featured ? 'rgba(130,220,170,.12)' : 'rgba(255,255,255,.05)',
                         border: `1px solid ${isCurrent ? 'rgba(255,255,255,.06)' : p.featured ? 'rgba(130,220,170,.2)' : 'rgba(255,255,255,.1)'}`,
                         color: isCurrent ? 'rgba(255,255,255,.3)' : p.featured ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.6)',
                         opacity: checkoutLoading ? 0.5 : 1,
                       }}
                     >
-                      {checkoutLoading === p.id ? 'Loading...' : isCurrent ? 'Current Plan' : 'Subscribe'}
+                      {checkoutLoading === p.id ? (isNativePurchaseAvailable ? 'Opening App Store…' : 'Opening secure checkout…') : isCurrent ? 'Current Plan' : (isNativePurchaseAvailable ? 'Subscribe in App' : 'Subscribe')}
                     </button>
                   </div>
                 )
@@ -446,13 +489,13 @@ export default function BillingPage() {
             {/* Trial info */}
             {billing?.trial_active && !billing.stripe_subscription_id && (
               <div style={{ marginTop: 28, padding: '16px 20px', borderRadius: 14, background: 'rgba(130,150,220,.04)', border: '1px solid rgba(130,150,220,.1)', fontSize: 13, color: 'rgba(130,150,220,.6)', lineHeight: 1.6 }}>
-                You&apos;re on a free trial with full access to all features. Subscribe before the trial ends to keep your data and settings.
+                You&apos;re on a free trial with full access to all features. {isNativePurchaseAvailable ? 'Subscribe in the app before the trial ends to keep billing managed through Apple.' : 'Subscribe before the trial ends to keep your data and settings.'}
               </div>
             )}
 
             {/* Auto-renewal disclaimer (Apple 3.1.2) */}
             <div style={{ marginTop: 28, padding: '16px 20px', borderRadius: 14, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.04)', fontSize: 11, color: 'rgba(255,255,255,.25)', lineHeight: 1.7, textAlign: 'center' }}>
-              Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. You can manage and cancel your subscriptions in your Apple ID Settings or Google Play Store settings.
+              Web subscriptions can be managed from your VuriumBook billing portal. App Store subscriptions automatically renew unless cancelled at least 24 hours before the end of the current period and must be managed in Apple ID subscription settings.
             </div>
 
             {/* Restore Purchases (Apple requirement) + Privacy/Terms */}
@@ -463,7 +506,7 @@ export default function BillingPage() {
                   background: 'transparent', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.35)',
                   opacity: restoring ? 0.5 : 1,
                 }}>
-                  {restoring ? 'Restoring...' : 'Restore Purchases'}
+                  {restoring ? 'Restoring purchases…' : 'Restore Purchases'}
                 </button>
               )}
               <a href="/privacy" style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', textDecoration: 'none' }}>Privacy Policy</a>

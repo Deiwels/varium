@@ -1,11 +1,13 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { useDialog } from '@/components/StyledDialog'
 import { setAuthCookie } from '@/lib/auth-cookie'
 import { hasPinSetup, savePin } from '@/lib/pin'
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
 
 export default function SignInPage() {
+  const { showAlert, showError } = useDialog()
   const spaceRef = useRef<HTMLDivElement>(null)
   const [workspaceId, setWorkspaceId] = useState('')
   const [username, setUsername] = useState('')
@@ -16,6 +18,9 @@ export default function SignInPage() {
   const [pin, setPin] = useState('')
   const [pinConfirm, setPinConfirm] = useState('')
   const [pinError, setPinError] = useState('')
+  const [forgotOpen, setForgotOpen] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotLoading, setForgotLoading] = useState(false)
 
   useEffect(() => {
     // Hide global cosmos — this page has its own .space-bg starfield
@@ -102,6 +107,28 @@ export default function SignInPage() {
   function skipPinSetup() {
     if (!pinSetup) return
     window.location.replace(pinSetup.dest)
+  }
+
+  async function handleForgotPassword() {
+    if (!forgotEmail.trim()) {
+      await showAlert('Enter your email address to receive a reset link.', 'Forgot Password')
+      return
+    }
+    setForgotLoading(true)
+    try {
+      await fetch(`${API}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail.trim() }),
+      })
+      setForgotOpen(false)
+      setForgotEmail('')
+      await showAlert('If an account exists with that email, a reset link has been sent.', 'Forgot Password')
+    } catch {
+      await showError('Failed to send reset email.')
+    } finally {
+      setForgotLoading(false)
+    }
   }
 
   const inp: React.CSSProperties = {
@@ -292,11 +319,8 @@ export default function SignInPage() {
           {/* Forgot password */}
           <div style={{ textAlign: 'center', marginTop: 16 }}>
             <button type="button" onClick={() => {
-              const email = prompt('Enter your email to receive a password reset link:')
-              if (!email) return
-              fetch(`${API}/auth/forgot-password`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
-                .then(() => alert('If an account exists with that email, a reset link has been sent.'))
-                .catch(() => alert('Failed to send reset email.'))
+              setForgotEmail(username.trim())
+              setForgotOpen(true)
             }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.35)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
               Forgot password?
             </button>
@@ -311,6 +335,50 @@ export default function SignInPage() {
           </div>
         </div>
       </main>
+      {forgotOpen && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget && !forgotLoading) setForgotOpen(false) }}
+          style={{ position: 'fixed', inset: 0, zIndex: 20, background: 'rgba(0,0,0,.6)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div style={{ width: 'min(420px, 92vw)', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(10,10,20,.94)', boxShadow: '0 30px 80px rgba(0,0,0,.55)', padding: '24px 22px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(130,150,220,.55)', marginBottom: 10 }}>
+              Forgot Password
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: '#e8e8ed', letterSpacing: '-.02em', marginBottom: 8 }}>
+              Reset your password
+            </div>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,.4)', lineHeight: 1.6, marginBottom: 18 }}>
+              Enter the email for your workspace login and we&apos;ll send a reset link if an account exists.
+            </p>
+            <input
+              type="email"
+              autoFocus
+              placeholder="you@yourbusiness.com"
+              value={forgotEmail}
+              onChange={e => setForgotEmail(e.target.value)}
+              style={inp}
+            />
+            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+              <button
+                type="button"
+                onClick={() => setForgotOpen(false)}
+                disabled={forgotLoading}
+                style={{ flex: 1, height: 44, borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.55)', cursor: forgotLoading ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', opacity: forgotLoading ? 0.5 : 1 }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={forgotLoading}
+                style={{ flex: 1, height: 44, borderRadius: 999, border: '1px solid rgba(130,150,220,.28)', background: 'rgba(130,150,220,.14)', color: 'rgba(210,220,255,.92)', cursor: forgotLoading ? 'wait' : 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', opacity: forgotLoading ? 0.6 : 1 }}
+              >
+                {forgotLoading ? 'Sending…' : 'Send reset link'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

@@ -121,6 +121,7 @@
   - Action-state copy is being softened too: booking/payment CTAs and clock-in widgets now show clearer in-progress text instead of raw `...` or terse debug-style wording
   - Inline payment submit text on the booking page now reads `Processing payment…` instead of a generic `Processing...`
   - More raw three-dot action states were cleaned too (`Sending…`, `Adding…`, `Generating…`) so customer/admin surfaces stay consistent
+  - `Payments` now uses more product-style loading/empty/detail placeholder copy too (`Loading payments…`, `No payments match this range or filter yet.`, `Select a payment to view the full details.`)
 
 ## P2 — After Core Launch
 
@@ -143,10 +144,16 @@
   - `/`, `/about`, `/faq`, and `/support` are now being softened too so public pages stop promising unverified SLAs, compliance badges, or overly specific security claims
   - `contact` success copy and the getting-started blog post were aligned with the same safer trial/setup wording so marketing messaging stays consistent across the site
   - Additional exact-timeline claims were removed too (`24/7`, `under 2 minutes`, `within 30 days`) where we had not separately validated them as hard promises
-- [ ] P2.6 Table sorting (AI 2)
-- [ ] P2.7 Bulk actions (AI 2)
+- [ ] P2.6 Table sorting (AI 2) — **IN PROGRESS**
+  - `Clients` now has owner-facing sort controls for last visit, name, status, team member, visits, and spend
+  - `Payments` now has sort controls for date, amount, tip, client, status, and method, with shared asc/desc direction toggling across desktop and mobile list views
+- [ ] P2.7 Bulk actions (AI 2) — **IN PROGRESS**
+  - `Clients` now supports row selection, select-visible, clear-selection, and bulk delete for delete-authorized roles
+  - Bulk delete uses the styled dialog flow and keeps partial-failure handling in-app instead of falling back to browser dialogs
+  - Single-client delete in the profile panel now updates local state immediately too, instead of forcing a full page reload after delete
 - [ ] P2.8 Open Graph tags (AI 2) — **IN PROGRESS**
   - Added route-level metadata layouts for key sell-side pages so `about`, `contact`, `faq`, `support`, `vuriumbook`, and the getting-started blog post now have page-specific title/description/Open Graph/Twitter previews
+  - Public booking links now also have route-level metadata via `app/book/[id]/layout.tsx`, so direct booking shares can show a business-specific title/description/image instead of only the generic site metadata
 
 ## SMS & 10DLC Compliance
 

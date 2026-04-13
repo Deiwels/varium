@@ -98,7 +98,7 @@ function InlinePaymentForm({ onSuccess, onError, amount, isLight, showAmount = t
         background: 'rgba(130,220,170,.1)', border: '1px solid rgba(130,220,170,.2)', color: 'rgba(130,220,170,.9)',
         opacity: !stripe || paying ? 0.5 : 1,
       }}>
-        {paying ? 'Processing...' : (showAmount ? `Pay $${(amount / 100).toFixed(2)} & Confirm` : 'Pay & Confirm')}
+        {paying ? 'Processing payment…' : (showAmount ? `Pay $${(amount / 100).toFixed(2)} & Confirm` : 'Pay & Confirm')}
       </button>
     </form>
   )
@@ -131,6 +131,28 @@ function isValidEmail(s: string): boolean {
 function isValidPhone(s: string): boolean {
   const digits = String(s || '').replace(/\D/g, '')
   return digits.length >= 7 && digits.length <= 15
+}
+
+function formatTimezoneLabel(tz?: string): string {
+  const zone = tz || 'America/Chicago'
+  try {
+    const shortName = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone,
+      timeZoneName: 'short',
+    }).formatToParts(new Date()).find(part => part.type === 'timeZoneName')?.value
+    return shortName && shortName !== zone ? `${zone} (${shortName})` : zone
+  } catch {
+    return zone
+  }
+}
+
+function hashIdempotencyValue(input: string): string {
+  let hash = 2166136261
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0).toString(36)
 }
 
 function processCustomHTML(html: string, data: { shopName: string; barbers: Barber[]; reviews: any[] }): string {
@@ -198,6 +220,8 @@ export default function PublicBookingPage() {
   const [selectedSlot, setSelectedSlot] = useState('')
   const [slots, setSlots] = useState<string[]>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
+  const [bookingDraftHydrated, setBookingDraftHydrated] = useState(false)
+  const [bookingDraftRestored, setBookingDraftRestored] = useState(false)
   const [clientName, setClientName] = useState('')
   const [clientPhone, setClientPhone] = useState('')
   const [clientEmail, setClientEmail] = useState('')
@@ -221,6 +245,7 @@ export default function PublicBookingPage() {
   const [waitlistDone, setWaitlistDone] = useState(false)
   const [waitlistStartMin, setWaitlistStartMin] = useState(9 * 60)  // 9:00 AM
   const [waitlistEndMin, setWaitlistEndMin] = useState(18 * 60)     // 6:00 PM
+  const bookingDraftKey = wsId ? `VB_PUBLIC_BOOKING_DRAFT_${wsId}` : ''
 
   // Payment state
   const [stripeConnected, setStripeConnected] = useState(false)
@@ -317,6 +342,71 @@ export default function PublicBookingPage() {
   })()
   const involvedBarberIds = Object.keys(linesByBarber)
   const isMultiBarber = involvedBarberIds.length > 1
+
+  function getBookingIdempotencyKey() {
+    const fingerprint = JSON.stringify({
+      wsId: resolvedWsId || wsId || '',
+      startAt: selectedSlot || '',
+      clientName: clientName.trim().toLowerCase(),
+      clientEmail: clientEmail.trim().toLowerCase(),
+      clientPhone: clientPhone.replace(/\D/g, ''),
+      smsConsent: !!smsConsent,
+      lines: bookingLines.map(line => `${line.barberId}:${line.serviceId}`).sort(),
+    })
+    return `vb-book-${hashIdempotencyValue(fingerprint)}`
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !bookingDraftKey) return
+    setBookingDraftHydrated(false)
+    try {
+      const rawDraft = window.sessionStorage.getItem(bookingDraftKey)
+      if (rawDraft) {
+        const draft = JSON.parse(rawDraft)
+        const restored =
+          (typeof draft.clientName === 'string' && !!draft.clientName.trim()) ||
+          (typeof draft.clientPhone === 'string' && !!draft.clientPhone.trim()) ||
+          (typeof draft.clientEmail === 'string' && !!draft.clientEmail.trim()) ||
+          (typeof draft.clientNote === 'string' && !!draft.clientNote.trim()) ||
+          (typeof draft.smsConsent === 'boolean' && draft.smsConsent)
+        if (typeof draft.clientName === 'string') setClientName(draft.clientName)
+        if (typeof draft.clientPhone === 'string') setClientPhone(draft.clientPhone)
+        if (typeof draft.clientEmail === 'string') setClientEmail(draft.clientEmail)
+        if (typeof draft.clientNote === 'string') setClientNote(draft.clientNote)
+        if (typeof draft.smsConsent === 'boolean') setSmsConsent(draft.smsConsent)
+        setBookingDraftRestored(!!restored)
+      } else {
+        setBookingDraftRestored(false)
+      }
+    } catch {
+      setBookingDraftRestored(false)
+    }
+    setBookingDraftHydrated(true)
+  }, [bookingDraftKey])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !bookingDraftKey || !bookingDraftHydrated) return
+    try {
+      const hasDraft = !!(clientName.trim() || clientPhone.trim() || clientEmail.trim() || clientNote.trim() || smsConsent)
+      if (!hasDraft) {
+        window.sessionStorage.removeItem(bookingDraftKey)
+        return
+      }
+      window.sessionStorage.setItem(bookingDraftKey, JSON.stringify({
+        clientName,
+        clientPhone,
+        clientEmail,
+        clientNote,
+        smsConsent,
+      }))
+    } catch {}
+  }, [bookingDraftHydrated, bookingDraftKey, clientEmail, clientName, clientNote, clientPhone, smsConsent])
+
+  function clearBookingDraft() {
+    if (typeof window === 'undefined' || !bookingDraftKey) return
+    try { window.sessionStorage.removeItem(bookingDraftKey) } catch {}
+    setBookingDraftRestored(false)
+  }
 
   useEffect(() => {
     if (!wsId) return
@@ -476,6 +566,7 @@ export default function PublicBookingPage() {
         ? (clientNote ? `${clientNote}\nReference photo attached: ${referencePhoto.name}` : `Reference photo attached: ${referencePhoto.name}`)
         : clientNote
       const photoPayload = referencePhoto ? { data_url: referencePhoto.dataUrl, file_name: referencePhoto.name } : undefined
+      const idempotencyKey = getBookingIdempotencyKey()
 
       let res: any
       if (isMultiBarber) {
@@ -492,6 +583,9 @@ export default function PublicBookingPage() {
             start_at: selectedSlot, client_name: clientName,
             client_phone: clientPhone || undefined, client_email: clientEmail || undefined,
             sms_consent: clientPhone ? smsConsent : undefined,
+            sms_consent_text: clientPhone && smsConsent ? smsConsentText : undefined,
+            sms_consent_text_version: clientPhone && smsConsent ? smsConsentTextVersion : undefined,
+            idempotency_key: idempotencyKey,
             customer_note: noteWithPhoto || undefined,
             reference_photo: photoPayload, bookings: groups,
           }),
@@ -506,6 +600,9 @@ export default function PublicBookingPage() {
             start_at: selectedSlot, client_name: clientName,
             client_phone: clientPhone || undefined, client_email: clientEmail || undefined,
             sms_consent: clientPhone ? smsConsent : undefined,
+            sms_consent_text: clientPhone && smsConsent ? smsConsentText : undefined,
+            sms_consent_text_version: clientPhone && smsConsent ? smsConsentTextVersion : undefined,
+            idempotency_key: idempotencyKey,
             service_id: selectedService?.id, service_ids: selectedServiceIds,
             service_name: combinedServiceName || 'Appointment',
             duration_minutes: totalDuration,
@@ -520,6 +617,7 @@ export default function PublicBookingPage() {
         }
         throw new Error(res.error)
       }
+      clearBookingDraft()
       setBooked(true); setStep(4)
     } catch (e: any) {
       setError(e.message || 'Booking failed. Please try again.')
@@ -539,6 +637,7 @@ export default function PublicBookingPage() {
         ? (clientNote ? `${clientNote}\nReference photo attached: ${referencePhoto.name}` : `Reference photo attached: ${referencePhoto.name}`)
         : clientNote
       const photoPayload = referencePhoto ? { data_url: referencePhoto.dataUrl, file_name: referencePhoto.name } : undefined
+      const idempotencyKey = getBookingIdempotencyKey()
 
       let bookRes: any
       if (isMultiBarber) {
@@ -555,6 +654,9 @@ export default function PublicBookingPage() {
             start_at: selectedSlot, client_name: clientName,
             client_phone: clientPhone || undefined, client_email: clientEmail || undefined,
             sms_consent: clientPhone ? smsConsent : undefined,
+            sms_consent_text: clientPhone && smsConsent ? smsConsentText : undefined,
+            sms_consent_text_version: clientPhone && smsConsent ? smsConsentTextVersion : undefined,
+            idempotency_key: idempotencyKey,
             customer_note: payNoteWithPhoto || undefined,
             reference_photo: photoPayload, bookings: groups,
           }),
@@ -569,6 +671,9 @@ export default function PublicBookingPage() {
             start_at: selectedSlot, client_name: clientName,
             client_phone: clientPhone || undefined, client_email: clientEmail || undefined,
             sms_consent: clientPhone ? smsConsent : undefined,
+            sms_consent_text: clientPhone && smsConsent ? smsConsentText : undefined,
+            sms_consent_text_version: clientPhone && smsConsent ? smsConsentTextVersion : undefined,
+            idempotency_key: idempotencyKey,
             service_id: selectedService?.id, service_ids: selectedServiceIds,
             service_name: combinedServiceName || 'Appointment',
             duration_minutes: totalDuration,
@@ -604,6 +709,7 @@ export default function PublicBookingPage() {
 
   function onPaymentSuccess(_paymentIntentId: string) {
     // Booking already created, webhook will mark it paid
+    clearBookingDraft()
     setBooked(true); setStep(4)
   }
 
@@ -612,6 +718,7 @@ export default function PublicBookingPage() {
   }
 
   function resetBooking() {
+    clearBookingDraft()
     setStep(isSolo ? 1 : 0); setBookingLines([]); setSelectedSlot('')
     setSelectedDate(''); setClientName(''); setClientPhone('')
     setClientNote(''); setReferencePhoto(null); setBooked(false); setError('')
@@ -651,6 +758,8 @@ export default function PublicBookingPage() {
           preferred_end_min: waitlistEndMin,
           customer_note: allowBookingNotes ? waitlistNote || undefined : undefined,
           sms_consent: waitlistHasValidPhone ? waitlistSmsConsent : undefined,
+          sms_consent_text: waitlistHasValidPhone && waitlistSmsConsent ? smsConsentText : undefined,
+          sms_consent_text_version: waitlistHasValidPhone && waitlistSmsConsent ? smsConsentTextVersion : undefined,
           reference_photo: allowBookingNotes && waitlistPhoto ? { data_url: waitlistPhoto.dataUrl, file_name: waitlistPhoto.name } : undefined,
         }),
       })
@@ -689,6 +798,13 @@ export default function PublicBookingPage() {
   }
 
   const displayName = shopName || config.shop_name || 'Book an Appointment'
+  const smsSenderName = shopName || config.shop_name || 'this business'
+  const smsProgramName = shopName || config.shop_name
+    ? `${smsSenderName} Appointment Notifications`
+    : 'appointment notifications'
+  const smsConsentTextVersion = 'booking-sms-optin-business-name-v1'
+  const smsConsentText = `I agree to receive ${smsProgramName} via SMS (confirmations, reminders, reschedules, and cancellations). Message frequency may vary (up to 5 per booking). Standard message and data rates may apply. Reply STOP to opt out. Reply HELP for help. Consent is not a condition of purchase. Terms: https://vurium.com/terms Privacy Policy: https://vurium.com/privacy`
+  const smsFooterComplianceText = `${shopName || config.shop_name ? smsProgramName : 'Appointment notifications'}: up to 5 messages per booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`
   const bookingSettings = config.booking || {}
   const displaySettings = config.display || {}
   const onlineBookingEnabled = config.online_booking_enabled !== false
@@ -696,14 +812,19 @@ export default function PublicBookingPage() {
   const requirePhone = !!displaySettings.require_phone
   const allowBookingNotes = displaySettings.allow_notes !== false
   const cancellationHours = Math.max(0, Number(bookingSettings.cancellation_hours || 0))
+  const timezoneLabel = formatTimezoneLabel(config.timezone)
   const phoneReadyForBooking = clientPhone ? isValidPhone(clientPhone) : !requirePhone
   const canSubmitBooking = !!clientName.trim() && isValidEmail(clientEmail) && phoneReadyForBooking
+  const bookingSubmitting = bookLoading || paymentLoading
   const trimmedWaitlistEmail = waitlistEmail.trim()
   const waitlistPhoneDigits = waitlistPhone.replace(/\D/g, '').replace(/^1/, '')
   const waitlistHasValidPhone = waitlistPhoneDigits.length >= 10
   const waitlistHasValidEmail = !!trimmedWaitlistEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedWaitlistEmail)
   const waitlistHasContact = waitlistHasValidEmail || waitlistHasValidPhone
   const waitlistCanSubmit = !!waitlistName.trim() && waitlistHasContact && (!trimmedWaitlistEmail || waitlistHasValidEmail) && (!waitlistPhone || waitlistHasValidPhone)
+  const waitlistContactLabel = waitlistHasValidPhone
+    ? formatWaitlistPhone(waitlistPhone)
+    : (trimmedWaitlistEmail || '')
 
   // Styles
   // card & inp are defined after template is resolved (see below)
@@ -712,7 +833,7 @@ export default function PublicBookingPage() {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.3)', fontFamily: 'Inter, system-ui, sans-serif' }}>
-      Loading...
+      Loading booking page…
     </div>
   )
 
@@ -961,6 +1082,9 @@ export default function PublicBookingPage() {
         {step === 0 && !isSolo && (
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, color: textHeading }}>Choose your {getStaffLabel(businessType).toLowerCase()}</h2>
+            <div style={{ fontSize: 13, color: textMuted, lineHeight: 1.6, marginTop: -8, marginBottom: 18 }}>
+              Pick the person you want to book with first. You can still adjust services on the next step.
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${barbers.length <= 3 ? '140px' : '120px'}, 1fr))`, gap: 12 }}>
               {barbers.map(b => (
                 <div key={b.id} onClick={() => selectBarber(b)} style={{ ...card, textAlign: 'center', padding: '24px 12px' }}>
@@ -1078,6 +1202,9 @@ export default function PublicBookingPage() {
           return (
             <div>
               <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, color: textHeading }}>Select services</h2>
+              <div style={{ fontSize: 13, color: textMuted, lineHeight: 1.6, marginTop: -8, marginBottom: 18 }}>
+                Choose one or more services to build the appointment. Your time and total update automatically as you go.
+              </div>
 
               {/* Primary Services */}
               {primaryServices.length > 0 && (
@@ -1100,7 +1227,14 @@ export default function PublicBookingPage() {
                 </div>
               )}
 
-              {filteredServices.length === 0 && <div style={{ textAlign: 'center', color: textDim, padding: 40 }}>No services available</div>}
+              {filteredServices.length === 0 && (
+                <div style={{ textAlign: 'center', color: textDim, padding: '28px 24px', borderRadius: 16, border: `1px solid ${borderSoft}`, background: bgSubtle, lineHeight: 1.7 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: textMain, marginBottom: 6 }}>This booking menu is still being set up.</div>
+                  <div style={{ fontSize: 13 }}>
+                    There are no services live yet. Please contact the business directly if you need help booking.
+                  </div>
+                </div>
+              )}
 
               {/* Your selection summary — shows each line with barber name */}
               {bookingLines.length > 0 && (
@@ -1150,11 +1284,18 @@ export default function PublicBookingPage() {
         {step === 2 && (
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: isMultiBarber ? 8 : 20, color: textHeading }}>Pick date & time</h2>
+            <div style={{ fontSize: 13, color: textMuted, lineHeight: 1.6, marginTop: isMultiBarber ? 0 : -8, marginBottom: 18 }}>
+              Choose the day first, then select the time that works best for you.
+            </div>
             {isMultiBarber && (
               <div style={{ fontSize: 12, color: 'rgba(130,150,220,.7)', marginBottom: 16, padding: '8px 12px', borderRadius: 10, background: isLightTheme ? 'rgba(99,102,241,.05)' : 'rgba(130,150,220,.06)', border: `1px solid ${isLightTheme ? 'rgba(99,102,241,.12)' : 'rgba(130,150,220,.15)'}` }}>
                 Showing times when all {involvedBarberIds.length} team members are available
               </div>
             )}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 18, padding: '8px 12px', borderRadius: 999, border: `1px solid ${borderSoft}`, background: bgSubtle, fontSize: 12, color: textMuted }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', color: textDim }}>TZ</span>
+              All times shown in {timezoneLabel}
+            </div>
 
             <div style={{ marginBottom: 24 }}>
               <div style={{ fontSize: 13, color: textMuted, marginBottom: 10 }}>Date</div>
@@ -1176,10 +1317,15 @@ export default function PublicBookingPage() {
               <div style={{ marginBottom: 24 }}>
                 <div style={{ fontSize: 13, color: textMuted, marginBottom: 10 }}>Available times</div>
                 {slotsLoading ? (
-                  <div style={{ color: textDim, padding: 20, textAlign: 'center' }}>Loading...</div>
+                  <div style={{ color: textDim, padding: 20, textAlign: 'center' }}>Checking available times…</div>
                 ) : slots.length === 0 ? (
                   <div style={{ padding: 20, textAlign: 'center' }}>
-                    <div style={{ color: textDim }}>No available times</div>
+                    <div style={{ color: textMain, fontWeight: 600, marginBottom: 6 }}>No times are currently open for this day.</div>
+                    <div style={{ color: textDim, fontSize: 13, lineHeight: 1.6 }}>
+                      {waitlistEnabled
+                        ? 'Try another date above, or join the waitlist below so we can reach out if something opens.'
+                        : 'Try another date above, or contact the business directly for the latest availability.'}
+                    </div>
                   </div>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))', gap: 8 }}>
@@ -1213,27 +1359,27 @@ export default function PublicBookingPage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                           <div>
                             <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Name *</label>
-                            <input type="text" value={waitlistName} onChange={e => setWaitlistName(e.target.value)} placeholder="Your full name" required autoComplete="name" style={inp} />
+                            <input type="text" value={waitlistName} onChange={e => setWaitlistName(e.target.value)} placeholder="Your full name" required autoComplete="name" style={inp} disabled={waitlistSubmitting} />
                           </div>
                         <div>
                             <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Email</label>
-                            <input type="email" value={waitlistEmail} onChange={e => setWaitlistEmail(e.target.value)} placeholder="your@email.com" autoComplete="email" style={inp} />
+                            <input type="email" value={waitlistEmail} onChange={e => setWaitlistEmail(e.target.value)} placeholder="your@email.com" autoComplete="email" style={inp} disabled={waitlistSubmitting} />
                           </div>
                           <div>
                             <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Phone</label>
-                            <input type="tel" value={waitlistPhone} onChange={e => setWaitlistPhone(formatWaitlistPhone(e.target.value))} placeholder="+1 (555) 123-4567" autoComplete="tel" style={inp} />
+                            <input type="tel" value={waitlistPhone} onChange={e => setWaitlistPhone(formatWaitlistPhone(e.target.value))} placeholder="+1 (555) 123-4567" autoComplete="tel" style={inp} disabled={waitlistSubmitting} />
                             <div style={{ fontSize: 11, color: textDim, marginTop: 6 }}>Add an email or phone number so we can reach you if a slot opens.</div>
                           </div>
                           {allowBookingNotes && (
                             <>
                               <div>
                                 <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Notes (optional)</label>
-                                <textarea value={waitlistNote} onChange={e => setWaitlistNote(e.target.value)} placeholder="Any special requests..." rows={3} style={{ ...inp, resize: 'vertical' }} />
+                                <textarea value={waitlistNote} onChange={e => setWaitlistNote(e.target.value)} placeholder="Any special requests..." rows={3} style={{ ...inp, resize: 'vertical' }} disabled={waitlistSubmitting} />
                               </div>
                               <div>
                                 <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Reference photo (optional)</label>
                                 <div style={{ border: `1px dashed ${isLightTheme ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.12)'}`, borderRadius: 12, padding: '12px 14px', background: isLightTheme ? 'rgba(0,0,0,.02)' : 'rgba(255,255,255,.02)' }}>
-                                  <input type="file" accept="image/*" onChange={e => {
+                                  <input type="file" accept="image/*" disabled={waitlistSubmitting} onChange={e => {
                                     const file = e.target.files?.[0]; if (!file) return
                                     if (file.size > 10 * 1024 * 1024) { setError('Photo must be under 10MB'); return }
                                     const reader = new FileReader()
@@ -1257,7 +1403,7 @@ export default function PublicBookingPage() {
                                 {waitlistPhoto && (
                                   <div style={{ marginTop: 10, position: 'relative', display: 'inline-block' }}>
                                     <img src={waitlistPhoto.dataUrl} alt="Reference" style={{ maxWidth: 200, maxHeight: 200, borderRadius: 12, objectFit: 'cover', border: `1px solid ${isLightTheme ? 'rgba(0,0,0,.1)' : 'rgba(255,255,255,.1)'}` }} />
-                                    <button onClick={() => setWaitlistPhoto(null)} style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 999, background: 'rgba(220,60,60,.8)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                                    <button onClick={() => setWaitlistPhoto(null)} disabled={waitlistSubmitting} style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 999, background: 'rgba(220,60,60,.8)', border: 'none', color: '#fff', cursor: waitlistSubmitting ? 'default' : 'pointer', opacity: waitlistSubmitting ? 0.55 : 1, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
                                   </div>
                                 )}
                               </div>
@@ -1266,7 +1412,7 @@ export default function PublicBookingPage() {
                           <div>
                             <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Preferred time</label>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                              <select value={waitlistStartMin} onChange={e => setWaitlistStartMin(Number(e.target.value))} style={{ ...inp, flex: 1 }}>
+                              <select value={waitlistStartMin} onChange={e => setWaitlistStartMin(Number(e.target.value))} style={{ ...inp, flex: 1 }} disabled={waitlistSubmitting}>
                                 {Array.from({ length: 28 }, (_, i) => {
                                   const m = 7 * 60 + i * 30
                                   const h = Math.floor(m / 60), mm = m % 60
@@ -1276,7 +1422,7 @@ export default function PublicBookingPage() {
                                 })}
                               </select>
                               <span style={{ color: textDim, fontSize: 12, fontWeight: 600 }}>to</span>
-                              <select value={waitlistEndMin} onChange={e => setWaitlistEndMin(Number(e.target.value))} style={{ ...inp, flex: 1 }}>
+                              <select value={waitlistEndMin} onChange={e => setWaitlistEndMin(Number(e.target.value))} style={{ ...inp, flex: 1 }} disabled={waitlistSubmitting}>
                                 {Array.from({ length: 28 }, (_, i) => {
                                   const m = 7 * 60 + 30 + i * 30
                                   const h = Math.floor(m / 60), mm = m % 60
@@ -1290,20 +1436,20 @@ export default function PublicBookingPage() {
 
                           {waitlistHasValidPhone && (
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4 }}>
-                              <input type="checkbox" checked={waitlistSmsConsent} onChange={e => setWaitlistSmsConsent(e.target.checked)} id="wl-sms-consent" style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }} />
+                              <input type="checkbox" checked={waitlistSmsConsent} onChange={e => setWaitlistSmsConsent(e.target.checked)} disabled={waitlistSubmitting} id="wl-sms-consent" style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: waitlistSubmitting ? 'default' : 'pointer', flexShrink: 0 }} />
                               <label htmlFor="wl-sms-consent" style={{ fontSize: 12, color: textMuted, lineHeight: 1.5, cursor: 'pointer' }}>
-                                By checking this box, you agree to receive text messages from <strong>{shopName || 'this business'}</strong> about your appointment, including confirmations, reminders, rescheduling updates, and cancellations. Message frequency may vary. Msg &amp; data rates may apply. Reply STOP to opt out and HELP for help. See our <a href="https://vurium.com/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a> and <a href="https://vurium.com/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy Policy</a>.
+                                I agree to receive <strong>{smsProgramName}</strong> via SMS (confirmations, reminders, reschedules, and cancellations). Message frequency may vary (up to 5 per booking). Standard message and data rates may apply. Reply STOP to opt out. Reply HELP for help. Consent is not a condition of purchase. View our <a href="https://vurium.com/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a> and <a href="https://vurium.com/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy Policy</a>.
                               </label>
                             </div>
                           )}
                         </div>
                         <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
-                          <button onClick={() => setShowWaitlistForm(false)} style={{ padding: '12px 20px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', background: 'none', border: `1px solid ${borderSoft}`, color: textMuted }}>Cancel</button>
+                          <button onClick={() => setShowWaitlistForm(false)} disabled={waitlistSubmitting} style={{ padding: '12px 20px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: waitlistSubmitting ? 'default' : 'pointer', opacity: waitlistSubmitting ? 0.5 : 1, background: 'none', border: `1px solid ${borderSoft}`, color: textMuted }}>Cancel</button>
                           <button onClick={handleJoinWaitlist} disabled={waitlistSubmitting || !waitlistCanSubmit} style={{
                             flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: waitlistSubmitting || !waitlistCanSubmit ? 'default' : 'pointer',
                             background: 'rgba(130,150,220,.1)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
                             opacity: waitlistSubmitting || !waitlistCanSubmit ? 0.5 : 1,
-                          }}>{waitlistSubmitting ? 'Joining...' : 'Join Waitlist'}</button>
+                          }}>{waitlistSubmitting ? 'Joining waitlist…' : 'Join Waitlist'}</button>
                         </div>
                       </div>
                     )}
@@ -1313,7 +1459,11 @@ export default function PublicBookingPage() {
                   <div style={{ marginTop: 16, padding: 20, borderRadius: 16, border: '1px solid rgba(130,220,170,.15)', background: 'rgba(130,220,170,.04)', textAlign: 'center' }}>
                     <div style={{ width: 40, height: 40, borderRadius: 999, margin: '0 auto 12px', background: 'rgba(130,220,170,.1)', border: '1px solid rgba(130,220,170,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'rgba(130,220,170,.8)' }}>✓</div>
                     <div style={{ fontSize: 15, fontWeight: 600, color: textMain, marginBottom: 4 }}>You&apos;re on the waitlist!</div>
-                    <div style={{ fontSize: 13, color: textMuted, lineHeight: 1.5 }}>We&apos;ll notify you if a spot opens up.</div>
+                    <div style={{ fontSize: 13, color: textMuted, lineHeight: 1.5 }}>
+                      {waitlistContactLabel
+                        ? `We’ll reach out at ${waitlistContactLabel} if a spot opens up.`
+                        : 'We’ll notify you if a spot opens up.'}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1335,6 +1485,14 @@ export default function PublicBookingPage() {
         {step === 3 && (
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, color: textHeading }}>Your details</h2>
+            <div style={{ fontSize: 13, color: textMuted, lineHeight: 1.6, marginTop: -8, marginBottom: 18 }}>
+              We&apos;ll keep these details on this device while you finish booking, even if you go back to change the time.
+            </div>
+            {bookingDraftRestored && (clientName || clientPhone || clientEmail || clientNote || smsConsent) && (
+              <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 12, border: `1px solid ${isLightTheme ? 'rgba(99,102,241,.14)' : 'rgba(130,150,220,.18)'}`, background: isLightTheme ? 'rgba(99,102,241,.04)' : 'rgba(130,150,220,.08)', fontSize: 12, color: isLightTheme ? 'rgba(67,56,202,.78)' : 'rgba(195,205,255,.82)', lineHeight: 1.55 }}>
+                Your saved details were restored on this device so you can keep booking without retyping everything.
+              </div>
+            )}
 
             {/* Summary */}
             <div style={{ ...card, cursor: 'default', marginBottom: 24, padding: '16px 20px' }}>
@@ -1371,6 +1529,9 @@ export default function PublicBookingPage() {
               <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${borderSoft}`, fontSize: 14, fontWeight: 500, color: 'rgba(130,150,220,.7)' }}>
                 {fmtFullDate(selectedDate)} at {fmtTime(selectedSlot)}
               </div>
+              <div style={{ marginTop: 6, fontSize: 11, color: textDim }}>
+                All times shown in {timezoneLabel}
+              </div>
               {cancellationHours > 0 && (
                 <div style={{ marginTop: 8, fontSize: 11, color: textDim, lineHeight: 1.6 }}>
                   Self-service changes close {cancellationHours} hour{cancellationHours === 1 ? '' : 's'} before the appointment.
@@ -1381,15 +1542,15 @@ export default function PublicBookingPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Name *</label>
-                <input type="text" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Your full name" required style={inp} />
+                <input type="text" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Your full name" required style={inp} disabled={bookingSubmitting} />
               </div>
               <div>
                 <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Email *</label>
-                <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="your@email.com" required style={inp} />
+                <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="your@email.com" required style={inp} disabled={bookingSubmitting} />
               </div>
               <div>
                 <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Phone {requirePhone ? '*' : '(optional)'}</label>
-                <input type="tel" value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="+1 (555) 123-4567" required={requirePhone} style={inp} />
+                <input type="tel" value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="+1 (555) 123-4567" required={requirePhone} style={inp} disabled={bookingSubmitting} />
                 <div style={{ fontSize: 10, color: textDim, marginTop: 4, lineHeight: 1.4 }}>
                   {requirePhone
                     ? 'Phone is required for this business. SMS still stays opt-in only.'
@@ -1400,7 +1561,7 @@ export default function PublicBookingPage() {
                 <>
                   <div>
                     <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Notes (optional)</label>
-                    <textarea value={clientNote} onChange={e => setClientNote(e.target.value)} placeholder="Any special requests..." rows={3}
+                    <textarea value={clientNote} onChange={e => setClientNote(e.target.value)} placeholder="Any special requests..." rows={3} disabled={bookingSubmitting}
                       style={{ ...inp, resize: 'vertical' }} />
                   </div>
 
@@ -1414,6 +1575,7 @@ export default function PublicBookingPage() {
                       <input
                         type="file"
                         accept="image/*"
+                        disabled={bookingSubmitting}
                         onChange={e => {
                           const file = e.target.files?.[0]
                           if (!file) return
@@ -1449,9 +1611,9 @@ export default function PublicBookingPage() {
                           maxWidth: 200, maxHeight: 200, borderRadius: 12, objectFit: 'cover',
                           border: `1px solid ${isLightTheme ? 'rgba(0,0,0,.1)' : 'rgba(255,255,255,.1)'}`,
                         }} />
-                        <button onClick={() => setReferencePhoto(null)} style={{
+                        <button onClick={() => setReferencePhoto(null)} disabled={bookingSubmitting} style={{
                           position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 999,
-                          background: 'rgba(220,60,60,.8)', border: 'none', color: '#fff', cursor: 'pointer',
+                          background: 'rgba(220,60,60,.8)', border: 'none', color: '#fff', cursor: bookingSubmitting ? 'default' : 'pointer', opacity: bookingSubmitting ? 0.55 : 1,
                           fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
                         }}>×</button>
                         <div style={{ fontSize: 11, color: textDim, marginTop: 4 }}>{referencePhoto.name}</div>
@@ -1467,11 +1629,12 @@ export default function PublicBookingPage() {
                     type="checkbox"
                     checked={smsConsent}
                     onChange={e => setSmsConsent(e.target.checked)}
+                    disabled={bookingSubmitting}
                     id="sms-consent"
-                    style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }}
+                    style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: bookingSubmitting ? 'default' : 'pointer', flexShrink: 0 }}
                   />
                   <label htmlFor="sms-consent" style={{ fontSize: 12, color: textMuted, lineHeight: 1.5, cursor: 'pointer' }}>
-                    By checking this box, you agree to receive text messages from <strong>{shopName || 'this business'}</strong> about your appointment, including confirmations, reminders, rescheduling updates, and cancellations. Message frequency may vary. Msg &amp; data rates may apply. Reply STOP to opt out and HELP for help. See our <a href="https://vurium.com/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a> and <a href="https://vurium.com/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy Policy</a>.
+                    I agree to receive <strong>{smsProgramName}</strong> via SMS (confirmations, reminders, reschedules, and cancellations). Message frequency may vary (up to 5 per booking). Standard message and data rates may apply. Reply STOP to opt out. Reply HELP for help. Consent is not a condition of purchase. View our <a href="https://vurium.com/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a> and <a href="https://vurium.com/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy Policy</a>.
                   </label>
                 </div>
               )}
@@ -1487,17 +1650,19 @@ export default function PublicBookingPage() {
               <div style={{ marginTop: 20, padding: '16px 20px', borderRadius: 14, border: `1px solid ${borderSoft}`, background: bgSubtle }}>
                 <div style={{ fontSize: 13, color: textMuted, marginBottom: 12, fontWeight: 500 }}>Payment</div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => setPayOnline(false)} style={{
-                    flex: 1, padding: '12px 10px', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer',
+                  <button onClick={() => setPayOnline(false)} disabled={bookingSubmitting} style={{
+                    flex: 1, padding: '12px 10px', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', cursor: bookingSubmitting ? 'default' : 'pointer',
                     background: !payOnline ? 'rgba(130,220,170,.1)' : bgSubtle,
                     border: `1px solid ${!payOnline ? 'rgba(130,220,170,.2)' : borderSoft}`,
                     color: !payOnline ? 'rgba(130,220,170,.9)' : textMuted,
+                    opacity: bookingSubmitting ? 0.55 : 1,
                   }}>Pay at salon</button>
-                  <button onClick={() => setPayOnline(true)} style={{
-                    flex: 1, padding: '12px 10px', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer',
+                  <button onClick={() => setPayOnline(true)} disabled={bookingSubmitting} style={{
+                    flex: 1, padding: '12px 10px', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', cursor: bookingSubmitting ? 'default' : 'pointer',
                     background: payOnline ? 'rgba(130,150,220,.12)' : bgSubtle,
                     border: `1px solid ${payOnline ? 'rgba(130,150,220,.2)' : borderSoft}`,
                     color: payOnline ? 'rgba(130,150,220,.9)' : textMuted,
+                    opacity: bookingSubmitting ? 0.55 : 1,
                   }}>{showPublicPrices ? `Pay now (${fmtPrice(totalPrice)})` : 'Pay now'}</button>
                 </div>
               </div>
@@ -1525,21 +1690,28 @@ export default function PublicBookingPage() {
 
             {!paymentClientSecret && (
               <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-                <button onClick={() => setStep(2)} style={{ padding: '12px 20px', background: 'none', border: `1px solid ${borderSoft}`, borderRadius: 12, color: textMuted, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Back</button>
+                <button onClick={() => setStep(2)} disabled={bookingSubmitting} style={{ padding: '12px 20px', background: 'none', border: `1px solid ${borderSoft}`, borderRadius: 12, color: textMuted, cursor: bookingSubmitting ? 'default' : 'pointer', opacity: bookingSubmitting ? 0.5 : 1, fontSize: 13, fontFamily: 'inherit' }}>Back</button>
                 {payOnline ? (
-                  <button onClick={handlePayOnlineFlow} disabled={!canSubmitBooking || paymentLoading} style={{
+                  <button onClick={handlePayOnlineFlow} disabled={!canSubmitBooking || bookingSubmitting} style={{
                     flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit',
-                    cursor: !canSubmitBooking || paymentLoading ? 'default' : 'pointer',
+                    cursor: !canSubmitBooking || bookingSubmitting ? 'default' : 'pointer',
                     background: 'rgba(130,150,220,.12)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
-                    opacity: !canSubmitBooking || paymentLoading ? 0.5 : 1,
-                  }}>{paymentLoading ? 'Setting up payment...' : showPublicPrices ? `Pay ${fmtPrice(totalPrice)} & Book` : 'Pay online & Book'}</button>
+                    opacity: !canSubmitBooking || bookingSubmitting ? 0.5 : 1,
+                  }}>{paymentLoading ? 'Preparing secure checkout…' : showPublicPrices ? `Pay ${fmtPrice(totalPrice)} & Book` : 'Pay online & Book'}</button>
                 ) : (
-                  <button onClick={handleBook} disabled={!canSubmitBooking || bookLoading} style={{
-                    flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: !canSubmitBooking || bookLoading ? 'default' : 'pointer',
+                  <button onClick={handleBook} disabled={!canSubmitBooking || bookingSubmitting} style={{
+                    flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: !canSubmitBooking || bookingSubmitting ? 'default' : 'pointer',
                     background: 'rgba(130,220,170,.1)', border: '1px solid rgba(130,220,170,.2)', color: 'rgba(130,220,170,.9)',
-                    opacity: !canSubmitBooking || bookLoading ? 0.5 : 1,
-                  }}>{bookLoading ? 'Booking...' : 'Confirm Booking'}</button>
+                    opacity: !canSubmitBooking || bookingSubmitting ? 0.5 : 1,
+                  }}>{bookLoading ? 'Saving your booking…' : 'Confirm Booking'}</button>
                 )}
+              </div>
+            )}
+            {bookingSubmitting && !paymentClientSecret && (
+              <div style={{ marginTop: 10, fontSize: 12, color: textDim, lineHeight: 1.55 }}>
+                {paymentLoading
+                  ? 'Checking availability and preparing secure payment...'
+                  : 'Checking availability and confirming your appointment...'}
               </div>
             )}
           </div>
@@ -1590,7 +1762,7 @@ export default function PublicBookingPage() {
           Powered by VuriumBook&trade;
         </a>
         <div className="bp-legal" style={{ fontSize: 10, color: isLightTheme ? 'rgba(0,0,0,.3)' : 'rgba(255,255,255,.22)', lineHeight: 1.6, maxWidth: 400, margin: '8px auto 0' }}>
-          Msg &amp; data rates may apply. Msg frequency: up to 5 per booking. Reply STOP to unsubscribe, HELP for help.
+          {smsFooterComplianceText}
           <div style={{ marginTop: 3 }}>
             <a href="https://vurium.com/privacy#sms" target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.3)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>Privacy Policy</a> &amp; <a href="https://vurium.com/terms#sms" target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.3)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>Terms</a>
           </div>

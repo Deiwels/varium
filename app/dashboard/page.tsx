@@ -29,8 +29,27 @@ interface BarberPayroll {
 }
 
 const money = (n: number) => '$' + Number(n || 0).toFixed(2)
-const fmtTime = (iso?: string) => { try { return new Date(iso!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) } catch { return '—' } }
+const fmtTime = (iso?: string) => { try { return new Date(iso!).toLocaleTimeString([], { timeZone: _dashTz, hour: '2-digit', minute: '2-digit', hour12: false }) } catch { return '—' } }
 let _dashTz = 'America/Chicago'
+function getDashTimeParts(value?: string | Date): { hours: number; minutes: number; dow: number } {
+  const date = value instanceof Date ? value : new Date(value || new Date())
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: _dashTz,
+    hour: '2-digit',
+    minute: '2-digit',
+    weekday: 'short',
+    hour12: false,
+  }).formatToParts(date)
+  const obj: Record<string, string> = {}
+  parts.forEach(part => { obj[part.type] = part.value })
+  const dowMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
+  return {
+    hours: Number(obj.hour || 0),
+    minutes: Number(obj.minute || 0),
+    dow: dowMap[(obj.weekday || '').slice(0, 3)] ?? date.getDay(),
+  }
+}
+const fmtWeekdayNarrow = (isoDay: string) => new Date(`${isoDay}T12:00:00`).toLocaleDateString([], { timeZone: _dashTz, weekday: 'narrow' })
 const isoToday = () => {
   // Use workspace timezone for "today" calculation
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: _dashTz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
@@ -40,31 +59,56 @@ const isoDate = (d: Date) => {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: _dashTz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
   return parts
 }
+function getDashCalendarDateParts(value?: string | Date) {
+  const date = value instanceof Date ? value : new Date(value || new Date())
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: _dashTz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+  const obj: Record<string, string> = {}
+  parts.forEach(part => { obj[part.type] = part.value })
+  return {
+    year: Number(obj.year || 0),
+    month: Number(obj.month || 1),
+    day: Number(obj.day || 1),
+  }
+}
+function getDashTodayDate() {
+  const { year, month, day } = getDashCalendarDateParts(new Date())
+  return new Date(Date.UTC(year, month - 1, day, 12))
+}
+function addDashDays(date: Date, days: number) {
+  const next = new Date(date)
+  next.setUTCDate(next.getUTCDate() + days)
+  return next
+}
 type EarningsPeriod = 'today' | 'week' | 'month'
 function getDateRange(period: EarningsPeriod, offset: number): { from: string; to: string; label: string } {
-  const now = new Date()
+  const dashToday = getDashTodayDate()
   if (period === 'today') {
-    const d = new Date(now); d.setDate(d.getDate() + offset)
+    const d = addDashDays(dashToday, offset)
     const iso = isoDate(d)
-    const label = offset === 0 ? 'Today' : offset === -1 ? 'Yesterday' : d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+    const label = offset === 0 ? 'Today' : offset === -1 ? 'Yesterday' : d.toLocaleDateString(undefined, { timeZone: _dashTz, weekday: 'short', month: 'short', day: 'numeric' })
     return { from: iso, to: iso, label }
   }
   if (period === 'week') {
     // Pay week: Sunday to Saturday
-    const dow = now.getDay()
-    const sun = new Date(now); sun.setDate(now.getDate() - dow + offset * 7)
-    const sat = new Date(sun); sat.setDate(sun.getDate() + 6)
+    const dow = getDashTimeParts(new Date()).dow
+    const sun = addDashDays(dashToday, -dow + offset * 7)
+    const sat = addDashDays(sun, 6)
     const label = offset === 0 ? 'This week' : offset === -1 ? 'Last week'
-      : `${sun.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} — ${sat.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+      : `${sun.toLocaleDateString(undefined, { timeZone: _dashTz, month: 'short', day: 'numeric' })} — ${sat.toLocaleDateString(undefined, { timeZone: _dashTz, month: 'short', day: 'numeric' })}`
     return { from: isoDate(sun), to: isoDate(sat), label }
   }
   // month
-  const m = new Date(now.getFullYear(), now.getMonth() + offset, 1)
-  const last = new Date(m.getFullYear(), m.getMonth() + 1, 0)
-  const label = offset === 0 ? 'This month' : m.toLocaleDateString(undefined, { month: 'long', year: now.getFullYear() !== m.getFullYear() ? 'numeric' : undefined })
+  const m = new Date(Date.UTC(dashToday.getUTCFullYear(), dashToday.getUTCMonth() + offset, 1, 12))
+  const last = new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + 1, 0, 12))
+  const label = offset === 0 ? 'This month' : m.toLocaleDateString(undefined, { timeZone: _dashTz, month: 'long', year: dashToday.getUTCFullYear() !== m.getUTCFullYear() ? 'numeric' : undefined })
   return { from: isoDate(m), to: isoDate(last), label }
 }
-const fmtDateLong = () => new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+const fmtDateLong = () => new Date().toLocaleDateString([], { timeZone: _dashTz, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
 
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
   paid:      { borderColor: 'rgba(143,240,177,.40)', background: 'rgba(143,240,177,.10)', color: 'rgba(130,220,170,.5)' },
@@ -106,7 +150,18 @@ function ClockWidget() {
     start()
     return () => { stop(); document.removeEventListener('visibilitychange', onVis) }
   }, [])
-  const h = time.getHours() % 12, m = time.getMinutes(), s = time.getSeconds()
+  const clockParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: _dashTz,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(time)
+  const clockObj: Record<string, string> = {}
+  clockParts.forEach(part => { clockObj[part.type] = part.value })
+  const h = Number(clockObj.hour || 0) % 12
+  const m = Number(clockObj.minute || 0)
+  const s = Number(clockObj.second || 0)
   const hDeg = h * 30 + m * 0.5, mDeg = m * 6, sDeg = s * 6
   const size = 70, cx = size / 2, cy = size / 2
   return (
@@ -134,13 +189,13 @@ function MiniCalendarWidget({ bookings }: { bookings: Booking[] }) {
     byBarber[name].push(b)
   })
   const barberNames = Object.keys(byBarber).sort()
-  const fmt = (iso?: string) => { try { return new Date(iso!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) } catch { return '' } }
+  const fmt = (iso?: string) => { try { return new Date(iso!).toLocaleTimeString([], { timeZone: _dashTz, hour: '2-digit', minute: '2-digit', hour12: false }) } catch { return '' } }
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
         <div style={{ fontSize: 9, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>
-          {now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+          {now.toLocaleDateString([], { timeZone: _dashTz, weekday: 'short', month: 'short', day: 'numeric' })}
         </div>
         <div style={{ fontSize: 10, color: 'rgba(255,255,255,.3)' }}>{bookings.length} bookings</div>
       </div>
@@ -169,6 +224,7 @@ function MiniCalendarWidget({ bookings }: { bookings: Booking[] }) {
 }
 
 export default function DashboardPage() {
+  const [dashTimezone, setDashTimezone] = useState(_dashTz)
   const [bookings, setBookings] = useState<Booking[]>([])
   const [myPayroll, setMyPayroll] = useState<BarberPayroll | null>(null)
   const [loading, setLoading] = useState(true)
@@ -250,6 +306,7 @@ export default function DashboardPage() {
   // Get current user from localStorage (deferred to avoid hydration mismatch)
   const [user, setUser] = useState<any>(null)
   const [auditWarnings, setAuditWarnings] = useState(0)
+  useEffect(() => { _dashTz = dashTimezone }, [dashTimezone])
   useEffect(() => {
     try { setUser(JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || 'null')) } catch {}
     // Check onboarding dismissed
@@ -325,9 +382,10 @@ export default function DashboardPage() {
 
   // Load widget-specific data
   useEffect(() => {
-    const today = isoToday()
-    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6)
-    const monthStart = new Date(); monthStart.setDate(1)
+    const dashToday = getDashTodayDate()
+    const today = isoDate(dashToday)
+    const weekAgo = addDashDays(dashToday, -6)
+    const monthStart = new Date(Date.UTC(dashToday.getUTCFullYear(), dashToday.getUTCMonth(), 1, 12))
 
     // Today's earnings + weekly revenue
     if (dashWidgets.includes('todays-earnings') || dashWidgets.includes('weekly-chart')) {
@@ -343,7 +401,7 @@ export default function DashboardPage() {
         if (!Array.isArray(payments)) return
         const byDay: Record<string, number> = {}
         for (let i = 0; i < 7; i++) {
-          const dd = new Date(); dd.setDate(dd.getDate() - 6 + i)
+          const dd = addDashDays(weekAgo, i)
           byDay[isoDate(dd)] = 0
         }
         payments.forEach((p: any) => {
@@ -417,7 +475,17 @@ export default function DashboardPage() {
     const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
     const headers: Record<string,string> = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
     // Load workspace timezone + clock_in_enabled (available to all users)
-    try { const tz = await fetch(`${API}/api/settings/timezone`, { headers }).then(r => r.json()); if (tz?.timezone) _dashTz = tz.timezone; if (tz?.clock_in_enabled !== undefined) { setDashSettings(prev => ({ ...prev, clock_in_enabled: tz.clock_in_enabled })); try { localStorage.setItem('VB_CLOCK_IN_ENABLED', tz.clock_in_enabled ? 'true' : 'false') } catch {} } } catch {}
+    try {
+      const tz = await fetch(`${API}/api/settings/timezone`, { headers }).then(r => r.json())
+      if (tz?.timezone) {
+        _dashTz = tz.timezone
+        setDashTimezone(prev => prev === tz.timezone ? prev : tz.timezone)
+      }
+      if (tz?.clock_in_enabled !== undefined) {
+        setDashSettings(prev => ({ ...prev, clock_in_enabled: tz.clock_in_enabled }))
+        try { localStorage.setItem('VB_CLOCK_IN_ENABLED', tz.clock_in_enabled ? 'true' : 'false') } catch {}
+      }
+    } catch {}
     const today = isoToday()
     const range = getDateRange(earningsPeriod, earningsOffset)
     if (!bookings.length && !myPayroll) setLoading(true) // only show loading on first load
@@ -536,7 +604,7 @@ export default function DashboardPage() {
       }
     } catch {}
     setLoading(false)
-  }, [isBarber, myBarberId, earningsPeriod, earningsOffset])
+  }, [isBarber, myBarberId, earningsPeriod, earningsOffset, dashTimezone])
 
   useVisibilityPolling(loadAll, 30000, [loadAll])
 
@@ -591,6 +659,87 @@ export default function DashboardPage() {
     if (!(item as any).core && item.dashKey && dashSettings[item.dashKey] === false) return false
     return true
   })
+  const ownerLaunchChecklist = isOwnerOrAdmin ? [
+    ...(barbers.length === 0 ? [{
+      key: 'team',
+      label: 'Add your first team member',
+      description: 'Clients need at least one bookable specialist before you share the page.',
+      href: '/settings?tab=users',
+    }] : []),
+    ...(services.length === 0 ? [{
+      key: 'services',
+      label: 'Add your first service',
+      description: 'Your booking page stays empty until at least one service is live.',
+      href: '/settings?tab=booking',
+    }] : []),
+    ...(!slug ? [{
+      key: 'slug',
+      label: 'Set your booking link',
+      description: 'Pick a clean public link clients can remember and share.',
+      href: '/settings?tab=site',
+    }] : []),
+    ...(dashSettings.online_booking_enabled === false ? [{
+      key: 'booking-toggle',
+      label: 'Turn on online booking',
+      description: 'Clients still cannot self-book until online booking is enabled.',
+      href: '/settings?tab=booking',
+    }] : []),
+  ] : []
+  const launchChecklistTotal = 4
+  const launchChecklistDone = launchChecklistTotal - ownerLaunchChecklist.length
+  const showOwnerLaunchChecklist = isOwnerOrAdmin && ownerLaunchChecklist.length > 0
+  const renderOwnerLaunchChecklist = (compact = false) => {
+    if (!showOwnerLaunchChecklist) return null
+    if (compact) {
+      const preview = ownerLaunchChecklist.slice(0, 2).map(item => item.label).join(' · ')
+      const primary = ownerLaunchChecklist[0]
+      return (
+        <div style={{ margin: '0 16px 10px', padding: '12px 14px', borderRadius: 18, border: '1px solid rgba(130,150,220,.18)', background: 'linear-gradient(180deg, rgba(130,150,220,.10), rgba(255,255,255,.03))', boxShadow: '0 10px 24px rgba(0,0,0,.24)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 4 }}>Finish setup</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#f5f5f7', marginBottom: 3 }}>{launchChecklistDone} of {launchChecklistTotal} launch basics ready</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{preview}</div>
+            </div>
+            <a href={primary.href} style={{ flexShrink: 0, height: 34, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', display: 'inline-flex', alignItems: 'center', textDecoration: 'none', fontSize: 12, fontWeight: 700 }}>
+              Open
+            </a>
+          </div>
+        </div>
+      )
+    }
+    return (
+      <div style={{ marginBottom: 18, padding: '18px 20px', borderRadius: 24, border: '1px solid rgba(130,150,220,.16)', background: 'linear-gradient(180deg, rgba(130,150,220,.10), rgba(255,255,255,.03))', boxShadow: '0 18px 48px rgba(0,0,0,.24)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 18, flexWrap: 'wrap' }}>
+          <div style={{ maxWidth: 520 }}>
+            <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', marginBottom: 6, fontWeight: 900 }}>Launch checklist</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#f5f5f7', marginBottom: 6 }}>{launchChecklistDone} of {launchChecklistTotal} launch basics are ready</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,.58)', lineHeight: 1.6 }}>
+              Finish these setup steps so clients can book confidently and your team sees a polished workspace from day one.
+            </div>
+          </div>
+          {slug && dashSettings.online_booking_enabled !== false && (
+            <a href={`/book/${slug}`} target="_blank" rel="noopener" style={{ height: 38, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', display: 'inline-flex', alignItems: 'center', textDecoration: 'none', fontSize: 12, fontWeight: 700 }}>
+              Open booking page
+            </a>
+          )}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginTop: 16 }}>
+          {ownerLaunchChecklist.map((item, index) => (
+            <a key={item.key} href={item.href} style={{ textDecoration: 'none', padding: '14px 16px', borderRadius: 18, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', color: 'inherit', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ width: 24, height: 24, borderRadius: 999, flexShrink: 0, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
+                {index + 1}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#f5f5f7', marginBottom: 4 }}>{item.label}</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.52)', lineHeight: 1.5 }}>{item.description}</div>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   async function saveShopStatus(mode: 'auto'|'open'|'closed') {
     setShopStatus(mode)
@@ -627,7 +776,7 @@ export default function DashboardPage() {
 
   // Attendance helpers
   const fmtMins = (m: number) => { const h = Math.floor(m / 60); const mm = m % 60; return h > 0 ? `${h}h ${mm}m` : `${mm}m` }
-  const clockInSince = clockInTime ? new Date(clockInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : ''
+  const clockInSince = clockInTime ? new Date(clockInTime).toLocaleTimeString([], { timeZone: _dashTz, hour: '2-digit', minute: '2-digit', hour12: true }) : ''
 
   // Live elapsed timer — visibility-aware
   const tickElapsed = useCallback(() => {
@@ -820,7 +969,7 @@ export default function DashboardPage() {
                 <div style={wl}>{clockedIn ? 'On Shift' : 'Clock In'}</div>
                 <div style={{ fontSize: 22, fontWeight: 600, color: clockedIn ? 'rgba(130,220,170,.8)' : 'rgba(255,255,255,.7)', lineHeight: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
                   {clockedIn && <span style={{ width: 6, height: 6, borderRadius: 999, background: 'rgba(130,220,170,.8)', animation: 'clockDot 2s ease-in-out infinite', flexShrink: 0 }} />}
-                  {clockLoading ? '...' : clockedIn ? (elapsedStr || fmtMins(todayMinutes)) : 'Off'}
+                  {clockLoading ? 'Updating…' : clockedIn ? (elapsedStr || fmtMins(todayMinutes)) : 'Off'}
                 </div>
                 <div style={{ fontSize: 9, color: clockedIn ? 'rgba(255,107,107,.6)' : 'rgba(255,255,255,.3)', marginTop: 3, fontWeight: clockedIn ? 700 : 400 }}>{clockError || (clockedIn ? 'Clock Out' : 'tap to start')}</div>
               </div>
@@ -829,8 +978,9 @@ export default function DashboardPage() {
             case 'w_earnings': return <div style={ws}><div style={wl}>Earnings</div><div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(130,220,170,.8)' }}>{money(widgetData.todaysEarnings || 0)}</div><div style={{ fontSize: 9, color: 'rgba(255,255,255,.3)', marginTop: 3 }}>{total} bookings</div></div>
             case 'w_schedule': {
               const fm = (m: number) => `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`
-              const today = new Date().getDay()
-              const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
+              const shopNow = getDashTimeParts(new Date())
+              const today = shopNow.dow
+              const nowMin = shopNow.hours * 60 + shopNow.minutes
               const barberSlots = barbers.map((b: any) => {
                 const sched = b.schedule
                 const wd: number[] = Array.isArray(sched?.days) ? sched.days : [1,2,3,4,5,6]
@@ -838,7 +988,13 @@ export default function DashboardPage() {
                 const startM = sched?.startMin ?? 600, endM = sched?.endMin ?? 1200
                 const bkgs = bookings.filter(bk => String(bk.barber_id || '') === String(b.id))
                 const busy = new Set<number>()
-                bkgs.forEach(bk => { if (!bk.start_at) return; const dt = new Date(bk.start_at); const s = dt.getHours() * 60 + dt.getMinutes(); const d = (bk as any).duration ?? (bk as any).durMin ?? 30; for (let m = s; m < s + d; m += 5) busy.add(m) })
+                bkgs.forEach(bk => {
+                  if (!bk.start_at) return
+                  const parts = getDashTimeParts(bk.start_at)
+                  const s = parts.hours * 60 + parts.minutes
+                  const d = (bk as any).duration ?? (bk as any).durMin ?? 30
+                  for (let m = s; m < s + d; m += 5) busy.add(m)
+                })
                 const free: string[] = []
                 for (let m = Math.max(startM, nowMin); m <= endM - 30; m += 30) {
                   let ok = true; for (let c = m; c < m + 30; c += 5) if (busy.has(c)) { ok = false; break }
@@ -855,7 +1011,7 @@ export default function DashboardPage() {
             case 'w_revenue': {
               const days = widgetData.weeklyRevenue || []
               const mx = Math.max(...days.map((d: any) => d.amount), 1)
-              return <div style={ws}><div style={wl}>Revenue</div><div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 32 }}>{days.map((d: any, i: number)=><div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}><div style={{ width: '100%', borderRadius: 2, background: i===days.length-1?'rgba(130,220,170,.4)':'rgba(255,255,255,.1)', height: `${Math.max(2,(d.amount/mx)*26)}px` }}/><span style={{ fontSize: 6, color: 'rgba(255,255,255,.2)' }}>{new Date(d.day+'T12:00').toLocaleDateString([],{weekday:'narrow'})}</span></div>)}</div>{days.length>0&&<div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 3 }}>{money(days.reduce((s: number,d: any)=>s+d.amount,0))}</div>}</div>
+              return <div style={ws}><div style={wl}>Revenue</div><div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 32 }}>{days.map((d: any, i: number)=><div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}><div style={{ width: '100%', borderRadius: 2, background: i===days.length-1?'rgba(130,220,170,.4)':'rgba(255,255,255,.1)', height: `${Math.max(2,(d.amount/mx)*26)}px` }}/><span style={{ fontSize: 6, color: 'rgba(255,255,255,.2)' }}>{fmtWeekdayNarrow(d.day)}</span></div>)}</div>{days.length>0&&<div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 3 }}>{money(days.reduce((s: number,d: any)=>s+d.amount,0))}</div>}</div>
             }
             case 'w_newclients': return <div style={ws}><div style={wl}>New Clients</div><div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.7)' }}>{widgetData.newClients ?? '—'}</div><div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 3 }}>this week</div></div>
             case 'w_expenses': return <div style={ws}><div style={wl}>Expenses</div><div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,130,130,.6)' }}>{money(widgetData.expensesMonth || 0)}</div><div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', marginTop: 3 }}>this month</div></div>
@@ -906,7 +1062,8 @@ export default function DashboardPage() {
         const containerEl = typeof document !== 'undefined' ? document.querySelector('.content') as HTMLElement : null
         const safeBot = (typeof window !== 'undefined' && (window as any).__VURIUM_SAFE_BOTTOM) || 34
         const pillBarH = 56 + safeBot
-        const availH = containerEl ? containerEl.clientHeight - pillBarH - 20 : (typeof window !== 'undefined' ? window.innerHeight - pillBarH - 140 : 600)
+        const mobileChecklistHeight = showOwnerLaunchChecklist ? 78 : 0
+        const availH = containerEl ? containerEl.clientHeight - pillBarH - 20 - mobileChecklistHeight : (typeof window !== 'undefined' ? window.innerHeight - pillBarH - 140 - mobileChecklistHeight : 600)
 
         // Simple flow: place items sequentially, track col position
         // Widgets take 2 or 4 cols, icons take 1 col
@@ -997,6 +1154,8 @@ export default function DashboardPage() {
               html, body { overflow: hidden !important; }
               * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
             `}</style>
+
+            {renderOwnerLaunchChecklist(true)}
 
             {/* Pages */}
             <div style={{ flex: 1, display: 'flex', transition: 'transform .35s cubic-bezier(.25,.1,.25,1)', transform: `translateX(-${homePage * 100}%)`, minHeight: 0 }}>
@@ -1278,6 +1437,8 @@ export default function DashboardPage() {
 
         {/* Barber earnings rendered as my-earnings widget in the grid below */}
 
+        {renderOwnerLaunchChecklist(false)}
+
         {/* ── ALL WIDGETS + SHORTCUTS + TEAM — single centered flex grid ── */}
         {(() => {
           const wBox: React.CSSProperties = { width: 170, minHeight: 110, borderRadius: 20, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', padding: '14px 16px', position: 'relative', transition: 'all .2s', animation: editingWidgets ? 'widgetBreathe 2s ease-in-out infinite' : 'none', display: 'flex', flexDirection: 'column' as const, justifyContent: 'space-between' as const }
@@ -1369,7 +1530,7 @@ export default function DashboardPage() {
                     {days.map((d: any, i: number) => (
                       <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                         <div style={{ width: '100%', borderRadius: 2, background: i === days.length - 1 ? 'rgba(130,220,170,.4)' : 'rgba(255,255,255,.1)', height: `${Math.max(2, (d.amount / max) * 32)}px`, transition: 'height .4s' }} />
-                        <span style={{ fontSize: 7, color: 'rgba(255,255,255,.2)' }}>{new Date(d.day + 'T12:00').toLocaleDateString([], { weekday: 'narrow' })}</span>
+                        <span style={{ fontSize: 7, color: 'rgba(255,255,255,.2)' }}>{fmtWeekdayNarrow(d.day)}</span>
                       </div>
                     ))}
                   </div>
@@ -1425,11 +1586,11 @@ export default function DashboardPage() {
                   {removeBtn}
                   <div style={wTitle}>On Duty</div>
                   {staffOnClock.length === 0 ? (
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.2)' }}>No one clocked in</div>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.2)' }}>No team members are clocked in right now.</div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                       {staffOnClock.map((s: any, i: number) => {
-                        const since = s.clock_in ? new Date(s.clock_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : '—'
+                        const since = s.clock_in ? new Date(s.clock_in).toLocaleTimeString([], { timeZone: _dashTz, hour: '2-digit', minute: '2-digit', hour12: true }) : '—'
                         const elapsed = s.clock_in ? Math.round((Date.now() - new Date(s.clock_in).getTime()) / 60000) : 0
                         return (
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1502,14 +1663,14 @@ export default function DashboardPage() {
                         <span style={{ fontSize: 9, color: 'rgba(255,255,255,.4)', width: 20, textAlign: 'right' }}>{cnt}</span>
                       </div>
                     ))}
-                    {sources.length === 0 && <div style={{ fontSize: 9, color: 'rgba(255,255,255,.2)' }}>No visits yet</div>}
+                    {sources.length === 0 && <div style={{ fontSize: 9, color: 'rgba(255,255,255,.2)' }}>Traffic data will appear here once visits start coming in.</div>}
                   </div>
                   {/* Daily chart */}
                   <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 28 }}>
                     {days.map((d: any, i: number) => (
                       <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                         <div style={{ width: '100%', borderRadius: 2, background: i === days.length - 1 ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.1)', height: `${Math.max(2, (d.count / maxD) * 22)}px` }} />
-                        <span style={{ fontSize: 6, color: 'rgba(255,255,255,.2)' }}>{new Date(d.day + 'T12:00').toLocaleDateString([], { weekday: 'narrow' })}</span>
+                        <span style={{ fontSize: 6, color: 'rgba(255,255,255,.2)' }}>{fmtWeekdayNarrow(d.day)}</span>
                       </div>
                     ))}
                   </div>
@@ -1760,7 +1921,7 @@ export default function DashboardPage() {
                     {r.text && <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 4, lineHeight: 1.4 }}>{String(r.text).slice(0, 200)}{String(r.text).length > 200 ? '…' : ''}</div>}
                   </div>
                 ))}
-                {reviews.length === 0 && <div style={{ color: 'rgba(255,255,255,.25)', fontSize: 12, textAlign: 'center', padding: 20 }}>No reviews yet</div>}
+                {reviews.length === 0 && <div style={{ color: 'rgba(255,255,255,.25)', fontSize: 12, textAlign: 'center', padding: 20 }}>No reviews have been collected yet.</div>}
               </div>
             </div>
           )}
@@ -1779,7 +1940,7 @@ export default function DashboardPage() {
                 <span style={{ color: 'rgba(255,255,255,.55)', flex: 1 }}>→ {l.client_name || l.client_id?.slice(0,8)}</span>
                 <span style={{ color: 'rgba(255,255,255,.30)', fontSize: 10 }}>{l.reason || ''}</span>
                 <span style={{ color: 'rgba(255,255,255,.30)', fontSize: 10, minWidth: 60, textAlign: 'right' as const }}>
-                  {l.timestamp ? new Date(l.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                  {l.timestamp ? new Date(l.timestamp).toLocaleTimeString([], { timeZone: _dashTz, hour: '2-digit', minute: '2-digit' }) : ''}
                 </span>
               </div>
             ))}

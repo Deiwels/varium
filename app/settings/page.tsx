@@ -1,6 +1,7 @@
 'use client'
 import Shell from '@/components/Shell'
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { useDialog } from '@/components/StyledDialog'
 
 import { apiFetch } from '@/lib/api'
 import { getTimezoneList } from '@/lib/timezones'
@@ -101,7 +102,7 @@ function TollFreeEnableButton({ settings, onDone }: { settings: any; onDone: (da
         cursor: loading ? 'wait' : 'pointer', fontWeight: 700, fontSize: 14, fontFamily: 'inherit',
         opacity: loading ? 0.5 : 1,
       }}>
-        {loading ? 'Setting up...' : 'Enable SMS Reminders'}
+        {loading ? 'Setting up…' : 'Enable SMS Reminders'}
       </button>
       <p style={{ fontSize: 10, color: 'rgba(255,255,255,.12)', lineHeight: 1.5, maxWidth: 300 }}>
         Included in your plan. Msg &amp; data rates may apply to recipients. <a href="/privacy" style={{ color: 'rgba(130,150,220,.3)', textDecoration: 'none' }}>Privacy Policy</a>
@@ -112,9 +113,10 @@ function TollFreeEnableButton({ settings, onDone }: { settings: any; onDone: (da
 
 // ─── SMS Registration Form ──────────────────────────────────────────────────
 function SmsRegistrationForm({ wsId, settings, onDone }: { wsId: string; settings: any; onDone: (data: any) => void }) {
+  const resumeOtpStep = settings.sms_registration_status === 'pending_otp'
   const [form, setForm] = useState({
     company_name: settings.shop_name || '',
-    display_name: settings.shop_name || '',
+    display_name: settings.sms_brand_name || settings.shop_name || '',
     ein: '',
     entity_type: 'PRIVATE_PROFIT',
     vertical: 'PROFESSIONAL',
@@ -134,9 +136,10 @@ function SmsRegistrationForm({ wsId, settings, onDone }: { wsId: string; setting
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [otpStep, setOtpStep] = useState(false)
+  const [otpStep, setOtpStep] = useState(resumeOtpStep)
   const [otpPin, setOtpPin] = useState('')
-  const [otpBrandId, setOtpBrandId] = useState('')
+  const [otpBrandId, setOtpBrandId] = useState(settings.telnyx_brand_id || '')
+  const [wizardStep, setWizardStep] = useState(0)
 
   const inp: React.CSSProperties = {
     width: '100%', padding: '10px 12px', borderRadius: 10,
@@ -146,6 +149,15 @@ function SmsRegistrationForm({ wsId, settings, onDone }: { wsId: string; setting
   const lbl: React.CSSProperties = { fontSize: 11, color: 'rgba(255,255,255,.35)', display: 'block', marginBottom: 4 }
 
   const set = (key: string, val: string) => setForm(prev => ({ ...prev, [key]: val }))
+  const isSoleProp = form.entity_type === 'SOLE_PROPRIETOR'
+  const steps = isSoleProp
+    ? ['Business profile', 'Contact details', 'Owner verification']
+    : ['Business profile', 'Contact details']
+  const canContinueBusiness = !!form.company_name.trim() && (isSoleProp || !!form.ein.trim())
+  const canContinueContact = !!form.phone.trim() && !!form.email.trim() && !!form.street.trim() && !!form.city.trim() && !!form.state.trim() && !!form.postal_code.trim()
+  const canSubmitRegistration = isSoleProp
+    ? canContinueBusiness && canContinueContact && !!form.first_name.trim() && !!form.last_name.trim() && !!form.mobile_phone.trim()
+    : canContinueBusiness && canContinueContact
 
   async function handleRegister() {
     setLoading(true); setError('')
@@ -225,7 +237,7 @@ function SmsRegistrationForm({ wsId, settings, onDone }: { wsId: string; setting
           color: 'rgba(130,150,220,.9)', cursor: loading ? 'wait' : 'pointer', fontWeight: 700,
           fontSize: 13, fontFamily: 'inherit', opacity: (otpPin.length !== 6 || loading) ? 0.5 : 1, width: '100%', maxWidth: 200,
         }}>
-          {loading ? 'Verifying...' : 'Verify & Activate'}
+          {loading ? 'Verifying…' : 'Verify & Activate'}
         </button>
         <p style={{ fontSize: 10, color: 'rgba(255,255,255,.15)', marginTop: 4 }}>Code expires in 24 hours</p>
       </div>
@@ -235,82 +247,160 @@ function SmsRegistrationForm({ wsId, settings, onDone }: { wsId: string; setting
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', marginBottom: 4, lineHeight: 1.5 }}>
-        Register your business for SMS to send appointment confirmations and reminders from a dedicated phone number.
+        Set up a dedicated SMS number for appointment confirmations, reminders, reschedules, and cancellations. We&apos;ll guide you step by step.
       </p>
 
       {error && <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(220,80,80,.1)', border: '1px solid rgba(220,80,80,.2)', color: 'rgba(255,160,160,.9)', fontSize: 12 }}>{error}</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <div><label style={lbl}>Legal Business Name *</label><input style={inp} value={form.company_name} onChange={e => set('company_name', e.target.value)} placeholder="Element Barbershop Co" /></div>
-        <div><label style={lbl}>Display Name (DBA)</label><input style={inp} value={form.display_name} onChange={e => set('display_name', e.target.value)} placeholder="Element Barbershop" /></div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
+        {steps.map((stepLabel, index) => {
+          const isDone = index < wizardStep
+          const isActive = index === wizardStep
+          return (
+            <div key={stepLabel} style={{
+              padding: '6px 10px',
+              borderRadius: 999,
+              border: `1px solid ${isActive ? 'rgba(130,150,220,.25)' : isDone ? 'rgba(130,220,170,.2)' : 'rgba(255,255,255,.08)'}`,
+              background: isActive ? 'rgba(130,150,220,.08)' : isDone ? 'rgba(130,220,170,.06)' : 'rgba(255,255,255,.03)',
+              color: isActive ? 'rgba(195,205,255,.92)' : isDone ? 'rgba(130,220,170,.82)' : 'rgba(255,255,255,.35)',
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '.02em',
+            }}>
+              {index + 1}. {stepLabel}
+            </div>
+          )
+        })}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <div>
-          <label style={lbl}>Entity Type *</label>
-          <select style={inp} value={form.entity_type} onChange={e => set('entity_type', e.target.value)}>
-            <option value="PRIVATE_PROFIT">Private Company</option>
-            <option value="SOLE_PROPRIETOR">Sole Proprietor</option>
-            <option value="PUBLIC_PROFIT">Public Company</option>
-            <option value="NON_PROFIT">Non-Profit</option>
-            <option value="GOVERNMENT">Government</option>
-          </select>
+      <div style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.12)' }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.68)', marginBottom: 6 }}>{steps[wizardStep]}</div>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.28)', lineHeight: 1.5 }}>
+          {wizardStep === 0 && 'Tell carriers which business is sending these appointment messages and how that business should appear to clients.'}
+          {wizardStep === 1 && 'Add the business contact details carriers use to verify the sender and match it to your booking page.'}
+          {wizardStep === 2 && 'Because this is a sole proprietor registration, Telnyx needs the owner details and OTP phone number before activation.'}
         </div>
-        <div><label style={lbl}>EIN / Tax ID {form.entity_type === 'SOLE_PROPRIETOR' ? '(optional)' : '*'}</label><input style={inp} value={form.ein} onChange={e => set('ein', e.target.value)} placeholder="XX-XXXXXXX" /></div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <div>
-          <label style={lbl}>Industry *</label>
-          <select style={inp} value={form.vertical} onChange={e => set('vertical', e.target.value)}>
-            <option value="PROFESSIONAL">Professional Services</option>
-            <option value="RETAIL">Retail</option>
-            <option value="HEALTHCARE">Healthcare</option>
-            <option value="HOSPITALITY">Hospitality</option>
-            <option value="ENTERTAINMENT">Entertainment</option>
-            <option value="EDUCATION">Education</option>
-            <option value="REAL_ESTATE">Real Estate</option>
-            <option value="TECHNOLOGY">Technology</option>
-          </select>
-        </div>
-        <div><label style={lbl}>Website</label><input style={inp} value={form.website} onChange={e => set('website', e.target.value)} /></div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <div><label style={lbl}>Business Phone *</label><input style={inp} value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+1 (555) 123-4567" /></div>
-        <div><label style={lbl}>Business Email *</label><input style={inp} value={form.email} onChange={e => set('email', e.target.value)} placeholder="info@business.com" /></div>
-      </div>
-
-      <div><label style={lbl}>Street Address *</label><input style={inp} value={form.street} onChange={e => set('street', e.target.value)} placeholder="123 Main St" /></div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8 }}>
-        <div><label style={lbl}>City *</label><input style={inp} value={form.city} onChange={e => set('city', e.target.value)} /></div>
-        <div><label style={lbl}>State *</label><input style={inp} value={form.state} onChange={e => set('state', e.target.value)} placeholder="IL" maxLength={2} /></div>
-        <div><label style={lbl}>ZIP *</label><input style={inp} value={form.postal_code} onChange={e => set('postal_code', e.target.value)} placeholder="60089" /></div>
-      </div>
-
-      {form.entity_type === 'SOLE_PROPRIETOR' && (
+      {wizardStep === 0 && (
         <>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,180,80,.5)', letterSpacing: '.06em', textTransform: 'uppercase', marginTop: 8 }}>Owner Verification (Sole Proprietor)</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <div><label style={lbl}>First Name *</label><input style={inp} value={form.first_name} onChange={e => set('first_name', e.target.value)} /></div>
-            <div><label style={lbl}>Last Name *</label><input style={inp} value={form.last_name} onChange={e => set('last_name', e.target.value)} /></div>
+          <div className="set-sms-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div><label style={lbl}>Legal Business Name *</label><input style={inp} value={form.company_name} onChange={e => set('company_name', e.target.value)} placeholder="Element Barbershop Co" /></div>
+            <div><label style={lbl}>Display Name (DBA)</label><input style={inp} value={form.display_name} onChange={e => set('display_name', e.target.value)} placeholder="Element Barbershop" /></div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <div><label style={lbl}>Date of Birth</label><input type="date" style={inp} value={form.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} /></div>
-            <div><label style={lbl}>Mobile Phone (for OTP) *</label><input style={inp} value={form.mobile_phone} onChange={e => set('mobile_phone', e.target.value)} placeholder="+1 (555) 987-6543" /></div>
+
+          <div className="set-sms-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div>
+              <label style={lbl}>Entity Type *</label>
+              <select style={inp} value={form.entity_type} onChange={e => set('entity_type', e.target.value)}>
+                <option value="PRIVATE_PROFIT">Private Company</option>
+                <option value="SOLE_PROPRIETOR">Sole Proprietor</option>
+                <option value="PUBLIC_PROFIT">Public Company</option>
+                <option value="NON_PROFIT">Non-Profit</option>
+                <option value="GOVERNMENT">Government</option>
+              </select>
+            </div>
+            <div><label style={lbl}>EIN / Tax ID {form.entity_type === 'SOLE_PROPRIETOR' ? '(optional)' : '*'}</label><input style={inp} value={form.ein} onChange={e => set('ein', e.target.value)} placeholder="XX-XXXXXXX" /></div>
+          </div>
+
+          <div className="set-sms-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div>
+              <label style={lbl}>Industry *</label>
+              <select style={inp} value={form.vertical} onChange={e => set('vertical', e.target.value)}>
+                <option value="PROFESSIONAL">Professional Services</option>
+                <option value="RETAIL">Retail</option>
+                <option value="HEALTHCARE">Healthcare</option>
+                <option value="HOSPITALITY">Hospitality</option>
+                <option value="ENTERTAINMENT">Entertainment</option>
+                <option value="EDUCATION">Education</option>
+                <option value="REAL_ESTATE">Real Estate</option>
+                <option value="TECHNOLOGY">Technology</option>
+              </select>
+            </div>
+            <div><label style={lbl}>Website</label><input style={inp} value={form.website} onChange={e => set('website', e.target.value)} /></div>
+          </div>
+
+          <div style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(130,150,220,.12)', background: 'rgba(130,150,220,.04)', fontSize: 11, color: 'rgba(195,205,255,.72)', lineHeight: 1.55 }}>
+            Use the real legal sender name carriers should approve. If you operate under a shorter public name, add that as the display name clients recognize.
           </div>
         </>
       )}
 
-      <button onClick={handleRegister} disabled={loading} style={{
-        marginTop: 8, height: 40, borderRadius: 999, border: 'none',
-        background: 'rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
-        cursor: loading ? 'wait' : 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit',
-        opacity: loading ? 0.5 : 1, width: '100%',
-      }}>
-        {loading ? 'Registering...' : 'Register for SMS'}
-      </button>
+      {wizardStep === 1 && (
+        <>
+          <div className="set-sms-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div><label style={lbl}>Business Phone *</label><input style={inp} value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+1 (555) 123-4567" /></div>
+            <div><label style={lbl}>Business Email *</label><input style={inp} value={form.email} onChange={e => set('email', e.target.value)} placeholder="info@business.com" /></div>
+          </div>
+
+          <div><label style={lbl}>Street Address *</label><input style={inp} value={form.street} onChange={e => set('street', e.target.value)} placeholder="123 Main St" /></div>
+
+          <div className="set-sms-city-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8 }}>
+            <div><label style={lbl}>City *</label><input style={inp} value={form.city} onChange={e => set('city', e.target.value)} /></div>
+            <div><label style={lbl}>State *</label><input style={inp} value={form.state} onChange={e => set('state', e.target.value)} placeholder="IL" maxLength={2} /></div>
+            <div><label style={lbl}>ZIP *</label><input style={inp} value={form.postal_code} onChange={e => set('postal_code', e.target.value)} placeholder="60089" /></div>
+          </div>
+
+          <div style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)', fontSize: 11, color: 'rgba(255,255,255,.28)', lineHeight: 1.55 }}>
+            Match the public booking page and business records as closely as possible here. The website is prefilled with your booking URL so carrier reviewers can verify the opt-in flow.
+          </div>
+        </>
+      )}
+
+      {wizardStep === 2 && isSoleProp && (
+        <>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,180,80,.5)', letterSpacing: '.06em', textTransform: 'uppercase', marginTop: 2 }}>Owner Verification (Sole Proprietor)</div>
+          <div className="set-sms-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div><label style={lbl}>First Name *</label><input style={inp} value={form.first_name} onChange={e => set('first_name', e.target.value)} /></div>
+            <div><label style={lbl}>Last Name *</label><input style={inp} value={form.last_name} onChange={e => set('last_name', e.target.value)} /></div>
+          </div>
+          <div className="set-sms-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div><label style={lbl}>Date of Birth</label><input type="date" style={inp} value={form.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} /></div>
+            <div><label style={lbl}>Mobile Phone (for OTP) *</label><input style={inp} value={form.mobile_phone} onChange={e => set('mobile_phone', e.target.value)} placeholder="+1 (555) 987-6543" /></div>
+          </div>
+          <div style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,180,80,.15)', background: 'rgba(255,180,80,.05)', fontSize: 11, color: 'rgba(255,190,120,.7)', lineHeight: 1.55 }}>
+            Telnyx will text a one-time code to the owner phone above. After you verify that code, the campaign can move into carrier review.
+          </div>
+        </>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+        {wizardStep > 0 && (
+          <button onClick={() => setWizardStep(prev => Math.max(0, prev - 1))} disabled={loading} style={{
+            height: 40, borderRadius: 999, border: '1px solid rgba(255,255,255,.1)',
+            background: 'transparent', color: 'rgba(255,255,255,.5)',
+            cursor: loading ? 'wait' : 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit',
+            opacity: loading ? 0.5 : 1, padding: '0 16px',
+          }}>
+            Back
+          </button>
+        )}
+        {wizardStep < steps.length - 1 ? (
+          <button
+            onClick={() => setWizardStep(prev => Math.min(steps.length - 1, prev + 1))}
+            disabled={loading || (wizardStep === 0 ? !canContinueBusiness : !canContinueContact)}
+            style={{
+              marginTop: 0, height: 40, borderRadius: 999, border: 'none',
+              background: 'rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
+              cursor: loading ? 'wait' : 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit',
+              opacity: (loading || (wizardStep === 0 ? !canContinueBusiness : !canContinueContact)) ? 0.5 : 1,
+              width: wizardStep > 0 ? 'auto' : '100%',
+              flex: 1,
+            }}
+          >
+            Continue
+          </button>
+        ) : (
+          <button onClick={handleRegister} disabled={loading || !canSubmitRegistration} style={{
+            marginTop: 0, height: 40, borderRadius: 999, border: 'none',
+            background: 'rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
+            cursor: loading ? 'wait' : 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit',
+            opacity: (loading || !canSubmitRegistration) ? 0.5 : 1, width: '100%', flex: 1,
+          }}>
+            {loading ? 'Registering…' : isSoleProp ? 'Submit & Send OTP' : 'Register for SMS'}
+          </button>
+        )}
+      </div>
 
       <p style={{ fontSize: 10, color: 'rgba(255,255,255,.15)', lineHeight: 1.5, marginTop: 4 }}>
         Registration costs: ~$4.50 brand fee + $15 campaign review + ~$1.50/mo for number. Approval takes 5-10 business days.
@@ -321,6 +411,7 @@ function SmsRegistrationForm({ wsId, settings, onDone }: { wsId: string; setting
 
 // ─── Users Tab — Clean VuriumBook style ──────────────────────────────────────
 function UsersTab() {
+  const { showAlert, showConfirm, showError } = useDialog()
   const { effective_plan } = usePlan()
   const canAddMembers = effective_plan === 'salon' || effective_plan === 'custom'
   const [users, setUsers] = useState<UserAccount[]>([])
@@ -334,6 +425,15 @@ function UsersTab() {
   const [barberId, setBarberId] = useState('')
   const [barbers, setBarbers] = useState<Barber[]>([])
   const [creating, setCreating] = useState(false)
+  const [resetPasswordUserId, setResetPasswordUserId] = useState('')
+  const [resetPasswordValue, setResetPasswordValue] = useState('')
+  const [resetPasswordError, setResetPasswordError] = useState('')
+  const [resetPasswordSaving, setResetPasswordSaving] = useState(false)
+  const [deleteOwnerOpen, setDeleteOwnerOpen] = useState(false)
+  const [deleteOwnerText, setDeleteOwnerText] = useState('')
+  const [deleteOwnerPassword, setDeleteOwnerPassword] = useState('')
+  const [deleteOwnerError, setDeleteOwnerError] = useState('')
+  const [deleteOwnerSaving, setDeleteOwnerSaving] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -361,46 +461,79 @@ function UsersTab() {
     setCreating(false)
   }
 
-  async function resetPw(uid: string) {
-    const pw = prompt('New password (min 8 chars, letter + number):')
-    if (!pw || pw.length < 6) return
-    try { await apiFetch(`/api/users/${encodeURIComponent(uid)}`, { method: 'PATCH', body: JSON.stringify({ password: pw }) }); setMsg('Password reset'); load() }
-    catch (e: any) { alert(e.message) }
+  async function submitResetPw() {
+    if (!resetPasswordUserId) return
+    if (resetPasswordValue.length < 8) { setResetPasswordError('Password must be at least 8 characters'); return }
+    if (!/[a-zA-Z]/.test(resetPasswordValue) || !/[0-9]/.test(resetPasswordValue)) {
+      setResetPasswordError('Password must contain at least one letter and one number')
+      return
+    }
+    setResetPasswordSaving(true)
+    setResetPasswordError('')
+    try {
+      await apiFetch(`/api/users/${encodeURIComponent(resetPasswordUserId)}`, { method: 'PATCH', body: JSON.stringify({ password: resetPasswordValue }) })
+      setMsg('Password reset')
+      setResetPasswordUserId('')
+      setResetPasswordValue('')
+      load()
+    } catch (e: any) {
+      setResetPasswordError(e.message || 'Failed to reset password')
+    } finally {
+      setResetPasswordSaving(false)
+    }
   }
 
   async function toggleActive(uid: string, active: boolean) {
     try { await apiFetch(`/api/users/${encodeURIComponent(uid)}`, { method: 'PATCH', body: JSON.stringify({ active }) }); load() }
-    catch (e: any) { alert(e.message) }
+    catch (e: any) { await showError(e.message) }
   }
 
   async function deleteUser(uid: string, uname: string) {
-    if (!window.confirm(`Permanently delete "${uname}"?\n\nThis removes the account and all access. This action cannot be undone.`)) return
+    const ok = await showConfirm(
+      `Permanently delete "${uname}"?\n\nThis removes the account and all access. This action cannot be undone.`,
+      'Delete Team Member'
+    )
+    if (!ok) return
     try { await apiFetch(`/api/users/${encodeURIComponent(uid)}?hard=true`, { method: 'DELETE' }); load() }
-    catch (e: any) { alert(e?.message || 'Failed') }
+    catch (e: any) { await showError(e?.message || 'Failed') }
   }
 
   async function deleteOwnerAccount() {
-    const warning = `⚠ DELETE ENTIRE WORKSPACE\n\nThis will PERMANENTLY delete:\n• Your owner account\n• ALL team member accounts you created\n• All bookings, clients, payments, and business data\n• Your active subscription will also be cancelled\n\nThis action is IRREVERSIBLE.\n\nType DELETE to confirm:`
-    const confirmation = prompt(warning)
-    if (confirmation !== 'DELETE') {
-      if (confirmation !== null) alert('Cancelled — you must type DELETE exactly')
+    setDeleteOwnerText('')
+    setDeleteOwnerPassword('')
+    setDeleteOwnerError('')
+    setDeleteOwnerOpen(true)
+  }
+
+  async function submitDeleteOwnerAccount() {
+    if (deleteOwnerText !== 'DELETE') {
+      setDeleteOwnerError('Type DELETE exactly to continue')
       return
     }
-    const pw = prompt('Enter your password to confirm:')
-    if (!pw) return
+    if (!deleteOwnerPassword) {
+      setDeleteOwnerError('Enter your password to confirm')
+      return
+    }
+    setDeleteOwnerSaving(true)
+    setDeleteOwnerError('')
     try {
-      const r = await apiFetch('/api/auth/delete-account', { method: 'DELETE', body: JSON.stringify({ password: pw }) })
+      const r = await apiFetch('/api/auth/delete-account', { method: 'DELETE', body: JSON.stringify({ password: deleteOwnerPassword }) })
       if (r?.ok) {
         localStorage.removeItem('VURIUMBOOK_TOKEN')
         localStorage.removeItem('VURIUMBOOK_USER')
         window.location.href = '/signin'
       } else {
-        alert(r?.error || 'Error deleting account')
+        setDeleteOwnerError(r?.error || 'Error deleting account')
       }
-    } catch (e: any) { alert(e?.message || 'Error deleting account') }
+    } catch (e: any) {
+      setDeleteOwnerError(e?.message || 'Error deleting account')
+    } finally {
+      setDeleteOwnerSaving(false)
+    }
   }
 
   const initials = (n: string) => (n || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  const resetPasswordUser = resetPasswordUserId ? users.find(u => u.id === resetPasswordUserId) || null : null
   const sortedUsers = [...users].sort((a, b) => {
     const order = (r: string) => r === 'owner' ? 0 : r === 'admin' ? 1 : 2
     const d = order(a.role) - order(b.role)
@@ -429,7 +562,7 @@ function UsersTab() {
       {/* Create form */}
       {showForm && (
         <div style={{ padding: 20, borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.02)' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+          <div className="set-create-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
             <Field label="Full name"><input value={name} onChange={e => setName(e.target.value)} placeholder="Jane Smith" style={inp} /></Field>
             <Field label="Email (login)"><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@business.com" style={inp} /></Field>
             <Field label="Password"><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 8 chars, letter + number" style={inp} /></Field>
@@ -453,12 +586,12 @@ function UsersTab() {
             marginTop: 14, width: '100%', padding: '12px', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', cursor: 'pointer',
             background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)', color: '#fff', fontWeight: 600,
             opacity: creating ? 0.5 : 1,
-          }}>{creating ? 'Adding...' : 'Add to team'}</button>
+          }}>{creating ? 'Adding…' : 'Add to team'}</button>
         </div>
       )}
 
       {/* Team list */}
-      {loading ? <div style={{ color: 'rgba(255,255,255,.25)', fontSize: 13, padding: 20, textAlign: 'center' }}>Loading...</div> :
+      {loading ? <div style={{ color: 'rgba(255,255,255,.25)', fontSize: 13, padding: 20, textAlign: 'center' }}>Loading team members…</div> :
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {sortedUsers.map(u => (
             <div key={u.id} style={{
@@ -468,7 +601,7 @@ function UsersTab() {
               display: 'flex', flexDirection: 'column', gap: 12,
             }}>
               {/* Top row: Avatar + Info + Role badge */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div className="set-user-card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.5)', flexShrink: 0 }}>
                   {initials(u.name || u.username)}
                 </div>
@@ -505,14 +638,18 @@ function UsersTab() {
                     try {
                       await apiFetch(`/api/users/${encodeURIComponent(u.id)}`, { method: 'PATCH', body: JSON.stringify({ barber_id: val }) })
                       load()
-                    } catch (err: any) { alert(err.message) }
+                    } catch (err: any) { await showError(err.message) }
                   }} style={{ ...inpSm, width: 'auto', minWidth: 100, maxWidth: '100%', flex: '0 1 auto' }}>
                     <option value="">No master</option>
                     {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
                 )}
-                <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', flexShrink: 0 }}>
-                  <SmBtn onClick={() => resetPw(u.id)}>Reset PW</SmBtn>
+                <div className="set-user-actions" style={{ display: 'flex', gap: 6, marginLeft: 'auto', flexShrink: 0 }}>
+                  <SmBtn onClick={() => {
+                    setResetPasswordUserId(u.id)
+                    setResetPasswordValue('')
+                    setResetPasswordError('')
+                  }}>Reset PW</SmBtn>
                   {u.role !== 'owner' && <SmBtn danger onClick={() => toggleActive(u.id, !u.active)}>{u.active ? 'Disable' : 'Enable'}</SmBtn>}
                   {u.role !== 'owner' && <SmBtn danger onClick={() => deleteUser(u.id, u.name || u.username)}>Remove</SmBtn>}
                   {u.role === 'owner' && <SmBtn danger onClick={deleteOwnerAccount}>Delete Account</SmBtn>}
@@ -533,13 +670,20 @@ function UsersTab() {
             const curr = (document.getElementById('pw-current') as HTMLInputElement)?.value
             const newp = (document.getElementById('pw-new') as HTMLInputElement)?.value
             if (!curr || !newp) return
-            if (newp.length < 8) { alert('Password must be at least 8 characters'); return }
-            if (!/[a-zA-Z]/.test(newp) || !/[0-9]/.test(newp)) { alert('Password must contain at least one letter and one number'); return }
+            if (newp.length < 8) { await showAlert('Password must be at least 8 characters', 'Change Password'); return }
+            if (!/[a-zA-Z]/.test(newp) || !/[0-9]/.test(newp)) { await showAlert('Password must contain at least one letter and one number', 'Change Password'); return }
             try {
               const r = await apiFetch('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ current_password: curr, new_password: newp }) })
-              if (r?.ok) { alert('Password updated'); (document.getElementById('pw-current') as HTMLInputElement).value = '';  (document.getElementById('pw-new') as HTMLInputElement).value = '' }
-              else alert(r?.error || 'Error')
-            } catch { alert('Error changing password') }
+              if (r?.ok) {
+                await showAlert('Password updated', 'Change Password')
+                ;(document.getElementById('pw-current') as HTMLInputElement).value = ''
+                ;(document.getElementById('pw-new') as HTMLInputElement).value = ''
+              } else {
+                await showError(r?.error || 'Error')
+              }
+            } catch {
+              await showError('Error changing password')
+            }
           }}
             style={{ height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.6)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             Update password
@@ -578,15 +722,130 @@ function UsersTab() {
           </button>
         </div>
       </div>
+
+      {resetPasswordUser && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget && !resetPasswordSaving) setResetPasswordUserId('') }}
+          style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,.6)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div style={{ width: 'min(420px, 92vw)', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(10,10,20,.94)', boxShadow: '0 30px 80px rgba(0,0,0,.55)', padding: '24px 22px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(130,150,220,.55)', marginBottom: 10 }}>
+              Team Password
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: '#e8e8ed', letterSpacing: '-.02em', marginBottom: 8 }}>
+              Reset password
+            </div>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,.4)', lineHeight: 1.6, marginBottom: 18 }}>
+              Set a new password for {resetPasswordUser.name || resetPasswordUser.username}. It must be at least 8 characters and include a letter and a number.
+            </p>
+            <input
+              type="password"
+              autoFocus
+              placeholder="New password"
+              value={resetPasswordValue}
+              onChange={e => setResetPasswordValue(e.target.value)}
+              style={inp}
+            />
+            {resetPasswordError && (
+              <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(255,107,107,.20)', background: 'rgba(255,107,107,.08)', color: 'rgba(255,180,180,.92)', fontSize: 12 }}>
+                {resetPasswordError}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+              <button
+                type="button"
+                onClick={() => setResetPasswordUserId('')}
+                disabled={resetPasswordSaving}
+                style={{ flex: 1, height: 44, borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.55)', cursor: resetPasswordSaving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', opacity: resetPasswordSaving ? 0.5 : 1 }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitResetPw}
+                disabled={resetPasswordSaving}
+                style={{ flex: 1, height: 44, borderRadius: 999, border: '1px solid rgba(130,150,220,.28)', background: 'rgba(130,150,220,.14)', color: 'rgba(210,220,255,.92)', cursor: resetPasswordSaving ? 'wait' : 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', opacity: resetPasswordSaving ? 0.6 : 1 }}
+              >
+                {resetPasswordSaving ? 'Saving…' : 'Update password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteOwnerOpen && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget && !deleteOwnerSaving) setDeleteOwnerOpen(false) }}
+          style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,.7)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div style={{ width: 'min(460px, 92vw)', borderRadius: 22, border: '1px solid rgba(255,107,107,.16)', background: 'rgba(18,10,14,.96)', boxShadow: '0 30px 90px rgba(0,0,0,.6)', padding: '24px 22px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,140,160,.55)', marginBottom: 10 }}>
+              Delete Workspace
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: '#f6d7de', letterSpacing: '-.02em', marginBottom: 8 }}>
+              Permanently delete everything
+            </div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,.45)', lineHeight: 1.7, marginBottom: 18 }}>
+              This deletes your owner account, all team members, bookings, clients, payments, and business data. Your active subscription will also be cancelled. This cannot be undone.
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginBottom: 6 }}>
+              Type DELETE to confirm
+            </div>
+            <input
+              type="text"
+              autoFocus
+              placeholder="DELETE"
+              value={deleteOwnerText}
+              onChange={e => setDeleteOwnerText(e.target.value)}
+              style={inp}
+            />
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.40)', marginTop: 14, marginBottom: 6 }}>
+              Enter your password
+            </div>
+            <input
+              type="password"
+              placeholder="Current password"
+              value={deleteOwnerPassword}
+              onChange={e => setDeleteOwnerPassword(e.target.value)}
+              style={inp}
+            />
+            {deleteOwnerError && (
+              <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(255,107,107,.20)', background: 'rgba(255,107,107,.08)', color: 'rgba(255,180,180,.92)', fontSize: 12 }}>
+                {deleteOwnerError}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+              <button
+                type="button"
+                onClick={() => setDeleteOwnerOpen(false)}
+                disabled={deleteOwnerSaving}
+                style={{ flex: 1, height: 44, borderRadius: 999, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.55)', cursor: deleteOwnerSaving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', opacity: deleteOwnerSaving ? 0.5 : 1 }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitDeleteOwnerAccount}
+                disabled={deleteOwnerSaving}
+                style={{ flex: 1, height: 44, borderRadius: 999, border: '1px solid rgba(255,107,107,.28)', background: 'rgba(255,107,107,.14)', color: 'rgba(255,210,220,.94)', cursor: deleteOwnerSaving ? 'wait' : 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', opacity: deleteOwnerSaving ? 0.6 : 1 }}
+              >
+                {deleteOwnerSaving ? 'Deleting…' : 'Delete forever'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 // ─── Billing Section ────────────────────────────────────────────────────────
 function BillingSection() {
+  const { showAlert, showConfirm, showError } = useDialog()
   const [billing, setBilling] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [cancelling, setCancelling] = useState(false)
+  const [portalLoading, setPortalLoading] = useState(false)
 
   useEffect(() => {
     apiFetch('/api/billing/status').then(setBilling).catch(() => {}).finally(() => setLoading(false))
@@ -595,7 +854,10 @@ function BillingSection() {
   async function handleCancel() {
     const source = billing?.billing_source
     if (source === 'apple') {
-      const ok = confirm('Your subscription was purchased through the Apple App Store.\n\nTo cancel, you must do it in iOS Settings → Apple ID → Subscriptions → Vurium.\n\nWe\'ll open the Apple subscription management page now.')
+      const ok = await showConfirm(
+        'Your subscription was purchased through the Apple App Store.\n\nTo change or cancel it, you need to manage it in Apple Subscriptions. We\'ll open the Apple management page now.',
+        'Manage Apple Subscription'
+      )
       if (!ok) return
       setCancelling(true)
       try {
@@ -604,25 +866,32 @@ function BillingSection() {
         setBilling(updated)
         const url = r?.manage_url || 'https://apps.apple.com/account/subscriptions'
         window.location.href = url
-      } catch (e: any) { alert(e.message || 'Failed to cancel') }
+      } catch (e: any) { await showError(e.message || 'Failed to cancel') }
       setCancelling(false)
       return
     }
-    if (!confirm('Are you sure you want to cancel? You\'ll keep access until the end of your billing period.')) return
+    const ok = await showConfirm(
+      'Are you sure you want to cancel? You\'ll keep access until the end of your billing period.',
+      'Cancel Subscription'
+    )
+    if (!ok) return
     setCancelling(true)
     try {
       await apiFetch('/api/billing/cancel', { method: 'POST' })
       const updated = await apiFetch('/api/billing/status')
       setBilling(updated)
-    } catch (e: any) { alert(e.message || 'Failed to cancel') }
+      await showAlert('Your subscription will stay active until the current billing period ends.', 'Subscription Updated')
+    } catch (e: any) { await showError(e.message || 'Failed to cancel') }
     setCancelling(false)
   }
 
   async function handlePortal() {
+    setPortalLoading(true)
     try {
       const data = await apiFetch('/api/billing/portal', { method: 'POST' })
       if (data.url) window.location.href = data.url
-    } catch (e: any) { alert(e.message || 'Failed') }
+    } catch (e: any) { await showError(e.message || 'Failed') }
+    setPortalLoading(false)
   }
 
   const statusStyles: Record<string, { bg: string; color: string; label: string }> = {
@@ -634,12 +903,24 @@ function BillingSection() {
     inactive: { bg: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.4)', label: 'Inactive' },
   }
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.3)' }}>Loading...</div>
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.3)' }}>Loading billing details…</div>
 
   const s = statusStyles[billing?.subscription_status] || statusStyles.inactive
   const hasStripeSub = !!billing?.stripe_subscription_id
   const hasManagedSubscription = !!billing?.billing_source
   const canCancel = hasManagedSubscription && billing?.subscription_status !== 'canceled' && billing?.subscription_status !== 'cancelling'
+  const billingSource = billing?.billing_source || ''
+  const isAppleManaged = billingSource === 'apple'
+  const planLabel = billing?.plan
+    ? String(billing.plan).charAt(0).toUpperCase() + String(billing.plan).slice(1)
+    : (billing?.trial_active ? 'Trial Access' : 'Choose a Plan')
+  const sourceSummary = isAppleManaged
+    ? 'Managed through Apple App Store subscriptions.'
+    : hasStripeSub
+      ? 'Managed through VuriumBook billing on the web.'
+      : billing?.trial_active
+        ? 'Trial active. Choose how you want to continue before the trial ends.'
+        : 'No paid subscription is connected yet. Open billing when you are ready to subscribe.'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -647,8 +928,11 @@ function BillingSection() {
       <div style={{ padding: '18px 20px', borderRadius: 16, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.03)' }}>
         <div style={{ fontSize: 11, color: 'rgba(255,255,255,.30)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 8 }}>Current Plan</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: billing?.trial_active ? 8 : 0 }}>
-          <span style={{ fontSize: 20, fontWeight: 700, color: '#e8e8ed', textTransform: 'capitalize' }}>{billing?.plan || 'Individual'}</span>
+          <span style={{ fontSize: 20, fontWeight: 700, color: '#e8e8ed' }}>{planLabel}</span>
           <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 10, fontWeight: 600, background: s.bg, color: s.color }}>{s.label}</span>
+        </div>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.32)', lineHeight: 1.55, marginBottom: billing?.trial_active ? 8 : 0 }}>
+          {sourceSummary}
         </div>
         {billing?.trial_active && (
           <div style={{ fontSize: 12, color: 'rgba(130,220,170,.6)' }}>
@@ -668,21 +952,22 @@ function BillingSection() {
         </a>
 
         {hasStripeSub && (
-          <button onClick={handlePortal} style={{
-            height: 44, borderRadius: 12, fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
+          <button onClick={handlePortal} disabled={portalLoading || cancelling} style={{
+            height: 44, borderRadius: 12, fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: portalLoading || cancelling ? 'default' : 'pointer',
             background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.50)',
+            opacity: portalLoading || cancelling ? 0.55 : 1,
           }}>
-            Manage Payment Method
+            {portalLoading ? 'Opening billing…' : 'Manage Billing Details'}
           </button>
         )}
 
         {canCancel && (
-          <button onClick={handleCancel} disabled={cancelling} style={{
-            height: 44, borderRadius: 12, fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
+          <button onClick={handleCancel} disabled={cancelling || portalLoading} style={{
+            height: 44, borderRadius: 12, fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: cancelling || portalLoading ? 'default' : 'pointer',
             background: 'rgba(220,80,80,.04)', border: '1px solid rgba(220,80,80,.12)', color: 'rgba(220,130,130,.7)',
-            opacity: cancelling ? 0.5 : 1,
+            opacity: cancelling || portalLoading ? 0.5 : 1,
           }}>
-            {cancelling ? 'Cancelling...' : 'Cancel Subscription'}
+            {cancelling ? (isAppleManaged ? 'Opening Apple subscriptions…' : 'Cancelling subscription…') : (isAppleManaged ? 'Manage in Apple' : 'Cancel Subscription')}
           </button>
         )}
 
@@ -817,7 +1102,8 @@ function normalizeColorValue(value?: string) {
   return '#8296dc'
 }
 
-function PermissionsTab() {
+function PermissionsTab({ compact = false }: { compact?: boolean }) {
+  const { showConfirm } = useDialog()
   const [perms, setPerms] = useState<Record<string, RolePerms>>(DEFAULT_PERMS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -874,8 +1160,9 @@ function PermissionsTab() {
     }, 800)
   }
 
-  function resetToDefaults() {
-    if (!window.confirm('Reset all permissions to defaults?')) return
+  async function resetToDefaults() {
+    const ok = await showConfirm('Reset all permissions to defaults?', 'Reset Permissions')
+    if (!ok) return
     setPerms(DEFAULT_PERMS)
     setSaving(true)
     apiFetch('/api/settings/permissions', { method: 'POST', body: JSON.stringify({ role_permissions: DEFAULT_PERMS }) })
@@ -883,34 +1170,63 @@ function PermissionsTab() {
       .finally(() => setSaving(false))
   }
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.3)' }}>Loading...</div>
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.3)' }}>Loading role permissions…</div>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 800 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: compact ? 'stretch' : 'center', justifyContent: 'space-between', flexDirection: compact ? 'column' : 'row', gap: compact ? 12 : 0 }}>
         <div>
           <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)' }}>Configure what each role can see and do</div>
-          {saving && <span style={{ fontSize: 10, color: 'rgba(130,220,170,.5)', marginTop: 4, display: 'block' }}>Saving...</span>}
+          {saving && <span style={{ fontSize: 10, color: 'rgba(130,220,170,.5)', marginTop: 4, display: 'block' }}>Saving permissions…</span>}
         </div>
-        <button onClick={resetToDefaults} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.35)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+        <button onClick={resetToDefaults} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.35)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', alignSelf: compact ? 'stretch' : 'auto' }}>
           Reset to defaults
         </button>
       </div>
 
-      {/* Role column headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr repeat(3, 80px)', gap: 8, padding: '0 12px', position: 'sticky', top: 0, zIndex: 2, background: 'rgba(0,0,0,.8)', backdropFilter: 'blur(10px)', borderRadius: 10, paddingTop: 8, paddingBottom: 8 }}>
-        <div />
-        {ROLES.map(r => (
-          <div key={r.id} style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: r.color }}>{r.label}</div>
-        ))}
-      </div>
+      {!compact && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr repeat(3, 80px)', gap: 8, padding: '0 12px', position: 'sticky', top: 0, zIndex: 2, background: 'rgba(0,0,0,.8)', backdropFilter: 'blur(10px)', borderRadius: 10, paddingTop: 8, paddingBottom: 8 }}>
+          <div />
+          {ROLES.map(r => (
+            <div key={r.id} style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: r.color }}>{r.label}</div>
+          ))}
+        </div>
+      )}
 
       {PERM_SECTIONS.map(section => (
         <div key={section.category} style={{ borderRadius: 16, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)', overflow: 'hidden' }}>
           <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.12)' }}>
             <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.5)' }}>{section.label}</span>
           </div>
-          {section.items.map((item, idx) => (
+          {section.items.map((item, idx) => compact ? (
+            <div key={item.key} style={{ padding: '12px 14px', borderBottom: idx < section.items.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.72)', marginBottom: 10 }}>{item.label}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {ROLES.map(r => {
+                  const checked = !!perms[r.id]?.[section.category]?.[item.key]
+                  return (
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.025)' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: r.color }}>{r.label}</span>
+                      <button onClick={() => toggle(r.id, section.category, item.key)}
+                        style={{
+                          width: 38, height: 22, borderRadius: 999, border: 'none',
+                          background: checked ? 'rgba(130,150,220,.35)' : 'rgba(255,255,255,.08)',
+                          cursor: 'pointer', position: 'relative', transition: 'background .2s', flexShrink: 0,
+                        }}>
+                        <div style={{
+                          width: 16, height: 16, borderRadius: '50%',
+                          background: checked ? '#fff' : 'rgba(255,255,255,.25)',
+                          position: 'absolute', top: 3,
+                          left: checked ? 19 : 3,
+                          transition: 'left .2s, background .2s',
+                        }} />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ) : (
             <div key={item.key} style={{ display: 'grid', gridTemplateColumns: '1fr repeat(3, 80px)', gap: 8, alignItems: 'center', padding: '8px 16px', borderBottom: idx < section.items.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none' }}>
               <span style={{ fontSize: 12, color: 'rgba(255,255,255,.6)' }}>{item.label}</span>
               {ROLES.map(r => {
@@ -944,9 +1260,12 @@ function PermissionsTab() {
 
 // ─── Main Settings Page ───────────────────────────────────────────────────────
 export default function SettingsPage() {
+  const { showConfirm, showError } = useDialog()
   const { effective_plan: currentPlan } = usePlan()
   const canChangeDesign = currentPlan === 'salon' || currentPlan === 'custom'
   const [tab, setTab] = useState<SettingsTabId>('shop')
+  const [mobileDetailTab, setMobileDetailTab] = useState<SettingsTabId | null>(null)
+  const [isPhoneLayout, setIsPhoneLayout] = useState(false)
   const [settings, setSettings] = useState<any>({})
   const [fees, setFees] = useState<Fee[]>([])
   const [charges, setCharges] = useState<Charge[]>([])
@@ -985,12 +1304,47 @@ export default function SettingsPage() {
 
   useEffect(() => { load() }, [load])
 
+  useEffect(() => {
+    const syncViewport = () => {
+      const mobile = window.innerWidth <= 768
+      setIsPhoneLayout(mobile)
+      if (!mobile) setMobileDetailTab(null)
+    }
+    syncViewport()
+    window.addEventListener('resize', syncViewport)
+    return () => window.removeEventListener('resize', syncViewport)
+  }, [])
+
+  const updateSettingsUrl = useCallback((nextTab: SettingsTabId) => {
+    if (typeof window === 'undefined') return
+    const nextUrl = new URL(window.location.href)
+    nextUrl.searchParams.set('tab', nextTab)
+    window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}`)
+  }, [])
+
+  const openTab = useCallback((nextTab: SettingsTabId) => {
+    setTab(nextTab)
+    updateSettingsUrl(nextTab)
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      setMobileDetailTab(nextTab)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [updateSettingsUrl])
+
+  const closeMobileDetail = useCallback(() => {
+    setMobileDetailTab(null)
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [])
+
   // Read tab from URL params on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const urlTab = params.get('tab')
     if (urlTab && SETTINGS_URL_TABS.includes(urlTab as SettingsTabId)) {
       setTab(urlTab as SettingsTabId)
+      if (window.innerWidth <= 768) setMobileDetailTab(urlTab as SettingsTabId)
     }
   }, [])
 
@@ -1010,11 +1364,13 @@ export default function SettingsPage() {
     const params = new URLSearchParams(window.location.search)
     if (params.get('square') === 'connected') {
       setTab('square')
+      if (window.innerWidth <= 768) setMobileDetailTab('square')
       showToast('Square connected successfully ✓')
       apiFetch('/api/square/oauth/status').then(d => setSquareOAuth(d)).catch(() => {})
       window.history.replaceState({}, '', '/settings?tab=square')
     } else if (params.get('square') === 'error') {
       setTab('square')
+      if (window.innerWidth <= 768) setMobileDetailTab('square')
       const errMsg = params.get('msg') || 'unknown error'
       showToast('❌ Square connection failed: ' + errMsg)
       window.history.replaceState({}, '', '/settings?tab=square')
@@ -1067,7 +1423,11 @@ export default function SettingsPage() {
   }
 
   async function disconnectSquare() {
-    if (!window.confirm('Disconnect Square? Payment terminal will stop working until reconnected.')) return
+    const ok = await showConfirm(
+      'Disconnect Square? Payment terminal will stop working until reconnected.',
+      'Disconnect Square'
+    )
+    if (!ok) return
     try {
       await apiFetch('/api/square/oauth/disconnect', { method: 'POST' })
       setSquareOAuth({ connected: false })
@@ -1152,14 +1512,20 @@ export default function SettingsPage() {
     .map(group => ({ ...group, items: group.items.filter(item => visibleTabIds.includes(item.id)) }))
     .filter(group => group.items.length > 0)
   const hasVisibleSettings = TABS.length > 0
-  const currentTabMeta = TABS.find(item => item.id === tab) || TABS[0] || null
+  const safeTab = visibleTabIds.includes(tab) ? tab : (visibleTabIds[0] || tab)
+  const activeTab = mobileDetailTab || safeTab
+  const currentTabMeta = TABS.find(item => item.id === activeTab) || TABS[0] || null
   const currentTabGroup = currentTabMeta ? visibleTabGroups.find(group => group.items.some(item => item.id === currentTabMeta.id)) : null
 
   useEffect(() => {
     if (!visibleTabIds.includes(tab) && visibleTabIds[0]) {
       setTab(visibleTabIds[0])
+      updateSettingsUrl(visibleTabIds[0])
     }
-  }, [tab, visibleTabIds])
+    if (mobileDetailTab && !visibleTabIds.includes(mobileDetailTab)) {
+      setMobileDetailTab(null)
+    }
+  }, [tab, visibleTabIds, mobileDetailTab, updateSettingsUrl])
 
   return (
     <Shell page="settings">
@@ -1174,6 +1540,7 @@ export default function SettingsPage() {
         .settings-nav-item:hover{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.06)}
         .settings-content{min-width:0;border-radius:22px;border:1px solid rgba(255,255,255,.06);background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.015));overflow:hidden}
         .settings-content-body{padding:20px}
+        .settings-mobile-back{display:none}
         @media(max-width:1024px){
           .settings-layout{grid-template-columns:1fr}
           .settings-sidebar{position:static}
@@ -1183,10 +1550,14 @@ export default function SettingsPage() {
           .page-topbar{padding-left:60px!important;}
           .page-topbar h2{font-size:13px!important;}
           .set-2col{grid-template-columns:1fr!important;}
+          .set-sms-grid,.set-sms-city-grid{grid-template-columns:1fr!important;}
           .set-topbar{flex-wrap:wrap!important;gap:8px!important;}
           .set-topbar h2{font-size:13px!important;}
-          .set-fee-row{grid-template-columns:1fr 70px 80px 36px!important;}
+          .set-tax-row,.set-fee-row,.set-charge-row{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+          .set-tax-wide,.set-fee-wide,.set-charge-wide{grid-column:1 / -1!important;}
+          .set-tip-grid{grid-template-columns:1fr!important;}
           .set-fee-col3{display:none!important;}
+          .set-fee-remove,.set-charge-remove{grid-column:1 / -1!important;width:100%!important;}
           .set-user-actions{flex-direction:column!important;align-items:stretch!important;gap:4px!important;}
           .set-user-actions button{width:100%!important;justify-content:center!important;}
           .set-user-card{flex-direction:column!important;align-items:stretch!important;gap:8px!important;}
@@ -1194,16 +1565,23 @@ export default function SettingsPage() {
           .settings-layout{padding:14px 14px 24px}
           .settings-nav-grid{grid-template-columns:1fr}
           .settings-content-body{padding:16px}
+          .settings-mobile-back{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:999px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);color:rgba(255,255,255,.72);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer}
+        }
+        @media(max-width:560px){
+          .set-tax-row,.set-fee-row,.set-charge-row{grid-template-columns:1fr!important;}
         }
       `}</style>
       <div style={{ minHeight: '100vh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
         <div className="settings-layout">
+          {(!isPhoneLayout || !mobileDetailTab) && (
           <aside className="settings-sidebar">
             <div style={{ borderRadius: 20, border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02))', padding: '18px 18px 16px' }}>
               <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.38)', marginBottom: 8 }}>Settings</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: '#f3f4f6', letterSpacing: '-.03em', marginBottom: 8 }}>Professional control center</div>
               <div style={{ fontSize: 13, color: 'rgba(255,255,255,.45)', lineHeight: 1.6, marginBottom: 14 }}>
-                Everything is grouped by workspace, finance, and team access so the setup feels predictable and client-ready.
+                {isPhoneLayout
+                  ? 'Open a category to move into its own settings screen. No more hidden sections below the fold.'
+                  : 'Everything is grouped by workspace, finance, and team access so the setup feels predictable and client-ready.'}
               </div>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: saving ? 'rgba(255,255,255,.05)' : dirty ? 'rgba(255,180,100,.08)' : 'rgba(130,220,170,.08)' }}>
                 <span style={{ width: 7, height: 7, borderRadius: 999, background: saving ? 'rgba(255,255,255,.45)' : dirty ? 'rgba(255,180,100,.75)' : 'rgba(130,220,170,.9)' }} />
@@ -1221,12 +1599,12 @@ export default function SettingsPage() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {group.items.map(item => {
-                      const active = item.id === tab
+                      const active = item.id === safeTab
                       return (
                         <button
                           key={item.id}
                           className="settings-nav-item"
-                          onClick={() => setTab(item.id)}
+                          onClick={() => openTab(item.id)}
                           style={{
                             borderColor: active ? 'rgba(130,150,220,.22)' : 'transparent',
                             background: active ? 'rgba(130,150,220,.08)' : 'transparent',
@@ -1250,10 +1628,18 @@ export default function SettingsPage() {
               )}
             </div>
           </aside>
+          )}
 
+          {(!isPhoneLayout || !!mobileDetailTab || !hasVisibleSettings) && (
           <section className="settings-content">
             <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.12)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
               <div>
+                {isPhoneLayout && mobileDetailTab && (
+                  <button className="settings-mobile-back" onClick={closeMobileDetail} style={{ marginBottom: 12 }}>
+                    <span style={{ fontSize: 16, lineHeight: 1 }}>‹</span>
+                    All Settings
+                  </button>
+                )}
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.32)', marginBottom: 8 }}>
                   {currentTabGroup?.label || 'Settings'}
                 </div>
@@ -1278,7 +1664,7 @@ export default function SettingsPage() {
           ) : (<>
 
             {/* ── GENERAL ── */}
-            {tab === 'shop' && (
+            {safeTab === 'shop' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 760 }}>
                 <SectionCard title="Brand & Contact">
                   <Field label="Shop name"><input value={s.shop_name || ''} onChange={e => set('shop_name', e.target.value)} placeholder="Your Business Name" style={inp} /></Field>
@@ -1397,7 +1783,7 @@ export default function SettingsPage() {
             )}
 
             {/* ── FEES ── */}
-            {tab === 'fees' && (
+            {safeTab === 'fees' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <SectionCard title="Taxes & Fees"
                   action={<SmBtn onClick={() => { setFees(f => [...f, { id: 'fee_'+Date.now(), label: '', type: 'percent', value: 0, applies_to: 'all', enabled: true }]); setDirty(true) }}>+ Add</SmBtn>}>
@@ -1409,13 +1795,13 @@ export default function SettingsPage() {
                       <Toggle checked={!!tax.enabled} onChange={v => setNested('tax','enabled',v)} label="Sales Tax" sub="" />
                     </div>
                     {tax.enabled && (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 120px', gap: 8, alignItems: 'center' }}>
-                        <input value={tax.label || ''} onChange={e => setNested('tax','label',e.target.value)} placeholder="Tax label" style={{...inpSm,width:'100%'}} />
+                      <div className="set-tax-row" style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 120px', gap: 8, alignItems: 'center' }}>
+                        <input className="set-tax-wide" value={tax.label || ''} onChange={e => setNested('tax','label',e.target.value)} placeholder="Tax label" style={{...inpSm,width:'100%'}} />
                         <div style={{ position: 'relative' }}>
                           <input type="number" min={0} max={50} step={0.01} value={tax.rate || ''} onChange={e => setNested('tax','rate',Number(e.target.value))} placeholder="Rate" style={inpSm} />
                         </div>
-                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>% rate</div>
-                        <select value={tax.applies_to || 'all'} onChange={e => setNested('tax','applies_to',e.target.value)} style={inpSm}>
+                        <div className="set-fee-col3" style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>% rate</div>
+                        <select className="set-tax-wide" value={tax.applies_to || 'all'} onChange={e => setNested('tax','applies_to',e.target.value)} style={inpSm}>
                           <option value="all">All payments</option>
                           <option value="terminal">Terminal only</option>
                           <option value="cash">Cash only</option>
@@ -1433,21 +1819,21 @@ export default function SettingsPage() {
 
                   {/* Fee rows */}
                   {fees.map((f, i) => (
-                    <div key={f.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 120px 36px', gap: 8, alignItems: 'center', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)', marginBottom: 6 }}>
-                      <input value={f.label} onChange={e => { const n=[...fees]; n[i]={...n[i],label:e.target.value}; setFees(n); setDirty(true) }} placeholder="e.g. Card surcharge" style={{...inpSm,width:'100%'}} />
+                    <div key={f.id} className="set-fee-row" style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 120px 36px', gap: 8, alignItems: 'center', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)', marginBottom: 6 }}>
+                      <input className="set-fee-wide" value={f.label} onChange={e => { const n=[...fees]; n[i]={...n[i],label:e.target.value}; setFees(n); setDirty(true) }} placeholder="e.g. Card surcharge" style={{...inpSm,width:'100%'}} />
                       <select value={f.type} onChange={e => { const n=[...fees]; n[i]={...n[i],type:e.target.value as any}; setFees(n); setDirty(true) }} style={inpSm}>
                         <option value="percent">%</option>
                         <option value="fixed">Fixed $</option>
                       </select>
                       <input type="number" min={0} step={0.01} value={f.value||''} onChange={e => { const n=[...fees]; n[i]={...n[i],value:Number(e.target.value)}; setFees(n); setDirty(true) }} placeholder="Value" style={inpSm} />
-                      <select value={f.applies_to} onChange={e => { const n=[...fees]; n[i]={...n[i],applies_to:e.target.value}; setFees(n); setDirty(true) }} style={inpSm}>
+                      <select className="set-fee-wide" value={f.applies_to} onChange={e => { const n=[...fees]; n[i]={...n[i],applies_to:e.target.value}; setFees(n); setDirty(true) }} style={inpSm}>
                         <option value="all">All payments</option>
                         <option value="terminal">Terminal only</option>
                         <option value="cash">Cash only</option>
                         <option value="zelle">Zelle only</option>
                         <option value="other">Other only</option>
                       </select>
-                      <button onClick={() => { setFees(fees.filter((_,j)=>j!==i)); setDirty(true) }} style={{ height: 34, width: 34, borderRadius: 10, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: '#ff6b6b', cursor: 'pointer', fontSize: 15 }}>✕</button>
+                      <button className="set-fee-remove" onClick={() => { setFees(fees.filter((_,j)=>j!==i)); setDirty(true) }} style={{ height: 34, width: 34, borderRadius: 10, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: '#ff6b6b', cursor: 'pointer', fontSize: 15 }}>✕</button>
                     </div>
                   ))}
 
@@ -1459,8 +1845,8 @@ export default function SettingsPage() {
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)' }}>Promotions, membership discounts, product sales</div>
                   {charges.length === 0 ? <div style={{ color: 'rgba(255,255,255,.30)', fontSize: 12 }}>No custom charges</div> :
                     charges.map((c, i) => (
-                      <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px 36px', gap: 8, alignItems: 'center', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)' }}>
-                        <input value={c.name} onChange={e => { const n=[...charges]; n[i]={...n[i],name:e.target.value}; setCharges(n); setDirty(true) }} placeholder="Name (e.g. Loyalty discount)" style={{...inpSm,width:'100%'}} />
+                      <div key={c.id} className="set-charge-row" style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px 36px', gap: 8, alignItems: 'center', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)' }}>
+                        <input className="set-charge-wide" value={c.name} onChange={e => { const n=[...charges]; n[i]={...n[i],name:e.target.value}; setCharges(n); setDirty(true) }} placeholder="Name (e.g. Loyalty discount)" style={{...inpSm,width:'100%'}} />
                         <select value={c.type} onChange={e => { const n=[...charges]; n[i]={...n[i],type:e.target.value as any}; setCharges(n); setDirty(true) }} style={inpSm}>
                           <option value="percent">%</option>
                           <option value="fixed">Fixed $</option>
@@ -1468,7 +1854,7 @@ export default function SettingsPage() {
                         </select>
                         <input type="number" min={0} step={0.01} value={c.value||''} disabled={c.type==='label'} onChange={e => { const n=[...charges]; n[i]={...n[i],value:Number(e.target.value)}; setCharges(n); setDirty(true) }} placeholder="Value" style={{...inpSm,opacity: c.type === 'label' ? 0.4 : 1}} />
                         <input type="color" value={normalizeColorValue(c.color)} onChange={e => { const n=[...charges]; n[i]={...n[i],color:e.target.value}; setCharges(n); setDirty(true) }} style={{ height: 34, width: '100%', borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'none', cursor: 'pointer', padding: 2 }} />
-                        <button onClick={() => { setCharges(charges.filter((_,j)=>j!==i)); setDirty(true) }} style={{ height: 34, width: 34, borderRadius: 10, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: '#ff6b6b', cursor: 'pointer', fontSize: 15 }}>✕</button>
+                        <button className="set-charge-remove" onClick={() => { setCharges(charges.filter((_,j)=>j!==i)); setDirty(true) }} style={{ height: 34, width: 34, borderRadius: 10, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: '#ff6b6b', cursor: 'pointer', fontSize: 15 }}>✕</button>
                       </div>
                     ))
                   }
@@ -1477,7 +1863,7 @@ export default function SettingsPage() {
             )}
 
             {/* ── BOOKING & SMS ── */}
-            {tab === 'booking' && (
+            {safeTab === 'booking' && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 14 }}>
                 <SectionCard title="Booking Access & Client Flow">
                   <Toggle checked={s.online_booking_enabled !== false} onChange={v => set('online_booking_enabled', v)} label="Online booking enabled" sub="When off, clients can still view your page but new bookings are blocked" />
@@ -1517,7 +1903,7 @@ export default function SettingsPage() {
             )}
 
             {/* ── PAYROLL ── */}
-            {tab === 'payroll' && (
+            {safeTab === 'payroll' && (
               <div style={{ maxWidth: 600 }}>
                 <SectionCard title="Payroll defaults">
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)' }}>Default rates for new team members. Override per-member in Payroll → Commission rules.</div>
@@ -1538,7 +1924,7 @@ export default function SettingsPage() {
                     <div style={{ gridColumn: '1 / -1' }}>
                       <label style={lbl}>Tip options shown on Terminal screen</label>
                       <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginBottom: 8 }}>3 preset percentages + "No tip" button shown on Square Terminal</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                      <div className="set-tip-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
                         {[0,1,2].map(i => (
                           <div key={i}>
                             <label style={{ ...lbl, marginBottom: 4 }}>Option {i+1} (%)</label>
@@ -1554,11 +1940,13 @@ export default function SettingsPage() {
                         ))}
                       </div>
                       <div style={{ marginTop: 10, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)', fontSize: 12, color: 'rgba(255,255,255,.55)' }}>
-                        Preview on Terminal: {' '}
-                        {(payroll.tip_options || [15,20,25]).map((p: number, i: number) => (
-                          <span key={i} style={{ marginRight: 8, padding: '2px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.5)', fontSize: 11 }}>{p}%</span>
-                        ))}
-                        <span style={{ padding: '2px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.55)', fontSize: 11 }}>No tip</span>
+                        <div style={{ marginBottom: 8 }}>Preview on Terminal:</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          {(payroll.tip_options || [15,20,25]).map((p: number, i: number) => (
+                            <span key={i} style={{ padding: '2px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.5)', fontSize: 11 }}>{p}%</span>
+                          ))}
+                          <span style={{ padding: '2px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.55)', fontSize: 11 }}>No tip</span>
+                        </div>
                       </div>
                     </div>
                     <Field label="Pay period">
@@ -1575,8 +1963,10 @@ export default function SettingsPage() {
                 {/* SMS Status — per-business toll-free number */}
                 <SectionCard title="SMS Notifications" action={null}>
                   {(() => {
-                    const smsStatus = settings.sms_registration_status || 'none'
+                    const smsStatus = settings.sms_registration_status || 'not_registered'
                     const hasNumber = !!settings.sms_from_number
+                    const needsSetup = smsStatus === 'none' || smsStatus === 'not_registered'
+                    const needsOtp = smsStatus === 'pending_otp'
 
                     if (hasNumber) {
                       const isVerified = smsStatus === 'active' || smsStatus === 'verified'
@@ -1607,15 +1997,38 @@ export default function SettingsPage() {
                       )
                     }
 
-                    // No number yet — provisioning in progress or failed
+                    if (needsSetup || needsOtp) {
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 999, background: needsOtp ? 'rgba(255,180,80,.7)' : 'rgba(130,150,220,.75)' }} />
+                            <span style={{ fontSize: 13, fontWeight: 600, color: needsOtp ? 'rgba(255,180,80,.7)' : 'rgba(195,205,255,.86)' }}>
+                              {needsOtp ? 'Finish owner verification' : 'Set up SMS for this business'}
+                            </span>
+                          </div>
+                          <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>
+                            {needsOtp
+                              ? 'Your registration is waiting on the one-time code Telnyx sent to the owner phone. Enter it below to continue.'
+                              : 'SMS is no longer auto-provisioned. Start registration here when you want a dedicated business number for appointment notifications.'}
+                          </p>
+                          <div style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(130,150,220,.12)', background: 'rgba(130,150,220,.04)' }}>
+                            <SmsRegistrationForm wsId={s.slug || ''} settings={settings} onDone={(data: any) => {
+                              setSettings((prev: any) => ({ ...prev, ...data }))
+                            }} />
+                          </div>
+                        </div>
+                      )
+                    }
+
+                    // Registration submitted, waiting on carrier review or number assignment
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(255,180,80,.7)' }} />
-                          <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,180,80,.7)' }}>Setting up SMS...</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,180,80,.7)' }}>Registration submitted</span>
                         </div>
                         <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.5 }}>
-                          A dedicated toll-free number is being provisioned for your business. This usually takes a few minutes. Refresh the page to check status.
+                          Your SMS registration is in review. Carrier approval and number assignment can take a few business days depending on the registration type.
                         </p>
                       </div>
                     )
@@ -1625,7 +2038,7 @@ export default function SettingsPage() {
             )}
 
             {/* ── SQUARE ── */}
-            {tab === 'square' && (
+            {safeTab === 'square' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 680 }}>
                 <SectionCard title="Square Connection">
                   {squareOAuth.connected ? (
@@ -1736,7 +2149,11 @@ export default function SettingsPage() {
                           {stripeConnect.connected_at && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 1 }}>Since {new Date(stripeConnect.connected_at).toLocaleDateString()}</div>}
                         </div>
                         <SmBtn danger onClick={async () => {
-                          if (!confirm('Disconnect Stripe? Clients won\'t be able to pay online.')) return
+                          const ok = await showConfirm(
+                            'Disconnect Stripe? Clients won\'t be able to pay online.',
+                            'Disconnect Stripe'
+                          )
+                          if (!ok) return
                           await apiFetch('/api/stripe-connect/disconnect', { method: 'POST' })
                           setStripeConnect({ connected: false })
                         }}>Disconnect</SmBtn>
@@ -1761,7 +2178,7 @@ export default function SettingsPage() {
                         try {
                           const r = await apiFetch('/api/stripe-connect/oauth/url')
                           if (r.url) window.location.href = r.url
-                        } catch (e: any) { alert(e.message || 'Failed') }
+                        } catch (e: any) { await showError(e.message || 'Failed') }
                         setStripeConnecting(false)
                       }} disabled={stripeConnecting}
                         style={{ height: 38, padding: '0 20px', borderRadius: 999, border: 'none', background: 'rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: stripeConnecting ? .5 : 1 }}>
@@ -1774,13 +2191,13 @@ export default function SettingsPage() {
             )}
 
             {/* ── USERS ── */}
-            {tab === 'users' && <UsersTab />}
+            {safeTab === 'users' && <UsersTab />}
 
             {/* ── PERMISSIONS ── */}
-            {tab === 'permissions' && <PermissionsTab />}
+            {safeTab === 'permissions' && <PermissionsTab compact={isPhoneLayout} />}
 
             {/* ── SITE BUILDER ── */}
-            {tab === 'site' && (
+            {safeTab === 'site' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {/* Slug / URL */}
                 <SectionCard title="Booking URL">
@@ -1981,11 +2398,12 @@ export default function SettingsPage() {
             {/* ── FEATURES ── */}
 
             {/* ── BILLING ── */}
-            {tab === 'billing' && <BillingSection />}
+            {safeTab === 'billing' && <BillingSection />}
 
           </>)}
             </div>
           </section>
+          )}
         </div>
 
         {/* Toast */}
@@ -2045,7 +2463,7 @@ function AIStyleGenerator({ siteConfig, onGenerated }: { siteConfig: any; onGene
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}>
         <button onClick={handleGenerate} disabled={generating || !prompt.trim()}
           style={{ height: 36, padding: '0 20px', borderRadius: 999, border: 'none', cursor: 'pointer', background: 'rgba(130,150,220,.15)', color: 'rgba(130,150,220,.9)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', opacity: generating || !prompt.trim() ? 0.5 : 1, transition: 'opacity .2s' }}>
-          {generating ? 'Generating...' : generated ? 'Regenerate' : 'Generate Style'}
+          {generating ? 'Generating…' : generated ? 'Regenerate' : 'Generate Style'}
         </button>
         {generated && !generating && (
           <span style={{ fontSize: 12, color: 'rgba(130,220,170,.7)' }}>Style applied to your booking page</span>

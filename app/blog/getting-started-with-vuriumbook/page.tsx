@@ -37,12 +37,12 @@ export default function BlogPost() {
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,.25)', marginBottom: 48 }}>March 28, 2026</p>
 
         <p style={text}>
-          Setting up your barbershop or salon on VuriumBook takes less than 15 minutes. This guide walks you through everything — from creating your workspace to accepting your first online booking. By the end, you&apos;ll have a fully operational booking system that your clients can use immediately.
+          This guide walks you through the key setup steps for launching VuriumBook — from creating your workspace to accepting your first online booking. By the end, you&apos;ll have the core pieces in place and know what to finish next.
         </p>
 
         <h2 style={heading}>1. Create Your Account</h2>
         <p style={text}>
-          Head to vurium.com/signup and enter your business name, email address, and a password. That&apos;s it — no credit card required. You&apos;ll get instant access to a 14-day free trial with all features unlocked.
+          Head to vurium.com/signup and enter your business name, email address, and a password. You&apos;ll get access to a 14-day free trial with the product ready for setup and testing.
         </p>
         <p style={text}>
           Once you&apos;re in, you&apos;ll land on your Dashboard — the central hub for everything happening at your shop.
@@ -78,7 +78,7 @@ export default function BlogPost() {
           <li>Add a &quot;Book Now&quot; button to your website.</li>
         </ul>
         <p style={text}>
-          Clients can browse available time slots, pick their preferred barber, and book instantly — 24/7, no phone calls needed.
+          Clients can browse available time slots, pick their preferred barber, and book online without back-and-forth phone calls.
         </p>
 
         <h2 style={heading}>5. Manage Your Day</h2>

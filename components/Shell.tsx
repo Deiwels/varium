@@ -1,9 +1,10 @@
 'use client'
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { clearAuthCookie, setAuthCookie } from '@/lib/auth-cookie'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import ImageCropper from '@/components/ImageCropper'
+import { useDialog } from '@/components/StyledDialog'
 import { hasPinSetup, verifyPin, getCredentials, getPinUsername } from '@/lib/pin'
 import { usePlan } from '@/components/PlanProvider'
 import { usePermissions } from '@/components/PermissionsProvider'
@@ -355,7 +356,8 @@ function ProfileModal({ user, onClose, onUpdated }: {
           {/* Sign Out */}
           <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', marginTop: 8, paddingTop: 14 }}>
             <button onClick={async () => {
-              if (!confirm('Sign out of VuriumBook?')) return
+              const ok = await showConfirm('Sign out of VuriumBook?', 'Sign Out')
+              if (!ok) return
               // Unregister push token before logout
               try {
                 const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
@@ -378,7 +380,7 @@ function ProfileModal({ user, onClose, onUpdated }: {
               if ((window as any).__VURIUM_IS_NATIVE) {
                 try { (window as any).webkit?.messageHandlers?.logout?.postMessage('logout') } catch {}
               }
-              window.location.href = '/signin'
+              window.location.replace('/signin')
             }} style={{
               width: '100%', height: 42, borderRadius: 12,
               border: '1px solid rgba(220,80,80,.15)', background: 'rgba(220,80,80,.04)',
@@ -399,6 +401,7 @@ function ProfileModal({ user, onClose, onUpdated }: {
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 export default function Shell({ children, page }: { children: React.ReactNode; page: string }) {
+  const { showConfirm } = useDialog()
   // Read auth state synchronously from localStorage to avoid blank screen flash
   const [user, setUser] = useState<User | null>(null)
   const [status, setStatus] = useState<'loading' | 'ok' | 'noauth'>('loading')
@@ -411,6 +414,32 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
   const [pinLoading, setPinLoading] = useState(false)
   const [keyboardOpen, setKeyboardOpen] = useState(false)
   const pathname = usePathname()
+  const authRedirectingRef = useRef(false)
+
+  const redirectToSignIn = useCallback(() => {
+    if (authRedirectingRef.current) return
+    authRedirectingRef.current = true
+    setShowPinOverlay(false)
+    setPinInput('')
+    setPinError('')
+    setPinLoading(false)
+    localStorage.removeItem('VURIUMBOOK_TOKEN')
+    localStorage.removeItem('VURIUMBOOK_USER')
+    clearAuthCookie()
+    if (typeof window !== 'undefined' && window.location.pathname !== '/signin') {
+      window.location.replace('/signin')
+    }
+  }, [])
+
+  const openPinUnlock = useCallback(() => {
+    authRedirectingRef.current = false
+    localStorage.removeItem('VURIUMBOOK_TOKEN')
+    setStatus('ok')
+    setPinInput('')
+    setPinError('')
+    setPinLoading(false)
+    setShowPinOverlay(true)
+  }, [])
 
   // Detect virtual keyboard open/close
   useEffect(() => {
@@ -453,10 +482,16 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
 
   // Listen for PIN-required events from api.ts
   useEffect(() => {
-    const handler = () => { if (hasPinSetup()) setShowPinOverlay(true); else { localStorage.removeItem('VURIUMBOOK_USER'); window.location.href = '/signin' } }
+    const handler = () => {
+      if (hasPinSetup()) {
+        openPinUnlock()
+      } else {
+        redirectToSignIn()
+      }
+    }
     window.addEventListener('vuriumbook-pin-required', handler)
     return () => window.removeEventListener('vuriumbook-pin-required', handler)
-  }, [])
+  }, [openPinUnlock, redirectToSignIn])
 
   const handlePinSubmit = useCallback(async (enteredPin: string) => {
     setPinError('')
@@ -481,6 +516,8 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
       localStorage.setItem('VURIUMBOOK_USER', JSON.stringify(userData))
       setAuthCookie(userData.role + ':' + (userData.uid || ''))
       setUser(userData)
+      setStatus('ok')
+      authRedirectingRef.current = false
       setShowPinOverlay(false)
       setPinInput('')
     } catch (e: any) {
@@ -541,14 +578,12 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
     try { const stored = JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || 'null'); if (stored) setUser(stored) } catch {}
     const token = localStorage.getItem('VURIUMBOOK_TOKEN')
     if (!token) { setStatus('noauth'); return }
+    authRedirectingRef.current = false
     setStatus('ok') // optimistic — will revert to noauth if /me fails
     fetch(`${API}/api/auth/me`, { credentials: 'include', headers: { Authorization: `Bearer ${token}` } })
       .then(r => {
         if (r.status === 401) {
-          localStorage.removeItem('VURIUMBOOK_TOKEN')
-          if (hasPinSetup()) { setShowPinOverlay(true); throw new Error('Token expired — PIN required') }
-          localStorage.removeItem('VURIUMBOOK_USER')
-          window.location.href = '/signin'
+          redirectToSignIn()
           throw new Error('Token expired')
         }
         return r.json()
@@ -576,6 +611,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         if (!userData.photo && userData.photo_url) {
           userData = { ...userData, photo: userData.photo_url }
         }
+        authRedirectingRef.current = false
         setUser(userData)
         localStorage.setItem('VURIUMBOOK_USER', JSON.stringify(userData))
         // Auto-register push token for current account (native iOS only)
@@ -589,31 +625,39 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         }
       })
       .catch(() => {})
-  }, [])
+  }, [redirectToSignIn])
 
   // Periodically check session validity — show PIN overlay if expired
   const checkSession = useCallback(() => {
-    if (status !== 'ok' || !user) return
+    if (status !== 'ok' || !user || showPinOverlay || authRedirectingRef.current) return
     const token = localStorage.getItem('VURIUMBOOK_TOKEN')
-    if (!token) { setShowPinOverlay(hasPinSetup()); return }
+    if (!token) {
+      if (hasPinSetup()) {
+        openPinUnlock()
+        return
+      }
+      setStatus('noauth')
+      return
+    }
     fetch(`${API}/api/auth/me`, { credentials: 'include', headers: { Authorization: `Bearer ${token}` } })
       .then(r => {
         if (r.status === 401) {
-          localStorage.removeItem('VURIUMBOOK_TOKEN')
-          if (hasPinSetup()) setShowPinOverlay(true)
-          else { localStorage.removeItem('VURIUMBOOK_USER'); window.location.href = '/signin' }
+          if (hasPinSetup()) {
+            openPinUnlock()
+            return
+          }
+          setStatus('noauth')
         }
       })
       .catch(() => {})
-  }, [status, user])
+  }, [status, user, showPinOverlay, openPinUnlock])
   useVisibilityPolling(checkSession, 5 * 60 * 1000, [checkSession])
 
   useEffect(() => {
     if (status === 'noauth') {
-      if (hasPinSetup()) setShowPinOverlay(true)
-      else window.location.href = '/signin'
+      redirectToSignIn()
     }
-  }, [status])
+  }, [status, redirectToSignIn])
 
   // Poll for unread messages — check latest message per chat type
   const CHAT_COLORS: Record<string, string> = useMemo(() => ({ general: 'rgba(130,150,220,.6)', barbers: 'rgba(130,150,220,.6)', admins: 'rgba(130,220,170,.5)', students: 'rgba(180,140,220,.6)', requests: 'rgba(220,190,130,.5)', applications: 'rgba(220,130,160,.5)' }), [])
@@ -699,7 +743,11 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
 
 
   if (status === 'noauth') {
-    return <div style={{ background: 'transparent', minHeight: '100vh' }} />
+    return (
+      <div style={{ minHeight: '100vh', background: '#000', color: 'rgba(255,255,255,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: 'Inter,system-ui,sans-serif' }}>
+        Redirecting to sign in…
+      </div>
+    )
   }
 
   const { hasFeature: planHasFeature, expired: planExpired, trial_days_left } = usePlan()
@@ -809,13 +857,30 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
               ))}
             </div>
 
-            <button type="button" onClick={() => { setShowPinOverlay(false); localStorage.removeItem('VURIUMBOOK_USER'); clearAuthCookie(); window.location.href = '/signin' }}
-              style={{ marginTop: 32, background: 'none', border: 'none', color: 'rgba(255,255,255,.25)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '.06em', transition: 'color .2s' }}
-              onMouseEnter={e => (e.target as HTMLElement).style.color = 'rgba(255,255,255,.45)'}
-              onMouseLeave={e => (e.target as HTMLElement).style.color = 'rgba(255,255,255,.25)'}
-            >
-              Login with password
-            </button>
+            <div style={{ marginTop: 24, display: 'grid', gap: 12 }}>
+              <button
+                type="button"
+                onClick={redirectToSignIn}
+                style={{
+                  width: '100%',
+                  height: 46,
+                  borderRadius: 14,
+                  border: '1px solid rgba(255,255,255,.12)',
+                  background: 'rgba(255,255,255,.05)',
+                  color: '#e8e8ed',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  letterSpacing: '.01em',
+                }}
+              >
+                Use password instead
+              </button>
+              <div style={{ fontSize: 12, lineHeight: 1.45, color: 'rgba(255,255,255,.42)' }}>
+                This PIN only unlocks this device. You can always return to sign in if the PIN is unavailable.
+              </div>
+            </div>
           </div>
         </div>
       )}

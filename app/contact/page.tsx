@@ -72,7 +72,7 @@ export default function ContactPage() {
                 </div>
                 <h3 style={{ fontSize: 18, fontWeight: 600, color: '#e8e8ed', marginBottom: 8 }}>Message sent!</h3>
                 <p style={{ fontSize: 14, fontWeight: 300, color: 'rgba(255,255,255,.35)', lineHeight: 1.6 }}>
-                  Thank you for reaching out. We&apos;ll get back to you within 24 hours.
+                  Thank you for reaching out. We&apos;ll get back to you as soon as we can.
                 </p>
               </div>
             ) : (
@@ -95,7 +95,7 @@ export default function ContactPage() {
                 </div>
                 {error && <p style={{ fontSize: 13, color: 'rgba(220,130,130,.8)', margin: 0 }}>{error}</p>}
                 <button type="submit" className="btn-primary" disabled={sending} style={{ marginTop: 8, border: 'none', cursor: sending ? 'wait' : 'pointer', fontSize: 14, fontFamily: 'inherit', opacity: sending ? 0.6 : 1 }}>
-                  {sending ? 'Sending...' : 'Send Message'}
+                  {sending ? 'Sending…' : 'Send Message'}
                 </button>
               </form>
             )}

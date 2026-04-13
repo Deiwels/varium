@@ -1,6 +1,7 @@
 'use client'
 import Shell from '@/components/Shell'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import { useDialog } from '@/components/StyledDialog'
 
 import { apiFetch } from '@/lib/api'
 import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
@@ -124,8 +125,9 @@ function RefundModal({ payment, onClose, onDone }: { payment: Payment; onClose: 
   const [reason, setReason] = useState('Requested by customer')
   const [amount, setAmount] = useState('')
   const [saving, setSaving] = useState(false)
+  const { showError } = useDialog()
 
-  async function confirm() {
+  async function submitRefund() {
     const squareId = payment.square_id || payment.id
     setSaving(true)
     try {
@@ -133,7 +135,7 @@ function RefundModal({ payment, onClose, onDone }: { payment: Payment; onClose: 
       if (amount) body.amount_cents = Math.round(Number(amount) * 100)
       await apiFetch(`/api/payments/refund/${encodeURIComponent(squareId)}`, { method: 'POST', body: JSON.stringify(body) })
       onDone()
-    } catch (e: any) { alert('Refund error: ' + e.message) }
+    } catch (e: any) { await showError('Refund error: ' + e.message) }
     setSaving(false)
   }
 
@@ -158,7 +160,7 @@ function RefundModal({ payment, onClose, onDone }: { payment: Payment; onClose: 
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{ height: 38, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
-          <button onClick={confirm} disabled={saving} style={{ height: 38, padding: '0 18px', borderRadius: 999, border: '1px solid rgba(255,107,107,.55)', background: 'rgba(255,107,107,.12)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13 }}>
+          <button onClick={submitRefund} disabled={saving} style={{ height: 38, padding: '0 18px', borderRadius: 999, border: '1px solid rgba(255,107,107,.55)', background: 'rgba(255,107,107,.12)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13 }}>
             {saving ? 'Processing…' : 'Refund'}
           </button>
         </div>
@@ -181,6 +183,9 @@ export default function PaymentsPage() {
   const [mobileDetail, setMobileDetail] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState('')
+  const [sortBy, setSortBy] = useState<'date'|'amount'|'tip'|'client'|'status'|'method'>('date')
+  const [sortDir, setSortDir] = useState<'asc'|'desc'>('desc')
+  const { showConfirm, showError } = useDialog()
 
   const [user] = useState(() => { try { return JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}') } catch { return {} } })
   const isOwner = user?.role === 'owner'
@@ -197,13 +202,17 @@ export default function PaymentsPage() {
   }
 
   async function reconcilePayments() {
-    if (!window.confirm('Auto-match Square payments to unpaid bookings? This will mark matched bookings as paid.')) return
+    const confirmed = await showConfirm('Auto-match Square payments to unpaid bookings? This will mark matched bookings as paid.', 'Reconcile payments')
+    if (!confirmed) return
     setSyncing(true); setSyncResult('')
     try {
       const r = await apiFetch('/api/payments/reconcile', { method: 'POST', body: JSON.stringify({ from, to }) })
       setSyncResult(`Matched ${r.matched} payments. ${r.unmatched_bookings} bookings still unpaid.`)
       load()
-    } catch (e: any) { setSyncResult('Error: ' + e.message) }
+    } catch (e: any) {
+      setSyncResult('Error: ' + e.message)
+      await showError('Reconcile error: ' + e.message)
+    }
     setSyncing(false)
   }
 
@@ -217,9 +226,7 @@ export default function PaymentsPage() {
     setLoading(true); setError('')
     try {
       const data = await apiFetch(`/api/payments?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
-      const list: Payment[] = (data?.payments || []).sort((a: Payment, b: Payment) =>
-        String(b.created_at || b.date || '').localeCompare(String(a.created_at || a.date || ''))
-      )
+      const list: Payment[] = data?.payments || []
       setPayments(list)
       setTotals(data?.totals || null)
     } catch (e: any) { setError(e.message) }
@@ -230,7 +237,7 @@ export default function PaymentsPage() {
 
   // Filtered list
   const ql = q.toLowerCase()
-  const visible = payments.filter(p => {
+  const visible = [...payments.filter(p => {
     if (filterBarber && p.barber_name !== filterBarber && p.barber_id !== filterBarber) return false
     if (filterStatus && p.status !== filterStatus) return false
     if (filterMethod && p.method !== filterMethod) return false
@@ -239,6 +246,25 @@ export default function PaymentsPage() {
       if (!hay.includes(ql)) return false
     }
     return true
+  })].sort((a, b) => {
+    const dir = sortDir === 'asc' ? 1 : -1
+    const dateA = Date.parse(String(a.created_at || a.date || '')) || 0
+    const dateB = Date.parse(String(b.created_at || b.date || '')) || 0
+    switch (sortBy) {
+      case 'amount':
+        return (Number(a.amount || 0) - Number(b.amount || 0)) * dir
+      case 'tip':
+        return (Number(a.tip || 0) - Number(b.tip || 0)) * dir
+      case 'client':
+        return getClientName(a).localeCompare(getClientName(b)) * dir
+      case 'status':
+        return String(a.status || '').localeCompare(String(b.status || '')) * dir
+      case 'method':
+        return String(methodLabel(a.method)).localeCompare(String(methodLabel(b.method))) * dir
+      case 'date':
+      default:
+        return (dateA - dateB) * dir
+    }
   })
 
   const selectedPayment = payments.find(p => p.id === selectedId) || null
@@ -359,6 +385,18 @@ export default function PaymentsPage() {
                 {f.opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
               </select>
             ))}
+            <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} style={{ ...inp, flexShrink: 0 }}>
+              <option value="date">Sort: Date</option>
+              <option value="amount">Sort: Amount</option>
+              <option value="tip">Sort: Tip</option>
+              <option value="client">Sort: Client</option>
+              <option value="status">Sort: Status</option>
+              <option value="method">Sort: Method</option>
+            </select>
+            <button onClick={() => setSortDir(prev => prev === 'asc' ? 'desc' : 'asc')}
+              style={{ height: 40, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit', flexShrink: 0 }}>
+              {sortDir === 'asc' ? '↑ Asc' : '↓ Desc'}
+            </button>
           </div>
         </div>
 
@@ -393,12 +431,12 @@ export default function PaymentsPage() {
             {loading ? (
               <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.40)', fontSize: 13 }}>
                 <div style={{ display: 'inline-block', width: 18, height: 18, border: '2px solid rgba(255,255,255,.18)', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin .8s linear infinite', marginRight: 8, verticalAlign: 'middle' }} />
-                Loading…
+                Loading payments…
               </div>
             ) : error ? (
               <div style={{ padding: 24, color: '#ff6b6b', fontSize: 13 }}>Error: {error}</div>
             ) : visible.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.40)', fontSize: 13 }}>No transactions found</div>
+              <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.40)', fontSize: 13 }}>No payments match this range or filter yet.</div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                 <thead>
@@ -452,7 +490,7 @@ export default function PaymentsPage() {
                 <div style={{ width: 20, height: 20, border: '2px solid rgba(255,255,255,.15)', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'paySpin .8s linear infinite', margin: '0 auto 10px' }} />
               </div>
             ) : visible.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.25)', fontSize: 13 }}>No transactions</div>
+              <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.25)', fontSize: 13 }}>No payments match this range or filter yet.</div>
             ) : visible.map((p, idx) => {
               const cn = getClientName(p)
               const methodColor = p.method === 'cash' ? 'rgba(255,207,63,.35)' : p.method === 'zelle' ? 'rgba(130,150,220,.35)' : 'rgba(255,255,255,.06)'
@@ -495,7 +533,7 @@ export default function PaymentsPage() {
             )}
             <div style={{ padding: mobileDetail ? '14px' : 0, display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
             {!selectedPayment ? (
-              <div style={{ color: 'rgba(255,255,255,.30)', fontSize: 13, padding: '24px 0', textAlign: 'center' }}>Click any payment to view details</div>
+              <div style={{ color: 'rgba(255,255,255,.30)', fontSize: 13, padding: '24px 0', textAlign: 'center' }}>Select a payment to view the full details.</div>
             ) : (() => {
               const p = selectedPayment
               const clientName = getClientName(p)

@@ -10,14 +10,14 @@ const TEAM = [
 const VALUES = [
   { title: 'Customer First', desc: 'Every decision starts with the question: does this make our customers\u2019 lives easier? We obsess over the details that matter to the people who use our software daily.', color: 'rgba(130,220,170,.5)' },
   { title: 'Relentless Innovation', desc: 'We ship fast, iterate faster, and never settle. Our product evolves weekly because standing still means falling behind.', color: 'rgba(130,150,220,.5)' },
-  { title: 'Uncompromising Reliability', desc: 'Your business runs on our software. We engineer for 99.9% uptime, zero data loss, and performance that never gets in the way.', color: 'rgba(220,170,100,.5)' },
+  { title: 'Dependable by Design', desc: 'Your business runs on our software. We focus on stable day-to-day performance, thoughtful rollouts, and a product experience that stays out of the way.', color: 'rgba(220,170,100,.5)' },
 ]
 
 const BADGES = [
-  { label: 'GDPR Compliant', desc: 'Full compliance with EU data protection regulations' },
-  { label: 'SOC 2 Type II', desc: 'Enterprise-grade security controls and auditing' },
-  { label: 'SSL Encrypted', desc: 'All data encrypted in transit and at rest' },
-  { label: '99.9% Uptime', desc: 'Reliable infrastructure hosted on Google Cloud' },
+  { label: 'Privacy-minded', desc: 'Clear policies and practical controls for handling business and customer data.' },
+  { label: 'Managed infrastructure', desc: 'Hosted on modern cloud infrastructure with ongoing maintenance and monitoring.' },
+  { label: 'Secure payments', desc: 'Card payments are handled through trusted payment providers instead of being stored on our servers.' },
+  { label: 'Ongoing hardening', desc: 'Authentication, billing, and operational safeguards are reviewed as the product evolves.' },
 ]
 
 export default function AboutPage() {
@@ -101,9 +101,9 @@ export default function AboutPage() {
 
         {/* Trust & Security */}
         <section style={{ marginBottom: 80 }}>
-          <p className="label-glow" style={{ textAlign: 'center', marginBottom: 12 }}>Trust & Security</p>
+          <p className="label-glow" style={{ textAlign: 'center', marginBottom: 12 }}>Trust & Safeguards</p>
           <h2 className="shimmer-text" style={{ fontSize: 'clamp(24px, 3.5vw, 36px)', fontWeight: 600, letterSpacing: '-.03em', textAlign: 'center', marginBottom: 48 }}>
-            Enterprise-grade protection.
+            Built with care for daily operations.
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
             {BADGES.map((b, i) => (

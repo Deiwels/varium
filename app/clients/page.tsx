@@ -1,6 +1,7 @@
 'use client'
 import Shell from '@/components/Shell'
 import { useEffect, useState, useCallback } from 'react'
+import { useDialog } from '@/components/StyledDialog'
 
 import { apiFetch } from '@/lib/api'
 import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
@@ -99,7 +100,7 @@ function AddClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
 }
 
 // ─── ClientProfile ────────────────────────────────────────────────────────────
-function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clients: Client[]; onUpdate: (c: Client) => void }) {
+function ClientProfile({ clientId, clients, onUpdate, onDelete }: { clientId: string; clients: Client[]; onUpdate: (c: Client) => void; onDelete: (id: string) => void }) {
   const [detailed, setDetailed] = useState<Client | null>(null)
   const [loading, setLoading] = useState(false)
   const [tagInput, setTagInput] = useState('')
@@ -110,6 +111,7 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
   const [phoneError, setPhoneError] = useState('')
   const [photoUploading, setPhotoUploading] = useState(false)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  const { showConfirm, showError } = useDialog()
   const [userRole] = useState(() => {
     try { return JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}').role || '' } catch { return '' }
   })
@@ -258,11 +260,12 @@ function ClientProfile({ clientId, clients, onUpdate }: { clientId: string; clie
         </div>
         {canDeleteClient && (
           <button onClick={async () => {
-            if (!window.confirm(`Delete client "${c.name}"? This cannot be undone.`)) return
+            const confirmed = await showConfirm(`Delete client "${c.name}"? This cannot be undone.`, 'Delete client')
+            if (!confirmed) return
             try {
               await apiFetch(`/api/clients/${encodeURIComponent(clientId)}`, { method: 'DELETE' })
-              window.location.reload()
-            } catch (e: any) { alert(e?.message || 'Delete failed') }
+              onDelete(clientId)
+            } catch (e: any) { await showError(e?.message || 'Delete failed') }
           }} style={{ width:32, height:32, borderRadius:10, border:'1px solid rgba(255,107,107,.30)', background:'rgba(255,107,107,.06)', color:'rgba(220,130,160,.5)', cursor:'pointer', fontSize:13, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }} title="Delete client">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
           </button>
@@ -465,9 +468,14 @@ export default function ClientsPage() {
   const [filterBarber, setFilterBarber] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterClientStatus, setFilterClientStatus] = useState('')
+  const [sortBy, setSortBy] = useState<'last_visit'|'name'|'status'|'team'|'visits'|'spend'>('last_visit')
+  const [sortDir, setSortDir] = useState<'asc'|'desc'>('desc')
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   const [revealedPhones, setRevealedPhones] = useState<Record<string, string>>({})
   const [phoneLoading, setPhoneLoading] = useState<string | null>(null)
   const [phoneError, setPhoneError] = useState('')
+  const { showAlert, showConfirm, showError } = useDialog()
   const [userRole] = useState(() => {
     try { return JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}').role || '' } catch { return '' }
   })
@@ -476,6 +484,7 @@ export default function ClientsPage() {
   const isAdmin = userRole === 'admin'
   const isOwnerOrAdmin = isOwner || isAdmin
   const canViewPhone = isOwner || isAdmin || listHasPerm('clients', 'view_phone')
+  const canDeleteClients = isOwner || listHasPerm('clients', 'delete')
 
   // Auto-hide revealed phones after 15 seconds (admin only)
   function revealPhone(clientId: string, phone: string) {
@@ -526,7 +535,7 @@ export default function ClientsPage() {
   useVisibilityPolling(load, 30000, [load])
 
   const ql = q.toLowerCase()
-  const visible = clients.filter(c => {
+  const visible = [...clients.filter(c => {
     if (filterBarber && (c.preferred_barber||c.barber) !== filterBarber) return false
     if (filterStatus && c.status !== filterStatus) return false
     if (filterClientStatus && (c.client_status || 'new') !== filterClientStatus) return false
@@ -535,10 +544,91 @@ export default function ClientsPage() {
       if (!hay.includes(ql)) return false
     }
     return true
+  })].sort((a, b) => {
+    const dir = sortDir === 'asc' ? 1 : -1
+    const dateValue = (value?: string) => {
+      const ms = value ? Date.parse(value) : NaN
+      return Number.isNaN(ms) ? 0 : ms
+    }
+    switch (sortBy) {
+      case 'name':
+        return (a.name || '').localeCompare(b.name || '') * dir
+      case 'status':
+        return String(a.client_status || a.status || 'new').localeCompare(String(b.client_status || b.status || 'new')) * dir
+      case 'team':
+        return String(a.preferred_barber || a.barber || '').localeCompare(String(b.preferred_barber || b.barber || '')) * dir
+      case 'visits':
+        return ((Number(a.visits || a.bookings?.length || 0) - Number(b.visits || b.bookings?.length || 0))) * dir
+      case 'spend':
+        return ((Number(a.spend || 0) - Number(b.spend || 0))) * dir
+      case 'last_visit':
+      default:
+        return (dateValue(a.last_visit) - dateValue(b.last_visit)) * dir
+    }
   })
+
+  useEffect(() => {
+    setSelectedIds(prev => prev.filter(id => clients.some(c => c.id === id)))
+  }, [clients])
 
   function updateClient(updated: Client) {
     setClients(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c))
+  }
+
+  function removeClient(clientId: string) {
+    setClients(prev => prev.filter(c => c.id !== clientId))
+    setSelectedIds(prev => prev.filter(id => id !== clientId))
+    if (selectedId === clientId) {
+      setSelectedId(null)
+      setMobileProfile(false)
+    }
+  }
+
+  const allVisibleSelected = visible.length > 0 && visible.every(c => selectedIds.includes(c.id))
+
+  function toggleClientSelection(clientId: string) {
+    setSelectedIds(prev => prev.includes(clientId) ? prev.filter(id => id !== clientId) : [...prev, clientId])
+  }
+
+  function toggleVisibleSelection() {
+    setSelectedIds(prev => {
+      if (allVisibleSelected) return prev.filter(id => !visible.some(c => c.id === id))
+      const next = new Set(prev)
+      visible.forEach(c => next.add(c.id))
+      return Array.from(next)
+    })
+  }
+
+  async function deleteSelectedClients() {
+    if (!selectedIds.length) return
+    const count = selectedIds.length
+    const confirmed = await showConfirm(`Delete ${count} selected client${count === 1 ? '' : 's'}? This cannot be undone.`, 'Delete selected clients')
+    if (!confirmed) return
+    setBulkDeleting(true)
+    const successfulIds: string[] = []
+    const failed: string[] = []
+    for (const clientId of selectedIds) {
+      try {
+        await apiFetch(`/api/clients/${encodeURIComponent(clientId)}`, { method: 'DELETE' })
+        successfulIds.push(clientId)
+      } catch (e: any) {
+        failed.push(e?.message || clientId)
+      }
+    }
+    if (successfulIds.length) {
+      setClients(prev => prev.filter(c => !successfulIds.includes(c.id)))
+      setSelectedIds(prev => prev.filter(id => !successfulIds.includes(id)))
+      if (selectedId && successfulIds.includes(selectedId)) {
+        setSelectedId(null)
+        setMobileProfile(false)
+      }
+    }
+    setBulkDeleting(false)
+    if (failed.length) {
+      await showError(`Deleted ${successfulIds.length} client${successfulIds.length === 1 ? '' : 's'}, but ${failed.length} failed.`)
+      return
+    }
+    await showAlert(`${successfulIds.length} client${successfulIds.length === 1 ? '' : 's'} deleted.`)
   }
 
   const inp: React.CSSProperties = { height:40, borderRadius:999, border:'1px solid rgba(255,255,255,.12)', background:'rgba(0,0,0,.22)', color:'#fff', padding:'0 14px', outline:'none', fontSize:13, fontFamily:'inherit' }
@@ -573,6 +663,24 @@ export default function ClientsPage() {
               <option value="">All team</option>
               {barbers.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
             </select>
+            <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} style={{ ...inp, width:'auto' }}>
+              <option value="last_visit">Last visit</option>
+              <option value="name">Name</option>
+              <option value="status">Status</option>
+              <option value="team">Team member</option>
+              <option value="visits">Visits</option>
+              <option value="spend">Spend</option>
+            </select>
+            <button onClick={() => setSortDir(prev => prev === 'asc' ? 'desc' : 'asc')}
+              style={{ height:40, padding:'0 12px', borderRadius:12, border:'1px solid rgba(255,255,255,.12)', background:'rgba(255,255,255,.04)', color:'rgba(255,255,255,.6)', cursor:'pointer', fontWeight:700, fontSize:12, fontFamily:'inherit', whiteSpace:'nowrap' }}>
+              {sortDir === 'asc' ? '↑ Asc' : '↓ Desc'}
+            </button>
+            {canDeleteClients && selectedIds.length > 0 && (
+              <button onClick={deleteSelectedClients} disabled={bulkDeleting}
+                style={{ height:40, padding:'0 16px', borderRadius:12, border:'1px solid rgba(255,107,107,.25)', background:'rgba(255,107,107,.08)', color:'rgba(220,130,160,.85)', cursor: bulkDeleting ? 'wait' : 'pointer', fontWeight:700, fontSize:12, fontFamily:'inherit', whiteSpace:'nowrap', opacity: bulkDeleting ? .7 : 1 }}>
+                {bulkDeleting ? 'Deleting…' : `Delete ${selectedIds.length}`}
+              </button>
+            )}
             <button onClick={() => setShowAdd(true)}
               style={{ height:40, padding:'0 16px', borderRadius:12, border:'1px solid rgba(255,255,255,.12)', background:'rgba(255,255,255,.04)', color:'rgba(255,255,255,.6)', cursor:'pointer', fontWeight:600, fontSize:13, fontFamily:'inherit', whiteSpace:'nowrap' }}>
               + Add
@@ -586,6 +694,21 @@ export default function ClientsPage() {
               </button>
             ))}
           </div>
+          {canDeleteClients && selectedIds.length > 0 && (
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginTop:8, padding:'8px 10px', borderRadius:12, border:'1px solid rgba(255,255,255,.08)', background:'rgba(255,255,255,.03)' }}>
+              <span style={{ fontSize:11, color:'rgba(255,255,255,.45)' }}>{selectedIds.length} selected</span>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <button onClick={toggleVisibleSelection}
+                  style={{ height:28, padding:'0 10px', borderRadius:999, border:'1px solid rgba(255,255,255,.10)', background:'rgba(255,255,255,.04)', color:'rgba(255,255,255,.55)', cursor:'pointer', fontWeight:700, fontSize:10, fontFamily:'inherit' }}>
+                  {allVisibleSelected ? 'Clear visible' : 'Select visible'}
+                </button>
+                <button onClick={() => setSelectedIds([])}
+                  style={{ height:28, padding:'0 10px', borderRadius:999, border:'1px solid rgba(255,255,255,.10)', background:'rgba(255,255,255,.04)', color:'rgba(255,255,255,.55)', cursor:'pointer', fontWeight:700, fontSize:10, fontFamily:'inherit' }}>
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Client list — full width */}
@@ -598,7 +721,12 @@ export default function ClientsPage() {
             <table style={{ width:'100%', borderCollapse:'collapse', tableLayout:'fixed' }}>
               <thead>
                 <tr>
-                  {[['Client','38%'],['Status','14%'],['Last visit','16%'],['Team member','16%'],['Tags','16%']].map(([h,w]) => (
+                  {canDeleteClients && (
+                    <th style={{ padding:'8px 10px', fontSize:9, textAlign:'center', borderBottom:'1px solid rgba(255,255,255,.06)', width:'44px' }}>
+                      <input type="checkbox" checked={allVisibleSelected} onChange={toggleVisibleSelection} aria-label="Select all visible clients" />
+                    </th>
+                  )}
+                  {[['Client', canDeleteClients ? '34%' : '38%'],['Status','14%'],['Last visit','16%'],['Team member','16%'],['Tags','16%']].map(([h,w]) => (
                     <th key={h} style={{ padding:'8px 14px', fontSize:9, letterSpacing:'.1em', textTransform:'uppercase', color:'rgba(255,255,255,.35)', position:'sticky', top:0, textAlign:'left', borderBottom:'1px solid rgba(255,255,255,.06)', width:w }}>{h}</th>
                   ))}
                 </tr>
@@ -608,6 +736,17 @@ export default function ClientsPage() {
                   const isSel = c.id === selectedId
                   return (
                     <tr key={c.id} className={`cl-row${isSel?' sel':''}`} onClick={() => { setSelectedId(c.id); setMobileProfile(true) }} style={{ cursor:'pointer' }}>
+                      {canDeleteClients && (
+                        <td style={{ padding:'10px 10px', borderBottom:'1px solid rgba(255,255,255,.04)', textAlign:'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(c.id)}
+                            onChange={() => toggleClientSelection(c.id)}
+                            onClick={e => e.stopPropagation()}
+                            aria-label={`Select ${c.name}`}
+                          />
+                        </td>
+                      )}
                       <td style={{ padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,.04)', overflow:'hidden' }}>
                         <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
                           <div style={{ width:34, height:34, borderRadius:10, border:'1px solid rgba(255,255,255,.08)', background:'rgba(255,255,255,.04)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:11, color:'rgba(255,255,255,.5)', flexShrink:0 }}>
@@ -622,7 +761,7 @@ export default function ClientsPage() {
                                   : isOwner
                                     ? <span onClick={(e) => { e.stopPropagation(); revealPhone(c.id, c.phone||'') }} style={{ cursor:'pointer', color:'rgba(255,255,255,.45)' }}>{maskPhone(c.phone||'')}</span>
                                     : phoneLoading === c.id
-                                      ? <span style={{ color:'rgba(255,255,255,.40)', fontSize:10 }}>Verifying...</span>
+                                      ? <span style={{ color:'rgba(255,255,255,.40)', fontSize:10 }}>Verifying…</span>
                                       : <span onClick={(e) => { e.stopPropagation(); requestPhone(c.id) }} style={{ cursor:'pointer', color:'rgba(255,255,255,.45)', fontSize:10 }}>{maskPhone(c.phone||'')} · request</span>)
                                 : maskPhone(c.phone||'')}
                             </div>
@@ -661,6 +800,7 @@ export default function ClientsPage() {
                   clientId={selectedId}
                   clients={clients}
                   onUpdate={updateClient}
+                  onDelete={removeClient}
                 />
               </div>
             </div>

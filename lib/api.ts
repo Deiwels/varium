@@ -22,7 +22,7 @@ export async function apiFetch(path: string, opts?: RequestInit) {
         window.dispatchEvent(new CustomEvent('vuriumbook-pin-required'))
       } else {
         localStorage.removeItem('VURIUMBOOK_USER')
-        window.location.href = '/signin'
+        window.location.replace('/signin')
       }
     }
   }

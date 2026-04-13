@@ -139,7 +139,7 @@ function SchedGrid({ schedule, onChange }: { schedule: DaySchedule[]; onChange: 
   function toggle(i: number) { const n = [...schedule]; n[i] = { ...n[i], enabled: !n[i].enabled }; onChange(n) }
   function setTime(i: number, field: 'startMin'|'endMin', val: string) { const n = [...schedule]; n[i] = { ...n[i], [field]: timeStrToMin(val) }; onChange(n) }
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, margin: '6px auto' }}>
+    <div className="cal-sched-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, margin: '6px auto' }}>
       {DAY_NAMES.map((name, i) => {
         const day = schedule[i]
         return (
@@ -335,7 +335,7 @@ function BarberEditCard({ b, onDelete, onSaved, onError, isBarberSelf }: {
 
   return (
     <div className="barber-edit-card" style={{ borderRadius: 16, border: `1px solid ${open ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.10)'}`, background: open ? 'rgba(255,255,255,.03)' : 'rgba(255,255,255,.03)', transition: 'border-color .25s ease, box-shadow .25s ease' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px' }}>
+      <div className="cal-mobile-row-stack" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
           {(photoPreview || b.photo)
             ? <img src={photoPreview || b.photo} alt={b.name} style={{ width: 44, height: 44, borderRadius: 12, objectFit: 'cover', border: '1px solid rgba(255,255,255,.14)', flexShrink: 0 }} onError={e => (e.currentTarget.style.display='none')} />
@@ -360,7 +360,7 @@ function BarberEditCard({ b, onDelete, onSaved, onError, isBarberSelf }: {
             {b.about && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.30)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280 }}>{b.about}</div>}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <div className="cal-mobile-actions" style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
           <button onClick={() => setOpen(v => !v)} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: `1px solid ${open ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.14)'}`, background: open ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.05)', color: open ? 'rgba(130,150,220,.6)' : '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>{open ? 'Collapse' : 'Edit'}</button>
           {!isBarberSelf && onDelete && <button onClick={() => onDelete(b.id, b.name)} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>Remove</button>}
         </div>
@@ -368,7 +368,7 @@ function BarberEditCard({ b, onDelete, onSaved, onError, isBarberSelf }: {
 
       <div style={{ maxHeight: open ? 2000 : 0, opacity: open ? 1 : 0, overflow: 'hidden', transition: 'max-height .4s ease, opacity .3s ease' }}>
         <div style={{ padding: '0 14px 14px', borderTop: open ? '1px solid rgba(255,255,255,.08)' : '1px solid transparent', overflow: 'hidden' }}>
-          <div style={{ paddingTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, maxWidth: '100%' }}>
+          <div className="cal-mobile-grid-2" style={{ paddingTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, maxWidth: '100%' }}>
             {[['Level / Rank', level, setLevel, 'Senior / Expert'], ['Base price ($)', price, setPrice, '55.99'], ['Public role', publicRole, setPublicRole, 'Ambassador']].map(([lbText, val, setter, ph]) => (
               <div key={lbText as string}><label style={lbl}>{lbText as string}</label><input value={val as string} onChange={e => (setter as any)(e.target.value)} placeholder={ph as string} style={inp} /></div>
             ))}
@@ -382,7 +382,7 @@ function BarberEditCard({ b, onDelete, onSaved, onError, isBarberSelf }: {
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={lbl}>Photo</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="cal-mobile-photo-row" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <label style={{ height: 38, padding: '0 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', fontSize: 12, fontFamily: 'inherit' }}>
                   {photoFile ? photoFile.name : 'Change photo…'}
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handlePhoto(e.target.files?.[0] || null)} />
@@ -478,13 +478,13 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 90, padding: 'clamp(8px,2vw,16px)' }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={{ width: 'min(480px,100%)', maxWidth: 'calc(100vw - 24px)', height: 'min(560px,calc(100dvh - 48px))', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', color: '#e8e8ed', fontFamily: 'Inter,sans-serif', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,.55), inset 0 0 0 0.5px rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', margin: '0 auto' }}>
+      <div className="cal-settings-modal" style={{ width: 'min(480px,100%)', maxWidth: 'calc(100vw - 24px)', height: 'min(560px,calc(100dvh - 48px))', borderRadius: 22, border: '1px solid rgba(255,255,255,.10)', background: 'rgba(0,0,0,.65)', backdropFilter: 'saturate(180%) blur(40px)', WebkitBackdropFilter: 'saturate(180%) blur(40px)', color: '#e8e8ed', fontFamily: 'Inter,sans-serif', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,.55), inset 0 0 0 0.5px rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
           <div style={{ fontFamily: '"Inter",sans-serif', letterSpacing: '.04em', fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.7)' }}>Settings</div>
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', fontSize: 16, fontFamily: 'inherit' }}>✕</button>
         </div>
 
-        <div style={{ display: 'flex', gap: 6, padding: '14px 18px 0' }}>
+        <div className="cal-modal-tab-row" style={{ display: 'flex', gap: 6, padding: '14px 18px 0' }}>
           {tabs.map(t => (
             <button key={t} onClick={() => setTab(t)} style={{ height: 36, padding: '0 16px', borderRadius: 999, border: `1px solid ${tab === t ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.09)'}`, background: tab === t ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.03)', color: tab === t ? '#fff' : 'rgba(255,255,255,.55)', cursor: 'pointer', fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: 'inherit', transition: 'all .25s ease', boxShadow: 'none' }}>{t}</button>
           ))}
@@ -508,7 +508,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
               {/* Add team member form — show always for now, plan gating via backend */}
               {!isBarber && <div style={{ borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: 16 }}>
                 <div style={{ fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 12 }}>Add to team</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="cal-mobile-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   {[['Name *', bName, setBName, 'Jane Smith'], ['Level', bLevel, setBLevel, 'Senior'], ['Public role', bPublicRole, setBPublicRole, 'Stylist']].map(([l, v, s, p]) => (
                     <div key={l as string}><label style={lbl}>{l as string}</label><input value={v as string} onChange={e => (s as any)(e.target.value)} placeholder={p as string} style={inp} /></div>
                   ))}
@@ -594,7 +594,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                       {/* Edit form inline */}
                       {isEditing && (
                         <div style={{ padding: '0 14px 14px', borderTop: '1px solid rgba(255,255,255,.07)' }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
+                          <div className="cal-mobile-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
                             <div style={{ gridColumn: '1 / -1' }}><label style={lbl}>Name</label><input value={sName} onChange={e => setSName(e.target.value)} style={inp} /></div>
                             <div><label style={lbl}>Duration (min)</label><input type="number" value={sDur} onChange={e => setSDur(e.target.value)} style={inp} /></div>
                             <div><label style={lbl}>Price ($)</label><input value={sPrice} onChange={e => setSPrice(e.target.value)} style={inp} /></div>
@@ -603,7 +603,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                           {/* Service type toggle */}
                           {!isBarber && <div style={{ marginTop: 10 }}>
                             <label style={lbl}>Service type</label>
-                            <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                            <div className="cal-mobile-chip-wrap" style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                               {(['primary', 'addon'] as const).map(t => (
                                 <button key={t} onClick={() => setSType(t)}
                                   style={{ height: 30, padding: '0 12px', borderRadius: 999, border: `1px solid ${sType === t ? (t === 'addon' ? 'rgba(255,207,63,.40)' : 'rgba(255,255,255,.10)') : 'rgba(255,255,255,.10)'}`, background: sType === t ? (t === 'addon' ? 'rgba(255,207,63,.12)' : 'rgba(255,255,255,.04)') : 'rgba(255,255,255,.03)', color: sType === t ? (t === 'addon' ? 'rgba(220,190,130,.5)' : 'rgba(130,150,220,.6)') : 'rgba(255,255,255,.45)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', transition: 'all .2s' }}>
@@ -652,13 +652,13 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
               </div>
               {!isBarber && <div style={{ borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: 14 }}>
                 <div style={{ fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', marginBottom: 10 }}>Add new service</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                <div className="cal-mobile-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                   <div style={{ gridColumn: '1 / -1' }}><label style={lbl}>Service name</label><input value={editSvcId ? '' : sName} onChange={e => setSName(e.target.value)} placeholder="Fade" style={inp} /></div>
                   <div><label style={lbl}>Duration (min)</label><input type="number" value={editSvcId ? '30' : sDur} onChange={e => setSDur(e.target.value)} placeholder="30" style={inp} /></div>
                   <div><label style={lbl}>Price ($)</label><input value={editSvcId ? '' : sPrice} onChange={e => setSPrice(e.target.value)} placeholder="35" style={inp} /></div>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <label style={lbl}>Service type</label>
-                    <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                    <div className="cal-mobile-chip-wrap" style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                       {(['primary', 'addon'] as const).map(t => (
                         <button key={t} onClick={() => { if (!editSvcId) setSType(t) }}
                           style={{ height: 30, padding: '0 12px', borderRadius: 999, border: `1px solid ${!editSvcId && sType === t ? (t === 'addon' ? 'rgba(255,207,63,.40)' : 'rgba(255,255,255,.10)') : 'rgba(255,255,255,.10)'}`, background: !editSvcId && sType === t ? (t === 'addon' ? 'rgba(255,207,63,.12)' : 'rgba(255,255,255,.04)') : 'rgba(255,255,255,.03)', color: !editSvcId && sType === t ? (t === 'addon' ? 'rgba(220,190,130,.5)' : 'rgba(130,150,220,.6)') : 'rgba(255,255,255,.45)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', opacity: editSvcId ? 0.4 : 1, transition: 'all .2s' }}>
@@ -669,7 +669,7 @@ function SettingsModal({ barbers, services, onClose, onReload, isStudent, isBarb
                   </div>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <label style={lbl}>Assign barbers</label>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                    <div className="cal-mobile-chip-wrap" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                       {barbers.map(b => {
                         const on = !editSvcId && sBarbers.includes(b.id)
                         return (
@@ -2000,6 +2000,39 @@ export default function CalendarPage() {
           .cal-nav-arrows{ display:none !important; }
           /* Hide topbar on mobile — everything moved to bottom bar */
           .cal-topbar-wrap{ display:none !important; }
+          .cal-sched-grid{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+          .cal-mobile-grid-2{ grid-template-columns:1fr !important; }
+          .cal-mobile-row-stack{
+            flex-direction:column !important;
+            align-items:stretch !important;
+          }
+          .cal-mobile-actions{
+            width:100% !important;
+            justify-content:stretch !important;
+          }
+          .cal-mobile-actions button{
+            flex:1 1 0 !important;
+          }
+          .cal-mobile-photo-row{
+            flex-direction:column !important;
+            align-items:flex-start !important;
+          }
+          .cal-modal-tab-row{
+            overflow-x:auto !important;
+            padding-bottom:2px !important;
+            scrollbar-width:none !important;
+          }
+          .cal-modal-tab-row::-webkit-scrollbar{ display:none !important; }
+          .cal-mobile-chip-wrap{
+            flex-wrap:wrap !important;
+          }
+          .cal-mobile-dialog-actions{
+            flex-direction:column !important;
+            align-items:stretch !important;
+          }
+          .cal-mobile-dialog-actions button{
+            width:100% !important;
+          }
         }
         input[type=range] { -webkit-appearance: none; appearance: none; background: rgba(255,255,255,.12); border-radius: 4px; height: 4px; outline: none; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: rgba(255,255,255,.7); cursor: pointer; border: 2px solid rgba(0,0,0,.40); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
@@ -2054,7 +2087,7 @@ export default function CalendarPage() {
             : COL_MIN
           const colMin = isMobile ? mobileColMin : COL_MIN
           return (
-        <div className={`cal-container${dayTransition === 'out' ? ' day-transition-out' : dayTransition === 'in' ? ' day-transition-in' : ''}`} style={{ flex: 1, position: 'relative', overflowY: (drag || blockDrag) ? 'hidden' : 'auto', overflowX: 'hidden', touchAction: (drag || blockDrag) ? 'none' : 'pan-y', transformOrigin: 'center 40%' }} ref={scrollContainerRef} onTouchStart={onPinchStart} onTouchEnd={onPinchEnd}>
+        <div className={`cal-container${dayTransition === 'out' ? ' day-transition-out' : dayTransition === 'in' ? ' day-transition-in' : ''}`} style={{ flex: 1, position: 'relative', overflowY: (drag || blockDrag) ? 'hidden' : 'auto', overflowX: isMobile ? 'auto' : 'hidden', touchAction: (drag || blockDrag) ? 'none' : (isMobile ? 'pan-x pan-y' : 'pan-y'), transformOrigin: 'center 40%', WebkitOverflowScrolling: 'touch' as any, overscrollBehaviorX: 'contain' as any }} ref={scrollContainerRef} onTouchStart={onPinchStart} onTouchEnd={onPinchEnd}>
           <div style={{ minWidth: timeColW + pageBarbers.length * colMin }}>
             {/* Header */}
             <div style={{ display: 'grid', gridTemplateColumns: `${timeColW}px repeat(${pageBarbers.length}, minmax(${colMin}px,1fr))`, borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(8,8,12,.92)', position: 'sticky', top: 0, zIndex: 10 }}>
@@ -2734,7 +2767,7 @@ export default function CalendarPage() {
                 <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 4 }}>{minToAMPM(dragConfirm.newMin)}</div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,.50)' }}>{ev.clientName} · {ev.serviceName}</div>
               </div>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <div className="cal-mobile-dialog-actions" style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                 <button onClick={() => setDragConfirm(null)} style={{ height: 40, padding: '0 18px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
                 <button onClick={confirmDragMove} style={{ height: 40, padding: '0 20px', borderRadius: 999, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.05)', color: 'rgba(130,150,220,.6)', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13 }}>Move</button>
               </div>
@@ -2760,7 +2793,7 @@ export default function CalendarPage() {
                 </div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,.40)', marginTop: 4 }}>{minToAMPM(ev.startMin)} &ndash; {minToAMPM(ev.startMin + resizeConfirm.newDur)}</div>
               </div>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <div className="cal-mobile-dialog-actions" style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                 <button onClick={() => { setResizeConfirm(null); setEvents(prev => prev.map(x => x.id === resizeConfirm.eventId ? { ...x, durMin: resizeConfirm.oldDur } : x)) }} style={{ height: 40, padding: '0 18px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
                 <button onClick={() => {
                   const sa = new Date(ev.date + 'T' + minToHHMM(ev.startMin) + ':00')
@@ -2843,7 +2876,7 @@ export default function CalendarPage() {
           const mLbl: React.CSSProperties = { fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,.45)', display: 'block', marginBottom: 5 }
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="cal-mobile-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div style={{ padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)' }}>
                   <div style={{ ...mLbl, marginBottom: 2 }}>Time</div>
                   <div style={{ fontSize: 15, fontWeight: 700 }}>{minToAMPM(trainingModal!.min)} — {minToAMPM(trainingModal!.min + tt.durMin)}</div>
@@ -2877,7 +2910,7 @@ export default function CalendarPage() {
                 <textarea value={tNotes} onChange={e => setTNotes(e.target.value)} placeholder="Lesson details…" rows={2}
                   style={{ ...mInp, height: 'auto', padding: '10px 12px', resize: 'vertical' as const, lineHeight: 1.5 }} />
               </div>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <div className="cal-mobile-dialog-actions" style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                 <button onClick={() => setTrainingModal(null)} style={{ height: 42, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', fontSize: 13 }}>Cancel</button>
                 <button onClick={saveTraining} disabled={tSaving || !studentId} style={{ height: 42, padding: '0 20px', borderRadius: 999, border: '1px solid rgba(168,107,255,.55)', background: 'rgba(168,107,255,.18)', color: 'rgba(180,140,220,.6)', cursor: 'pointer', fontWeight: 900, fontFamily: 'inherit', fontSize: 13, opacity: tSaving ? .5 : 1 }}>
                   {tSaving ? 'Saving…' : 'Schedule training'}
