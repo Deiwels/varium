@@ -2,6 +2,30 @@
 
 > [[Home]] > Tasks | See also: [[Tasks/Backlog|Backlog]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]]
 
+## PERMISSIONS FIX — PERM-003 Backend (AI 1)
+
+**Status**: PLANNED — waiting for AI 2 to finish backend work before editing
+
+**Problem**: `GET /api/payments` has `requireRole('owner', 'admin')` which blocks barbers even if owner enabled `pages.payments = true` in custom permissions.
+
+**Root cause**: Backend uses hardcoded `PERMISSIONS` object (line 1089) and `requireRole()`. It never checks `role_permissions` from Firestore `settings/config`.
+
+**Fix plan**:
+1. Create `requireCustomPerm(permKey)` middleware that:
+   - Allows owner/admin always
+   - For barber/student: reads `role_permissions` from workspace settings
+   - Checks if `role_permissions[role][permKey]` is true
+   - Returns 403 if not
+2. Replace `requireRole('owner', 'admin')` on these endpoints:
+   - `GET /api/payments` → `requireCustomPerm('pages.payments')`
+   - `GET /api/clients` → keep open (barbers need client access for booking)
+   - Other gated endpoints as needed
+3. Cache `role_permissions` per request (already on `req.ws`)
+
+**Owner**: AI 1 — will implement after AI 2 finishes current backend edits
+
+---
+
 ## VERCEL BUILD BROKEN — FIXED local AI 2 patch 2026-04-13
 
 **Commit**: `f2158a2` — Vercel build fails with TypeScript error
