@@ -6548,12 +6548,14 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
     if (b.business_type !== undefined) {
       await req.wsDoc().update({ business_type: sanitizeHtml(b.business_type), updated_at: toIso(new Date()) });
     }
-    // Nested objects — stored on settings doc
+    // Nested objects — stored on settings doc (deep-merge with existing)
     if (b.tax !== undefined && typeof b.tax === 'object') patch.tax = b.tax;
     if (b.payroll !== undefined && typeof b.payroll === 'object') patch.payroll = b.payroll;
     if (b.square !== undefined && typeof b.square === 'object') patch.square = b.square;
     if (b.fees !== undefined && Array.isArray(b.fees)) patch.fees = b.fees;
     if (b.charges !== undefined && Array.isArray(b.charges)) patch.charges = b.charges;
+    if (b.booking !== undefined && typeof b.booking === 'object') patch.booking = b.booking;
+    if (b.display !== undefined && typeof b.display === 'object') patch.display = b.display;
     // Site config — stored on workspace doc for custom plan
     if (b.site_config !== undefined && typeof b.site_config === 'object') {
       // Sanitize custom HTML — strip <script>, <iframe>, event handlers, javascript: urls
