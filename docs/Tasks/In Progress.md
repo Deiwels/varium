@@ -18,7 +18,7 @@ Type error: Type '{ params: { id: string; }; }' does not satisfy the constraint 
 **Owner**: AI 2 — file `app/book/[id]/layout.tsx`
 **Status**: FIXED LOCAL — pending push/build confirmation
 
-### Build error #2: `showConfirm` not found in Shell.tsx
+### Build error #2: `showConfirm` not found in Shell.tsx — FIXED local AI 2 patch 2026-04-13
 
 **Commit**: `b18e73c`
 ```
@@ -28,10 +28,10 @@ Type error: Cannot find name 'showConfirm'.
 
 **What**: `showConfirm()` is called at line 359 but never declared/imported in Shell.tsx. Likely part of the P0.12 styled dialog refactor — the function definition may have been accidentally removed or not included in this commit.
 
-**Fix**: Either declare `showConfirm` as a local function (using state + Promise pattern) or import it from a shared dialog utility.
+**Fix applied**: `ProfileModal` in `components/Shell.tsx` now reads `showConfirm` from `useDialog()` directly, and the unused outer `Shell` reference was removed.
 
 **Owner**: AI 2
-**Status**: NEEDS FIX
+**Status**: FIXED LOCAL — pending push/build confirmation
 
 ---
 

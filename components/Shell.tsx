@@ -130,6 +130,7 @@ function Icon({ id, color }: { id: string; color: string }) {
 function ProfileModal({ user, onClose, onUpdated }: {
   user: User; onClose: () => void; onUpdated: (u: User) => void
 }) {
+  const { showConfirm } = useDialog()
   const [name, setName] = useState(user.name || '')
   const [photo, setPhoto] = useState(user.photo || '')
   const [cropSrc, setCropSrc] = useState('')
@@ -401,7 +402,6 @@ function ProfileModal({ user, onClose, onUpdated }: {
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 export default function Shell({ children, page }: { children: React.ReactNode; page: string }) {
-  const { showConfirm } = useDialog()
   // Read auth state synchronously from localStorage to avoid blank screen flash
   const [user, setUser] = useState<User | null>(null)
   const [status, setStatus] = useState<'loading' | 'ok' | 'noauth'>('loading')
