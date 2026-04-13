@@ -1286,6 +1286,25 @@ function requireRole(...roles) {
   };
 }
 
+// Check custom permissions from workspace settings (role_permissions)
+// Owners and admins always pass. Barber/student checked against Firestore config.
+function requireCustomPerm(permKey) {
+  return async (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
+    const role = req.user.role;
+    if (role === 'owner' || role === 'admin') return next();
+    // Check custom role_permissions from workspace settings
+    try {
+      const wsId = req.user.workspace_id;
+      if (!wsId) return res.status(403).json({ error: 'Forbidden' });
+      const doc = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
+      const perms = doc.exists ? doc.data()?.role_permissions : null;
+      if (perms?.[role]?.[permKey]) return next();
+    } catch {}
+    return res.status(403).json({ error: 'Forbidden' });
+  };
+}
+
 // Resolve workspace — sets req.ws as Firestore workspace subcollection helper
 function resolveWorkspace(req, res, next) {
   if (!req.user?.workspace_id) return res.status(400).json({ error: 'No workspace context' });
@@ -5045,7 +5064,7 @@ app.delete('/api/users/:id', requireRole('owner'), async (req, res) => {
 // ============================================================
 // PAYMENTS (Square + local)
 // ============================================================
-app.get('/api/payments', requireRole('owner', 'admin'), async (req, res) => {
+app.get('/api/payments', requireCustomPerm('pages.payments'), async (req, res) => {
   try {
     const from = safeStr(req.query?.from || '');
     const to = safeStr(req.query?.to || '');
