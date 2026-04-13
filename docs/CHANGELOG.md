@@ -4,6 +4,14 @@
 
 ## April 13, 2026
 
+### History Page (New)
+- **`/history` page** — Unified view of all booking and waitlist records with Dark Cosmos styling
+- **Waitlist integration** — Waitlist entries shown alongside bookings with gold indicators and dedicated statuses (waitlist, WL confirmed, WL removed)
+- **Stats row** — Total records, completed count, revenue, waitlist count
+- **Filters** — Search, type (bookings/waitlist), date range, status, barber, sort direction
+- **Dashboard shortcut** — History icon added to both mobile and desktop dashboard grids
+- **Bottom nav update** — Removed Clients from pill bar, Calendar now centered: Home | History | Calendar | Messages | Settings
+
 ### Analytics Page (New)
 - **Full analytics page** (`/analytics`) — KPI cards, visits over time, traffic sources, hourly breakdown, referrers, day-of-week heatmap
 - **Period selector** — 7d / 14d / 30d / 90d with live data refresh
