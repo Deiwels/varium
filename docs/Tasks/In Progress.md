@@ -217,15 +217,15 @@ Type error: Cannot find name 'showConfirm'.
 
 ### Pre-deploy
 - [ ] Create Telnyx Verify Profile → `TELNYX_VERIFY_PROFILE_ID`
-- [ ] Add env var to Cloud Run deploy workflow
+- [x] Add env var to Cloud Run deploy workflow — wired in `.github/workflows/deploy-backend.yml`
 
 ## Other Active Tasks
 
 - [ ] Verify Vurium Inc. brand on Telnyx (send CP-575A + Articles of Incorporation)
 - [ ] Reply to 10dlcquestions about deleted brand BQY3UXK
 - [ ] Call with Jonathan (Telnyx) — Mon-Fri next week, 10AM-4PM CT
-- [ ] Add ADMIN_NOTIFY_EMAIL GitHub Secret
-- [ ] Add TELNYX_VERIFY_PROFILE_ID to Cloud Run
+- [x] Add ADMIN_NOTIFY_EMAIL GitHub Secret — user confirmed configured
+- [ ] Save the real Telnyx Verify Profile ID as the GitHub secret `TELNYX_VERIFY_PROFILE_ID`
 - [ ] Gmail API integration for Developer panel
 - [ ] Wait for TFN +1-877-590-2138 verification
 - [ ] Create CUSTOMER_CARE campaign (after brand verified)

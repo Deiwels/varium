@@ -60,6 +60,7 @@ jobs:
             --set-env-vars "JWT_SECRET=${{ secrets.JWT_SECRET }}" \
             --set-env-vars "TELNYX_API_KEY=${{ secrets.TELNYX_API_KEY }}" \
             --set-env-vars "TELNYX_FROM=${{ secrets.TELNYX_FROM }}" \
+            --set-env-vars "TELNYX_VERIFY_PROFILE_ID=${{ secrets.TELNYX_VERIFY_PROFILE_ID }}" \
             --set-env-vars "SQUARE_APP_ID=${{ secrets.SQUARE_APP_ID }}" \
             --set-env-vars "SQUARE_APP_SECRET=${{ secrets.SQUARE_APP_SECRET }}" \
             --set-env-vars "PHONE_ENCRYPTION_KEY=${{ secrets.PHONE_ENCRYPTION_KEY }}" \

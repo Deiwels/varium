@@ -367,7 +367,14 @@ For SMS upgrade (in Settings):
 | Reminder scheduling (24h + 2h) | ✅ Compliant format | `backend/index.js:636-659` — business name prefix + STOP |
 | SMS logging to `sms_logs` | ✅ Working | `backend/index.js:444-452` |
 
-**Env var needed:** `TELNYX_VERIFY_PROFILE_ID` — must be created before deploy.
+### `TELNYX_VERIFY_PROFILE_ID` status
+
+- Backend support: `DONE`
+- Public OTP routes: `DONE` at `POST /public/verify/send/:wsId` + `POST /public/verify/check/:wsId`
+- Cloud Run deploy wiring: `DONE` via `.github/workflows/deploy-backend.yml`
+- Still needed: create one Telnyx Verify Profile and save the returned ID as the GitHub secret `TELNYX_VERIFY_PROFILE_ID`
+
+Without that secret, the backend safely falls back to the legacy local-code verification flow.
 
 ### HOW TO CREATE TELNYX VERIFY PROFILE (for deploying AI)
 
