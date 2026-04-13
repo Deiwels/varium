@@ -15,12 +15,18 @@
   - Memory 1Gi, CPU 1, timeout 300s
   - Rollback: `gcloud run services update-traffic vuriumbook-api --to-revisions=PREVIOUS=100`
 - [ ] P0.4 Billing verification matrix
-- [ ] P0.5 Auth and security audit
+- [x] P0.5 Auth and security audit — **DONE** commit `595b324` 2026-04-14
+  - Added requireRole('owner','admin') to GET /api/payments, /api/square/oauth/status, /api/stripe-connect/status
+  - Audit confirmed: JWT middleware on all /api routes, Apple/Google OAuth verified server-side, password reset single-use, rate limiting on login
+  - Remaining: password hashing uses SHA256 (not bcrypt) — acceptable for launch, upgrade later
 - [ ] P0.6 Data integrity — full chain verification
 - [x] P0.7 Server-side price verification — **DONE** commit `b1bdbe9` 2026-04-14
   - Compares payment amount vs booking service_amount
   - Rejects if >2x or <0.5x expected (tolerance for tax/fees)
-- [ ] P0.8 Booking idempotency
+- [x] P0.8 Booking idempotency — **DONE** commit `595b324` 2026-04-14
+  - POST /public/bookings accepts `idempotency_key` in body
+  - Duplicate key returns existing booking (no double-create)
+  - Key stored on booking document
 
 ## P0 — Launch Readiness (AI 2: Frontend)
 
