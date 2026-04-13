@@ -1,5 +1,7 @@
 # API Routes
 
+> Part of [[Home]] > Backend | See also: [[Firestore Collections]], [[Auth Flow]], [[Database Schema]]
+
 > 193 endpoints in `backend/index.js`
 
 ## Auth (16 routes)
@@ -46,6 +48,7 @@
 | GET | `/public/manage-booking` | Manage booking |
 | POST | `/public/manage-booking/cancel` | Cancel |
 | POST | `/public/manage-booking/reschedule` | Reschedule |
+| GET | `/api/booking-audit/status` | Smart booking audit results |
 
 ## Payments & Billing
 See [[Payments]] for full breakdown.

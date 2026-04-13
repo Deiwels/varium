@@ -4,6 +4,15 @@
 
 ## April 13, 2026
 
+### Analytics Page (New)
+- **Full analytics page** (`/analytics`) — KPI cards, visits over time, traffic sources, hourly breakdown, referrers, day-of-week heatmap
+- **Period selector** — 7d / 14d / 30d / 90d with live data refresh
+- **Extended API** — `GET /api/analytics/detailed?days=N` returns by_day, by_hour, by_source, by_referrer, trend
+- **Dashboard widget clickable** — Site Visits widget navigates to `/analytics` on tap (desktop + mobile)
+- **SVG source icons** — Replaced emoji icons with stylized SVGs (Instagram, Google, Facebook, TikTok, Twitter/X, Direct, etc.)
+- **Role-gated** — Page, widget, and nav item restricted to owner/admin only
+- **Nav entry** — Added Analytics to Shell sidebar with bar-chart icon
+
 ### Registration & Onboarding
 - **Required timezone on signup** — Timezone selector with full IANA list (~400 entries), auto-detects browser timezone, formatted as `(UTC-05:00) America/New_York`
 - **Business type → dynamic terminology** — Signup stores `business_type`, affects staff labels across app: Barbershop→Barber, Hair Salon→Stylist, Nail Studio/Beauty Salon/Lash & Brow→Master, Tattoo→Artist, Spa/Other→Specialist
