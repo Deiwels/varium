@@ -1,221 +1,205 @@
-# Launch Readiness Plan
+# Launch Readiness Plan — Unified
 
-> Goal: finish VuriumBook to a sell-ready, production-safe, client-friendly state so it can be sold with confidence.
+> [[Home]] > Tasks | See also: [[Production-Plan-AI1]], [[Production-Plan-AI2]], [[AI-Work-Split]]
 
-## Working rules
-- This document is shared by both AI agents.
-- Each AI writes its own plan in its own section first.
-- After both plans are written, each AI adds a review of the other plan:
-  - `Agree`
-  - `Agree with changes`
-  - `Do not agree yet`
-- If an AI does not agree, it must write exactly what is missing or risky.
-- Final launch plan should be a merged version of both plans, not two separate lists.
+> Goal: finish VuriumBook to a sell-ready, production-safe, client-friendly state.
+> Both AI agents agreed on this merged plan (2026-04-14).
 
 ## Definition of sell-ready
-- A new business can sign up, onboard, and start taking bookings without manual rescue.
-- Billing works correctly for web and iOS customers.
-- Booking, reschedule, cancel, waitlist, and payment flows work end-to-end.
-- Settings are easy to understand on mobile and desktop.
-- Production deploys are stable and reversible.
-- The product feels professional enough to show and sell to a paying customer.
+- New business can sign up, onboard, and start taking bookings without manual rescue
+- Billing works correctly for web and iOS customers
+- Booking, reschedule, cancel, waitlist, and payment flows work end-to-end
+- Settings are easy to understand on mobile and desktop
+- Production deploys are stable and reversible
+- Product feels professional enough to demo and sell
 
-## Current risks seen from repo audit
-- Frontend has no basic `lint` or `test` scripts in `package.json`.
-- Critical user-facing pages still contain many `alert()` / `confirm()` patterns.
-- Several important flows depend heavily on `localStorage`, so cross-device/session consistency needs verification.
-- `docs/Tasks/In Progress.md` does not yet reflect the real launch work.
-- Booking, billing, and deploy systems are powerful but still need launch-grade QA, not just code changes.
+---
 
-## AI 2 Plan — Frontend, UX, client-facing polish
+## P0 — Must fix before selling
 
-### P0 — Must fix before selling
-- Finish `Settings` navigation so mobile feels like a real drill-down settings app, not hidden content on one long page.
-- Verify `Settings` save/load behavior across all main categories so the UI always matches real backend state.
-- Audit the full customer path:
-  `Landing -> Sign up -> Onboarding -> Dashboard -> Public booking -> Manage booking -> Billing`
-- Remove or replace the roughest `alert()` / `confirm()` interactions on client-facing and owner-facing flows.
-- Verify role-based visibility and permissions in settings, dashboard, and booking-related screens.
-- Check mobile usability on the most important pages:
-  `/settings`, `/dashboard`, `/book/[id]`, `/manage-booking`, `/billing`, `/signin`, `/signup`
+### Backend & Security (AI 1)
 
-### P1 — Strong polish before launch
-- Tighten dashboard clarity so first-time owners understand what to do next.
-- Review public booking UX for clarity:
-  service selection, staff selection, availability, pricing visibility, notes, waitlist, cancel/reschedule rules.
-- Polish billing/settings messaging so Stripe and Apple subscription states are easy to understand.
-- Review marketing and trust pages:
-  `/`, `/pricing`, `/support`, `/faq`, `/privacy`, `/terms`
-- Improve empty states and helper text where screens still feel internal or unfinished.
-
-### P2 — Nice-to-have after core launch
-- Reduce remaining rough UI edges across secondary admin screens.
-- Normalize interaction patterns so dialogs, confirmations, and save states feel consistent.
-- Improve internal QA notes for future design cleanup.
-
-### AI 2 deliverables
-- A cleaner, more understandable customer-facing product.
-- A polished settings experience on mobile and desktop.
-- A frontend QA checklist covering the highest-value routes.
-- Reduced confusion in onboarding, booking, billing, and account management.
-
-### AI 2 exit criteria
-- No major UX confusion remains in the primary customer or owner flows.
-- Mobile behavior is validated for the main revenue-critical pages.
-- Plan gating and permission visibility feel trustworthy.
-- The product can be demoed without awkward UI surprises.
-
-## AI 1 Plan — Backend, infra, billing, operations
-
-### P0 — Must fix before selling
-
-**P0.1 Payment security — webhook signature verification**
+**P0.1 Webhook signature verification (Stripe + Square)**
 - Owner: AI 1
-- Files: `backend/index.js` (~line 9685 Stripe, ~line 1319 Square)
 - What: Implement `stripe.webhooks.constructEvent()` and Square HMAC verification
-- Why: Currently accepts ANY POST as valid webhook — attacker can forge payment events
-- Success criteria: Requests with invalid signatures return 400; valid ones process normally
-- Verify: Send test webhook with wrong signature → must be rejected
+- Why: Currently accepts ANY POST as valid — attacker can forge payment events
+- Success criteria: Invalid signatures → 400; valid ones process normally
+- Verify: Send test webhook with wrong signature → rejected
 
-**P0.2 Fix undefined variable `spAmountCents` in Square reconciliation**
+**P0.2 Fix `spAmountCents` in Square reconciliation**
 - Owner: AI 1
-- Files: `backend/index.js` lines ~1404, 5190
-- What: Replace `spAmountCents` with `spServiceCents`
-- Why: Wrong payment amounts recorded — customers charged incorrectly
-- Success criteria: Square reconciliation records correct service_amount on bookings
-- Verify: Process a Square payment → check booking.service_amount matches Square amount
+- What: Replace `spAmountCents` with `spServiceCents` (~lines 1404, 5190)
+- Why: Wrong payment amounts recorded silently
+- Success criteria: Square reconciliation records correct service_amount
+- Verify: Process Square payment → booking.service_amount matches
 
-**P0.3 Cloud Run stability and deploy safety**
+**P0.3 Cloud Run stability + rollback runbook**
 - Owner: AI 1
-- Files: `backend/index.js`, `.github/workflows/deploy-backend.yml`
-- What: Ensure backend starts reliably, add health check endpoint, increase startup timeout
-- Why: 4 consecutive deploy failures today due to syntax error + resource limits
-- Success criteria: Deploy succeeds consistently; rollback to previous revision if health check fails
-- Verify: Push backend change → Cloud Run deploys successfully → API responds
+- What: Add health check endpoint, ensure reliable startup, document rollback procedure
+- Why: 4 consecutive deploy failures (2026-04-13) due to syntax error
+- Success criteria: Deploy succeeds; if it fails, previous revision stays active
+- Verify: Push backend change → deploys → API responds at /health
+- Runbook: if deploy fails → `gcloud run services update-traffic vuriumbook-api --to-revisions=PREVIOUS=100`
 
 **P0.4 Billing verification matrix**
 - Owner: AI 1
-- Files: `backend/index.js` (Stripe endpoints, Apple receipt validation, Square)
-- What: Verify end-to-end:
-  - Stripe subscription create/cancel/upgrade/downgrade
-  - Apple IAP receipt validation and subscription status sync
-  - Square terminal payments reconcile correctly
-  - Refunds propagate to booking status
-  - Webhook events update plan_type correctly
-- Success criteria: Each billing path tested with real/sandbox transactions
-- Verify: Create subscription → verify plan_type updated → cancel → verify reverted
+- What: Verify end-to-end: Stripe create/cancel/upgrade, Apple IAP receipt validation, Square reconciliation, refunds, webhook → plan_type updates
+- Why: Billing is revenue — must be bulletproof
+- Success criteria: Each billing path tested with sandbox transactions
+- Verify: Create subscription → plan_type updated → cancel → reverted
+- Include: Frontend-visible state (plan badge, gated features, cancel actions) must match backend
 
 **P0.5 Auth and security audit**
 - Owner: AI 1
-- What: Verify:
-  - Signin/signup/reset password work correctly
-  - Apple Sign In and Google Sign In work
-  - JWT token expiration and refresh
-  - Role-based permissions (owner/admin/barber/student) enforced on all endpoints
-  - Rate limiting on auth endpoints (prevent brute force)
-- Success criteria: No endpoint accessible without proper auth; rate limits active
-- Verify: Call protected endpoint without token → 401; exceed rate limit → 429
+- What: Verify signin/signup/reset, Apple/Google auth, JWT, role permissions, rate limiting
+- Success criteria: No endpoint accessible without auth; rate limits active
+- Verify: Protected endpoint without token → 401; rate limit exceeded → 429
 
-**P0.6 Data integrity — booking/payment/payroll chain**
+**P0.6 Data integrity — full chain verification**
 - Owner: AI 1
-- What: Verify complete chain:
-  - Every paid booking has matching payment_request
-  - Every payment_request has matching booking (or is orphan from Square)
-  - Payroll reads correct service_amount (net, not gross)
-  - Cash register matches sum of cash bookings
-  - Expenses deducted from owner net correctly
-  - Tips saved as both `tip` and `tip_amount` fields
-- Success criteria: Payroll audit returns 0 warnings for test data
-- Verify: Run /api/payroll/audit → all checks green
+- What: Verify booking → payment → tip → payroll → cash → expenses chain
+- Success criteria: Payroll audit returns 0 warnings on real production data
+- Verify: Run /api/payroll/audit → all green; test real workflow: book → pay cash → check payroll → check cash register → add expense → check owner net
 
-### P1 — Strong polish before launch
+**P0.7 Server-side price verification**
+- Owner: AI 1
+- What: Don't trust client-sent amount_cents — verify against service price in DB
+- Why: Revenue risk — customer could manipulate payment amount
+- Success criteria: Backend rejects amount that doesn't match service price (within tolerance)
+- Verify: Send booking with wrong amount → rejected or corrected
 
-**P1.1 Fix N+1 queries in webhook handlers**
-- Square webhook scans ALL workspaces — add merchant_id mapping
-- Password reset scans ALL workspaces — add email lookup index
+**P0.8 Booking idempotency**
+- Owner: AI 1
+- What: Prevent double-booking from rapid form submission
+- Why: Double-submit creates duplicate bookings — confusing for barber and client
+- Success criteria: Same idempotency key within 60s returns existing booking
+- Verify: Submit same booking twice rapidly → only one created
 
-**P1.2 Fix silent `.catch(() => {})` in critical operations**
-- Replace with `console.error()` + logging in payment/booking chains
-- Add error visibility for support debugging
+### Frontend & UX (AI 2)
 
-**P1.3 Add idempotency to public booking**
-- Prevent double-booking from rapid form submission
-- Return existing booking if same idempotency key within 60s
+**P0.9 Settings mobile drill-down navigation**
+- Owner: AI 2
+- What: Mobile settings feels like iPhone-style navigation, not hidden content
+- Why: Settings currently confusing on phone — users don't know to scroll down
+- Success criteria: Tap category → dedicated screen; back button works
+- Verify: Open settings on iPhone → navigate all categories without confusion
 
-**P1.4 Server-side price verification**
-- Don't trust client-sent amount_cents — verify against service price in DB
+**P0.10 Settings save/load verification**
+- Owner: AI 2
+- What: UI always matches backend state across all settings categories
+- Success criteria: Change setting → reload → same value shown
+- Verify: Toggle each setting type → refresh page → values persist
 
-**P1.5 Create missing Firestore composite indexes**
-- Fix "FAILED_PRECONDITION: index required" errors in logs
-- Indexes needed: bookings(status + start_at), bookings(phone_norm + start_at)
+**P0.11 Full customer path audit**
+- Owner: AI 2
+- What: Test: Landing → Sign up → Onboarding → Dashboard → Public booking → Manage booking → Billing
+- Success criteria: New user completes full path without getting stuck
+- Verify: Create new workspace from scratch → complete all steps
 
-### P2 — After core launch
+**P0.12 Remove alert()/confirm() from client-facing flows**
+- Owner: AI 2
+- What: Replace native dialogs with styled modal components
+- Why: alert() looks unprofessional for a paid product
+- Success criteria: No native browser dialogs in owner or customer flows
+- Verify: Use product for 10 min → no alert() popups
 
-**P2.1 API pagination** — clients, payments, messages endpoints
-**P2.2 Rate limiting** — webhook, auth, public booking endpoints
-**P2.3 Email retry queue** — failed emails silently dropped
-**P2.4 Webhook event logging** — store received webhooks for debugging
-**P2.5 Production monitoring** — health check endpoint, uptime alerts
+**P0.13 Role-based visibility verification**
+- Owner: AI 2
+- What: Barbers don't see owner settings; students see limited views
+- Success criteria: Login as each role → only see permitted UI
+- Verify: Login as barber → settings/payroll/billing not accessible
 
-### AI 1 exit criteria
-- All P0 items pass their success criteria
-- Cloud Run deploys reliably without manual intervention
-- Payroll audit shows 0 warnings on real production data
-- Billing flows verified with real Stripe/Apple sandbox transactions
-- No payment data can be forged via unsigned webhooks
+**P0.14 Mobile usability on key pages**
+- Owner: AI 2
+- What: Verify: /settings, /dashboard, /book/[id], /manage-booking, /billing, /signin
+- Success criteria: All flows usable on iPhone SE (375px) without horizontal scroll
+- Verify: Test each page on mobile Safari
 
-## Cross-review
+**P0.15 Timezone indicator on booking page**
+- Owner: AI 2
+- What: Show "All times in [Timezone]" near time slots
+- Why: Customers in different timezone see wrong times without knowing
+- Success criteria: Timezone badge visible on step 2 (time selection)
+- Verify: Open booking page → timezone shown
 
-### AI 2 review of AI 1 plan
-Status: Pending until AI 1 writes its section.
+**P0.16 Fix form data loss on booking page**
+- Owner: AI 2
+- What: If slot becomes unavailable, don't lose name/email/phone
+- Why: Customer fills form → slot taken → all data gone → frustration
+- Success criteria: Form fields preserved when going back to time selection
+- Verify: Fill form → go back → fields still populated
 
-### AI 1 review of AI 2 plan
-Status: **Agree with changes**
+**P0.17 Calendar mobile layout**
+- Owner: AI 2
+- What: Fix calendar responsive layout — currently assumes desktop viewport
+- Why: Most salon owners use phones; calendar is main daily tool
+- Success criteria: Calendar usable on 375px width without horizontal scroll
+- Verify: Open calendar on iPhone → view/create bookings
 
-**What I agree with:**
-- P0 focus on Settings mobile navigation — this is critical, settings are confusing on phone
-- Full customer path audit (Landing → Signup → Onboarding → Booking → Billing) — yes, must test end-to-end
-- Removing alert()/confirm() — they look unprofessional for a paid product
-- Role-based visibility verification — barbers shouldn't see owner settings
-- Mobile usability audit on key pages — most salon owners use phones
+---
 
-**What I want added to AI 2's plan:**
+## P1 — Strong polish before launch
 
-1. **P0: Timezone indicator on public booking page** — customers in different timezones see wrong times. Add "All times in [Timezone]" badge. This is a booking-breaking bug.
+### AI 1
+- **P1.1** Fix N+1 queries in webhook handlers (add merchant_id mapping)
+- **P1.2** Fix silent `.catch(() => {})` in payment/booking chains (add logging)
+- **P1.3** Create missing Firestore composite indexes
+- **P1.4** Add webhook event logging for debugging
 
-2. **P0: Fix form data loss on booking page** — if selected slot becomes unavailable, customer loses all entered data (name, email, phone). Must cache form state.
+### AI 2
+- **P1.5** Add loading/disabled states to all action buttons (prevent double-clicks)
+- **P1.6** Fix Dashboard timezone (defaults to Chicago until API responds)
+- **P1.7** Tighten dashboard clarity for first-time owners
+- **P1.8** Polish booking UX (service selection, pricing visibility, waitlist)
+- **P1.9** Polish billing/settings messaging (Stripe + Apple subscription states)
+- **P1.10** Improve empty states and helper text
 
-3. **P0: Fix calendar mobile layout** — calendar assumes desktop viewport. Column widths calculated from window.innerWidth without responsive grid. Most users are on mobile.
+---
 
-4. **P1: Add loading/disabled states to all action buttons** — double-clicks cause double payments, double bookings. Every button that triggers an API call must disable during request.
+## P2 — After core launch
 
-5. **P1: Fix Dashboard timezone** — defaults to America/Chicago until API returns real timezone. Times shown wrong for first few seconds.
+### AI 1
+- API pagination (clients, payments, messages)
+- Rate limiting per endpoint
+- Email retry queue
+- Production monitoring + health check
 
-6. **Each P0 needs success criteria** — AI 2's plan has good task descriptions but no "how to verify" section. Add measurable exit criteria like mine.
+### AI 2
+- Marketing pages polish (/, /pricing, /support, /faq)
+- Normalize dialog/confirmation patterns
+- Sorting on payment/client tables
+- Bulk actions (delete multiple clients)
+- Open Graph tags for booking page social sharing
 
-**What I don't think is needed yet:**
-- Marketing pages polish (/, /pricing, /support) — these are secondary to core product working correctly. Can be P2.
+---
+
+## Shared tasks (coordinate before working)
+
+| Task | AI 1 scope | AI 2 scope |
+|------|-----------|-----------|
+| Billing state | Backend webhooks + plan_type | Frontend plan badge + gated features |
+| Booking flow | Backend validation + idempotency | Frontend UX + form persistence |
+| Calendar | Backend schedule/availability API | Frontend mobile layout |
+| Payroll audit | Backend /api/payroll/audit | Frontend audit panel display |
+
+---
 
 ## Unified release checklist
-- Production frontend deploy path confirmed
-- Production backend deploy path confirmed
-- Signup works
-- Signin works
-- Password reset works
-- Apple Sign In works
-- Google Sign In works
-- Billing state matches actual subscription state
-- Public booking works from start to confirmation
-- Cancel/reschedule works with correct restrictions
-- Waitlist works only when enabled and eligible
-- Payment records match booking records
-- Owner can configure business without support intervention
-- Main mobile flows feel clear and professional
-- Docs reflect the final live behavior
-
-## Merge step after both AI plans are written
-- Merge both plans into one priority list using `P0 / P1 / P2`
-- Assign one clear owner per task
-- Add success criteria for every P0 item
-- Move active launch items into `docs/Tasks/In Progress.md`
-- Keep `docs/DevLog` updated after every meaningful change
+- [ ] Production frontend deploy confirmed (Vercel)
+- [ ] Production backend deploy confirmed (Cloud Run)
+- [ ] Signup → Onboarding → Dashboard works
+- [ ] Signin / Password reset / Apple / Google auth works
+- [ ] Billing state matches subscription (Stripe + Apple)
+- [ ] Public booking: select → book → pay → confirm
+- [ ] Cancel/reschedule with correct restrictions
+- [ ] Waitlist works when enabled
+- [ ] Payment records match booking records
+- [ ] Payroll audit → 0 warnings
+- [ ] Cash register matches calendar
+- [ ] Owner can configure business on mobile
+- [ ] Settings mobile drill-down works
+- [ ] No alert()/confirm() in customer flows
+- [ ] Role permissions enforced (barber/admin/owner)
+- [ ] Webhook signatures verified (Stripe + Square)
+- [ ] Calendar usable on mobile
+- [ ] Timezone shown on booking page
