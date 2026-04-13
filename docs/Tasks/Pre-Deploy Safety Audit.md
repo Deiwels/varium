@@ -16,33 +16,18 @@
 - **Owner**: AI 2
 - **Note**: AI 2 is actively working on Shell.tsx — may already be handling this
 
-### BUG 2: Group booking missing rate limit recording (AI 1 scope)
-- **File**: `backend/index.js` ~line 8274 (`POST /public/bookings-group`)
-- **Severity**: HIGH
-- **What**: Single booking calls `recordBookingRateHit()` but group booking skips it
-- **Impact**: Rate limit bypass — attackers can spam unlimited group bookings
-- **Fix**: Add `recordBookingRateHit(wsId, clientPhone, clientEmail)` before response
-- **Owner**: AI 1
+### ~~BUG 2: Group booking missing rate limit recording~~ — **FIXED** commit `fb3fa7a`
+- Added `recordBookingRateHit()` to group booking handler
 
 ---
 
 ## MEDIUM — Fix soon
 
-### BUG 3: Group booking missing sms_consent_text
-- **File**: `backend/index.js` ~line 8407
-- **Severity**: MEDIUM
-- **What**: Group booking doc missing `sms_consent_text` field (single booking has it)
-- **Impact**: SMS compliance audit trail incomplete
-- **Fix**: Add field matching single booking format
-- **Owner**: AI 1
+### ~~BUG 3: Group booking missing sms_consent_text~~ — **FIXED** commit `fb3fa7a`
+- Added `sms_consent_text` to group booking document
 
-### BUG 4: Square webhook empty merchant_id → full workspace scan
-- **File**: `backend/index.js` ~line 1358
-- **Severity**: MEDIUM
-- **What**: If Square sends webhook without merchant_id, code scans ALL workspaces
-- **Impact**: Performance degradation, potential Firestore quota hit at scale
-- **Fix**: Skip processing if no merchant_id and no targetWsId found
-- **Owner**: AI 1
+### ~~BUG 4: Square webhook empty merchant_id → full workspace scan~~ — **FIXED** commit `fb3fa7a`
+- Fallback scan now limited to 20 most recent workspaces (was unlimited)
 
 ### BUG 5: PIN overlay navigation trap
 - **File**: `components/Shell.tsx` ~line 742
