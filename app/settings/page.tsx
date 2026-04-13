@@ -1657,33 +1657,39 @@ export default function SettingsPage() {
                 </SectionCard>
 
                 {/* Template selector — salon + custom only */}
-                {canChangeDesign ? (
                 <SectionCard title="Design Template">
                   <p style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginBottom: 14 }}>Choose how your booking page looks.</p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 10 }}>
                     {[
-                      { id: 'classic', label: 'Classic', color: 'rgba(255,255,255,.15)' },
-                      { id: 'modern', label: 'Vurium', color: 'rgba(255,255,255,.12)' },
-                      { id: 'bold', label: 'Bold', color: 'rgba(255,255,255,.12)' },
-                      { id: 'dark-luxury', label: 'Dark Luxury', color: 'rgba(255,255,255,.12)' },
-                      { id: 'colorful', label: 'Colorful', color: 'rgba(255,255,255,.12)' },
+                      ...(canChangeDesign ? [
+                        { id: 'classic', label: 'Classic', color: 'rgba(255,255,255,.15)' },
+                        { id: 'modern', label: 'Vurium', color: 'rgba(255,255,255,.12)' },
+                        { id: 'bold', label: 'Bold', color: 'rgba(255,255,255,.12)' },
+                        { id: 'dark-luxury', label: 'Dark Luxury', color: 'rgba(255,255,255,.12)' },
+                        { id: 'colorful', label: 'Colorful', color: 'rgba(255,255,255,.12)' },
+                      ] : [
+                        { id: 'modern', label: 'Vurium', color: 'rgba(255,255,255,.12)' },
+                      ]),
                       { id: 'ai', label: 'AI Style', color: 'rgba(130,150,220,.15)' },
                       ...(currentPlan === 'custom' ? [{ id: 'custom', label: 'Custom', color: 'rgba(255,255,255,.12)' }] : []),
                     ].map(t => {
                       const sc = s.site_config || {}
                       const selected = (sc.template || 'modern') === t.id
                       return (
-                        <button key={t.id} onClick={() => { if (t.id !== 'ai') set('site_config', { ...sc, template: t.id }) ; else set('site_config', { ...sc, template: 'ai' }) }}
+                        <button key={t.id} onClick={() => set('site_config', { ...sc, template: t.id })}
                           style={{ padding: '16px 8px', borderRadius: 12, border: `1px solid ${selected ? (t.id === 'ai' ? 'rgba(130,150,220,.3)' : 'rgba(255,255,255,.2)') : 'rgba(255,255,255,.06)'}`, background: selected ? (t.id === 'ai' ? 'rgba(130,150,220,.08)' : 'rgba(255,255,255,.06)') : 'rgba(255,255,255,.02)', cursor: 'pointer', textAlign: 'center', transition: 'all .2s', fontFamily: 'inherit' }}>
                           <div style={{ fontSize: 12, fontWeight: selected ? 600 : 400, color: selected ? (t.id === 'ai' ? 'rgba(130,150,220,.9)' : '#fff') : 'rgba(255,255,255,.45)' }}>{t.label}</div>
                         </button>
                       )
                     })}
                   </div>
+                  {!canChangeDesign && (s.site_config?.template || 'modern') !== 'ai' && (
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', marginTop: 8 }}>More templates on Salon and Custom plans. <a href="/billing" style={{ color: 'rgba(130,150,220,.6)' }}>Upgrade →</a></p>
+                  )}
                   {/* AI Style Generator */}
                   {(s.site_config?.template === 'ai') && <AIStyleGenerator siteConfig={s.site_config || {}} onGenerated={(css: string, prompt: string) => set('site_config', { ...(s.site_config || {}), template: 'ai', ai_css: css, ai_prompt: prompt })} />}
                 </SectionCard>
-                ) : (
+                {false && ( /* removed old non-design fallback */
                 <div style={{ padding: '16px 20px', borderRadius: 14, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.02)' }}>
                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', marginBottom: 4 }}>Design templates available on Salon and Custom plans</div>
                   <a href="/billing" style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', textDecoration: 'none' }}>Upgrade →</a>

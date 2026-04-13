@@ -701,8 +701,8 @@ export default function PublicBookingPage() {
     custom:       { bg: '#000', text: '#e9e9e9', card: 'rgba(255,255,255,.04)', cardBorder: 'rgba(255,255,255,.08)', accent: '#0a84ff', headerBg: 'rgba(0,0,0,.5)' },
     ai:           { bg: 'transparent', text: '#f0f0f5', card: 'rgba(255,255,255,.025)', cardBorder: 'rgba(255,255,255,.06)', accent: '#fff', headerBg: 'rgba(0,0,0,.5)' },
   }
-  // Individual: always Vurium (modern). Salon/Custom: use selected template.
-  const activeTemplate = (effectivePlan === 'salon' || effectivePlan === 'custom') ? template : 'modern'
+  // Individual: Vurium (modern) unless AI style. Salon/Custom: use selected template.
+  const activeTemplate = template === 'ai' ? 'ai' : (effectivePlan === 'salon' || effectivePlan === 'custom') ? template : 'modern'
   const t = TEMPLATES[activeTemplate] || TEMPLATES.modern
   const isLightTheme = ['classic', 'colorful'].includes(activeTemplate)
 
