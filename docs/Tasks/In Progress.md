@@ -14,12 +14,20 @@
   - Added `GET /health` endpoint (status, uptime, timestamp)
   - Memory 1Gi, CPU 1, timeout 300s
   - Rollback: `gcloud run services update-traffic vuriumbook-api --to-revisions=PREVIOUS=100`
-- [ ] P0.4 Billing verification matrix
+- [x] P0.4 Billing verification matrix — **DONE** commit `9d23103` 2026-04-14
+  - Apple: added expiry date check in getEffectivePlan() — blocks access after apple_expires_at
+  - Stripe Connect: added webhook signature verification (was unprotected)
+  - Verified: Stripe subscription create/cancel/upgrade webhooks, Apple IAP verify/webhook, Square reconciliation
+  - Found & fixed: Apple expired subscriptions could still access features if webhook delayed
 - [x] P0.5 Auth and security audit — **DONE** commit `595b324` 2026-04-14
   - Added requireRole('owner','admin') to GET /api/payments, /api/square/oauth/status, /api/stripe-connect/status
   - Audit confirmed: JWT middleware on all /api routes, Apple/Google OAuth verified server-side, password reset single-use, rate limiting on login
   - Remaining: password hashing uses SHA256 (not bcrypt) — acceptable for launch, upgrade later
-- [ ] P0.6 Data integrity — full chain verification
+- [x] P0.6 Data integrity — full chain verification — **DONE** 2026-04-14
+  - Covered by /api/payroll/audit (7 checks): unpaid bookings, booking↔payment match, cash reconciliation, admin hours, totals, amounts, Square verification
+  - Tips: both `tip` and `tip_amount` saved consistently (fixed 2026-04-13)
+  - Cash: service_amount (net) used correctly, not amount (gross)
+  - Expenses: deducted from owner net, category breakdown working
 - [x] P0.7 Server-side price verification — **DONE** commit `b1bdbe9` 2026-04-14
   - Compares payment amount vs booking service_amount
   - Rejects if >2x or <0.5x expected (tolerance for tax/fees)
@@ -41,6 +49,7 @@
   - `app/billing/page.tsx` moved to styled dialog flow for cancel/manage actions
   - `app/settings/page.tsx` key owner flows moved off native `confirm()`; team password reset and owner delete-account also moved off browser `prompt()`
   - `app/signin/page.tsx` forgot-password browser prompt replaced with branded modal
+  - `components/Shell.tsx` sign-out confirmation now uses the shared styled dialog flow
   - Remaining work: broader scan across remaining AI 2 pages before marking done
 - [ ] P0.13 Role-based visibility verification
 - [ ] P0.14 Mobile usability on key pages
@@ -49,6 +58,7 @@
   - Pending: browser verification on live booking flow
 - [ ] P0.16 Fix form data loss on booking page — **IN PROGRESS**
   - Session draft persistence added for `name`, `email`, `phone`, `notes`, `smsConsent`
+  - Frontend now sends `idempotency_key` with booking creation to match backend duplicate-submit protection
   - Pending: manual unavailable-slot/back-navigation verification
 - [ ] P0.17 Calendar mobile layout
 
@@ -59,7 +69,9 @@
 - [ ] P1.3 Firestore indexes (AI 1)
 - [ ] P1.4 Webhook logging (AI 1)
 - [ ] P1.5 Button disabled states (AI 2)
-- [ ] P1.6 Dashboard timezone (AI 2)
+- [ ] P1.6 Dashboard timezone (AI 2) — **IN PROGRESS**
+  - Dashboard key date/time formatting now rerenders after workspace timezone loads from `/api/settings/timezone`
+  - Pending: manual UI verification across widgets/cards after refresh
 - [ ] P1.7 Dashboard clarity (AI 2)
 - [ ] P1.8 Booking UX polish (AI 2)
 - [ ] P1.9 Billing messaging (AI 2)
