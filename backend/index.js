@@ -5760,16 +5760,17 @@ app.get('/api/payroll/audit', requirePlanFeature('payroll'), requireRole('owner'
     const admins = usersSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.role === 'admin' && u.active !== false);
 
     // ── Check 1: Unpaid completed bookings ──
-    const completed = bookings.filter(b => !b.paid && b.status !== 'noshow' && b.status !== 'no_show');
-    const unpaidAmount = completed.reduce((s, b) => s + Number(b.service_amount || b.amount || 0), 0);
+    // Only flag real completed services, not blocks/pending/booked
+    const unpaidCompleted = bookings.filter(b => !b.paid && b.type !== 'block' && b.status !== 'noshow' && b.status !== 'no_show' && b.status !== 'booked' && b.status !== 'pending' && Number(b.service_amount || b.amount || 0) > 0);
+    const unpaidAmount = unpaidCompleted.reduce((s, b) => s + Number(b.service_amount || b.amount || 0), 0);
     checks.push({
       id: 'unpaid_bookings',
-      status: completed.length > 0 ? 'warning' : 'ok',
+      status: unpaidCompleted.length > 0 ? 'warning' : 'ok',
       label: 'Unpaid bookings',
-      detail: completed.length > 0
-        ? `${completed.length} booking${completed.length > 1 ? 's' : ''} not paid — $${unpaidAmount.toFixed(2)} uncollected`
-        : 'All bookings are paid',
-      count: completed.length, amount: unpaidAmount,
+      detail: unpaidCompleted.length > 0
+        ? `${unpaidCompleted.length} completed booking${unpaidCompleted.length > 1 ? 's' : ''} not paid — $${unpaidAmount.toFixed(2)} uncollected`
+        : 'All completed bookings are paid',
+      count: unpaidCompleted.length, amount: unpaidAmount,
     });
 
     // ── Check 2: Booking ↔ Payment match ──
@@ -5866,10 +5867,14 @@ app.get('/api/payroll/audit', requirePlanFeature('payroll'), requireRole('owner'
     });
 
     // ── Check 7: Square card payments vs bookings ──
+    // Compare only linked payments (Square payments matched to bookings via payment_id)
     const cardBookings = paidBookings.filter(b => ['terminal', 'card', 'applepay'].includes((b.payment_method || '').toLowerCase()));
     const bookingCardTotal = cardBookings.reduce((s, b) => s + Number(b.service_amount || b.amount || 0) + Number(b.tip || b.tip_amount || 0), 0);
-    let squareTotal = 0;
-    let squareCount = 0;
+    const bookingPaymentIds = new Set(cardBookings.map(b => b.payment_id).filter(Boolean));
+    let squareLinkedTotal = 0;
+    let squareLinkedCount = 0;
+    let squareTotalAll = 0;
+    let squareCountAll = 0;
     let squareConnected = false;
     try {
       const sqHeaders = await squareHeaders(req.ws);
@@ -5882,19 +5887,26 @@ app.get('/api/payroll/audit', requirePlanFeature('payroll'), requireRole('owner'
         squareConnected = true;
         const sqData = await sqResp.json();
         const completed = (sqData.payments || []).filter(p => (p.status || '').toUpperCase() === 'COMPLETED');
-        squareCount = completed.length;
-        squareTotal = completed.reduce((s, p) => s + (Number(p.amount_money?.amount || 0) + Number(p.tip_money?.amount || 0)) / 100, 0);
+        squareCountAll = completed.length;
+        squareTotalAll = completed.reduce((s, p) => s + (Number(p.amount_money?.amount || 0) + Number(p.tip_money?.amount || 0)) / 100, 0);
+        // Only count Square payments that are linked to our bookings
+        const linked = completed.filter(p => bookingPaymentIds.has(p.id));
+        squareLinkedCount = linked.length;
+        squareLinkedTotal = linked.reduce((s, p) => s + (Number(p.amount_money?.amount || 0) + Number(p.tip_money?.amount || 0)) / 100, 0);
       }
     } catch {} // Square not connected
-    const cardDiff = Math.abs(bookingCardTotal - squareTotal);
+    const linkedDiff = Math.abs(bookingCardTotal - squareLinkedTotal);
+    const unlinkedCount = squareCountAll - squareLinkedCount;
+    const unlinkedAmount = squareTotalAll - squareLinkedTotal;
     checks.push({
       id: 'square_match',
-      status: !squareConnected ? 'ok' : cardDiff > 2 ? 'warning' : 'ok',
+      status: !squareConnected ? 'ok' : linkedDiff > 2 ? 'warning' : 'ok',
       label: 'Square verification',
       detail: !squareConnected ? 'Square not connected — skipped'
-        : cardDiff <= 2 ? `Bookings $${bookingCardTotal.toFixed(2)} = Square $${squareTotal.toFixed(2)} (${squareCount} payments)`
-        : `Mismatch: bookings $${bookingCardTotal.toFixed(2)} vs Square $${squareTotal.toFixed(2)} (diff $${cardDiff.toFixed(2)})`,
-      diff: squareConnected ? cardDiff : null,
+        : linkedDiff <= 2
+          ? `Matched: bookings $${bookingCardTotal.toFixed(2)} = Square $${squareLinkedTotal.toFixed(2)} (${squareLinkedCount} linked)${unlinkedCount > 0 ? ` + ${unlinkedCount} unlinked Square payments ($${unlinkedAmount.toFixed(2)})` : ''}`
+          : `Linked mismatch: bookings $${bookingCardTotal.toFixed(2)} vs Square $${squareLinkedTotal.toFixed(2)} (diff $${linkedDiff.toFixed(2)})${unlinkedCount > 0 ? ` + ${unlinkedCount} unlinked ($${unlinkedAmount.toFixed(2)})` : ''}`,
+      diff: squareConnected ? linkedDiff : null,
     });
 
     const summary = { ok: checks.filter(c => c.status === 'ok').length, warnings: checks.filter(c => c.status === 'warning').length, errors: checks.filter(c => c.status === 'error').length };
@@ -6467,7 +6479,7 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
       'dash_shortcuts', 'dash_widgets', 'business_type',
       'sms_from_number', 'sms_brand_name', 'telnyx_campaign_id', 'telnyx_brand_id', 'sms_registration_status',
       'sms_messaging_profile_id', 'sms_number_type', 'sms_registered_at', 'sms_status_updated_at',
-      'google_review_url', 'satisfaction_sms_enabled'];
+      'google_review_url', 'satisfaction_sms_enabled', 'online_booking_enabled'];
     const patch = { updated_at: toIso(new Date()) };
     for (const key of ALLOWED_SETTINGS) {
       if (b[key] !== undefined) patch[key] = typeof b[key] === 'string' ? sanitizeHtml(b[key]) : b[key];
@@ -8951,8 +8963,8 @@ async function runPayrollAudit() {
         const paidBookings = bookings.filter(b => b.paid);
         const warnings = [];
 
-        // Check 1: Unpaid completed bookings
-        const unpaid = bookings.filter(b => !b.paid && b.status !== 'noshow' && b.status !== 'no_show');
+        // Check 1: Unpaid completed bookings (skip blocks, pending, booked, $0 bookings)
+        const unpaid = bookings.filter(b => !b.paid && b.type !== 'block' && b.status !== 'noshow' && b.status !== 'no_show' && b.status !== 'booked' && b.status !== 'pending' && Number(b.service_amount || b.amount || 0) > 0);
         const unpaidAmt = unpaid.reduce((s, b) => s + Number(b.service_amount || b.amount || 0), 0);
         if (unpaid.length > 0) warnings.push(`${unpaid.length} unpaid bookings ($${unpaidAmt.toFixed(2)})`);
 
@@ -8971,11 +8983,11 @@ async function runPayrollAudit() {
         const noAmount = paidBookings.filter(b => !b.service_amount && !b.amount);
         if (noAmount.length > 0) warnings.push(`${noAmount.length} paid bookings missing service amount`);
 
-        // Check 4: Square card payments verification
+        // Check 4: Square card payments verification (linked only)
         const cardBookings = paidBookings.filter(b => ['terminal', 'card', 'applepay'].includes((b.payment_method || '').toLowerCase()));
         if (cardBookings.length > 0) {
           const bookingCardTotal = cardBookings.reduce((s, b) => s + Number(b.service_amount || b.amount || 0) + Number(b.tip || b.tip_amount || 0), 0);
-          let squareTotal = 0;
+          const bPaymentIds = new Set(cardBookings.map(b => b.payment_id).filter(Boolean));
           try {
             const headers = await squareHeaders(wsCol);
             const params = new URLSearchParams();
@@ -8986,15 +8998,14 @@ async function runPayrollAudit() {
             if (sqResp.ok) {
               const sqData = await sqResp.json();
               const completed = (sqData.payments || []).filter(p => (p.status || '').toUpperCase() === 'COMPLETED');
-              squareTotal = completed.reduce((s, p) => s + (Number(p.amount_money?.amount || 0) + Number(p.tip_money?.amount || 0)) / 100, 0);
+              const linked = completed.filter(p => bPaymentIds.has(p.id));
+              const linkedTotal = linked.reduce((s, p) => s + (Number(p.amount_money?.amount || 0) + Number(p.tip_money?.amount || 0)) / 100, 0);
+              const diff = Math.abs(bookingCardTotal - linkedTotal);
+              if (diff > 2) {
+                warnings.push(`Card mismatch: bookings $${bookingCardTotal.toFixed(2)} vs Square linked $${linkedTotal.toFixed(2)} (diff $${diff.toFixed(2)})`);
+              }
             }
           } catch {} // Square not connected — skip
-          if (squareTotal > 0) {
-            const diff = Math.abs(bookingCardTotal - squareTotal);
-            if (diff > 2) { // tolerance $2
-              warnings.push(`Card payments mismatch: bookings $${bookingCardTotal.toFixed(2)} vs Square $${squareTotal.toFixed(2)} (diff $${diff.toFixed(2)})`);
-            }
-          }
         }
 
         // Store audit result for in-app badge
