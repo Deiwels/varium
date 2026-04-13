@@ -5039,7 +5039,7 @@ app.delete('/api/users/:id', requireRole('owner'), async (req, res) => {
 // ============================================================
 // PAYMENTS (Square + local)
 // ============================================================
-app.get('/api/payments', async (req, res) => {
+app.get('/api/payments', requireRole('owner', 'admin'), async (req, res) => {
   try {
     const from = safeStr(req.query?.from || '');
     const to = safeStr(req.query?.to || '');
@@ -6990,7 +6990,7 @@ app.get('/api/square/oauth/url', requireRole('owner'), async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.get('/api/square/oauth/status', async (req, res) => {
+app.get('/api/square/oauth/status', requireRole('owner', 'admin'), async (req, res) => {
   try {
     const doc = await req.ws('settings').doc('square_oauth').get();
     if (!doc.exists || !doc.data()?.access_token) return res.json({ connected: false });
@@ -7051,7 +7051,7 @@ app.get('/api/stripe-connect/oauth/url', requireRole('owner'), async (req, res) 
 });
 
 // Check Stripe Connect status
-app.get('/api/stripe-connect/status', async (req, res) => {
+app.get('/api/stripe-connect/status', requireRole('owner', 'admin'), async (req, res) => {
   try {
     const doc = await req.ws('settings').doc('stripe_connect').get();
     if (!doc.exists || !doc.data()?.account_id) {
@@ -7984,6 +7984,14 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       return res.status(403).json({ error: 'Online booking is currently disabled for this business.' });
     }
     const booking = req.body || {};
+    // Idempotency: prevent double-submit
+    const idempotencyKey = safeStr(booking.idempotency_key || '');
+    if (idempotencyKey) {
+      try {
+        const existing = await wsCol('bookings').where('idempotency_key', '==', idempotencyKey).limit(1).get();
+        if (!existing.empty) return res.status(200).json({ id: existing.docs[0].id, duplicate: true });
+      } catch {}
+    }
     const startAt = parseIso(booking.start_at);
     const barberId = safeStr(booking.barber_id);
     const clientName = sanitizeHtml(safeStr(booking.client_name));
@@ -8100,6 +8108,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       sms_consent_text: smsConsent ? safeStr(booking.sms_consent_text || 'By providing your phone number, you agree to receive SMS appointment confirmations, reminders, and changes. Message frequency may vary, up to 5 msgs per booking. Msg & data rates may apply. Reply STOP to opt out. Reply HELP for help.').slice(0, 1000) : null,
       workspace_id: wsId,
       client_token: crypto.randomBytes(24).toString('hex'),
+      idempotency_key: idempotencyKey || null,
       created_by: { name: clientName || 'Client', role: 'client' },
       created_at: toIso(new Date()), updated_at: toIso(new Date()),
     };
