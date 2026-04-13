@@ -41,19 +41,21 @@
 - [ ] P0.9 Settings mobile drill-down navigation — **IN PROGRESS**
   - Local implementation complete in `app/settings/page.tsx`
   - Pending: browser/iPhone verification before marking done
-- [ ] P0.10 Settings save/load verification — **IN PROGRESS**
+- [ ] P0.10 Settings save/load verification — **UNBLOCKED** by AI 1
   - Frontend/backend path re-checked for `online_booking_enabled`, `waitlist_enabled`, `booking.cancellation_hours`, `display.show_prices`, `display.require_phone`, `display.allow_notes`
-  - Pending: manual toggle → reload verification pass across categories
+  - **Backend blocker FIXED**: commit `911c1f4` — `POST /api/settings` now merges `booking` and `display` nested objects (AI 1)
+  - Pending: AI 2 manual toggle → reload verification pass across categories
 - [ ] P0.11 Full customer path audit
   - Session-expiry / stale-login black-screen fix added in `components/Shell.tsx`; protected pages now redirect to `/signin` instead of hanging on a blank screen
   - Edited auth-loss redirects now use `replace('/signin')` to avoid back-navigation into stale protected screens
-- [ ] P0.12 Remove alert()/confirm() — **IN PROGRESS**
+- [x] P0.12 Remove alert()/confirm() — **DONE**
   - `app/billing/page.tsx` moved to styled dialog flow for cancel/manage actions
   - `app/settings/page.tsx` key owner flows moved off native `confirm()`; team password reset and owner delete-account also moved off browser `prompt()`
   - `app/signin/page.tsx` forgot-password browser prompt replaced with branded modal
   - `components/Shell.tsx` sign-out confirmation now uses the shared styled dialog flow
-  - Remaining work: broader scan across remaining AI 2 pages before marking done
+  - Broad scan across AI 2-owned files is now clean for native `alert()`, `confirm()`, and `prompt()` usage
 - [ ] P0.13 Role-based visibility verification
+  - `app/settings/page.tsx` now also normalizes the URL when the current `tab` is not visible for the active role, so role-restricted users do not stay on a stale inaccessible settings slug
 - [ ] P0.14 Mobile usability on key pages
 - [ ] P0.15 Timezone indicator on booking page — **IN PROGRESS**
   - Local implementation added to `app/book/[id]/page.tsx`
@@ -75,9 +77,12 @@
 - [x] P1.4 Webhook logging (AI 1) — **DONE** commit `460363a` 2026-04-14
   - logWebhookEvent() helper stores to Firestore webhook_logs collection
   - All 4 handlers log: Stripe, Square, Apple, Stripe Connect
-- [ ] P1.5 Button disabled states (AI 2)
+- [ ] P1.5 Button disabled states (AI 2) — **IN PROGRESS**
+  - Public booking page now locks waitlist fields, booking form inputs, payment toggle buttons, and back navigation while submit/payment setup is running
+  - Added inline status copy during booking/payment setup so the client sees that availability is still being checked
 - [ ] P1.6 Dashboard timezone (AI 2) — **IN PROGRESS**
   - Dashboard key date/time formatting now rerenders after workspace timezone loads from `/api/settings/timezone`
+  - Additional dashboard widgets now use workspace timezone consistently for day labels, clock-in timestamps, phone-access log times, and the analog clock / free-slots calculations
   - Pending: manual UI verification across widgets/cards after refresh
 - [ ] P1.7 Dashboard clarity (AI 2)
 - [ ] P1.8 Booking UX polish (AI 2)
