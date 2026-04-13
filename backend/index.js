@@ -6538,26 +6538,38 @@ const AI_STYLE_SYSTEM_PROMPT = `You generate CSS for a barbershop/salon booking 
 The page has NO background decorations — it's a clean blank canvas (#010101 black). Your CSS has FULL control over the entire visual appearance including page background.
 
 TARGET SELECTORS (use .booking-page as parent):
-- .booking-page — FULL PAGE: background (solid, gradient, or animated), font-family, color. This is min-height:100vh.
-- .booking-page header — top bar
+- .booking-page — FULL PAGE: background (solid, gradient, or animated), font-family, color. min-height:100vh.
+- .booking-page header — top bar with shop name
 - .booking-page main — content area
-- .booking-page footer — bottom footer
+- .booking-page footer — bottom footer with legal text
 - .booking-page h1, .booking-page h2 — headings
-- .booking-page p, .booking-page span, .booking-page div — text
-- .booking-page button — buttons
+- .booking-page p, .booking-page span, .booking-page div — all text elements
+- .booking-page button — all buttons
 - .booking-page input, .booking-page textarea, .booking-page select — form fields
-- .booking-page a — links
+- .booking-page a — all links
+- .bp-hero — hero section
+- .bp-hero-image — hero image container (you can change border-radius, border, box-shadow, height)
+- .bp-hero-image img — hero image itself (you can change object-fit, filter, opacity)
+- .bp-card — service/barber/timeslot cards
+- .bp-btn — primary action button
+- .bp-section-title — section labels
+- .bp-legal — SMS legal disclosure text at bottom (IMPORTANT: set readable color!)
+- .bp-legal a — privacy/terms links
+- .bp-footer — footer wrapper
+- .bp-booking-flow — the multi-step booking area
 
-RULES:
+CRITICAL RULES:
 1. EVERY CSS property MUST have !important
 2. Output ONLY pure CSS. No markdown, no code fences, no explanations.
-3. DO NOT change: display, position, flex-direction, grid-template, width, height, z-index.
-4. YOU MUST SET .booking-page background (color, gradient, or pattern) — the page is blank without it.
-5. Style EVERYTHING: page background, header, footer, buttons, inputs, cards, text colors, fonts.
-6. @import Google Fonts if needed (MUST be first line).
-7. You CAN use CSS gradients, animations, ::before/::after pseudo-elements for decorative backgrounds.
-8. Ensure text contrast is readable.
-9. Generate 25-50 lines of rich, complete CSS.
+3. DO NOT change: display, position, flex-direction, grid-template, width, z-index.
+4. YOU MUST SET .booking-page background — the page is blank without it.
+5. YOU MUST style .bp-legal and .bp-footer with readable text color matching the background!
+6. Style EVERYTHING consistently: background, header, footer, buttons, inputs, cards, ALL text.
+7. @import Google Fonts if needed (MUST be first line).
+8. You CAN change .bp-hero-image height, border-radius, box-shadow, and img filter/opacity.
+9. You CAN use CSS gradients, animations, ::before/::after for decorative backgrounds.
+10. Ensure ALL text has sufficient contrast against its background.
+11. Generate 30-50 lines of rich, complete CSS.
 
 EXAMPLE for "luxury gold dark":
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap');
@@ -6569,8 +6581,9 @@ EXAMPLE for "luxury gold dark":
 .booking-page button { background: linear-gradient(135deg, rgba(200,170,100,.12), rgba(200,170,100,.06)) !important; color: #c9a84c !important; border: 1px solid rgba(200,170,100,.25) !important; border-radius: 12px !important; box-shadow: 0 4px 20px rgba(200,170,100,.08) !important; }
 .booking-page button:hover { background: rgba(200,170,100,.18) !important; }
 .booking-page input, .booking-page textarea { background: rgba(200,170,100,.04) !important; border: 1px solid rgba(200,170,100,.12) !important; color: #e8dcc8 !important; border-radius: 10px !important; }
+.bp-hero-image { height: 250px !important; border-radius: 20px !important; border: 1px solid rgba(200,170,100,.2) !important; box-shadow: 0 8px 40px rgba(200,170,100,.1) !important; }
 .booking-page footer { background: rgba(10,8,6,.6) !important; border-top: 1px solid rgba(200,170,100,.08) !important; }
-.booking-page footer * { color: rgba(200,170,100,.35) !important; }
+.booking-page footer *, .bp-legal, .bp-legal a { color: rgba(200,170,100,.35) !important; }
 .booking-page a { color: rgba(200,170,100,.7) !important; }`;
 
 app.post('/api/ai/generate-style', requireRole('owner', 'admin'), async (req, res) => {

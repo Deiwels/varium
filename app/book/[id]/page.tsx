@@ -786,7 +786,7 @@ export default function PublicBookingPage() {
           {/* Hero */}
           <div className="bp-hero" style={{ textAlign: 'center', marginBottom: 48 }}>
             {(config.hero_media_url || siteConfig?.hero_image) && (
-              <div style={{ width: '100%', height: 200, borderRadius: 16, overflow: 'hidden', marginBottom: 24, border: '1px solid rgba(255,255,255,.06)' }}>
+              <div className="bp-hero-image" style={{ width: '100%', height: 200, borderRadius: 16, overflow: 'hidden', marginBottom: 24, border: '1px solid rgba(255,255,255,.06)' }}>
                 <img src={config.hero_media_url || siteConfig?.hero_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             )}
@@ -1518,7 +1518,7 @@ export default function PublicBookingPage() {
           <img src="/logo-white.jpg" alt="" style={{ width: 14, height: 14, borderRadius: 3, opacity: isLightTheme ? 0.35 : 0.25, filter: isLightTheme ? 'none' : 'invert(1)' }} />
           Powered by VuriumBook&trade;
         </a>
-        <div style={{ fontSize: 10, color: isLightTheme ? 'rgba(0,0,0,.3)' : 'rgba(255,255,255,.22)', lineHeight: 1.6, maxWidth: 400, margin: '8px auto 0' }}>
+        <div className="bp-legal" style={{ fontSize: 10, color: isLightTheme ? 'rgba(0,0,0,.3)' : 'rgba(255,255,255,.22)', lineHeight: 1.6, maxWidth: 400, margin: '8px auto 0' }}>
           Msg &amp; data rates may apply. Msg frequency: up to 5 per booking. Reply STOP to unsubscribe, HELP for help.
           <div style={{ marginTop: 3 }}>
             <a href="https://vurium.com/privacy#sms" target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.3)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>Privacy Policy</a> &amp; <a href="https://vurium.com/terms#sms" target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.3)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>Terms</a>
