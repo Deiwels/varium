@@ -6498,7 +6498,8 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
       'dash_shortcuts', 'dash_widgets', 'business_type',
       'sms_from_number', 'sms_brand_name', 'telnyx_campaign_id', 'telnyx_brand_id', 'sms_registration_status',
       'sms_messaging_profile_id', 'sms_number_type', 'sms_registered_at', 'sms_status_updated_at',
-      'google_review_url', 'satisfaction_sms_enabled', 'online_booking_enabled'];
+      'google_review_url', 'satisfaction_sms_enabled', 'online_booking_enabled',
+      'bannerEnabled', 'bannerText', 'shopStatusMode', 'shopStatusCustomText'];
     const patch = { updated_at: toIso(new Date()) };
     for (const key of ALLOWED_SETTINGS) {
       if (b[key] !== undefined) patch[key] = typeof b[key] === 'string' ? sanitizeHtml(b[key]) : b[key];
@@ -6525,11 +6526,17 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
       await req.wsDoc().update({ business_type: sanitizeHtml(b.business_type), updated_at: toIso(new Date()) });
     }
     // Nested objects — stored on settings doc
+    if (b.booking !== undefined && typeof b.booking === 'object') patch.booking = b.booking;
+    if (b.display !== undefined && typeof b.display === 'object') patch.display = b.display;
     if (b.tax !== undefined && typeof b.tax === 'object') patch.tax = b.tax;
     if (b.payroll !== undefined && typeof b.payroll === 'object') patch.payroll = b.payroll;
     if (b.square !== undefined && typeof b.square === 'object') patch.square = b.square;
     if (b.fees !== undefined && Array.isArray(b.fees)) patch.fees = b.fees;
     if (b.charges !== undefined && Array.isArray(b.charges)) patch.charges = b.charges;
+    if (b.banner && typeof b.banner === 'object') {
+      if (b.banner.enabled !== undefined) patch.bannerEnabled = !!b.banner.enabled;
+      if (b.banner.text !== undefined) patch.bannerText = sanitizeHtml(safeStr(b.banner.text));
+    }
     // Site config — stored on workspace doc for custom plan
     if (b.site_config !== undefined && typeof b.site_config === 'object') {
       // Sanitize custom HTML — strip <script>, <iframe>, event handlers, javascript: urls
@@ -8038,8 +8045,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
     }
 
     // Validate against barber schedule
-    const pubSettingsDocPre = await wsCol('settings').doc('config').get();
-    const pubTimeZone = pubSettingsDocPre.exists ? (pubSettingsDocPre.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+    const pubTimeZone = pubSettingsDataPre?.timezone || 'America/Chicago';
     const pubBarberDoc = await wsCol('barbers').doc(barberId).get();
     if (!pubBarberDoc.exists || pubBarberDoc.data()?.active === false) {
       // Suggest alternative barbers
@@ -8108,8 +8114,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
     }
     // SMS confirmation + reminders (only if consented)
     if (smsConsent && clientPhone) {
-      const settingsDoc = await wsCol('settings').doc('config').get();
-      const pubSettingsData = settingsDoc.exists ? settingsDoc.data() : {};
+      const pubSettingsData = pubSettingsDataPre || {};
       const tz = pubSettingsData?.timezone || 'America/Chicago';
       const pubShopName = safeStr(pubSettingsData?.shop_name || '');
       const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
@@ -8245,8 +8250,7 @@ app.post('/public/bookings-group/:workspace_id', async (req, res) => {
       }
     }
 
-    const pubSettingsDocPre = await wsCol('settings').doc('config').get();
-    const pubTimeZone = pubSettingsDocPre.exists ? (pubSettingsDocPre.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+    const pubTimeZone = pubSettingsDataPre?.timezone || 'America/Chicago';
 
     // Validate each barber
     const barberDocs = {};
@@ -8394,6 +8398,10 @@ app.get('/public/config/:workspace_id', async (req, res) => {
       shop_name: safeStr(data.shop_name || ''),
       sms_brand_name: safeStr(data.sms_brand_name || data.shop_name || ''),
       timezone: safeStr(data.timezone || 'America/Chicago'),
+      online_booking_enabled: data.online_booking_enabled !== false,
+      waitlist_enabled: !!data.waitlist_enabled,
+      booking: data.booking && typeof data.booking === 'object' ? data.booking : {},
+      display: data.display && typeof data.display === 'object' ? data.display : {},
     });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -9079,7 +9087,7 @@ async function runPayrollAudit() {
           const body = warnings.join(' | ');
 
           // Push to owner only
-          sendCrmPush(wsCol, ownerId, title, body, { screen: 'payroll' }, null).catch(() => {});
+          // Push disabled for audit — email only (push was too frequent)
 
           // Email to owner only
           const email = owner.email || owner.username;
@@ -9907,6 +9915,31 @@ async function getBookingByToken(wsId, bookingId, token) {
   return { ref, id: doc.id, data: doc.data() };
 }
 
+async function getWorkspaceManageBookingConfig(wsId) {
+  try {
+    const doc = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
+    const data = doc.exists ? doc.data() : {};
+    const booking = data?.booking && typeof data.booking === 'object' ? data.booking : {};
+    return {
+      timezone: safeStr(data?.timezone || 'America/Chicago'),
+      cancellation_hours: Math.max(0, Number(booking?.cancellation_hours || 0)),
+    };
+  } catch {
+    return { timezone: 'America/Chicago', cancellation_hours: 0 };
+  }
+}
+
+function isManageBookingLocked(startAt, cancellationHours) {
+  if (!startAt || !cancellationHours || cancellationHours <= 0) return false;
+  return new Date(startAt).getTime() - Date.now() < cancellationHours * 60 * 60 * 1000;
+}
+
+function manageBookingLockMessage(cancellationHours) {
+  const hours = Number(cancellationHours || 0);
+  if (!hours) return 'This booking can no longer be changed.';
+  return `This booking can only be changed more than ${hours} hour${hours === 1 ? '' : 's'} before the appointment.`;
+}
+
 app.get('/public/manage-booking', async (req, res) => {
   try {
     const { ws, bid, token } = req.query;
@@ -9916,6 +9949,7 @@ app.get('/public/manage-booking', async (req, res) => {
     const { id, data } = booking;
     const wsId = data.workspace_id || ws;
     const cfg = await getWorkspaceEmailConfig(wsId);
+    const manageCfg = await getWorkspaceManageBookingConfig(wsId);
     res.json({
       id,
       workspace_id: wsId,
@@ -9929,6 +9963,8 @@ app.get('/public/manage-booking', async (req, res) => {
       start_at: data.start_at,
       end_at: data.end_at,
       duration_minutes: data.duration_minutes || 30,
+      timezone: manageCfg.timezone,
+      cancellation_hours: manageCfg.cancellation_hours,
     });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -9940,11 +9976,16 @@ app.post('/public/manage-booking/cancel', async (req, res) => {
     const booking = await getBookingByToken(ws, bid, token);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
     const { ref, data } = booking;
+    const wsId = data.workspace_id || ws;
+    const manageCfg = await getWorkspaceManageBookingConfig(wsId);
     if (['cancelled', 'completed', 'done'].includes(data.status)) {
       return res.status(400).json({ error: `Booking is already ${data.status}` });
     }
     if (data.start_at && new Date(data.start_at) < new Date()) {
       return res.status(400).json({ error: 'Cannot cancel a past appointment' });
+    }
+    if (isManageBookingLocked(data.start_at, manageCfg.cancellation_hours)) {
+      return res.status(400).json({ error: manageBookingLockMessage(manageCfg.cancellation_hours) });
     }
     await ref.update({ status: 'cancelled', updated_at: toIso(new Date()) });
     // Send cancellation confirmation email
@@ -9976,20 +10017,25 @@ app.post('/public/manage-booking/reschedule', async (req, res) => {
     const booking = await getBookingByToken(ws, bid, token);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
     const { ref, data } = booking;
+    const wsId = data.workspace_id || ws;
+    const manageCfg = await getWorkspaceManageBookingConfig(wsId);
     if (['cancelled', 'completed', 'done'].includes(data.status)) {
       return res.status(400).json({ error: `Cannot reschedule a ${data.status} booking` });
     }
     if (data.start_at && new Date(data.start_at) < new Date()) {
       return res.status(400).json({ error: 'Cannot reschedule a past appointment' });
     }
+    if (isManageBookingLocked(data.start_at, manageCfg.cancellation_hours)) {
+      return res.status(400).json({ error: manageBookingLockMessage(manageCfg.cancellation_hours) });
+    }
     const newStartAt = parseIso(req.body?.start_at);
     if (!newStartAt || newStartAt <= new Date()) return res.status(400).json({ error: 'Invalid new start_at' });
     const durMin = data.duration_minutes || 30;
     const newEndAt = addMinutes(newStartAt, durMin);
-    const wsId = data.workspace_id;
-    if (!wsId) return res.status(500).json({ error: 'Booking has no workspace reference' });
+    const wsIdForBooking = data.workspace_id;
+    if (!wsIdForBooking) return res.status(500).json({ error: 'Booking has no workspace reference' });
     // Validate against barber schedule
-    const wsColResch = (col) => db.collection('workspaces').doc(wsId).collection(col);
+    const wsColResch = (col) => db.collection('workspaces').doc(wsIdForBooking).collection(col);
     const reschBarberDoc = await wsColResch('barbers').doc(data.barber_id).get();
     if (!reschBarberDoc.exists) return res.status(404).json({ error: 'Barber not found' });
     const reschSettingsDoc = await wsColResch('settings').doc('config').get();
@@ -10003,7 +10049,7 @@ app.post('/public/manage-booking/reschedule', async (req, res) => {
       }
       throw e;
     }
-    const bookingsRef = db.collection('workspaces').doc(wsId).collection('bookings');
+    const bookingsRef = db.collection('workspaces').doc(wsIdForBooking).collection('bookings');
     try {
       await db.runTransaction(async (tx) => {
         await ensureNoConflictTx(tx, bookingsRef, { barberId: data.barber_id, startAt: newStartAt, endAt: newEndAt, excludeBookingId: ref.id });
@@ -10018,14 +10064,14 @@ app.post('/public/manage-booking/reschedule', async (req, res) => {
     }
     // Send rescheduled confirmation email
     if (data.client_email) {
-      const cfg = await getWorkspaceEmailConfig(wsId);
+      const cfg = await getWorkspaceEmailConfig(wsIdForBooking);
       const { shopName, logoUrl, tz, template } = cfg;
       const et = EMAIL_THEMES[template] || EMAIL_THEMES.modern;
       const isLt = ['classic', 'colorful'].includes(template);
       const cardBg = isLt ? 'rgba(0,0,0,.03)' : 'rgba(255,255,255,.04)';
       const timeStr = newStartAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
       const dateStr = newStartAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz });
-      const manageUrl = `https://vurium.com/manage-booking?ws=${wsId}&bid=${ref.id}&token=${data.client_token}`;
+      const manageUrl = `https://vurium.com/manage-booking?ws=${wsIdForBooking}&bid=${ref.id}&token=${data.client_token}`;
       sendEmail(data.client_email, 'Booking Rescheduled', vuriumEmailTemplate('Booking Rescheduled', `
         <p>Your appointment has been rescheduled:</p>
         <div style="padding:16px;border-radius:14px;background:${cardBg};border:1px solid ${et.border};margin:16px 0;">
