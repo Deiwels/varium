@@ -3271,65 +3271,9 @@ app.post('/auth/signup', async (req, res) => {
 
     setAuthCookie(res, token);
 
-    // Auto-provision per-business toll-free number (async, non-blocking)
-    // Each workspace gets its own TFN — like Square assigns 855 numbers per business.
-    // TFN can send SMS even while verification is pending.
-    (async () => {
-      try {
-        const settingsRef = wsRef.collection('settings').doc('config');
-        const shopName = sanitizeHtml(shop_name || workspace_name);
-
-        // Step 1: Buy toll-free number
-        const searchResult = await telnyxApi('GET', '/v2/available_phone_numbers?filter[country_code]=US&filter[number_type]=toll-free&filter[features]=sms&filter[limit]=1');
-        const availNum = searchResult?.data?.[0]?.phone_number;
-        if (!availNum) { console.warn('Auto-TFN: no numbers available for ws', wsRef.id); return; }
-        await telnyxApi('POST', '/v2/number_orders', { phone_numbers: [{ phone_number: availNum }] });
-
-        // Step 2: Create messaging profile with webhook
-        let profileId = '';
-        try {
-          const profileResult = await telnyxApi('POST', '/v2/messaging_profiles', {
-            name: `VuriumBook - ${shopName}`,
-            webhook_url: `${API_BASE_URL}/api/webhooks/telnyx`,
-            enabled: true,
-          });
-          profileId = profileResult?.data?.id || '';
-          // Custom STOP/HELP auto-responses with business name
-          if (profileId) {
-            await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
-              response_type: 'STOP', response_text: `${shopName}: You have been unsubscribed. No further messages will be sent. Reply HELP for help.`,
-            }).catch(() => {});
-            await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
-              response_type: 'HELP', response_text: `${shopName}: For help, contact support@vurium.com. Visit https://vurium.com/support. Reply STOP to opt out.`,
-            }).catch(() => {});
-          }
-        } catch (e) { console.warn('Auto-TFN profile failed:', e.message); }
-
-        // Step 3: Associate number with messaging profile
-        if (profileId) {
-          try { await telnyxApi('PATCH', `/v2/phone_numbers/${availNum.replace('+', '')}`, { messaging_profile_id: profileId }); } catch {}
-        }
-
-        // Step 4: Save to workspace settings (SMS can be sent immediately — TFN works while verification pending)
-        await settingsRef.update({
-          sms_from_number: availNum,
-          sms_number_type: 'toll-free',
-          sms_messaging_profile_id: profileId,
-          sms_brand_name: shopName,
-          sms_registration_status: 'pending_verification',
-          sms_registered_at: toIso(new Date()),
-        });
-        console.log(`Auto-TFN provisioned for workspace ${wsRef.id}: ${availNum}`);
-
-        // Step 5: Auto-submit TFN verification request (will be processed by Telnyx in 1-2 weeks)
-        // Note: Verification requires BRN (EIN) which we may not have at signup.
-        // The number can still SEND while verification is pending.
-        // Full verification will be completed when business provides EIN in Settings.
-
-      } catch (e) {
-        console.warn('Auto-TFN provisioning failed (non-blocking):', e.message);
-      }
-    })();
+    // SMS activation moved to Settings → SP 10DLC registration (per-business brand/campaign).
+    // Auto-TFN removed: carriers require per-business 10DLC registration for appointment SMS.
+    // Business owners activate SMS via Settings → "Enable SMS Reminders" → Sole Proprietor flow.
 
     res.status(201).json({
       ok: true,
@@ -6247,17 +6191,17 @@ app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
       campaignResult = await telnyxApi('POST', '/v2/10dlc/campaignBuilder', {
         brandId,
         usecase: campaignUseCase,
-        description: `Transactional appointment-related SMS sent by ${shopName} to clients who opt in during online booking. Messages include booking confirmations, reminders, and cancellation notices. Frequency: up to 5 messages per booking.`,
-        messageFlow: 'WEBFORM',
-        sample1: `${shopName}: Your appointment is confirmed for Mon Apr 7 at 2:00 PM with John. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`,
+        description: `${shopName} sends transactional appointment-related SMS to clients who book appointments. Message types include booking confirmations, 24-hour reminders, 2-hour reminders, and cancellation notices. Messages are non-marketing and sent only after the client provides explicit SMS consent during the booking flow.`,
+        messageFlow: `Clients opt in on the online booking page at https://vurium.com/book/. During booking, the client enters their mobile number and checks an optional SMS consent checkbox stating they agree to receive appointment SMS from ${shopName}. The consent text includes message frequency, rates disclosure, STOP/HELP instructions, and links to Terms and Privacy Policy. Consent is not a condition of booking.`,
+        sample1: `${shopName}: Your appointment is confirmed for Mon Apr 7 at 2:00 PM with John. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`,
         sample2: `${shopName}: Reminder: Your appointment with John is tomorrow Mon Apr 7 at 2:00 PM. Reply STOP to opt out, HELP for help.`,
         helpMessage: `${shopName}: For help, contact support@vurium.com or call (847) 630-1884. Visit https://vurium.com/privacy for our Privacy Policy. Reply STOP to opt out.`,
         helpKeywords: 'HELP',
         optinKeywords: 'START,YES',
-        optoutKeywords: 'STOP,UNSUBSCRIBE',
-        optinMessage: `${shopName}: You're subscribed to appointment SMS. Msg frequency varies, up to 5 msgs per booking. Msg & data rates may apply. Reply HELP for help, STOP to opt out. Privacy Policy: https://vurium.com/privacy`,
-        optoutMessage: `${shopName}: You have been unsubscribed and will receive no further messages. Reply HELP for help or START to re-subscribe.`,
-        embeddedLink: true,
+        optoutKeywords: 'STOP,UNSUBSCRIBE,CANCEL,END,QUIT',
+        optinMessage: `${shopName}: You're subscribed to appointment SMS. Msg frequency varies, up to 5 per booking. Msg & data rates may apply. Reply HELP for help, STOP to opt out. Consent is not a condition of purchase.`,
+        optoutMessage: `${shopName}: You have been unsubscribed and will receive no further messages.`,
+        embeddedLink: false,
         embeddedPhone: false,
         numberPool: false,
         ageGated: false,
@@ -6395,16 +6339,16 @@ app.post('/api/sms/verify-otp', requireRole('owner'), async (req, res) => {
       campaignResult = await telnyxApi('POST', '/v2/10dlc/campaignBuilder', {
         brandId,
         usecase: 'SOLE_PROPRIETOR',
-        description: `Appointment reminders and confirmations sent by ${shopName} to clients who opt in during online booking. Frequency: up to 5 messages per booking.`,
-        messageFlow: 'WEBFORM',
+        description: `${shopName} sends transactional appointment-related SMS to clients who book appointments. Message types include booking confirmations, 24-hour reminders, 2-hour reminders, and cancellation notices. Messages are non-marketing and sent only after the client provides explicit SMS consent during the booking flow.`,
+        messageFlow: `Clients opt in on the online booking page at https://vurium.com/book/. During booking, the client enters their mobile number and checks an optional SMS consent checkbox stating they agree to receive appointment SMS from ${shopName}. The consent text includes message frequency, rates disclosure, STOP/HELP instructions, and links to Terms and Privacy Policy. Consent is not a condition of booking.`,
         sample1: `${shopName}: Your appointment is confirmed for Mon Apr 7 at 2:00 PM. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`,
         sample2: `${shopName}: Reminder: Your appointment is tomorrow at 2:00 PM. Reply STOP to opt out, HELP for help.`,
         helpMessage: `${shopName}: For help, contact support@vurium.com. Visit https://vurium.com/privacy for Privacy Policy. Reply STOP to opt out.`,
         helpKeywords: 'HELP',
         optinKeywords: 'START,YES',
-        optoutKeywords: 'STOP,UNSUBSCRIBE',
-        optinMessage: `${shopName}: You're subscribed to appointment SMS. Msg frequency varies. Msg & data rates may apply. Reply HELP for help, STOP to opt out.`,
-        optoutMessage: `${shopName}: You have been unsubscribed and will receive no further messages. Reply HELP for help or START to re-subscribe.`,
+        optoutKeywords: 'STOP,UNSUBSCRIBE,CANCEL,END,QUIT',
+        optinMessage: `${shopName}: You're subscribed to appointment SMS. Msg frequency varies, up to 5 per booking. Msg & data rates may apply. Reply HELP for help, STOP to opt out. Consent is not a condition of purchase.`,
+        optoutMessage: `${shopName}: You have been unsubscribed and will receive no further messages.`,
         embeddedLink: false,
         embeddedPhone: false,
         numberPool: false,
@@ -6471,7 +6415,7 @@ app.post('/api/sms/verify-otp', requireRole('owner'), async (req, res) => {
       telnyx_campaign_id: campaignId,
       sms_from_number: phoneNumber,
       sms_messaging_profile_id: profileId,
-      sms_registration_status: 'pending_approval', // SP campaigns need 3-7 days carrier approval
+      sms_registration_status: 'active', // SP campaigns auto-approve after OTP verification
       updated_at: toIso(new Date()),
     });
 
@@ -8600,43 +8544,71 @@ app.post('/public/device-tokens/:workspace_id', async (req, res) => {
 // ============================================================
 // PUBLIC PHONE VERIFICATION
 // ============================================================
+const TELNYX_VERIFY_PROFILE_ID = process.env.TELNYX_VERIFY_PROFILE_ID || '';
+
+function formatVerifyPhone(phone) {
+  const normalized = normPhone(safeStr(phone || ''));
+  if (!normalized || normalized.length < 10) return '';
+  return normalized.length === 10 ? `+1${normalized}` : `+${normalized}`;
+}
+
 app.post('/public/verify/send/:workspace_id', async (req, res) => {
   try {
     const wsId = req.params.workspace_id;
     const wsDoc = await db.collection('workspaces').doc(wsId).get();
     if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
     const phone = normPhone(safeStr(req.body?.phone));
-    if (!phone || phone.length < 10) return res.status(400).json({ error: 'Valid phone required' });
+    const formatted = formatVerifyPhone(phone);
+    if (!formatted) return res.status(400).json({ error: 'Valid phone required' });
     // Rate limit: max 3 verification SMS per phone per 10 minutes
-    const key = `verify_${phone}`;
-    const existingDoc = await db.collection('workspaces').doc(wsId).collection('phone_verify').doc(key).get();
-    if (existingDoc.exists) {
-      const existing = existingDoc.data();
-      const createdAt = existing?.created_at ? new Date(existing.created_at) : null;
-      const sendCount = Number(existing?.send_count || 1);
-      if (createdAt && (Date.now() - createdAt.getTime()) < 10 * 60 * 1000 && sendCount >= 3) {
-        return res.status(429).json({ error: 'Too many verification attempts. Please wait a few minutes.' });
-      }
+    const key = `verify_send_${wsId}_${phone}`;
+    const rlRef = db.collection('rate_limits').doc(key);
+    const rlSnap = await rlRef.get();
+    const rlData = rlSnap.exists ? rlSnap.data() : null;
+    const windowMs = 10 * 60 * 1000;
+    const now = Date.now();
+    const sendCount = (!rlData || now - Number(rlData.window_started_at || 0) > windowMs)
+      ? 1
+      : Number(rlData.send_count || 0) + 1;
+    if (sendCount > 3) {
+      return res.status(429).json({ error: 'Too many verification attempts. Please wait a few minutes.' });
     }
-    // Check opt-out before sending
-    const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
-    const formatted = phone.length === 10 ? `+1${phone}` : `+${phone}`;
-    const phoneNormV = normPhone(formatted) || phone;
-    const optOutV = await wsCol('clients').where('phone_norm', '==', phoneNormV).where('sms_opt_out', '==', true).limit(1).get();
-    if (!optOutV.empty) return res.json({ ok: true, sent: true }); // silently skip
+    await rlRef.set({
+      workspace_id: wsId,
+      phone,
+      send_count: sendCount,
+      window_started_at: (!rlData || now - Number(rlData.window_started_at || 0) > windowMs) ? now : Number(rlData.window_started_at || now),
+      updated_at: now,
+    }, { merge: true });
+
+    if (TELNYX_VERIFY_PROFILE_ID) {
+      try {
+        await telnyxApi('POST', '/v2/verifications/sms', {
+          phone_number: formatted,
+          verify_profile_id: TELNYX_VERIFY_PROFILE_ID,
+          type: 'sms',
+        });
+      } catch (e) {
+        console.warn('verify send provider error:', e?.message);
+        return res.status(502).json({ error: 'Verification service is temporarily unavailable. Please try again.' });
+      }
+      return res.json({ ok: true, sent: true, provider: 'telnyx_verify' });
+    }
+
+    // Fallback until TELNYX_VERIFY_PROFILE_ID is configured on the environment.
     const code = String(Math.floor(100000 + Math.random() * 900000));
-    const sendCount = (existingDoc.exists && existingDoc.data()?.send_count) ? Number(existingDoc.data().send_count) + 1 : 1;
-    await db.collection('workspaces').doc(wsId).collection('phone_verify').doc(key).set({
-      phone, code, attempts: 0, send_count: sendCount,
-      expires_at: toIso(new Date(Date.now() + 10 * 60 * 1000)),
-      created_at: existingDoc.exists && sendCount > 1 ? existingDoc.data().created_at : toIso(new Date()),
+    await db.collection('workspaces').doc(wsId).collection('phone_verify').doc(`verify_${phone}`).set({
+      phone, code, attempts: 0,
+      expires_at: toIso(new Date(Date.now() + windowMs)),
+      created_at: toIso(new Date()),
+      provider: 'legacy_local',
     });
     const verifySettings = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
     const verifyShopName = verifySettings.exists ? safeStr(verifySettings.data()?.shop_name || '') : '';
     const verifyPrefix = verifyShopName || 'VuriumBook';
     const verifySmsConf = await getWorkspaceSmsConfig(wsId);
     sendSms(formatted, `${verifyPrefix}: Your verification code is ${code}. Do not share this code. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, verifySmsConf.fromNumber, wsId).catch(e => console.warn('verify SMS error:', e?.message));
-    res.json({ ok: true, sent: true });
+    return res.json({ ok: true, sent: true, provider: 'legacy_local' });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
@@ -8648,23 +8620,42 @@ app.post('/public/verify/check/:workspace_id', async (req, res) => {
     const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
     const phone = normPhone(safeStr(req.body?.phone));
     const code = safeStr(req.body?.code);
-    if (!phone || !code) return res.status(400).json({ error: 'phone and code required' });
-    const key = `verify_${phone}`;
-    const ref = wsCol('phone_verify').doc(key);
-    const doc = await ref.get();
-    if (!doc.exists) return res.status(400).json({ error: 'No code sent. Request a new one.' });
-    const data = doc.data();
-    if (new Date(data.expires_at) < new Date()) { await ref.delete(); return res.status(400).json({ error: 'Code expired. Request a new one.' }); }
-    if ((data.attempts || 0) >= 5) { await ref.delete(); return res.status(429).json({ error: 'Too many attempts. Request a new code.' }); }
-    if (data.code !== code) { await ref.update({ attempts: (data.attempts || 0) + 1 }); return res.status(400).json({ error: 'Invalid code. Try again.' }); }
-    await ref.delete();
+    const formatted = formatVerifyPhone(phone);
+    if (!formatted || !code) return res.status(400).json({ error: 'phone and code required' });
+
+    if (TELNYX_VERIFY_PROFILE_ID) {
+      try {
+        await telnyxApi('POST', `/v2/verifications/by_phone_number/${encodeURIComponent(formatted)}/actions/verify`, {
+          code,
+          verify_profile_id: TELNYX_VERIFY_PROFILE_ID,
+        });
+      } catch (e) {
+        const msg = safeStr(e?.message || '');
+        console.warn('verify check provider error:', msg);
+        if (/(invalid|expired|incorrect|not found|not verified|failed|code)/i.test(msg)) {
+          return res.status(400).json({ error: 'Invalid or expired code. Request a new one.' });
+        }
+        return res.status(502).json({ error: 'Verification service is temporarily unavailable. Please try again.' });
+      }
+    } else {
+      const key = `verify_${phone}`;
+      const ref = wsCol('phone_verify').doc(key);
+      const doc = await ref.get();
+      if (!doc.exists) return res.status(400).json({ error: 'No code sent. Request a new one.' });
+      const data = doc.data();
+      if (new Date(data.expires_at) < new Date()) { await ref.delete(); return res.status(400).json({ error: 'Code expired. Request a new one.' }); }
+      if ((data.attempts || 0) >= 5) { await ref.delete(); return res.status(429).json({ error: 'Too many attempts. Request a new code.' }); }
+      if (data.code !== code) { await ref.update({ attempts: (data.attempts || 0) + 1 }); return res.status(400).json({ error: 'Invalid code. Try again.' }); }
+      await ref.delete();
+    }
+
     const clientSnap = await wsCol('clients').where('phone_norm', '==', phone).limit(1).get();
     let client = null;
     if (!clientSnap.empty) {
       const cd = clientSnap.docs[0].data();
       client = { id: clientSnap.docs[0].id, name: cd.name || null, email: cd.email || null };
     }
-    res.json({ ok: true, verified: true, client });
+    res.json({ ok: true, verified: true, client, provider: TELNYX_VERIFY_PROFILE_ID ? 'telnyx_verify' : 'legacy_local' });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
