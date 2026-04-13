@@ -75,6 +75,13 @@ See [[Attendance & Payroll]] for full breakdown.
 | GET | `/public/reviews/:wsId` | Public reviews |
 | POST | `/public/verify/send/:wsId` | Send verification |
 | POST | `/public/verify/check/:wsId` | Check verification |
+| POST | `/public/analytics/:wsId` | Track booking page visit |
+
+## Analytics (2 routes)
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/analytics/summary` | Last 7 days summary (widget) |
+| GET | `/api/analytics/detailed` | Extended analytics (7–90 days, hourly, referrers, trend) |
 
 ## Webhooks
 | Method | Path | Source |
