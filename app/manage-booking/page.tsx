@@ -9,6 +9,8 @@ type Booking = {
   workspace_id: string
   shop_name?: string
   logo_url?: string
+  timezone?: string
+  cancellation_hours?: number
   status: string
   client_name: string | null
   service_name: string | null
@@ -40,6 +42,12 @@ function formatDay(iso: string, tz?: string) {
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz })
 }
 
+function isChangeLocked(startAt?: string, cancellationHours?: number) {
+  if (!startAt) return false
+  const hours = Number(cancellationHours || 0)
+  return hours > 0 && (new Date(startAt).getTime() - Date.now()) < hours * 60 * 60 * 1000
+}
+
 function ManageBookingContent() {
   const params = useSearchParams()
   const token = params.get('token')
@@ -67,7 +75,15 @@ function ManageBookingContent() {
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Booking not found.'); setLoading(false); return }
       setBooking(data)
-      if (initialAction === 'cancel') setView('cancel-confirm')
+      const bookingIsPast = data?.start_at ? new Date(data.start_at) < new Date() : false
+      const bookingIsCompleted = ['completed', 'done'].includes(data?.status || '')
+      const bookingIsCancelled = data?.status === 'cancelled'
+      const bookingChangeLocked = isChangeLocked(data?.start_at, data?.cancellation_hours)
+      if (initialAction === 'cancel' && !bookingIsPast && !bookingIsCompleted && !bookingIsCancelled && !bookingChangeLocked) {
+        setView('cancel-confirm')
+      } else {
+        setView('main')
+      }
     } catch {
       setError('Failed to load booking.')
     } finally {
@@ -134,17 +150,21 @@ function ManageBookingContent() {
   const isPast = booking ? new Date(booking.start_at) < new Date() : false
   const isCancelled = booking?.status === 'cancelled'
   const isCompleted = ['completed', 'done'].includes(booking?.status || '')
+  const bookingTz = booking?.timezone
+  const cancellationHours = Number(booking?.cancellation_hours || 0)
+  const changeLocked = !!booking && isChangeLocked(booking.start_at, cancellationHours)
 
   // Date chips for next 30 days
   function getDates() {
     const dates: { key: string; label: string; sub: string }[] = []
+    const tz = bookingTz || 'America/Chicago'
     const now = new Date()
     for (let i = 0; i < 30; i++) {
       const d = new Date(now)
       d.setDate(now.getDate() + i)
-      const key = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
-      const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      const sub = i <= 1 ? '' : d.toLocaleDateString('en-US', { weekday: 'short' })
+      const key = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
+      const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { timeZone: tz, month: 'short', day: 'numeric' })
+      const sub = i <= 1 ? '' : d.toLocaleDateString('en-US', { timeZone: tz, weekday: 'short' })
       dates.push({ key, label, sub })
     }
     return dates
@@ -195,28 +215,34 @@ function ManageBookingContent() {
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>{booking.service_name || 'Appointment'}</div>
           <div style={{ color: 'rgba(255,255,255,.45)', fontSize: 13, marginBottom: 8 }}>with {booking.barber_name || 'your specialist'}</div>
           <div style={{ color: 'rgba(130,150,220,.8)', fontWeight: 500, fontSize: 14 }}>
-            {formatDate(booking.start_at)} at {formatTime(booking.start_at)}
+            {formatDate(booking.start_at, bookingTz)} at {formatTime(booking.start_at, bookingTz)}
           </div>
           {(isCancelled || isCompleted) && (
             <div style={{ marginTop: 10, padding: '6px 12px', borderRadius: 8, background: isCancelled ? 'rgba(220,60,60,.12)' : 'rgba(50,200,100,.1)', color: isCancelled ? 'rgba(255,130,130,.9)' : 'rgba(100,220,140,.9)', fontSize: 12, fontWeight: 600, display: 'inline-block' }}>
               {booking.status.toUpperCase()}
             </div>
           )}
+          {changeLocked && !isCancelled && !isCompleted && !isPast && (
+            <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(220,170,100,.08)', border: '1px solid rgba(220,170,100,.14)', color: 'rgba(255,210,150,.82)', fontSize: 12, lineHeight: 1.5 }}>
+              Changes close {cancellationHours} hour{cancellationHours === 1 ? '' : 's'} before the appointment.
+            </div>
+          )}
         </div>
 
         {/* === MAIN VIEW === */}
-        {view === 'main' && !isCancelled && !isCompleted && !isPast && (
+        {view === 'main' && !isCancelled && !isCompleted && !isPast && !changeLocked && (
           <div style={{ display: 'flex', gap: 10 }}>
             <button style={{ ...btn('ghost'), flex: 1 }} onClick={() => { setView('reschedule'); setActionError('') }}>Reschedule</button>
             <button style={{ ...btn('danger'), flex: 1 }} onClick={() => { setView('cancel-confirm'); setActionError('') }}>Cancel</button>
           </div>
         )}
 
-        {(isCancelled || isCompleted || isPast) && view === 'main' && (
+        {(isCancelled || isCompleted || isPast || changeLocked) && view === 'main' && (
           <div style={{ textAlign: 'center', color: 'rgba(255,255,255,.35)', fontSize: 13 }}>
             {isCancelled && 'This appointment has been cancelled.'}
             {isCompleted && 'This appointment is completed.'}
             {isPast && !isCancelled && !isCompleted && 'This appointment has already passed.'}
+            {changeLocked && !isCancelled && !isCompleted && !isPast && `This appointment can only be changed more than ${cancellationHours} hour${cancellationHours === 1 ? '' : 's'} in advance.`}
           </div>
         )}
 
@@ -241,6 +267,11 @@ function ManageBookingContent() {
         {view === 'reschedule' && (
           <div>
             <h2 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 600 }}>Pick a new date & time</h2>
+            {cancellationHours > 0 && (
+              <div style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)', fontSize: 12, color: 'rgba(255,255,255,.45)' }}>
+                Changes must be made at least {cancellationHours} hour{cancellationHours === 1 ? '' : 's'} before the appointment.
+              </div>
+            )}
 
             {/* Date chips */}
             <div style={{ marginBottom: 24 }}>
@@ -278,7 +309,7 @@ function ManageBookingContent() {
                         color: selectedSlot === slot ? 'rgba(130,220,170,.9)' : 'rgba(255,255,255,.6)',
                         fontWeight: selectedSlot === slot ? 600 : 400,
                       }}>
-                        {formatTime(slot)}
+                        {formatTime(slot, bookingTz)}
                       </div>
                     ))}
                   </div>
@@ -313,7 +344,7 @@ function ManageBookingContent() {
             <div style={{ fontSize: 20, marginBottom: 8 }}>✓</div>
             <div style={{ fontWeight: 600, marginBottom: 6 }}>Appointment Rescheduled</div>
             <div style={{ color: 'rgba(130,150,220,.8)', fontSize: 14, fontWeight: 500, marginBottom: 6 }}>
-              {formatDate(booking.start_at)} at {formatTime(booking.start_at)}
+              {formatDate(booking.start_at, bookingTz)} at {formatTime(booking.start_at, bookingTz)}
             </div>
             <div style={{ color: 'rgba(255,255,255,.4)', fontSize: 13 }}>A confirmation has been sent to your email.</div>
           </div>

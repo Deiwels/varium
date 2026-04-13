@@ -7946,6 +7946,12 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
     const effectivePlan = getEffectivePlan(wsData);
     if (effectivePlan === 'expired') return res.status(403).json({ error: 'This business is not accepting bookings at this time.' });
     const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
+    const pubSettingsDocPre = await wsCol('settings').doc('config').get();
+    const pubSettingsDataPre = pubSettingsDocPre.exists ? pubSettingsDocPre.data() : {};
+    const allowPublicNotes = pubSettingsDataPre?.display?.allow_notes !== false;
+    if (pubSettingsDataPre?.online_booking_enabled === false) {
+      return res.status(403).json({ error: 'Online booking is currently disabled for this business.' });
+    }
     const booking = req.body || {};
     const startAt = parseIso(booking.start_at);
     const barberId = safeStr(booking.barber_id);
@@ -8033,7 +8039,7 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
 
     // Reference photo — store data URL directly (compressed JPEG from frontend)
     let referencePhotoUrl = null;
-    if (booking.reference_photo && typeof booking.reference_photo === 'object') {
+    if (allowPublicNotes && booking.reference_photo && typeof booking.reference_photo === 'object') {
       const dataUrl = safeStr(booking.reference_photo.data_url || '');
       if (dataUrl && dataUrl.startsWith('data:image/') && dataUrl.length < 800000) {
         referencePhotoUrl = dataUrl;
@@ -8054,9 +8060,9 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       start_at: toIso(startAt), end_at: toIso(endAt),
       duration_minutes: durMin,
       status: 'booked', paid: false, source: 'website',
-      notes: encryptPII(sanitizeHtml(safeStr(booking.customer_note || booking.notes))) || null,
-      customer_note: encryptPII(sanitizeHtml(safeStr(booking.customer_note))) || null,
-      reference_photo_url: referencePhotoUrl,
+      notes: allowPublicNotes ? (encryptPII(sanitizeHtml(safeStr(booking.customer_note || booking.notes))) || null) : null,
+      customer_note: allowPublicNotes ? (encryptPII(sanitizeHtml(safeStr(booking.customer_note))) || null) : null,
+      reference_photo_url: allowPublicNotes ? referencePhotoUrl : null,
       sms_consent: smsConsent,
       sms_consent_ip: smsConsent ? getClientIp(req) : null,
       sms_consent_ua: smsConsent ? safeStr(req.headers['user-agent'] || '').slice(0, 500) : null,
@@ -8146,6 +8152,12 @@ app.post('/public/bookings-group/:workspace_id', async (req, res) => {
     const effectivePlan = getEffectivePlan(wsData);
     if (effectivePlan === 'expired') return res.status(403).json({ error: 'This business is not accepting bookings at this time.' });
     const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
+    const pubSettingsDocPre = await wsCol('settings').doc('config').get();
+    const pubSettingsDataPre = pubSettingsDocPre.exists ? pubSettingsDocPre.data() : {};
+    const allowPublicNotes = pubSettingsDataPre?.display?.allow_notes !== false;
+    if (pubSettingsDataPre?.online_booking_enabled === false) {
+      return res.status(403).json({ error: 'Online booking is currently disabled for this business.' });
+    }
     const body = req.body || {};
     const groups = Array.isArray(body.bookings) ? body.bookings : [];
     if (groups.length === 0 || groups.length > 5) return res.status(400).json({ error: 'Between 1 and 5 bookings required' });
@@ -8207,7 +8219,7 @@ app.post('/public/bookings-group/:workspace_id', async (req, res) => {
 
     // Reference photo
     let referencePhotoUrl = null;
-    if (body.reference_photo && typeof body.reference_photo === 'object') {
+    if (allowPublicNotes && body.reference_photo && typeof body.reference_photo === 'object') {
       const dataUrl = safeStr(body.reference_photo.data_url || '');
       if (dataUrl && dataUrl.startsWith('data:image/') && dataUrl.length < 800000) {
         referencePhotoUrl = dataUrl;
@@ -8260,9 +8272,9 @@ app.post('/public/bookings-group/:workspace_id', async (req, res) => {
         start_at: toIso(startAt), end_at: toIso(endAt),
         duration_minutes: durMin,
         status: 'booked', paid: false, source: 'website',
-        notes: encryptPII(sanitizeHtml(safeStr(body.customer_note || body.notes))) || null,
-        customer_note: encryptPII(sanitizeHtml(safeStr(body.customer_note))) || null,
-        reference_photo_url: referencePhotoUrl,
+        notes: allowPublicNotes ? (encryptPII(sanitizeHtml(safeStr(body.customer_note || body.notes))) || null) : null,
+        customer_note: allowPublicNotes ? (encryptPII(sanitizeHtml(safeStr(body.customer_note))) || null) : null,
+        reference_photo_url: allowPublicNotes ? referencePhotoUrl : null,
         sms_consent: smsConsent,
         sms_consent_ip: smsConsent ? getClientIp(req) : null,
         sms_consent_ua: smsConsent ? safeStr(req.headers['user-agent'] || '').slice(0, 500) : null,
@@ -8534,7 +8546,17 @@ app.post('/public/waitlist/:workspace_id', async (req, res) => {
     const wsId = req.params.workspace_id;
     const wsDoc = await db.collection('workspaces').doc(wsId).get();
     if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const wsData = wsDoc.data() || {};
+    const effectivePlan = getEffectivePlan(wsData);
+    if (effectivePlan === 'expired') return res.status(403).json({ error: 'This business is not accepting bookings at this time.' });
     const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
+    const settingsDoc = await wsCol('settings').doc('config').get();
+    const settingsData = settingsDoc.exists ? settingsDoc.data() : {};
+    const waitlistAllowedByPlan = !!PLAN_DEFS[effectivePlan]?.features?.includes('waitlist');
+    if (!waitlistAllowedByPlan || !settingsData?.waitlist_enabled) {
+      return res.status(403).json({ error: 'Waitlist is currently disabled for this business.' });
+    }
+    const allowWaitlistNotes = settingsData?.display?.allow_notes !== false;
     const email = safeStr(req.body?.email || '').toLowerCase().trim();
     const phone = normPhone(safeStr(req.body?.phone || ''));
     const barberId = safeStr(req.body?.barber_id);
@@ -8564,9 +8586,9 @@ app.post('/public/waitlist/:workspace_id', async (req, res) => {
       duration_minutes: Math.max(1, Number(req.body?.duration_minutes || 30)),
       preferred_start_min: prefStart,
       preferred_end_min: prefEnd,
-      customer_note: sanitizeHtml(safeStr(req.body?.customer_note || '')) || null,
+      customer_note: allowWaitlistNotes ? (sanitizeHtml(safeStr(req.body?.customer_note || '')) || null) : null,
       sms_consent: !!req.body?.sms_consent,
-      reference_photo: req.body?.reference_photo && typeof req.body.reference_photo === 'object' ? {
+      reference_photo: allowWaitlistNotes && req.body?.reference_photo && typeof req.body.reference_photo === 'object' ? {
         data_url: safeStr(req.body.reference_photo.data_url || '').slice(0, 600000),
         file_name: safeStr(req.body.reference_photo.file_name || 'photo.jpg'),
       } : null,
@@ -10123,4 +10145,3 @@ app.listen(PORT, () => {
   console.log(`VuriumBook API running on port ${PORT}`);
   console.log(`Environment: ${NODE_ENV}`);
 });
-

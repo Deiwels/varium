@@ -637,8 +637,9 @@ function BillingSection() {
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.3)' }}>Loading...</div>
 
   const s = statusStyles[billing?.subscription_status] || statusStyles.inactive
-  const hasSub = !!billing?.stripe_subscription_id
-  const canCancel = hasSub && billing?.subscription_status !== 'canceled' && billing?.subscription_status !== 'cancelling'
+  const hasStripeSub = !!billing?.stripe_subscription_id
+  const hasManagedSubscription = !!billing?.billing_source
+  const canCancel = hasManagedSubscription && billing?.subscription_status !== 'canceled' && billing?.subscription_status !== 'cancelling'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -666,7 +667,7 @@ function BillingSection() {
           Change Plan
         </a>
 
-        {hasSub && (
+        {hasStripeSub && (
           <button onClick={handlePortal} style={{
             height: 44, borderRadius: 12, fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
             background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.50)',
@@ -760,6 +761,61 @@ const ROLES = [
   { id: 'barber', label: 'Team Member', color: 'rgba(130,150,220,.6)' },
   { id: 'guest', label: 'Guest', color: 'rgba(220,190,130,.6)' },
 ] as const
+
+type SettingsTabId = 'shop' | 'site' | 'fees' | 'booking' | 'payroll' | 'square' | 'users' | 'permissions' | 'billing'
+
+const SETTINGS_NAV_GROUPS: {
+  id: string
+  label: string
+  items: { id: SettingsTabId; label: string; description: string; ownerOnly?: boolean }[]
+}[] = [
+  {
+    id: 'workspace',
+    label: 'Workspace',
+    items: [
+      { id: 'shop', label: 'Business Profile', description: 'Brand, contact info, timezone, and daily operations' },
+      { id: 'booking', label: 'Client Booking', description: 'Online booking rules, reminders, waitlist, and reviews' },
+      { id: 'site', label: 'Booking Site', description: 'Public URL, page design, content, and sections' },
+    ],
+  },
+  {
+    id: 'finance',
+    label: 'Payments & Finance',
+    items: [
+      { id: 'fees', label: 'Taxes & Fees', description: 'Sales tax, surcharges, and custom line items', ownerOnly: true },
+      { id: 'square', label: 'Payments & Integrations', description: 'Square terminal, Stripe Connect, and payout setup' },
+      { id: 'payroll', label: 'Payroll Defaults', description: 'Commissions, tips, and pay periods', ownerOnly: true },
+      { id: 'billing', label: 'Subscription', description: 'Plan status, billing source, and cancellation', ownerOnly: true },
+    ],
+  },
+  {
+    id: 'team',
+    label: 'Team & Access',
+    items: [
+      { id: 'users', label: 'Team Accounts', description: 'Logins, passwords, owner controls, and account lifecycle', ownerOnly: true },
+      { id: 'permissions', label: 'Roles & Permissions', description: 'What admins, team members, and guests can access', ownerOnly: true },
+    ],
+  },
+]
+
+const SETTINGS_URL_TABS: SettingsTabId[] = ['shop', 'site', 'fees', 'booking', 'payroll', 'square', 'users', 'permissions', 'billing']
+
+const TAB_PERM_MAP: Record<string, string> = {
+  shop: 'general',
+  booking: 'booking',
+  site: 'site_builder',
+  fees: 'fees_tax',
+  square: 'integrations',
+}
+
+function normalizeColorValue(value?: string) {
+  const color = String(value || '').trim()
+  if (/^#[0-9a-f]{6}$/i.test(color)) return color
+  if (/^#[0-9a-f]{3}$/i.test(color)) {
+    return `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}`
+  }
+  return '#8296dc'
+}
 
 function PermissionsTab() {
   const [perms, setPerms] = useState<Record<string, RolePerms>>(DEFAULT_PERMS)
@@ -890,7 +946,7 @@ function PermissionsTab() {
 export default function SettingsPage() {
   const { effective_plan: currentPlan } = usePlan()
   const canChangeDesign = currentPlan === 'salon' || currentPlan === 'custom'
-  const [tab, setTab] = useState<'shop'|'site'|'fees'|'booking'|'payroll'|'square'|'users'|'permissions'|'billing'>('shop')
+  const [tab, setTab] = useState<SettingsTabId>('shop')
   const [settings, setSettings] = useState<any>({})
   const [fees, setFees] = useState<Fee[]>([])
   const [charges, setCharges] = useState<Charge[]>([])
@@ -902,7 +958,6 @@ export default function SettingsPage() {
   const [squareConnecting, setSquareConnecting] = useState(false)
   const [stripeConnect, setStripeConnect] = useState<{ connected: boolean; account_id?: string; connected_at?: string; charges_enabled?: boolean; payouts_enabled?: boolean }>({ connected: false })
   const [stripeConnecting, setStripeConnecting] = useState(false)
-  const [showDedicatedNumber, setShowDedicatedNumber] = useState(false)
   const [squareDevices, setSquareDevices] = useState<any[]>([])
   const [squareLocations, setSquareLocations] = useState<any[]>([])
   const [selectedDeviceId, setSelectedDeviceId] = useState('')
@@ -934,8 +989,8 @@ export default function SettingsPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const urlTab = params.get('tab')
-    if (urlTab && ['shop','site','fees','booking','payroll','square','users','billing'].includes(urlTab)) {
-      setTab(urlTab as any)
+    if (urlTab && SETTINGS_URL_TABS.includes(urlTab as SettingsTabId)) {
+      setTab(urlTab as SettingsTabId)
     }
   }, [])
 
@@ -1001,15 +1056,6 @@ export default function SettingsPage() {
     return () => window.removeEventListener('beforeunload', handler)
   }, [dirty])
 
-  async function save() {
-    setSaving(true)
-    try {
-      await apiFetch('/api/settings', { method: 'POST', body: JSON.stringify({ ...settings, fees, charges }) })
-      setDirty(false); showToast('Settings saved ✓')
-    } catch (e: any) { showToast('Error: ' + e.message) }
-    setSaving(false)
-  }
-
   async function connectSquare() {
     setSquareConnecting(true)
     try {
@@ -1061,11 +1107,6 @@ export default function SettingsPage() {
     await saveSquareSetting('location_id', locationId)
   }
 
-  async function cleanup() {
-    try { const r = await apiFetch('/api/admin/cleanup-test-payments', { method: 'DELETE' }); showToast(`Cleaned ${r?.deleted || 0} records`) }
-    catch (e: any) { showToast('Error: ' + e.message) }
-  }
-
   const [userRole] = useState<string>(() => { try { return JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}').role || 'owner' } catch { return 'owner' } })
   const [geocoding, setGeocoding] = useState(false)
 
@@ -1074,7 +1115,6 @@ export default function SettingsPage() {
   const booking = s.booking || {}
   const display = s.display || {}
   const payroll = s.payroll || {}
-  const square = s.square || {}
 
   async function geocodeAddress() {
     const addr = s.shop_address
@@ -1095,44 +1135,54 @@ export default function SettingsPage() {
   }
 
   const { hasPerm: settingsHasPerm } = usePermissions()
-  // Map tab ids to settings_access permission keys
-  const TAB_PERM_MAP: Record<string, string> = {
-    shop: 'general', booking: 'booking', site: 'site_builder',
-    fees: 'fees_tax', square: 'integrations',
-  }
-  const ALL_TABS = [
-    { id: 'shop', label: 'General', ownerOnly: false },
-    { id: 'booking', label: 'Booking', ownerOnly: false },
-    { id: 'site', label: 'Site Builder', ownerOnly: false },
-    { id: 'fees', label: 'Fees & Tax', ownerOnly: true },
-    { id: 'payroll', label: 'Payroll', ownerOnly: true },
-    { id: 'square', label: 'Integrations', ownerOnly: false },
-    { id: 'users', label: 'Accounts', ownerOnly: true },
-    { id: 'permissions', label: 'Permissions', ownerOnly: true },
-    { id: 'billing', label: 'Billing', ownerOnly: true },
-  ] as const
-  const TABS = ALL_TABS.filter(t => {
+  const TABS = SETTINGS_NAV_GROUPS
+    .flatMap(group => group.items)
+    .filter(t => {
     // Owner sees everything
-    if (userRole === 'owner') return true
+      if (userRole === 'owner') return true
     // These tabs are always owner-only (no permission toggle)
-    if (t.id === 'users' || t.id === 'permissions' || t.id === 'billing' || t.id === 'payroll') return false
+      if (t.id === 'users' || t.id === 'permissions' || t.id === 'billing' || t.id === 'payroll') return false
     // Check settings_access permission
-    const permKey = TAB_PERM_MAP[t.id]
-    if (permKey) return settingsHasPerm('settings_access', permKey)
-    return false
-  })
+      const permKey = TAB_PERM_MAP[t.id]
+      if (permKey) return settingsHasPerm('settings_access', permKey)
+      return false
+    })
+  const visibleTabIds = TABS.map(item => item.id)
+  const visibleTabGroups = SETTINGS_NAV_GROUPS
+    .map(group => ({ ...group, items: group.items.filter(item => visibleTabIds.includes(item.id)) }))
+    .filter(group => group.items.length > 0)
+  const hasVisibleSettings = TABS.length > 0
+  const currentTabMeta = TABS.find(item => item.id === tab) || TABS[0] || null
+  const currentTabGroup = currentTabMeta ? visibleTabGroups.find(group => group.items.some(item => item.id === currentTabMeta.id)) : null
+
+  useEffect(() => {
+    if (!visibleTabIds.includes(tab) && visibleTabIds[0]) {
+      setTab(visibleTabIds[0])
+    }
+  }, [tab, visibleTabIds])
 
   return (
     <Shell page="settings">
       <style>{`
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
         select option{background:#111}
+        .settings-layout{display:grid;grid-template-columns:minmax(240px,280px) minmax(0,1fr);gap:18px;align-items:start;padding:18px 20px 24px;}
+        .settings-sidebar{position:sticky;top:18px;display:flex;flex-direction:column;gap:14px}
+        .settings-nav-grid{display:flex;flex-direction:column;gap:12px}
+        .settings-nav-group{border-radius:18px;border:1px solid rgba(255,255,255,.06);background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));padding:14px}
+        .settings-nav-item{width:100%;display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:14px;border:1px solid transparent;background:transparent;text-align:left;cursor:pointer;transition:all .2s;font-family:inherit}
+        .settings-nav-item:hover{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.06)}
+        .settings-content{min-width:0;border-radius:22px;border:1px solid rgba(255,255,255,.06);background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.015));overflow:hidden}
+        .settings-content-body{padding:20px}
+        @media(max-width:1024px){
+          .settings-layout{grid-template-columns:1fr}
+          .settings-sidebar{position:static}
+          .settings-nav-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+        }
         @media(max-width:768px){
           .page-topbar{padding-left:60px!important;}
           .page-topbar h2{font-size:13px!important;}
           .set-2col{grid-template-columns:1fr!important;}
-          .set-tabs{gap:4px!important;}
-          .set-tabs button{font-size:10px!important;padding:0 10px!important;height:32px!important;}
           .set-topbar{flex-wrap:wrap!important;gap:8px!important;}
           .set-topbar h2{font-size:13px!important;}
           .set-fee-row{grid-template-columns:1fr 70px 80px 36px!important;}
@@ -1141,40 +1191,104 @@ export default function SettingsPage() {
           .set-user-actions button{width:100%!important;justify-content:center!important;}
           .set-user-card{flex-direction:column!important;align-items:stretch!important;gap:8px!important;}
           .set-create-grid{grid-template-columns:1fr!important;}
+          .settings-layout{padding:14px 14px 24px}
+          .settings-nav-grid{grid-template-columns:1fr}
+          .settings-content-body{padding:16px}
         }
       `}</style>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
+      <div style={{ minHeight: '100vh', background: 'transparent', color: '#e8e8ed', fontFamily: 'Inter,system-ui,sans-serif' }}>
+        <div className="settings-layout">
+          <aside className="settings-sidebar">
+            <div style={{ borderRadius: 20, border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02))', padding: '18px 18px 16px' }}>
+              <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.38)', marginBottom: 8 }}>Settings</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: '#f3f4f6', letterSpacing: '-.03em', marginBottom: 8 }}>Professional control center</div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,.45)', lineHeight: 1.6, marginBottom: 14 }}>
+                Everything is grouped by workspace, finance, and team access so the setup feels predictable and client-ready.
+              </div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 999, border: '1px solid rgba(255,255,255,.08)', background: saving ? 'rgba(255,255,255,.05)' : dirty ? 'rgba(255,180,100,.08)' : 'rgba(130,220,170,.08)' }}>
+                <span style={{ width: 7, height: 7, borderRadius: 999, background: saving ? 'rgba(255,255,255,.45)' : dirty ? 'rgba(255,180,100,.75)' : 'rgba(130,220,170,.9)' }} />
+                <span style={{ fontSize: 12, color: saving ? 'rgba(255,255,255,.58)' : dirty ? 'rgba(255,210,150,.92)' : 'rgba(170,240,195,.92)' }}>
+                  {saving ? 'Saving changes…' : dirty ? 'Unsaved changes' : loading ? 'Loading settings…' : 'All changes saved'}
+                </span>
+              </div>
+            </div>
 
-        {/* Tab bar + auto-save indicator */}
+            <div className="settings-nav-grid">
+              {visibleTabGroups.length > 0 ? visibleTabGroups.map(group => (
+                <div key={group.id} className="settings-nav-group">
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.34)', marginBottom: 10 }}>
+                    {group.label}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {group.items.map(item => {
+                      const active = item.id === tab
+                      return (
+                        <button
+                          key={item.id}
+                          className="settings-nav-item"
+                          onClick={() => setTab(item.id)}
+                          style={{
+                            borderColor: active ? 'rgba(130,150,220,.22)' : 'transparent',
+                            background: active ? 'rgba(130,150,220,.08)' : 'transparent',
+                          }}
+                        >
+                          <span style={{ fontSize: 13, fontWeight: active ? 700 : 600, color: active ? '#e8e8ed' : 'rgba(255,255,255,.62)' }}>
+                            {item.label}
+                          </span>
+                          <span style={{ fontSize: 11, color: active ? 'rgba(195,205,255,.72)' : 'rgba(255,255,255,.30)', lineHeight: 1.45 }}>
+                            {item.description}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )) : (
+                <div style={{ padding: '14px 16px', borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', fontSize: 12, color: 'rgba(255,255,255,.42)', lineHeight: 1.6 }}>
+                  Your role does not currently have access to any settings categories in this workspace.
+                </div>
+              )}
+            </div>
+          </aside>
 
-        {/* Tab bar */}
-        <div className="set-tabs" style={{ display: 'flex', gap: 6, padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', overflowX: 'auto', flexShrink: 0 }}>
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              style={{ height: 36, padding: '0 16px', borderRadius: 999, border: `1px solid ${tab===t.id ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.06)'}`, background: tab===t.id ? 'rgba(255,255,255,.08)' : 'transparent', color: tab===t.id ? '#e8e8ed' : 'rgba(255,255,255,.40)', cursor: 'pointer', fontWeight: tab===t.id ? 700 : 500, fontSize: 11, letterSpacing: '.04em', fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all .2s' }}>
-              {t.label}
-            </button>
-          ))}
-          {/* Auto-save indicator */}
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            {saving && <span style={{ fontSize: 10, color: 'rgba(255,255,255,.3)' }}>Saving...</span>}
-            {!saving && dirty && <span style={{ width: 6, height: 6, borderRadius: 999, background: 'rgba(255,180,100,.5)' }} />}
-            {!saving && !dirty && !loading && <span style={{ width: 6, height: 6, borderRadius: 999, background: 'rgba(130,220,170,.4)' }} />}
-          </div>
-        </div>
+          <section className="settings-content">
+            <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(0,0,0,.12)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.32)', marginBottom: 8 }}>
+                  {currentTabGroup?.label || 'Settings'}
+                </div>
+                <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-.03em', color: '#eef2f7' }}>{currentTabMeta?.label || 'Workspace Settings'}</h2>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.42)', marginTop: 6, maxWidth: 560, lineHeight: 1.6 }}>
+                  {currentTabMeta?.description || 'You do not currently have permission to edit settings in this workspace.'}
+                </div>
+              </div>
+              <div style={{ padding: '10px 12px', borderRadius: 14, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', minWidth: 180 }}>
+                <div style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.30)', marginBottom: 4 }}>Sync status</div>
+                <div style={{ fontSize: 12, color: saving ? 'rgba(255,255,255,.6)' : dirty ? 'rgba(255,210,150,.95)' : 'rgba(170,240,195,.92)' }}>
+                  {saving ? 'Changes are being saved automatically.' : dirty ? 'Waiting to sync your latest edits.' : 'Changes are synced to the workspace.'}
+                </div>
+              </div>
+            </div>
 
-        {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px' }}>
-          {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.40)' }}>Loading settings…</div> : (<>
+            <div className="settings-content-body">
+          {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.40)' }}>Loading settings…</div> : !hasVisibleSettings ? (
+            <div style={{ maxWidth: 620, padding: '22px 24px', borderRadius: 20, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', color: 'rgba(255,255,255,.52)', lineHeight: 1.7 }}>
+              You do not currently have access to edit settings in this workspace. Ask the owner to enable the appropriate role permissions if you need access.
+            </div>
+          ) : (<>
 
             {/* ── GENERAL ── */}
             {tab === 'shop' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 600 }}>
-                <SectionCard title="Business">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 760 }}>
+                <SectionCard title="Brand & Contact">
                   <Field label="Shop name"><input value={s.shop_name || ''} onChange={e => set('shop_name', e.target.value)} placeholder="Your Business Name" style={inp} /></Field>
                   <Field label="Shop address">
                     <input value={s.shop_address || ''} onChange={e => set('shop_address', e.target.value)} placeholder="123 Main St, City, State ZIP" style={inp} />
                     <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Shown in emails and used for employee clock-in location</div>
+                  </Field>
+                  <Field label="Shop email">
+                    <input type="email" value={s.shop_email || ''} onChange={e => set('shop_email', e.target.value)} placeholder="hello@yourbusiness.com" style={inp} />
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Primary contact address for email receipts, support, and reminders</div>
                   </Field>
                   <Field label="Shop phone">
                     <input type="tel" value={s.shop_phone || ''} onChange={e => set('shop_phone', e.target.value)} placeholder="(555) 123-4567" style={inp} />
@@ -1224,48 +1338,59 @@ export default function SettingsPage() {
                     </div>
                     <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 6 }}>Used in emails and booking page. Max 5MB.</div>
                   </Field>
-                  <Field label="Timezone">
-                    <select value={s.timezone || 'America/Chicago'} onChange={e => set('timezone', e.target.value)} style={inp}>
-                      {getTimezoneList().map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Business Type">
-                    <select value={s.business_type || ''} onChange={e => set('business_type', e.target.value)} style={inp}>
-                      <option value="">Not set</option>
-                      {['Barbershop', 'Hair Salon', 'Nail Studio', 'Beauty Salon', 'Spa & Wellness', 'Tattoo Studio', 'Lash & Brow Bar', 'Other'].map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Affects staff terminology across the app (e.g. Barber, Stylist, Master)</div>
-                  </Field>
-                  <Field label="Currency">
-                    <select value={s.currency || 'USD'} onChange={e => set('currency', e.target.value)} style={inp}>
-                      <option value="USD">USD — US Dollar</option>
-                      <option value="CAD">CAD — Canadian Dollar</option>
-                      <option value="EUR">EUR — Euro</option>
-                    </select>
-                  </Field>
                 </SectionCard>
 
-                {/* Attendance & Clock-In — owner only */}
-                {userRole === 'owner' && (
-                  <SectionCard title="Attendance & Clock-In">
-                    <Toggle checked={!!s.clock_in_enabled} onChange={v => set('clock_in_enabled', v)} label="Enable clock-in / clock-out" sub="Staff and admins will see a clock-in widget on their dashboard" />
-                    {s.clock_in_enabled && (<>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)' }}>Geofence uses the shop address set in the Business section above.</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <button onClick={geocodeAddress} disabled={geocoding || !s.shop_address} style={{ height: 36, padding: '0 16px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: geocoding || !s.shop_address ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'inherit', opacity: geocoding || !s.shop_address ? .5 : 1 }}>
-                          {geocoding ? 'Finding location…' : 'Set location from address'}
-                        </button>
-                        {s.geofence_lat && s.geofence_lng && (
-                          <span style={{ fontSize: 11, color: 'rgba(130,220,170,.6)' }}>
-                            {Number(s.geofence_lat).toFixed(4)}, {Number(s.geofence_lng).toFixed(4)}
-                          </span>
-                        )}
-                      </div>
-                      <Field label="Allowed radius (meters)">
-                        <input type="number" min={50} max={5000} step={50} value={s.geofence_radius_m || 500} onChange={e => set('geofence_radius_m', Number(e.target.value))} style={inp} />
-                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>How far from the shop employees can be to clock in (default: 500m)</div>
-                      </Field>
-                    </>)}
+                <div className="set-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <SectionCard title="Regional Settings">
+                    <Field label="Timezone">
+                      <select value={s.timezone || 'America/Chicago'} onChange={e => set('timezone', e.target.value)} style={inp}>
+                        {getTimezoneList().map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="Currency">
+                      <select value={s.currency || 'USD'} onChange={e => set('currency', e.target.value)} style={inp}>
+                        <option value="USD">USD — US Dollar</option>
+                        <option value="CAD">CAD — Canadian Dollar</option>
+                        <option value="EUR">EUR — Euro</option>
+                      </select>
+                    </Field>
+                    <Field label="Business Type">
+                      <select value={s.business_type || ''} onChange={e => set('business_type', e.target.value)} style={inp}>
+                        <option value="">Not set</option>
+                        {['Barbershop', 'Hair Salon', 'Nail Studio', 'Beauty Salon', 'Spa & Wellness', 'Tattoo Studio', 'Lash & Brow Bar', 'Other'].map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Affects staff terminology across the app, onboarding templates, and client-facing language</div>
+                    </Field>
+                  </SectionCard>
+
+                  <SectionCard title="Workspace Operations">
+                    <Toggle checked={s.online_booking_enabled !== false} onChange={v => set('online_booking_enabled', v)} label="Accept online bookings" sub="Turn the public booking flow on or off without changing your public page URL" />
+                    <Toggle checked={!!s.clock_in_enabled} onChange={v => set('clock_in_enabled', v)} label="Enable clock-in / clock-out" sub="Show attendance tools on the dashboard for staff and admins" />
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', lineHeight: 1.6 }}>
+                      Keep online booking on when you want clients to self-book. Turn it off temporarily if the team is fully booked or you only want manual confirmation.
+                    </div>
+                  </SectionCard>
+                </div>
+
+                {userRole === 'owner' && s.clock_in_enabled && (
+                  <SectionCard title="Attendance Geofence">
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', lineHeight: 1.6 }}>
+                      Geofence uses the business address above to decide whether team members are physically close enough to clock in.
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <button onClick={geocodeAddress} disabled={geocoding || !s.shop_address} style={{ height: 36, padding: '0 16px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: geocoding || !s.shop_address ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'inherit', opacity: geocoding || !s.shop_address ? .5 : 1 }}>
+                        {geocoding ? 'Finding location…' : 'Set location from address'}
+                      </button>
+                      {s.geofence_lat && s.geofence_lng && (
+                        <span style={{ fontSize: 11, color: 'rgba(130,220,170,.6)' }}>
+                          {Number(s.geofence_lat).toFixed(4)}, {Number(s.geofence_lng).toFixed(4)}
+                        </span>
+                      )}
+                    </div>
+                    <Field label="Allowed radius (meters)">
+                      <input type="number" min={50} max={5000} step={50} value={s.geofence_radius_m || 500} onChange={e => set('geofence_radius_m', Number(e.target.value))} style={inp} />
+                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>How far from the shop employees can be to clock in. Default is 500 meters.</div>
+                    </Field>
                   </SectionCard>
                 )}
               </div>
@@ -1330,7 +1455,7 @@ export default function SettingsPage() {
                 </SectionCard>
 
                 <SectionCard title="Custom charges & categories"
-                  action={<SmBtn onClick={() => { setCharges(c => [...c, { id: 'charge_'+Date.now(), name: '', type: 'percent', value: 0, color: 'rgba(130,150,220,.9)', enabled: true }]); setDirty(true) }}>+ Add</SmBtn>}>
+                  action={<SmBtn onClick={() => { setCharges(c => [...c, { id: 'charge_'+Date.now(), name: '', type: 'percent', value: 0, color: '#8296dc', enabled: true }]); setDirty(true) }}>+ Add</SmBtn>}>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,.40)' }}>Promotions, membership discounts, product sales</div>
                   {charges.length === 0 ? <div style={{ color: 'rgba(255,255,255,.30)', fontSize: 12 }}>No custom charges</div> :
                     charges.map((c, i) => (
@@ -1341,8 +1466,8 @@ export default function SettingsPage() {
                           <option value="fixed">Fixed $</option>
                           <option value="label">Label only</option>
                         </select>
-                        <input type="number" min={0} step={0.01} value={c.value||''} disabled={c.type==='label'} onChange={e => { const n=[...charges]; n[i]={...n[i],value:Number(e.target.value)}; setCharges(n); setDirty(true) }} placeholder="Value" style={{...inpSm,opacity:c.type==='label'?.4:1}} />
-                        <input type="color" value={c.color||'rgba(130,150,220,.9)'} onChange={e => { const n=[...charges]; n[i]={...n[i],color:e.target.value}; setCharges(n); setDirty(true) }} style={{ height: 34, width: '100%', borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'none', cursor: 'pointer', padding: 2 }} />
+                        <input type="number" min={0} step={0.01} value={c.value||''} disabled={c.type==='label'} onChange={e => { const n=[...charges]; n[i]={...n[i],value:Number(e.target.value)}; setCharges(n); setDirty(true) }} placeholder="Value" style={{...inpSm,opacity: c.type === 'label' ? 0.4 : 1}} />
+                        <input type="color" value={normalizeColorValue(c.color)} onChange={e => { const n=[...charges]; n[i]={...n[i],color:e.target.value}; setCharges(n); setDirty(true) }} style={{ height: 34, width: '100%', borderRadius: 8, border: '1px solid rgba(255,255,255,.10)', background: 'none', cursor: 'pointer', padding: 2 }} />
                         <button onClick={() => { setCharges(charges.filter((_,j)=>j!==i)); setDirty(true) }} style={{ height: 34, width: 34, borderRadius: 10, border: '1px solid rgba(255,107,107,.35)', background: 'rgba(255,107,107,.08)', color: '#ff6b6b', cursor: 'pointer', fontSize: 15 }}>✕</button>
                       </div>
                     ))
@@ -1354,6 +1479,18 @@ export default function SettingsPage() {
             {/* ── BOOKING & SMS ── */}
             {tab === 'booking' && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 14 }}>
+                <SectionCard title="Booking Access & Client Flow">
+                  <Toggle checked={s.online_booking_enabled !== false} onChange={v => set('online_booking_enabled', v)} label="Online booking enabled" sub="When off, clients can still view your page but new bookings are blocked" />
+                  <Toggle checked={!!s.waitlist_enabled} onChange={v => set('waitlist_enabled', v)} label="Waitlist enabled" sub="Let clients join a waitlist when no slots are available" />
+                  <Field label="Cancellation window (hours)">
+                    <input type="number" min={0} max={72} value={booking.cancellation_hours ?? 2} onChange={e => setNested('booking','cancellation_hours',Number(e.target.value))} style={inp} />
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 4 }}>Applies to client self-service cancel and reschedule links</div>
+                  </Field>
+                  <Toggle checked={display.show_prices !== false} onChange={v => setNested('display','show_prices',v)} label="Show service prices" sub="Control whether prices appear on the public booking experience" />
+                  <Toggle checked={!!display.require_phone} onChange={v => setNested('display','require_phone',v)} label="Require phone number" sub="Make phone mandatory before clients can confirm a booking" />
+                  <Toggle checked={display.allow_notes !== false} onChange={v => setNested('display','allow_notes',v)} label="Allow notes & reference photos" sub="Let clients send notes and style references with their booking" />
+                </SectionCard>
+
                 <SectionCard title="SMS notifications">
                   <Toggle checked={booking.sms_confirm !== false} onChange={v => setNested('booking','sms_confirm',v)} label="Confirmation SMS" sub="Sent when booking is created" />
                   <Toggle checked={!!booking.reminder_hours_24} onChange={v => setNested('booking','reminder_hours_24',v)} label="24h reminder" sub="Day before appointment" />
@@ -1361,20 +1498,20 @@ export default function SettingsPage() {
                   <Toggle checked={!!booking.sms_on_reschedule} onChange={v => setNested('booking','sms_on_reschedule',v)} label="Reschedule notification" sub="When appointment time changes" />
                   <Toggle checked={!!booking.sms_on_cancel} onChange={v => setNested('booking','sms_on_cancel',v)} label="Cancellation notification" sub="When appointment is cancelled" />
                 </SectionCard>
+
                 <SectionCard title="Push notifications">
                   <Toggle checked={booking.push_confirm !== false} onChange={v => setNested('booking','push_confirm',v)} label="Booking confirmation" sub="Push to barber when appointment is booked" />
                   <Toggle checked={booking.push_reschedule !== false} onChange={v => setNested('booking','push_reschedule',v)} label="Reschedule push" sub="Push to barber when time changes" />
                   <Toggle checked={booking.push_cancel !== false} onChange={v => setNested('booking','push_cancel',v)} label="Cancellation push" sub="Push to barber when appointment cancelled" />
                   <Toggle checked={booking.push_waitlist !== false} onChange={v => setNested('booking','push_waitlist',v)} label="Waitlist push" sub="Push when spot opens up" />
                 </SectionCard>
-                <SectionCard title="Booking page">
-                  <Field label="Cancellation window (hours)">
-                    <input type="number" min={0} max={72} value={booking.cancellation_hours ?? 2} onChange={e => setNested('booking','cancellation_hours',Number(e.target.value))} style={inp} />
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 4 }}>Clients can cancel up to X hours before</div>
+
+                <SectionCard title="Review follow-up">
+                  <Toggle checked={s.satisfaction_sms_enabled !== false} onChange={v => set('satisfaction_sms_enabled', v)} label="Post-visit review requests" sub="Send follow-up messages that ask happy clients to leave a review" />
+                  <Field label="Google review URL">
+                    <input value={s.google_review_url || ''} onChange={e => set('google_review_url', e.target.value)} placeholder="https://g.page/r/.../review" style={inp} />
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 4 }}>Used in automated review follow-ups and reminder links</div>
                   </Field>
-                  <Toggle checked={display.show_prices !== false} onChange={v => setNested('display','show_prices',v)} label="Show service prices" sub="On public booking page" />
-                  <Toggle checked={!!display.require_phone} onChange={v => setNested('display','require_phone',v)} label="Require phone number" sub="Mandatory for SMS" />
-                  <Toggle checked={display.allow_notes !== false} onChange={v => setNested('display','allow_notes',v)} label="Allow booking notes" sub="Client can add notes & reference photo" />
                 </SectionCard>
               </div>
             )}

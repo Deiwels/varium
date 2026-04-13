@@ -47,11 +47,12 @@ const stripeAppearanceLight: Appearance = {
 }
 
 /* ── Inline Payment Form (rendered inside <Elements>) ── */
-function InlinePaymentForm({ onSuccess, onError, amount, isLight }: {
+function InlinePaymentForm({ onSuccess, onError, amount, isLight, showAmount = true }: {
   onSuccess: (paymentIntentId: string) => void
   onError: (msg: string) => void
   amount: number
   isLight: boolean
+  showAmount?: boolean
 }) {
   const stripe = useStripe()
   const elements = useElements()
@@ -97,7 +98,7 @@ function InlinePaymentForm({ onSuccess, onError, amount, isLight }: {
         background: 'rgba(130,220,170,.1)', border: '1px solid rgba(130,220,170,.2)', color: 'rgba(130,220,170,.9)',
         opacity: !stripe || paying ? 0.5 : 1,
       }}>
-        {paying ? 'Processing...' : `Pay $${(amount / 100).toFixed(2)} & Confirm`}
+        {paying ? 'Processing...' : (showAmount ? `Pay $${(amount / 100).toFixed(2)} & Confirm` : 'Pay & Confirm')}
       </button>
     </form>
   )
@@ -105,7 +106,17 @@ function InlinePaymentForm({ onSuccess, onError, amount, isLight }: {
 
 interface Barber { id: string; name: string; photo_url?: string; level?: string; schedule?: any }
 interface Service { id: string; name: string; duration_minutes: number; price_cents: number; barber_ids?: string[]; service_type?: string }
-interface Config { shop_name?: string; hero_media_url?: string; bannerText?: string; bannerEnabled?: boolean; timezone?: string }
+interface Config {
+  shop_name?: string
+  hero_media_url?: string
+  bannerText?: string
+  bannerEnabled?: boolean
+  timezone?: string
+  online_booking_enabled?: boolean
+  waitlist_enabled?: boolean
+  booking?: { cancellation_hours?: number }
+  display?: { show_prices?: boolean; require_phone?: boolean; allow_notes?: boolean }
+}
 // Each selected service is tied to a specific barber
 interface BookingLine { barberId: string; serviceId: string }
 
@@ -330,6 +341,7 @@ export default function PublicBookingPage() {
       ])
       if (!bData || bData.error === 'Workspace not found') { setNotFound(true); return }
       setConfig(cfg || {})
+      setWaitlistEnabled(cfg?.waitlist_enabled ?? !!resolved.waitlist_enabled)
       setBarbers(bData?.barbers || [])
       setServices(sData?.services || [])
       setReviews(revData?.items || [])
@@ -452,10 +464,12 @@ export default function PublicBookingPage() {
   }
 
   async function handleBook() {
-    if (!clientName || !clientEmail || !clientPhone || !selectedSlot) return
+    if (!clientName || !clientEmail || !selectedSlot) return
     if (bookingLines.length === 0) return
+    if (!onlineBookingEnabled) { setError('Online booking is currently unavailable. Please contact the business directly.'); return }
     if (!isValidEmail(clientEmail)) { setError('Please enter a valid email address.'); return }
-    if (!isValidPhone(clientPhone)) { setError('Please enter a valid phone number.'); return }
+    if (requirePhone && !clientPhone.trim()) { setError('Please enter a phone number.'); return }
+    if (clientPhone && !isValidPhone(clientPhone)) { setError('Please enter a valid phone number.'); return }
     setBookLoading(true); setError('')
     try {
       const noteWithPhoto = referencePhoto
@@ -513,9 +527,11 @@ export default function PublicBookingPage() {
   }
 
   async function handlePayOnlineFlow() {
-    if (!clientName || !clientEmail || !clientPhone || !selectedSlot || bookingLines.length === 0) return
+    if (!clientName || !clientEmail || !selectedSlot || bookingLines.length === 0) return
+    if (!onlineBookingEnabled) { setError('Online booking is currently unavailable. Please contact the business directly.'); return }
     if (!isValidEmail(clientEmail)) { setError('Please enter a valid email address.'); return }
-    if (!isValidPhone(clientPhone)) { setError('Please enter a valid phone number.'); return }
+    if (requirePhone && !clientPhone.trim()) { setError('Please enter a phone number.'); return }
+    if (clientPhone && !isValidPhone(clientPhone)) { setError('Please enter a valid phone number.'); return }
     setPaymentLoading(true); setError('')
     try {
       // 1. Create booking(s) first
@@ -613,17 +629,17 @@ export default function PublicBookingPage() {
   }
 
   async function handleJoinWaitlist() {
-    if (!waitlistName.trim() || !waitlistEmail || !waitlistPhone || !selectedBarber || !selectedDate) return
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(waitlistEmail)) { setError('Please enter a valid email address'); return }
-    const phoneDigits = waitlistPhone.replace(/\D/g, '').replace(/^1/, '')
-    if (phoneDigits.length < 10) { setError('Please enter a valid 10-digit phone number'); return }
+    if (!waitlistName.trim() || !selectedBarber || !selectedDate) return
+    if (!waitlistHasContact) { setError('Add an email or phone number so we can reach you.'); return }
+    if (trimmedWaitlistEmail && !waitlistHasValidEmail) { setError('Please enter a valid email address'); return }
+    if (waitlistPhone && !waitlistHasValidPhone) { setError('Please enter a valid 10-digit phone number'); return }
     setWaitlistSubmitting(true); setError('')
     try {
       const res = await api(`/public/waitlist/${resolvedWsId}`, {
         method: 'POST',
         body: JSON.stringify({
-          email: waitlistEmail,
-          phone: '+1' + phoneDigits,
+          email: trimmedWaitlistEmail || undefined,
+          phone: waitlistHasValidPhone ? `+1${waitlistPhoneDigits}` : undefined,
           barber_id: selectedBarber.id,
           barber_name: selectedBarber.name,
           date: selectedDate,
@@ -633,9 +649,9 @@ export default function PublicBookingPage() {
           duration_minutes: totalDuration,
           preferred_start_min: waitlistStartMin,
           preferred_end_min: waitlistEndMin,
-          customer_note: waitlistNote || undefined,
-          sms_consent: waitlistSmsConsent,
-          reference_photo: waitlistPhoto ? { data_url: waitlistPhoto.dataUrl, file_name: waitlistPhoto.name } : undefined,
+          customer_note: allowBookingNotes ? waitlistNote || undefined : undefined,
+          sms_consent: waitlistHasValidPhone ? waitlistSmsConsent : undefined,
+          reference_photo: allowBookingNotes && waitlistPhoto ? { data_url: waitlistPhoto.dataUrl, file_name: waitlistPhoto.name } : undefined,
         }),
       })
       if (res.error) throw new Error(res.error)
@@ -673,6 +689,21 @@ export default function PublicBookingPage() {
   }
 
   const displayName = shopName || config.shop_name || 'Book an Appointment'
+  const bookingSettings = config.booking || {}
+  const displaySettings = config.display || {}
+  const onlineBookingEnabled = config.online_booking_enabled !== false
+  const showPublicPrices = displaySettings.show_prices !== false
+  const requirePhone = !!displaySettings.require_phone
+  const allowBookingNotes = displaySettings.allow_notes !== false
+  const cancellationHours = Math.max(0, Number(bookingSettings.cancellation_hours || 0))
+  const phoneReadyForBooking = clientPhone ? isValidPhone(clientPhone) : !requirePhone
+  const canSubmitBooking = !!clientName.trim() && isValidEmail(clientEmail) && phoneReadyForBooking
+  const trimmedWaitlistEmail = waitlistEmail.trim()
+  const waitlistPhoneDigits = waitlistPhone.replace(/\D/g, '').replace(/^1/, '')
+  const waitlistHasValidPhone = waitlistPhoneDigits.length >= 10
+  const waitlistHasValidEmail = !!trimmedWaitlistEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedWaitlistEmail)
+  const waitlistHasContact = waitlistHasValidEmail || waitlistHasValidPhone
+  const waitlistCanSubmit = !!waitlistName.trim() && waitlistHasContact && (!trimmedWaitlistEmail || waitlistHasValidEmail) && (!waitlistPhone || waitlistHasValidPhone)
 
   // Styles
   // card & inp are defined after template is resolved (see below)
@@ -729,6 +760,7 @@ export default function PublicBookingPage() {
     e.preventDefault()
     const action = target.getAttribute('data-action')
     if (action === 'book') {
+      if (!onlineBookingEnabled) return
       const barberId = target.getAttribute('data-barber-id')
       if (barberId) {
         const barber = barbers.find(b => b.id === barberId)
@@ -860,19 +892,37 @@ export default function PublicBookingPage() {
           {/* Book Now CTA — hidden for custom template since buttons are in custom HTML */}
           {activeTemplate !== 'custom' && (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <button className="bp-btn" onClick={() => setShowBooking(true)} style={{
-              padding: '16px 48px', borderRadius: 14, fontSize: 16, fontWeight: 600, fontFamily: 'inherit',
-              background: isLightTheme ? t.accent : 'rgba(255,255,255,.1)',
-              border: `1px solid ${isLightTheme ? t.accent : 'rgba(255,255,255,.15)'}`,
-              color: isLightTheme ? '#fff' : t.text, cursor: 'pointer', transition: 'all .2s',
-            }}>Book Now</button>
+            {onlineBookingEnabled ? (
+              <button className="bp-btn" onClick={() => setShowBooking(true)} style={{
+                padding: '16px 48px', borderRadius: 14, fontSize: 16, fontWeight: 600, fontFamily: 'inherit',
+                background: isLightTheme ? t.accent : 'rgba(255,255,255,.1)',
+                border: `1px solid ${isLightTheme ? t.accent : 'rgba(255,255,255,.15)'}`,
+                color: isLightTheme ? '#fff' : t.text, cursor: 'pointer', transition: 'all .2s',
+              }}>Book Now</button>
+            ) : (
+              <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 8, alignItems: 'center', padding: '16px 22px', borderRadius: 16, border: `1px solid ${t.cardBorder}`, background: t.card }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: textMain }}>Online booking is temporarily unavailable</div>
+                <div style={{ fontSize: 13, color: textMuted, maxWidth: 360, lineHeight: 1.6 }}>Please contact the business directly to request an appointment.</div>
+              </div>
+            )}
           </div>
           )}
         </main>
       )}
 
       {/* ── BOOKING FLOW (all plans, or after Book Now for salon/custom) ── */}
-      {(showBooking || effectivePlan === 'individual') && (
+      {!onlineBookingEnabled && effectivePlan === 'individual' && (
+      <main className="bp-booking-flow" style={{ maxWidth: 560, margin: '0 auto', padding: '40px 20px 80px', position: 'relative', zIndex: 2 }}>
+        <div style={{ ...card, cursor: 'default', textAlign: 'center', padding: '24px 22px' }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: textMain, marginBottom: 8 }}>Booking is currently unavailable</div>
+          <div style={{ fontSize: 14, color: textMuted, lineHeight: 1.7 }}>
+            This business has temporarily turned off online booking. Please call, text, or email them directly for the latest availability.
+          </div>
+        </div>
+      </main>
+      )}
+
+      {onlineBookingEnabled && (showBooking || effectivePlan === 'individual') && (
       <main className="bp-booking-flow" style={{ maxWidth: 560, margin: '0 auto', padding: '40px 20px 80px', position: 'relative', zIndex: 2 }}>
 
         {/* Back to landing (salon/custom only) */}
@@ -939,7 +989,7 @@ export default function PublicBookingPage() {
               onClick={e => { if (e.target === e.currentTarget) setBarberPickerService(null) }}>
               <div style={{ width: 'min(360px, 92vw)', borderRadius: 22, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(6,6,12,.97)', padding: '24px 20px', boxShadow: '0 24px 80px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.04)' }}>
                 <div style={{ fontSize: 16, fontWeight: 700, color: '#e8e8ed', marginBottom: 4, letterSpacing: '.01em' }}>Who is this for?</div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.40)', marginBottom: 18 }}>{svc.name} — {svc.duration_minutes} min{svc.price_cents > 0 ? ` · ${fmtPrice(svc.price_cents)}` : ''}</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.40)', marginBottom: 18 }}>{svc.name} — {svc.duration_minutes} min{showPublicPrices && svc.price_cents > 0 ? ` · ${fmtPrice(svc.price_cents)}` : ''}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {eligible.map(b => (
                     <button key={b.id} onClick={() => { addLine(svc.id, b.id); setBarberPickerService(null) }}
@@ -1020,7 +1070,7 @@ export default function PublicBookingPage() {
                     <div style={{ fontSize: 12, color: textMuted, marginTop: 2 }}>{s.duration_minutes} min</div>
                   </div>
                 </div>
-                {s.price_cents > 0 && <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(130,220,170,.7)', flexShrink: 0 }}>{fmtPrice(s.price_cents)}</div>}
+                {showPublicPrices && s.price_cents > 0 && <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(130,220,170,.7)', flexShrink: 0 }}>{fmtPrice(s.price_cents)}</div>}
               </div>
             )
           }
@@ -1067,7 +1117,7 @@ export default function PublicBookingPage() {
                           {!isSolo && barber && <div style={{ fontSize: 11, color: textMuted, marginTop: 1 }}>with {barber.name}</div>}
                         </div>
                         <div style={{ fontSize: 11, color: textDim, flexShrink: 0 }}>{svc.duration_minutes} min</div>
-                        {svc.price_cents > 0 && <div style={{ fontSize: 12, color: 'rgba(130,220,170,.65)', fontWeight: 600, flexShrink: 0 }}>{fmtPrice(svc.price_cents)}</div>}
+                        {showPublicPrices && svc.price_cents > 0 && <div style={{ fontSize: 12, color: 'rgba(130,220,170,.65)', fontWeight: 600, flexShrink: 0 }}>{fmtPrice(svc.price_cents)}</div>}
                         <button onClick={() => removeLineAt(idx)} style={{ width: 22, height: 22, borderRadius: 6, border: `1px solid ${isLightTheme ? 'rgba(0,0,0,.1)' : 'rgba(255,255,255,.1)'}`, background: 'none', color: textDim, cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>×</button>
                       </div>
                     )
@@ -1075,7 +1125,7 @@ export default function PublicBookingPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTop: `1px solid ${borderSoft}` }}>
                     <div style={{ fontSize: 13, color: textMuted }}>{bookingLines.length} service{bookingLines.length > 1 ? 's' : ''}{isMultiBarber ? ` · ${involvedBarberIds.length} team members` : ''}</div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: textSoft }}>
-                      {totalDuration} min{totalPrice > 0 ? ` · ${fmtPrice(totalPrice)}` : ''}
+                      {totalDuration} min{showPublicPrices && totalPrice > 0 ? ` · ${fmtPrice(totalPrice)}` : ''}
                     </div>
                   </div>
                 </div>
@@ -1165,49 +1215,54 @@ export default function PublicBookingPage() {
                             <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Name *</label>
                             <input type="text" value={waitlistName} onChange={e => setWaitlistName(e.target.value)} placeholder="Your full name" required autoComplete="name" style={inp} />
                           </div>
-                          <div>
-                            <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Email *</label>
-                            <input type="email" value={waitlistEmail} onChange={e => setWaitlistEmail(e.target.value)} placeholder="your@email.com" required autoComplete="email" style={inp} />
+                        <div>
+                            <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Email</label>
+                            <input type="email" value={waitlistEmail} onChange={e => setWaitlistEmail(e.target.value)} placeholder="your@email.com" autoComplete="email" style={inp} />
                           </div>
                           <div>
-                            <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Phone *</label>
-                            <input type="tel" value={waitlistPhone} onChange={e => setWaitlistPhone(formatWaitlistPhone(e.target.value))} placeholder="+1 (555) 123-4567" required autoComplete="tel" style={inp} />
+                            <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Phone</label>
+                            <input type="tel" value={waitlistPhone} onChange={e => setWaitlistPhone(formatWaitlistPhone(e.target.value))} placeholder="+1 (555) 123-4567" autoComplete="tel" style={inp} />
+                            <div style={{ fontSize: 11, color: textDim, marginTop: 6 }}>Add an email or phone number so we can reach you if a slot opens.</div>
                           </div>
-                          <div>
-                            <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Notes (optional)</label>
-                            <textarea value={waitlistNote} onChange={e => setWaitlistNote(e.target.value)} placeholder="Any special requests..." rows={3} style={{ ...inp, resize: 'vertical' }} />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Reference photo (optional)</label>
-                            <div style={{ border: `1px dashed ${isLightTheme ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.12)'}`, borderRadius: 12, padding: '12px 14px', background: isLightTheme ? 'rgba(0,0,0,.02)' : 'rgba(255,255,255,.02)' }}>
-                              <input type="file" accept="image/*" onChange={e => {
-                                const file = e.target.files?.[0]; if (!file) return
-                                if (file.size > 10 * 1024 * 1024) { setError('Photo must be under 10MB'); return }
-                                const reader = new FileReader()
-                                reader.onload = () => {
-                                  const img = new Image()
-                                  img.onload = () => {
-                                    const maxW = 1200; const scale = img.width > maxW ? maxW / img.width : 1
-                                    const w = Math.round(img.width * scale), h = Math.round(img.height * scale)
-                                    const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h
-                                    canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
-                                    let q = 0.75; let dataUrl = canvas.toDataURL('image/jpeg', q)
-                                    while (dataUrl.length > 500000 && q > 0.3) { q -= 0.1; dataUrl = canvas.toDataURL('image/jpeg', q) }
-                                    setWaitlistPhoto({ dataUrl, name: file.name })
-                                  }
-                                  img.src = reader.result as string
-                                }
-                                reader.readAsDataURL(file); e.target.value = ''
-                              }} style={{ fontSize: 12, color: textMuted, fontFamily: 'inherit' }} />
-                              <div style={{ fontSize: 11, color: textDim, marginTop: 6 }}>Attach a reference photo of the style you want</div>
-                            </div>
-                            {waitlistPhoto && (
-                              <div style={{ marginTop: 10, position: 'relative', display: 'inline-block' }}>
-                                <img src={waitlistPhoto.dataUrl} alt="Reference" style={{ maxWidth: 200, maxHeight: 200, borderRadius: 12, objectFit: 'cover', border: `1px solid ${isLightTheme ? 'rgba(0,0,0,.1)' : 'rgba(255,255,255,.1)'}` }} />
-                                <button onClick={() => setWaitlistPhoto(null)} style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 999, background: 'rgba(220,60,60,.8)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                          {allowBookingNotes && (
+                            <>
+                              <div>
+                                <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Notes (optional)</label>
+                                <textarea value={waitlistNote} onChange={e => setWaitlistNote(e.target.value)} placeholder="Any special requests..." rows={3} style={{ ...inp, resize: 'vertical' }} />
                               </div>
-                            )}
-                          </div>
+                              <div>
+                                <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Reference photo (optional)</label>
+                                <div style={{ border: `1px dashed ${isLightTheme ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.12)'}`, borderRadius: 12, padding: '12px 14px', background: isLightTheme ? 'rgba(0,0,0,.02)' : 'rgba(255,255,255,.02)' }}>
+                                  <input type="file" accept="image/*" onChange={e => {
+                                    const file = e.target.files?.[0]; if (!file) return
+                                    if (file.size > 10 * 1024 * 1024) { setError('Photo must be under 10MB'); return }
+                                    const reader = new FileReader()
+                                    reader.onload = () => {
+                                      const img = new Image()
+                                      img.onload = () => {
+                                        const maxW = 1200; const scale = img.width > maxW ? maxW / img.width : 1
+                                        const w = Math.round(img.width * scale), h = Math.round(img.height * scale)
+                                        const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h
+                                        canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+                                        let q = 0.75; let dataUrl = canvas.toDataURL('image/jpeg', q)
+                                        while (dataUrl.length > 500000 && q > 0.3) { q -= 0.1; dataUrl = canvas.toDataURL('image/jpeg', q) }
+                                        setWaitlistPhoto({ dataUrl, name: file.name })
+                                      }
+                                      img.src = reader.result as string
+                                    }
+                                    reader.readAsDataURL(file); e.target.value = ''
+                                  }} style={{ fontSize: 12, color: textMuted, fontFamily: 'inherit' }} />
+                                  <div style={{ fontSize: 11, color: textDim, marginTop: 6 }}>Attach a reference photo of the style you want</div>
+                                </div>
+                                {waitlistPhoto && (
+                                  <div style={{ marginTop: 10, position: 'relative', display: 'inline-block' }}>
+                                    <img src={waitlistPhoto.dataUrl} alt="Reference" style={{ maxWidth: 200, maxHeight: 200, borderRadius: 12, objectFit: 'cover', border: `1px solid ${isLightTheme ? 'rgba(0,0,0,.1)' : 'rgba(255,255,255,.1)'}` }} />
+                                    <button onClick={() => setWaitlistPhoto(null)} style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 999, background: 'rgba(220,60,60,.8)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
                           <div>
                             <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Preferred time</label>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1233,19 +1288,21 @@ export default function PublicBookingPage() {
                             </div>
                           </div>
 
-                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4 }}>
-                            <input type="checkbox" checked={waitlistSmsConsent} onChange={e => setWaitlistSmsConsent(e.target.checked)} id="wl-sms-consent" style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }} />
-                            <label htmlFor="wl-sms-consent" style={{ fontSize: 12, color: textMuted, lineHeight: 1.5, cursor: 'pointer' }}>
-                              By checking this box, you agree to receive text messages from <strong>{shopName || 'this business'}</strong> about your appointment, including confirmations, reminders, rescheduling updates, and cancellations. Message frequency may vary. Msg &amp; data rates may apply. Reply STOP to opt out and HELP for help. See our <a href="https://vurium.com/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a> and <a href="https://vurium.com/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy Policy</a>.
-                            </label>
-                          </div>
+                          {waitlistHasValidPhone && (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4 }}>
+                              <input type="checkbox" checked={waitlistSmsConsent} onChange={e => setWaitlistSmsConsent(e.target.checked)} id="wl-sms-consent" style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }} />
+                              <label htmlFor="wl-sms-consent" style={{ fontSize: 12, color: textMuted, lineHeight: 1.5, cursor: 'pointer' }}>
+                                By checking this box, you agree to receive text messages from <strong>{shopName || 'this business'}</strong> about your appointment, including confirmations, reminders, rescheduling updates, and cancellations. Message frequency may vary. Msg &amp; data rates may apply. Reply STOP to opt out and HELP for help. See our <a href="https://vurium.com/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a> and <a href="https://vurium.com/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy Policy</a>.
+                              </label>
+                            </div>
+                          )}
                         </div>
                         <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
                           <button onClick={() => setShowWaitlistForm(false)} style={{ padding: '12px 20px', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', background: 'none', border: `1px solid ${borderSoft}`, color: textMuted }}>Cancel</button>
-                          <button onClick={handleJoinWaitlist} disabled={waitlistSubmitting || !waitlistEmail || !waitlistName.trim() || !waitlistPhone} style={{
-                            flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: waitlistSubmitting || !waitlistEmail || !waitlistName.trim() || !waitlistPhone ? 'default' : 'pointer',
+                          <button onClick={handleJoinWaitlist} disabled={waitlistSubmitting || !waitlistCanSubmit} style={{
+                            flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: waitlistSubmitting || !waitlistCanSubmit ? 'default' : 'pointer',
                             background: 'rgba(130,150,220,.1)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
-                            opacity: waitlistSubmitting || !waitlistEmail || !waitlistName.trim() || !waitlistPhone ? 0.5 : 1,
+                            opacity: waitlistSubmitting || !waitlistCanSubmit ? 0.5 : 1,
                           }}>{waitlistSubmitting ? 'Joining...' : 'Join Waitlist'}</button>
                         </div>
                       </div>
@@ -1296,7 +1353,7 @@ export default function PublicBookingPage() {
                   })}
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
                     <div style={{ fontSize: 12, color: textDim }}>{bookingLines.length} services · {involvedBarberIds.length} team members</div>
-                    {totalPrice > 0 && <div style={{ fontSize: 17, fontWeight: 600, color: 'rgba(130,220,170,.7)' }}>{fmtPrice(totalPrice)}</div>}
+                    {showPublicPrices && totalPrice > 0 && <div style={{ fontSize: 17, fontWeight: 600, color: 'rgba(130,220,170,.7)' }}>{fmtPrice(totalPrice)}</div>}
                   </div>
                 </div>
               ) : (
@@ -1306,7 +1363,7 @@ export default function PublicBookingPage() {
                     {!isSolo && <div style={{ fontSize: 13, color: textMuted, marginTop: 3 }}>with {selectedBarber?.name || linesByBarber[involvedBarberIds[0]]?.barber?.name}</div>}
                     <div style={{ fontSize: 12, color: textDim, marginTop: 2 }}>{totalDuration} min</div>
                   </div>
-                  {totalPrice > 0 && (
+                  {showPublicPrices && totalPrice > 0 && (
                     <div style={{ fontSize: 17, fontWeight: 600, color: 'rgba(130,220,170,.7)' }}>{fmtPrice(totalPrice)}</div>
                   )}
                 </div>
@@ -1314,6 +1371,11 @@ export default function PublicBookingPage() {
               <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${borderSoft}`, fontSize: 14, fontWeight: 500, color: 'rgba(130,150,220,.7)' }}>
                 {fmtFullDate(selectedDate)} at {fmtTime(selectedSlot)}
               </div>
+              {cancellationHours > 0 && (
+                <div style={{ marginTop: 8, fontSize: 11, color: textDim, lineHeight: 1.6 }}>
+                  Self-service changes close {cancellationHours} hour{cancellationHours === 1 ? '' : 's'} before the appointment.
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -1326,88 +1388,96 @@ export default function PublicBookingPage() {
                 <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="your@email.com" required style={inp} />
               </div>
               <div>
-                <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Phone *</label>
-                <input type="tel" value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="+1 (555) 123-4567" required style={inp} />
-                <div style={{ fontSize: 10, color: textDim, marginTop: 4, lineHeight: 1.4 }}>You will only receive SMS messages if you explicitly opt in by checking the consent box below. Msg &amp; data rates may apply. Msg frequency varies. Reply STOP to unsubscribe, HELP for help.</div>
-              </div>
-              <div>
-                <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Notes (optional)</label>
-                <textarea value={clientNote} onChange={e => setClientNote(e.target.value)} placeholder="Any special requests..." rows={3}
-                  style={{ ...inp, resize: 'vertical' }} />
-              </div>
-
-              {/* Reference photo upload */}
-              <div>
-                <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Reference photo (optional)</label>
-                <div style={{
-                  border: `1px dashed ${isLightTheme ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.12)'}`,
-                  borderRadius: 12, padding: '12px 14px',
-                  background: isLightTheme ? 'rgba(0,0,0,.02)' : 'rgba(255,255,255,.02)',
-                }}>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={e => {
-                      const file = e.target.files?.[0]
-                      if (!file) return
-                      if (file.size > 10 * 1024 * 1024) { setError('Photo must be under 10MB'); return }
-                      const reader = new FileReader()
-                      reader.onload = () => {
-                        // Compress to JPEG if large
-                        const img = new Image()
-                        img.onload = () => {
-                          const maxW = 1200
-                          const scale = img.width > maxW ? maxW / img.width : 1
-                          const w = Math.round(img.width * scale)
-                          const h = Math.round(img.height * scale)
-                          const canvas = document.createElement('canvas')
-                          canvas.width = w; canvas.height = h
-                          canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
-                          let q = 0.75
-                          let dataUrl = canvas.toDataURL('image/jpeg', q)
-                          while (dataUrl.length > 500000 && q > 0.3) { q -= 0.1; dataUrl = canvas.toDataURL('image/jpeg', q) }
-                          setReferencePhoto({ dataUrl, name: file.name })
-                        }
-                        img.src = reader.result as string
-                      }
-                      reader.readAsDataURL(file)
-                      e.target.value = ''
-                    }}
-                    style={{ fontSize: 12, color: textMuted, fontFamily: 'inherit' }}
-                  />
-                  <div style={{ fontSize: 11, color: textDim, marginTop: 6 }}>Attach a reference photo of the style you want</div>
+                <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Phone {requirePhone ? '*' : '(optional)'}</label>
+                <input type="tel" value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="+1 (555) 123-4567" required={requirePhone} style={inp} />
+                <div style={{ fontSize: 10, color: textDim, marginTop: 4, lineHeight: 1.4 }}>
+                  {requirePhone
+                    ? 'Phone is required for this business. SMS still stays opt-in only.'
+                    : 'Add a phone number if you want SMS confirmations and reminders.'}
                 </div>
-                {referencePhoto && (
-                  <div style={{ marginTop: 10, position: 'relative', display: 'inline-block' }}>
-                    <img src={referencePhoto.dataUrl} alt="Reference" style={{
-                      maxWidth: 200, maxHeight: 200, borderRadius: 12, objectFit: 'cover',
-                      border: `1px solid ${isLightTheme ? 'rgba(0,0,0,.1)' : 'rgba(255,255,255,.1)'}`,
-                    }} />
-                    <button onClick={() => setReferencePhoto(null)} style={{
-                      position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 999,
-                      background: 'rgba(220,60,60,.8)', border: 'none', color: '#fff', cursor: 'pointer',
-                      fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
-                    }}>×</button>
-                    <div style={{ fontSize: 11, color: textDim, marginTop: 4 }}>{referencePhoto.name}</div>
+              </div>
+              {allowBookingNotes && (
+                <>
+                  <div>
+                    <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Notes (optional)</label>
+                    <textarea value={clientNote} onChange={e => setClientNote(e.target.value)} placeholder="Any special requests..." rows={3}
+                      style={{ ...inp, resize: 'vertical' }} />
                   </div>
-                )}
-              </div>
 
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4 }}>
-                <input
-                  type="checkbox"
-                  checked={smsConsent}
-                  onChange={e => setSmsConsent(e.target.checked)}
-                  id="sms-consent"
-                  style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }}
-                />
-                <label htmlFor="sms-consent" style={{ fontSize: 12, color: textMuted, lineHeight: 1.5, cursor: 'pointer' }}>
-                  By checking this box, you agree to receive text messages from <strong>{shopName || 'this business'}</strong> about your appointment, including confirmations, reminders, rescheduling updates, and cancellations. Message frequency may vary. Msg &amp; data rates may apply. Reply STOP to opt out and HELP for help. See our <a href="https://vurium.com/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a> and <a href="https://vurium.com/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy Policy</a>.
-                </label>
-              </div>
-              {!smsConsent && (
+                  <div>
+                    <label style={{ fontSize: 13, color: textMuted, display: 'block', marginBottom: 6 }}>Reference photo (optional)</label>
+                    <div style={{
+                      border: `1px dashed ${isLightTheme ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.12)'}`,
+                      borderRadius: 12, padding: '12px 14px',
+                      background: isLightTheme ? 'rgba(0,0,0,.02)' : 'rgba(255,255,255,.02)',
+                    }}>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={e => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          if (file.size > 10 * 1024 * 1024) { setError('Photo must be under 10MB'); return }
+                          const reader = new FileReader()
+                          reader.onload = () => {
+                            const img = new Image()
+                            img.onload = () => {
+                              const maxW = 1200
+                              const scale = img.width > maxW ? maxW / img.width : 1
+                              const w = Math.round(img.width * scale)
+                              const h = Math.round(img.height * scale)
+                              const canvas = document.createElement('canvas')
+                              canvas.width = w; canvas.height = h
+                              canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+                              let q = 0.75
+                              let dataUrl = canvas.toDataURL('image/jpeg', q)
+                              while (dataUrl.length > 500000 && q > 0.3) { q -= 0.1; dataUrl = canvas.toDataURL('image/jpeg', q) }
+                              setReferencePhoto({ dataUrl, name: file.name })
+                            }
+                            img.src = reader.result as string
+                          }
+                          reader.readAsDataURL(file)
+                          e.target.value = ''
+                        }}
+                        style={{ fontSize: 12, color: textMuted, fontFamily: 'inherit' }}
+                      />
+                      <div style={{ fontSize: 11, color: textDim, marginTop: 6 }}>Attach a reference photo of the style you want</div>
+                    </div>
+                    {referencePhoto && (
+                      <div style={{ marginTop: 10, position: 'relative', display: 'inline-block' }}>
+                        <img src={referencePhoto.dataUrl} alt="Reference" style={{
+                          maxWidth: 200, maxHeight: 200, borderRadius: 12, objectFit: 'cover',
+                          border: `1px solid ${isLightTheme ? 'rgba(0,0,0,.1)' : 'rgba(255,255,255,.1)'}`,
+                        }} />
+                        <button onClick={() => setReferencePhoto(null)} style={{
+                          position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 999,
+                          background: 'rgba(220,60,60,.8)', border: 'none', color: '#fff', cursor: 'pointer',
+                          fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                        }}>×</button>
+                        <div style={{ fontSize: 11, color: textDim, marginTop: 4 }}>{referencePhoto.name}</div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {clientPhone && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4 }}>
+                  <input
+                    type="checkbox"
+                    checked={smsConsent}
+                    onChange={e => setSmsConsent(e.target.checked)}
+                    id="sms-consent"
+                    style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }}
+                  />
+                  <label htmlFor="sms-consent" style={{ fontSize: 12, color: textMuted, lineHeight: 1.5, cursor: 'pointer' }}>
+                    By checking this box, you agree to receive text messages from <strong>{shopName || 'this business'}</strong> about your appointment, including confirmations, reminders, rescheduling updates, and cancellations. Message frequency may vary. Msg &amp; data rates may apply. Reply STOP to opt out and HELP for help. See our <a href="https://vurium.com/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a> and <a href="https://vurium.com/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy Policy</a>.
+                  </label>
+                </div>
+              )}
+              {clientPhone && !smsConsent && (
                 <div style={{ fontSize: 11, color: 'rgba(220,160,80,.6)', marginTop: 6, paddingLeft: 28 }}>
-                  SMS notifications are optional and used for appointment confirmations and reminders.
+                  SMS notifications stay optional even when a phone number is provided.
                 </div>
               )}
             </div>
@@ -1428,7 +1498,7 @@ export default function PublicBookingPage() {
                     background: payOnline ? 'rgba(130,150,220,.12)' : bgSubtle,
                     border: `1px solid ${payOnline ? 'rgba(130,150,220,.2)' : borderSoft}`,
                     color: payOnline ? 'rgba(130,150,220,.9)' : textMuted,
-                  }}>Pay now ({fmtPrice(totalPrice)})</button>
+                  }}>{showPublicPrices ? `Pay now (${fmtPrice(totalPrice)})` : 'Pay now'}</button>
                 </div>
               </div>
             )}
@@ -1447,6 +1517,7 @@ export default function PublicBookingPage() {
                     onError={onPaymentError}
                     amount={totalPrice}
                     isLight={isLightTheme}
+                    showAmount={showPublicPrices}
                   />
                 </Elements>
               </div>
@@ -1456,17 +1527,17 @@ export default function PublicBookingPage() {
               <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
                 <button onClick={() => setStep(2)} style={{ padding: '12px 20px', background: 'none', border: `1px solid ${borderSoft}`, borderRadius: 12, color: textMuted, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Back</button>
                 {payOnline ? (
-                  <button onClick={handlePayOnlineFlow} disabled={!clientName || !isValidEmail(clientEmail) || !isValidPhone(clientPhone) || paymentLoading} style={{
+                  <button onClick={handlePayOnlineFlow} disabled={!canSubmitBooking || paymentLoading} style={{
                     flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit',
-                    cursor: !clientName || !isValidEmail(clientEmail) || !isValidPhone(clientPhone) || paymentLoading ? 'default' : 'pointer',
+                    cursor: !canSubmitBooking || paymentLoading ? 'default' : 'pointer',
                     background: 'rgba(130,150,220,.12)', border: '1px solid rgba(130,150,220,.2)', color: 'rgba(130,150,220,.9)',
-                    opacity: !clientName || !isValidEmail(clientEmail) || !isValidPhone(clientPhone) || paymentLoading ? 0.5 : 1,
-                  }}>{paymentLoading ? 'Setting up payment...' : `Pay ${fmtPrice(totalPrice)} & Book`}</button>
+                    opacity: !canSubmitBooking || paymentLoading ? 0.5 : 1,
+                  }}>{paymentLoading ? 'Setting up payment...' : showPublicPrices ? `Pay ${fmtPrice(totalPrice)} & Book` : 'Pay online & Book'}</button>
                 ) : (
-                  <button onClick={handleBook} disabled={!clientName || !isValidEmail(clientEmail) || !isValidPhone(clientPhone) || bookLoading} style={{
-                    flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: !clientName || !isValidEmail(clientEmail) || !isValidPhone(clientPhone) || bookLoading ? 'default' : 'pointer',
+                  <button onClick={handleBook} disabled={!canSubmitBooking || bookLoading} style={{
+                    flex: 1, padding: '14px', borderRadius: 12, fontSize: 15, fontFamily: 'inherit', cursor: !canSubmitBooking || bookLoading ? 'default' : 'pointer',
                     background: 'rgba(130,220,170,.1)', border: '1px solid rgba(130,220,170,.2)', color: 'rgba(130,220,170,.9)',
-                    opacity: !clientName || !isValidEmail(clientEmail) || !isValidPhone(clientPhone) || bookLoading ? 0.5 : 1,
+                    opacity: !canSubmitBooking || bookLoading ? 0.5 : 1,
                   }}>{bookLoading ? 'Booking...' : 'Confirm Booking'}</button>
                 )}
               </div>

@@ -605,7 +605,7 @@ export default function DashboardPage() {
       await fetch(`${API}/api/settings`, { credentials: 'include',
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ banner: { enabled: bannerEnabled, text: bannerText } })
+        body: JSON.stringify({ bannerEnabled, bannerText })
       })
       setStatusMsg('Banner saved ✓')
       setTimeout(() => setStatusMsg(''), 2000)
