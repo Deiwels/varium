@@ -2,7 +2,7 @@
 
 > [[Home]] > Tasks | See also: [[Tasks/Backlog|Backlog]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]]
 
-## VERCEL BUILD BROKEN — AI 2 fix needed
+## VERCEL BUILD BROKEN — FIXED local AI 2 patch 2026-04-13
 
 **Commit**: `f2158a2` — Vercel build fails with TypeScript error
 
@@ -13,17 +13,10 @@ Type error: Type '{ params: { id: string; }; }' does not satisfy the constraint 
     Type '{ id: string; }' is missing the following properties from type 'Promise<any>'
 ```
 
-**Fix**: Next.js 15 requires async params in layouts. Change:
-```typescript
-// WRONG
-export default function Layout({ params }: { params: { id: string } }) {
-
-// CORRECT
-export default async function Layout({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-```
+**Fix applied**: `app/book/[id]/layout.tsx` now uses Next.js 15 async route params for both `generateMetadata()` and the default layout export.
 
 **Owner**: AI 2 — file `app/book/[id]/layout.tsx`
+**Status**: FIXED LOCAL — pending push/build confirmation
 
 ---
 

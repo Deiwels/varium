@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
 const SITE_URL = 'https://vurium.com'
 const FALLBACK_IMAGE = `${SITE_URL}/logo.jpg`
+type BookingLayoutProps = { children: React.ReactNode; params: Promise<{ id: string }> }
 
 async function fetchJson<T>(path: string): Promise<T | null> {
   try {
@@ -14,8 +15,8 @@ async function fetchJson<T>(path: string): Promise<T | null> {
   }
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const { id } = params
+export async function generateMetadata({ params }: BookingLayoutProps): Promise<Metadata> {
+  const { id } = await params
   const slugOrId = encodeURIComponent(id)
   const resolved = await fetchJson<any>(`/public/resolve/${slugOrId}`)
   const resolvedWsId = resolved?.workspace_id ? encodeURIComponent(resolved.workspace_id) : ''
@@ -46,6 +47,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   }
 }
 
-export default function PublicBookingLayout({ children }: { children: React.ReactNode }) {
+export default async function PublicBookingLayout({ children, params }: BookingLayoutProps) {
+  await params
   return children
 }
