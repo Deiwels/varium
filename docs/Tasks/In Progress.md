@@ -2,6 +2,31 @@
 
 > [[Home]] > Tasks | See also: [[Tasks/Backlog|Backlog]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]]
 
+## VERCEL BUILD BROKEN — AI 2 fix needed
+
+**Commit**: `f2158a2` — Vercel build fails with TypeScript error
+
+```
+app/book/[id]/layout.tsx
+Type error: Type '{ params: { id: string; }; }' does not satisfy the constraint 'LayoutProps'.
+  Types of property 'params' are incompatible.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>'
+```
+
+**Fix**: Next.js 15 requires async params in layouts. Change:
+```typescript
+// WRONG
+export default function Layout({ params }: { params: { id: string } }) {
+
+// CORRECT
+export default async function Layout({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+```
+
+**Owner**: AI 2 — file `app/book/[id]/layout.tsx`
+
+---
+
 ## P0 — Launch Readiness (AI 1: Backend)
 
 - [x] P0.1 Webhook signature verification (Stripe + Square) — **DONE** commit `b1bdbe9` 2026-04-14
