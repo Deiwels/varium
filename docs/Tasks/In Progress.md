@@ -57,6 +57,7 @@
 - [ ] P0.13 Role-based visibility verification
   - `app/settings/page.tsx` now also normalizes the URL when the current `tab` is not visible for the active role, so role-restricted users do not stay on a stale inaccessible settings slug
 - [ ] P0.14 Mobile usability on key pages
+  - `/billing` now stacks plan cards and management actions more cleanly on small screens instead of relying on desktop-like horizontal spacing
 - [ ] P0.15 Timezone indicator on booking page — **IN PROGRESS**
   - Local implementation added to `app/book/[id]/page.tsx`
   - Pending: browser verification on live booking flow
@@ -87,7 +88,28 @@
 - [ ] P1.7 Dashboard clarity (AI 2)
 - [ ] P1.8 Booking UX polish (AI 2)
 - [ ] P1.9 Billing messaging (AI 2)
+  - Billing screen now explains whether the workspace is managed through Apple App Store subscriptions or VuriumBook web billing
+  - Manage/cancel actions now have loading states and Apple-managed subscriptions use clearer “Manage in Apple” messaging instead of Stripe-style wording
+  - Settings → Subscription now mirrors the same Apple-vs-web language and action states, so billing UX stays consistent across both surfaces
 - [ ] P1.10 Empty states (AI 2)
+  - Replaced several generic `Loading...` states in owned customer-facing screens with clearer product copy (`Loading billing details…`, `Loading booking page…`, `Checking available times…`, `Loading team members…`, `Loading role permissions…`)
+  - Dashboard and billing empty-state wording is getting more customer-friendly too (`No team members are clocked in right now`, `Traffic data will appear here once visits start coming in`, `No paid subscription is connected yet`)
+
+## P2 — After Core Launch
+
+- [x] P2.1 API pagination (AI 1) — **DONE** commit `fafcdc5` 2026-04-14
+  - /api/clients: limit param (max 500, default 200)
+  - /api/payments: limit param (max 1000, default 200)
+  - /api/messages: limit param (max 500, default 100)
+- [x] P2.2 Rate limiting (AI 1) — **DONE** commit `fafcdc5` 2026-04-14
+  - In-memory rate limiter for public endpoints (no Firestore cost)
+  - Public booking: 10 req/min per IP, returns 429 on excess
+- [ ] P2.3 Email retry queue (AI 1)
+- [ ] P2.4 Production monitoring (AI 1)
+- [ ] P2.5 Marketing pages polish (AI 2)
+- [ ] P2.6 Table sorting (AI 2)
+- [ ] P2.7 Bulk actions (AI 2)
+- [ ] P2.8 Open Graph tags (AI 2)
 
 ## Other Active Tasks
 
