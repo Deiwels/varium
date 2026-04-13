@@ -1,69 +1,91 @@
-# SMS Strategy Review — Need Joint AI 1 + AI 2 Plan
+# SMS Launch Decision Memo
 
 > [[Home]] > Tasks | Priority: HIGH
-> Created: 2026-04-14
+> Updated: 2026-04-15 | Related: [[SMS & 10DLC]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]], [[Production-Plan-AI1]], [[Production-Plan-AI2]]
 
-## Problem
+## Decision
 
-Current SMS architecture requires each business owner to:
-1. Enter business details (name, address, phone)
-2. Complete OTP verification
-3. Wait for SP brand + campaign approval (1-7 days)
-4. Get a dedicated number assigned
+**Launch with the current SMS architecture.**
 
-**This is too complex for end users.** Competitors (Booksy, Square, Vagaro) don't ask business owners for any of this — SMS just works.
+- OTP, signup, and booking verification use **Telnyx Verify**
+- Appointment reminders and business texting use **per-business SMS registration**
+- `Settings -> SMS Notifications` remains the owner-facing setup flow for launch
 
-## How competitors do it
+**Do not pivot before launch** to:
+- full toll-free auto-provisioning as the default path
+- a single ISV/platform-sender architecture
+- a hybrid auto-provision + upgrade model
 
-| Platform | Method | User effort | Cost model |
-|----------|--------|-------------|------------|
-| **Booksy** | ISV 10DLC — Booksy registers as platform sender | Zero | Booksy pays, passes cost to subscription |
-| **Square** | Toll-free number per business | Zero | Square auto-provisions TFN |
-| **Vagaro** | Shared short code (89885) | Zero | Vagaro pays for short code |
-| **Us now** | Per-business SP 10DLC | High — form + OTP + wait | Per-business registration |
+These remain post-launch strategy options, not launch blockers.
 
-## Options to evaluate
+## Why this is the launch decision
 
-### Option A: Toll-free numbers (TFN) — like Square
-- Auto-buy TFN per business on signup (we had this code, removed it)
-- TFN can send immediately while verification pending
-- No brand/campaign registration needed
-- Cost: ~$2/month per number + per-message
-- Risk: TFN verification can take 1-2 weeks but messages send during pending
-- **UX: Zero effort for business owner**
+- It matches the code that already exists in `backend/index.js` and the current Settings/booking UI
+- It avoids a late architecture change right before selling
+- It keeps the remaining work operational: live verification, Telnyx/account setup, and trustable docs
+- It reduces launch risk by verifying what we already built instead of reopening the messaging architecture
 
-### Option B: ISV platform sender — like Booksy  
-- Register VuriumBook as ISV with Telnyx
-- One platform brand + CUSTOMER_CARE campaign for all businesses
-- Messages say "VuriumBook on behalf of {Business Name}:"
-- Risk: 710 rejection (we already got this) — needs ISV approval from Telnyx
-- **UX: Zero effort for business owner**
+## Current launch architecture
 
-### Option C: Hybrid — TFN for instant + 10DLC as upgrade
-- Auto-provision TFN on signup (instant SMS)
-- Offer optional 10DLC upgrade in Settings for higher throughput
-- Best of both: works immediately + compliant long-term
-- **UX: Zero effort initially, optional upgrade later**
+### OTP / login / booking verification
 
-### Option D: Keep current per-business SP flow
-- Simplify the wizard UI (AI 2)
-- Pre-fill as much as possible from signup data
-- Make it feel like 2 clicks, not a registration form
-- **UX: Still requires owner action but minimal**
+- Stable public interface:
+  - `POST /public/verify/send/:wsId`
+  - `POST /public/verify/check/:wsId`
+- When `TELNYX_VERIFY_PROFILE_ID` is present, these routes use **Telnyx Verify**
+- When the env var is missing, the backend safely falls back to the legacy local-code path
 
-## Questions to answer
+### Appointment reminders / business SMS
 
-1. Can we use TFN (toll-free) for appointment reminders without 10DLC? (Check Telnyx docs)
-2. Did our 710 rejection block ISV model permanently, or can we retry with proper ISV application?
-3. What's the per-message cost difference between TFN vs 10DLC?
-4. What does Telnyx ISV support (Jonathan) recommend for our use case?
+- Business messaging stays on the current per-business registration flow
+- Owners complete setup in `Settings -> SMS Notifications`
+- Sole proprietor registration, OTP verification, and activation are already implemented
 
-## Who does what
+### Launch UX position
 
-- **AI 1**: Research Telnyx TFN API, verify if we can auto-provision without 10DLC, check costs
-- **AI 2**: Design simplified SMS setup UX for whichever option we choose
-- **Owner**: Ask Jonathan (Telnyx call next week) which option he recommends
+- The Settings SMS wizard is the default launch path for business messaging
+- `/api/sms/enable-tollfree` is **not** the documented default customer-facing launch path
+- Public OTP route contracts stay stable; launch planning should not rename or move them
 
-## Decision needed before launch
+## What remains before SMS is launch-ready
 
-This affects whether SMS works out-of-box or requires owner setup. Must decide before selling to new customers.
+### Operational prerequisites
+
+- Create one Telnyx Verify Profile and obtain the real `verify_profile_id`
+- Save it as the GitHub secret `TELNYX_VERIFY_PROFILE_ID`
+- Confirm Cloud Run picks up that secret on deploy
+- Finish Vurium Inc. Telnyx brand verification for business messaging
+
+### Live verification
+
+- Verify public OTP without the secret still falls back safely
+- Verify public OTP with the secret uses Telnyx Verify successfully
+- Verify the Settings SMS wizard is understandable on mobile
+- Verify booking and waitlist flows save `sms_consent_text` and `sms_consent_text_version`
+- Verify business-first consent copy is shown on the public booking flow
+
+## Deferred post-launch experiments
+
+These are valid strategy tracks, but they are **not part of launch execution**:
+
+### Toll-free auto-provisioning
+
+- Revisit as a post-launch onboarding simplification path
+- Evaluate cost, trust, deliverability, and whether it materially reduces owner setup burden
+
+### ISV / platform-sender retry
+
+- Revisit only through Telnyx partnership/support guidance
+- Treat as a research/business-development track, not a launch dependency
+
+### Hybrid instant-on SMS
+
+- Revisit only if support burden from per-business setup proves too high after launch
+- Any hybrid model must preserve the current stable OTP routes and avoid a breaking migration for existing workspaces
+
+## Implementation boundaries
+
+- Keep the public OTP interface stable
+- Keep the current Settings SMS wizard as the launch UX
+- Do not document toll-free enablement as the default launch path
+- Treat `TELNYX_VERIFY_PROFILE_ID` as an operational dependency, not a code blocker
