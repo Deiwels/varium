@@ -9207,7 +9207,7 @@ async function runPayrollAudit() {
 let lastBookingAuditRun = 0;
 
 async function runBookingAudit() {
-  if (Date.now() - lastBookingAuditRun < 4 * 60 * 60 * 1000) return; // every 4 hours
+  if (Date.now() - lastBookingAuditRun < 30 * 60 * 1000) return; // in-memory: skip if ran < 30 min ago
   lastBookingAuditRun = Date.now();
   const globalIssues = [];
   try {
@@ -9216,6 +9216,14 @@ async function runBookingAudit() {
       try {
         const wsData = wsDoc.data() || {};
         const wsCol = (col) => db.collection(`workspaces/${wsDoc.id}/${col}`);
+
+        // Per-workspace throttle from Firestore (survives cold starts)
+        const auditDoc = await wsCol('settings').doc('booking_audit').get().catch(() => null);
+        const auditData = auditDoc?.exists ? auditDoc.data() : {};
+        if (auditData?.last_run) {
+          const lastMs = new Date(auditData.last_run).getTime();
+          if (Date.now() - lastMs < 6 * 60 * 60 * 1000) continue; // skip if ran < 6 hours ago
+        }
         const shopName = wsData.shop_name || wsData.name || wsDoc.id;
         const now = new Date();
         const sevenDaysAgo = new Date(now); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -9398,7 +9406,8 @@ async function runBookingAudit() {
         const criticalCount = warnings.filter(w => w.severity === 'critical').length;
         const title = `Booking Audit: ${warnings.length} issue${warnings.length > 1 ? 's' : ''}${criticalCount > 0 ? ` (${criticalCount} critical)` : ''}`;
         const body = warnings.slice(0, 3).map(w => w.message).join(' · ');
-        sendCrmPushToRoles(wsCol, ['owner'], '🔍 ' + title, body, { screen: 'calendar' }, null, null).catch(() => {});
+        // Push disabled for booking audit — was too frequent. Email only.
+        // sendCrmPushToRoles(wsCol, ['owner'], title, body, { screen: 'calendar' }, null, null).catch(() => {});
 
         // ── Email to workspace owner ──
         const usersSnap = await wsCol('users').where('role', '==', 'owner').limit(1).get();
