@@ -85,8 +85,12 @@
   - Dashboard key date/time formatting now rerenders after workspace timezone loads from `/api/settings/timezone`
   - Additional dashboard widgets now use workspace timezone consistently for day labels, clock-in timestamps, phone-access log times, and the analog clock / free-slots calculations
   - Pending: manual UI verification across widgets/cards after refresh
-- [ ] P1.7 Dashboard clarity (AI 2)
-- [ ] P1.8 Booking UX polish (AI 2)
+- [ ] P1.7 Dashboard clarity (AI 2) — **IN PROGRESS**
+  - Dashboard now shows an owner launch checklist instead of dropping new owners straight into widgets with no guidance
+  - Desktop gets a fuller checklist card with direct links into setup categories; mobile gets a compact "Finish setup" banner that opens the next missing step
+- [ ] P1.8 Booking UX polish (AI 2) — **IN PROGRESS**
+  - Public booking now has clearer helper text across staff, services, date/time, and details steps so the flow feels less abrupt for first-time clients
+  - Empty states are more actionable too: no-services explains the booking menu is not live yet, and no-times now points people to another date or the waitlist instead of stopping cold
 - [ ] P1.9 Billing messaging (AI 2)
   - Billing screen now explains whether the workspace is managed through Apple App Store subscriptions or VuriumBook web billing
   - Manage/cancel actions now have loading states and Apple-managed subscriptions use clearer “Manage in Apple” messaging instead of Stripe-style wording
@@ -94,6 +98,7 @@
 - [ ] P1.10 Empty states (AI 2)
   - Replaced several generic `Loading...` states in owned customer-facing screens with clearer product copy (`Loading billing details…`, `Loading booking page…`, `Checking available times…`, `Loading team members…`, `Loading role permissions…`)
   - Dashboard and billing empty-state wording is getting more customer-friendly too (`No team members are clocked in right now`, `Traffic data will appear here once visits start coming in`, `No paid subscription is connected yet`)
+  - Booking empty states now explain what to do next instead of just saying "No services available" or "No times are currently open for this day"
 
 ## P2 — After Core Launch
 
@@ -104,8 +109,12 @@
 - [x] P2.2 Rate limiting (AI 1) — **DONE** commit `fafcdc5` 2026-04-14
   - In-memory rate limiter for public endpoints (no Firestore cost)
   - Public booking: 10 req/min per IP, returns 429 on excess
-- [ ] P2.3 Email retry queue (AI 1)
-- [ ] P2.4 Production monitoring (AI 1)
+- [x] P2.3 Email retry queue (AI 1) — **DONE** commit `91d9c98` 2026-04-14
+  - sendEmail retries up to 2 times with 2s/4s backoff
+  - Logs failures with recipient and subject for debugging
+- [x] P2.4 Production monitoring (AI 1) — **DONE** commit `91d9c98` 2026-04-14
+  - GET /health returns: ok, version, uptime, memory_mb, timestamp
+  - Removed duplicate health endpoint
 - [ ] P2.5 Marketing pages polish (AI 2)
 - [ ] P2.6 Table sorting (AI 2)
 - [ ] P2.7 Bulk actions (AI 2)
