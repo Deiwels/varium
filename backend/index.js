@@ -8018,9 +8018,8 @@ app.post('/public/bookings/:workspace_id', async (req, res) => {
       clientId = clientRef.id;
     }
 
-    // Validate against barber schedule
-    const pubSettingsDocPre = await wsCol('settings').doc('config').get();
-    const pubTimeZone = pubSettingsDocPre.exists ? (pubSettingsDocPre.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+    // Validate against barber schedule (reuse pubSettingsDocPre from above)
+    const pubTimeZone = pubSettingsDataPre?.timezone || 'America/Chicago';
     const pubBarberDoc = await wsCol('barbers').doc(barberId).get();
     if (!pubBarberDoc.exists || pubBarberDoc.data()?.active === false) {
       // Suggest alternative barbers
@@ -8226,8 +8225,8 @@ app.post('/public/bookings-group/:workspace_id', async (req, res) => {
       }
     }
 
-    const pubSettingsDocPre = await wsCol('settings').doc('config').get();
-    const pubTimeZone = pubSettingsDocPre.exists ? (pubSettingsDocPre.data()?.timezone || 'America/Chicago') : 'America/Chicago';
+    // Reuse pubSettingsDataPre from above
+    const pubTimeZone = pubSettingsDataPre?.timezone || 'America/Chicago';
 
     // Validate each barber
     const barberDocs = {};
