@@ -517,9 +517,7 @@ function resolveEmailLogoUrl(wsId, rawLogoUrl) {
   return s;
 }
 
-function sendEmail(to, subject, html, fromName) {
-  if (!RESEND_API_KEY) { console.warn('Resend not configured'); return Promise.resolve(null); }
-  if (!to) return Promise.resolve(null);
+function sendEmailOnce(to, subject, html, fromName) {
   const from = `${fromName || 'VuriumBook'} <${EMAIL_FROM_DOMAIN}>`;
   const payload = JSON.stringify({ from, to: [to], subject, html });
   return new Promise((resolve) => {
@@ -537,6 +535,22 @@ function sendEmail(to, subject, html, fromName) {
     req.write(payload);
     req.end();
   });
+}
+
+async function sendEmail(to, subject, html, fromName, retries = 2) {
+  if (!RESEND_API_KEY) { console.warn('Resend not configured'); return null; }
+  if (!to) return null;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const result = await sendEmailOnce(to, subject, html, fromName);
+    if (result?.id) return result; // success
+    if (attempt < retries) {
+      const delay = (attempt + 1) * 2000; // 2s, 4s
+      console.warn(`sendEmail retry ${attempt + 1}/${retries} for ${to} in ${delay}ms`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  console.error(`sendEmail FAILED after ${retries + 1} attempts: ${to} — ${subject}`);
+  return null;
 }
 
 const EMAIL_THEMES = {
@@ -3151,7 +3165,7 @@ function clearAuthCookie(res) {
 // ============================================================
 // HEALTH
 // ============================================================
-app.get('/health', (req, res) => res.json({ ok: true, service: 'vuriumbook-api', version: '3.0.0' }));
+app.get('/health', (req, res) => res.json({ ok: true, service: 'vuriumbook-api', version: '3.1.0', uptime: Math.floor(process.uptime()), memory_mb: Math.round(process.memoryUsage().heapUsed / 1048576), timestamp: new Date().toISOString() }));
 
 app.get('/health/db', async (req, res) => {
   const results = {};
@@ -10252,12 +10266,7 @@ app.get('/public/data-export/:token', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-// ============================================================
-// HEALTH CHECK (for Cloud Run startup probe)
-// ============================================================
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', uptime: Math.floor(process.uptime()), timestamp: new Date().toISOString() });
-});
+// Health check duplicate removed — single endpoint at line ~3168
 
 // ============================================================
 // 404 fallback
