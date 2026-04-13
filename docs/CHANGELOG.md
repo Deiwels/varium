@@ -1,5 +1,51 @@
 # VuriumBook — Changelog
 
+> [[Home]] > Plans & Process
+
+## April 13, 2026
+
+### Registration & Onboarding
+- **Required timezone on signup** — Timezone selector with full IANA list (~400 entries), auto-detects browser timezone, formatted as `(UTC-05:00) America/New_York`
+- **Business type → dynamic terminology** — Signup stores `business_type`, affects staff labels across app: Barbershop→Barber, Hair Salon→Stylist, Nail Studio/Beauty Salon/Lash & Brow→Master, Tattoo→Artist, Spa/Other→Specialist
+- **Business type selector in settings** — Changeable after registration in General settings
+- **Shop name auto-saved** — Business name from signup stored as `shop_name` in settings
+- **Welcome email for team members** — When owner creates admin/barber, they receive branded email with role, login email, sign-in link
+- **Email required for team accounts** — `email` field mandatory in UserCreateSchema (was optional), enables password recovery
+- **Email uniqueness check** — Backend validates no duplicate email within workspace when creating team member
+
+### Plan Gating
+- **Payroll/Expenses hidden from nav** — Added `feature: 'payroll'` and `feature: 'expenses'` to Shell nav items; now plan-gated (custom plan only)
+
+### Performance Optimization (Major)
+- **Nebula blur removal** — Replaced `filter: blur(140px)` on 6 large elements with `radial-gradient()` (same visual, no GPU blur computation)
+- **Box-shadow animations eliminated** — `starBreathe`, `star-breathe`, `glow-breathe` now GPU-composited (`opacity` + `transform` only)
+- **backdrop-filter removed** from all always-visible elements (navbar, glass-card, calendar header, developer sidebar) — kept only for modals
+- **Duplicate starfield fix** — Pages with `.space-bg` now hide `#vurium-cosmos` to avoid rendering two full-screen starfields
+- **rAF loops optimized** — 7 pages fixed: stop on tab hidden, auto-stop after 2s idle, cached DOM refs; 2 pages had useless rAF removed entirely
+- **Visibility-aware polling** — New `useVisibilityPolling` hook replaces raw `setInterval` on 6 pages; pauses when tab hidden
+- **Shell unread polling** — Reduced from 20s to 45s + visibility-aware (was 4-6 API calls every 20s in background)
+- **Calendar grid lines** — Replaced 288 DOM divs per barber column with single CSS gradient (-1440 elements for 5 barbers)
+- **Self-hosted fonts** — Switched from Google Fonts CDN to `next/font/google` (no external blocking request)
+- **Browser caching enabled** — Removed `Cache-Control: max-age=0`
+- **GPU compositing** — Added `will-change` + `contain` to fixed layers
+- **Calendar localStorage poll** — 1.5s interval replaced with `storage` event + `visibilitychange`
+
+### UI
+- **Sign In nav link** — Changed from white button (`btn-nav-cta`) to regular text link on all 16 pages
+
+## April 15, 2026
+
+### Smart Booking System
+- **Booking Audit Engine** — Background job (every 4h) scans 8 health checks: double bookings, ghost barbers, stale statuses, missing data, orphaned bookings, schedule violations, cancellation spikes, no-show patterns
+- **Auto-fix stale bookings** — Past bookings in "booked" status automatically changed to "noshow" with `auto_noshow` flag
+- **Ghost barber client alerts** — SMS + email to affected clients with reschedule/rebook links when barber is deleted/inactive
+- **Smart recommendations** — On booking conflict/error, API returns alternative slots + alternative barbers
+- **Client satisfaction ping** — After visit completion: email with star rating + "Leave a Google Review" button, SMS 2h later with review link
+- **Waitlist auto-fill** — Cancellations automatically notify matching waitlist clients via SMS + email
+- **Booking rate limiter** — Max 3 bookings per phone/email per hour per workspace (429 response)
+- **Booking audit status endpoint** — `GET /api/booking-audit/status`
+- **New settings** — `google_review_url`, `satisfaction_sms_enabled`
+
 ## April 6-12, 2026
 
 ### iOS App Fixes
