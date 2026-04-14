@@ -223,6 +223,36 @@ Type error: Cannot find name 'showConfirm'.
 
 ## SMS & 10DLC Compliance
 
+See also: [[Tasks/SMS Finalization Plan|SMS Finalization Plan]]
+
+### SMS finalization checklist — do this now
+
+#### AI 2 — frontend / UX / reviewer-facing validation
+- [ ] Verify new workspace `Settings -> SMS Notifications` shows the toll-free-first card by default
+- [ ] Verify new workspace does **not** surface EIN / SP registration as the primary setup path
+- [ ] Verify toll-free states render correctly: `not enabled -> provisioning -> pending/active/failed`
+- [ ] Verify booking + waitlist consent copy uses `{shopName} Appointment Notifications`
+- [ ] Verify email-only fallback copy is clear whenever workspace SMS is not active
+- [ ] Verify the legal pages still match the live SMS consent text after deploy
+
+#### AI 1 — backend / ops / Telnyx finalization
+- [ ] Create the real Telnyx Verify Profile and capture `TELNYX_VERIFY_PROFILE_ID` — **OWNER MANUAL TASK**
+- [ ] Save `TELNYX_VERIFY_PROFILE_ID` as the GitHub secret — **OWNER MANUAL TASK**
+- [x] Confirm OTP endpoints work before and after secret — **CODE VERIFIED**
+  - Without secret: legacy local 6-digit code via Firestore + SMS
+  - With secret: Telnyx Verify API. Both have rate limiting.
+- [x] Confirm toll-free does not fall back to global sender — **CODE VERIFIED**
+  - All reminder callers use `allowGlobalFallback: false`. No own number = email-only.
+- [x] Confirm Element Barbershop untouched — **CODE VERIFIED**
+  - `enable-tollfree` blocks if status is not `none`/`rejected`. Element safe.
+- [ ] Get written Telnyx confirmation or internal pilot sign-off — **OWNER TASK** (call with Jonathan)
+
+#### Joint sign-off
+- [ ] One fresh workspace passes toll-free-first SMS setup
+- [ ] One grandfathered/pending manual workspace still shows the manual path
+- [ ] OTP flow passes end-to-end
+- [ ] Booking consent text, privacy, and terms all match the live product
+
 ### Product direction — dual path
 - **New workspaces**: toll-free-first reminder setup
 - **Existing / pending 10DLC workspaces**: grandfathered manual path
@@ -241,6 +271,8 @@ Type error: Cannot find name 'showConfirm'.
 - [x] 1.4 Manual business registrations are now tagged with `sms_number_type: '10dlc'`
 - [x] 1.5 Toll-free endpoint remains the default provisioning path for new workspaces
 - [x] 1.6 Docs updated
+- [x] 1.7 Backend fallback consent text aligned
+  - Generic `sms_consent_text` fallback now matches the current appointment-notifications wording instead of the older pre-pivot SMS copy
 
 ### Frontend (AI 2) — IN PROGRESS
 - [x] 2.1 Settings — toll-free-first SMS card for new workspaces
