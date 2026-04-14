@@ -383,7 +383,7 @@ For SMS upgrade (in Settings):
 | Component | Status | Location |
 |---|---|---|
 | `sendSms()` with Telnyx API v2 | ✅ Working | `backend/index.js:433-471` |
-| Auto-provision TFN on signup | ❌ **Removed** — SMS via Settings now | `backend/index.js:3274` (comment only) |
+| Auto-provision TFN on signup / plan activation | ✅ **Restored** via Gap 5 auto-activation path | `autoProvisionSmsOnActivation()` in `backend/index.js` + wire-points at `/auth/signup`, `handleStripeEvent`, `/api/billing/apple-verify`; background retry job `runSmsAutoProvisionRetry()`; owner never has to click "Enable SMS" manually |
 | Telnyx Verify API (2FA OTP) | ✅ **NEW** — bypasses 10DLC | `backend/index.js` POST `/public/verify/send/:wsId` + `/public/verify/check/:wsId` |
 | SP brand registration | ✅ Working | POST `/api/sms/register` (entityType=SOLE_PROPRIETOR) |
 | SP OTP verification | ✅ Working | POST `/api/sms/verify-otp` → auto-creates campaign + buys number |

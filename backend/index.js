@@ -58,13 +58,27 @@ app.use(cors({
 }));
 
 app.use(cookieParser());
-app.use(express.json({ limit: '10mb' }));
+
+// BUG-013 fix: webhook endpoints need their raw body for signature verification
+// (Stripe HMAC, Apple JWS, Stripe Connect HMAC). The global express.json() would consume
+// the stream first and leave req.body as a parsed object with no way to reconstruct the
+// exact raw bytes. Skip JSON parsing here for webhook paths — each webhook route applies
+// its own express.raw() / express.json() middleware inline.
+function isWebhookEndpoint(fullPath) {
+  if (!fullPath) return false;
+  return fullPath === '/api/stripe/webhook' || fullPath.startsWith('/api/webhooks/');
+}
+const jsonParser = express.json({ limit: '10mb' });
+app.use((req, res, next) => {
+  if (isWebhookEndpoint(req.path)) return next();
+  return jsonParser(req, res, next);
+});
 
 // CSRF protection — verify Origin/Referer for state-changing requests
 app.use((req, res, next) => {
   if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
-  // Skip for webhooks (Stripe, Telnyx, Square) — they don't send Origin
-  if (req.path.includes('/webhooks/')) return next();
+  // Skip for webhooks (Stripe, Stripe Connect, Apple, Telnyx, Square) — they don't send Origin
+  if (isWebhookEndpoint(req.path)) return next();
   const origin = req.headers.origin || '';
   const referer = req.headers.referer || '';
   // Allow if no origin (server-to-server, curl, mobile apps)
@@ -1085,8 +1099,12 @@ async function sendCrmPushToStaff(wsCol, barberId, title, body, data = {}, prefK
   }
 })();
 
-// Diagnostic: check APNs config (temporary)
-app.get('/api/push/status', (req, res) => {
+// Diagnostic: check APNs config (superadmin only).
+// BUG-002 fix: was registered before the auth middleware at line ~3350 and leaked
+// partial APNs key id / team id / JWT validity / key source. Now gated behind the
+// Developer Panel magic-link auth (`requireSuperadmin`), which is the same path used
+// by every other `/api/vurium-dev/*` diagnostic endpoint.
+app.get('/api/push/status', requireSuperadmin, (req, res) => {
   const keyId = process.env.APNS_KEY_ID || '';
   const teamId = process.env.APNS_TEAM_ID || '';
   const keyP8 = process.env.APNS_KEY_P8 || '';
@@ -3320,7 +3338,27 @@ app.use('/api', (req, res, next) => {
   }
   next();
 });
-app.use('/api', authenticate, requireAuth, resolveWorkspace);
+// BUG-013 fix: webhook endpoints must bypass JWT auth middleware — they verify via provider
+// signatures (Stripe HMAC, Apple JWS, Telnyx Ed25519) and do not carry user tokens.
+// Affected endpoints registered later in the file: /api/stripe/webhook (~10400),
+// /api/webhooks/stripe-connect (~7680), /api/webhooks/apple (~10550). Square, Telnyx, and
+// Telnyx-10dlc webhooks are already registered before this middleware and so are naturally
+// unaffected. Uses `isWebhookEndpoint` helper defined at line ~60 where the global JSON
+// parser skip lives.
+app.use('/api', (req, res, next) => {
+  // Fast path: webhook endpoints skip JWT auth entirely. Inside `/api` mount, req.path
+  // is the stripped path (e.g. /stripe/webhook), so we reconstruct the full path before
+  // checking the shared helper.
+  const fullPath = '/api' + req.path;
+  if (isWebhookEndpoint(fullPath)) return next();
+  return authenticate(req, res, (err) => {
+    if (err) return next(err);
+    return requireAuth(req, res, (err2) => {
+      if (err2) return next(err2);
+      return resolveWorkspace(req, res, next);
+    });
+  });
+});
 
 // Apply only authenticate for /public/ routes (no auth required)
 app.use('/public', (req, res, next) => {
@@ -8149,10 +8187,12 @@ app.post('/api/push/register', async (req, res) => {
     if (!deviceToken) return res.status(400).json({ error: 'device_token required' });
 
     // Remove this device token from ALL other workspaces first
+    // BUG-014 fix: middleware sets req.wsId (not req.workspaceId) — skip was never matching, causing
+    // the current workspace's own token to be deleted and recreated on every register call.
     try {
       const allWs = await db.collection('workspaces').get();
       for (const ws of allWs.docs) {
-        if (ws.id === req.workspaceId) continue; // skip current workspace
+        if (ws.id === req.wsId) continue; // skip current workspace
         const tokenDoc = ws.ref.collection('crm_push_tokens').doc(deviceToken);
         const exists = await tokenDoc.get();
         if (exists.exists) {
@@ -8935,6 +8975,42 @@ app.get('/public/config/:workspace_id', async (req, res) => {
     if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
     const doc = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
     const data = doc.exists ? doc.data() : {};
+
+    // SET-001 through SET-007 fix: public booking page reads display / booking / fees
+    // settings but this endpoint previously returned only 9 fields, so toggles saved in
+    // Settings UI silently had no effect on the public booking page. The public response
+    // is now an explicit allowlist — never spread the full settings doc because it holds
+    // sensitive fields (Stripe/Square/SMS tokens, role_permissions, payroll rates, etc.).
+    //
+    // Booking backend also enforces these same fields; the public response makes the UI
+    // match the backend behavior instead of showing a form that will silently fail at
+    // submit time.
+    const display = data.display && typeof data.display === 'object' ? data.display : {};
+    const booking = data.booking && typeof data.booking === 'object' ? data.booking : {};
+    const publicDisplay = {
+      show_prices: display.show_prices !== false, // default true
+      require_phone: !!display.require_phone,
+      allow_notes: display.allow_notes !== false, // default true
+    };
+    const publicBooking = {
+      cancellation_hours: Number(booking.cancellation_hours || 0),
+    };
+
+    // Fees / tax / custom charges used by public online payment total calculation.
+    // Only include the shape needed for price math — never raw provider secrets.
+    const sanitizeFeeArray = (arr) => Array.isArray(arr) ? arr.map(f => ({
+      label: safeStr(f?.label || ''),
+      type: safeStr(f?.type || 'percent'),
+      value: Number(f?.value || 0),
+      applies_to: safeStr(f?.applies_to || 'all'),
+    })) : [];
+    const sanitizeTax = (t) => t && typeof t === 'object' ? {
+      label: safeStr(t.label || ''),
+      rate: Number(t.rate || 0),
+      included_in_price: !!t.included_in_price,
+      applies_to: safeStr(t.applies_to || 'all'),
+    } : null;
+
     res.json({
       shopStatusMode: safeStr(data.shopStatusMode || 'auto'),
       shopStatusCustomText: safeStr(data.shopStatusCustomText || ''),
@@ -8945,6 +9021,22 @@ app.get('/public/config/:workspace_id', async (req, res) => {
       shop_name: safeStr(data.shop_name || ''),
       sms_brand_name: safeStr(data.sms_brand_name || data.shop_name || ''),
       timezone: safeStr(data.timezone || 'America/Chicago'),
+      business_type: safeStr(data.business_type || ''),
+      // SET-004: public booking flow needs to know when online booking is disabled
+      // so the UI can render a clear "booking unavailable" state upfront instead of
+      // letting the customer fill out the whole form and then hit a backend 400.
+      online_booking_enabled: data.online_booking_enabled !== false,
+      // SET-006: same reasoning for waitlist — plan feature gate still applies on top
+      // of this, but the owner-facing setting now reaches the booking page.
+      waitlist_enabled: !!data.waitlist_enabled,
+      // SET-001 / SET-002 / SET-003
+      display: publicDisplay,
+      // SET-005
+      booking: publicBooking,
+      // SET-007 — expose the shape public payment math needs, nothing else
+      tax: sanitizeTax(data.tax),
+      fees: sanitizeFeeArray(data.fees),
+      charges: sanitizeFeeArray(data.charges),
     });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -10362,14 +10454,17 @@ app.post('/api/billing/apple-verify', requireRole('owner'), async (req, res) => 
     }
 
     await wsRef.update(updateData);
-    console.log(`[Apple IAP] Verified purchase for workspace ${req.workspaceId}: ${plan} (txn: ${transactionId})`);
+    console.log(`[Apple IAP] Verified purchase for workspace ${req.wsId}: ${plan} (txn: ${transactionId})`);
 
     // Gap 5: auto-provision SMS on Apple IAP activation.
     // Fire-and-forget so Apple verify response is not blocked by Telnyx provisioning latency.
+    // NEW-002 fix: middleware sets req.wsId (not req.workspaceId) — earlier version passed
+    // undefined workspace id into autoProvisionSmsOnActivation, causing the Apple IAP trigger
+    // to silently no-op.
     const freshWs = await wsRef.get().catch(() => null);
     if (freshWs && freshWs.exists) {
       const d = freshWs.data() || {};
-      autoProvisionSmsOnActivation({ id: req.workspaceId, name: d.name || '', slug: d.slug || '' }, 'apple_paid').catch(() => {});
+      autoProvisionSmsOnActivation({ id: req.wsId, name: d.name || '', slug: d.slug || '' }, 'apple_paid').catch(() => {});
     }
 
     res.json({ ok: true, plan });
