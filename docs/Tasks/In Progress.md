@@ -86,6 +86,17 @@
     - SMS compliance footer text
     - public Privacy / Terms links
     - a branded CTA (`Book with {Business}`)
+- [x] Booking page section toggles now actually control the public landing page
+  - `site_config.sections_enabled` is now respected by `app/book/[id]/page.tsx` for:
+    - hero
+    - about
+    - services
+    - team
+    - reviews
+  - custom proof block now also respects the `Services` toggle instead of re-showing services after the owner hides that section
+- [x] Custom-page compliance footer no longer duplicates the proof block
+  - when the custom proof block is visible, the global footer now keeps only the lightweight `Powered by VuriumBook` line
+  - the SMS compliance text + Privacy / Terms links stay in one place instead of appearing twice at the bottom
 - [ ] Owner data dependency still remains for Element public proof
   - `Business details` only render when `shop_address`, `shop_phone`, and/or `shop_email` are actually saved in Element Settings
   - if those fields are empty in Firestore, no frontend patch can surface them for Telnyx review

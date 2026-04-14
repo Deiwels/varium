@@ -874,7 +874,15 @@ export default function PublicBookingPage() {
   }
   // Individual: Vurium (modern) unless AI style. Salon/Custom: use selected template.
   const activeTemplate = template === 'ai' ? 'ai' : (effectivePlan === 'salon' || effectivePlan === 'custom') ? template : 'modern'
-  const showCustomBusinessProof = activeTemplate === 'custom' && !!(displayName || hasBusinessDetails || featuredServices.length > 0)
+  const sectionsEnabled = siteConfig?.sections_enabled || {}
+  const showHeroSection = sectionsEnabled.hero !== false
+  const showAboutSection = sectionsEnabled.about !== false
+  const showServicesSection = sectionsEnabled.services !== false
+  const showTeamSection = sectionsEnabled.team !== false
+  const showReviewsSection = sectionsEnabled.reviews !== false
+  const visibleFeaturedServices = showServicesSection ? featuredServices : []
+  const showCustomBusinessProof = activeTemplate === 'custom' && !!(displayName || hasBusinessDetails || visibleFeaturedServices.length > 0)
+  const showFooterCompliance = !showCustomBusinessProof
   const t = TEMPLATES[activeTemplate] || TEMPLATES.modern
   const isLightTheme = ['classic', 'colorful'].includes(activeTemplate)
 
@@ -954,6 +962,7 @@ export default function PublicBookingPage() {
           {/* Default sections — hidden when "custom" template is active */}
           {activeTemplate !== 'custom' && (<>
           {/* Hero */}
+          {showHeroSection && (
           <div className="bp-hero" style={{ textAlign: 'center', marginBottom: 48 }}>
             {(config.hero_media_url || siteConfig?.hero_image) && (
               <div className="bp-hero-image" style={{ width: '100%', height: 200, borderRadius: 16, overflow: 'hidden', marginBottom: 24, border: '1px solid rgba(255,255,255,.06)' }}>
@@ -963,9 +972,10 @@ export default function PublicBookingPage() {
             <h1 style={{ fontSize: 28, fontWeight: 600, color: t.text, marginBottom: 8 }}>{shopName || config.shop_name || 'Welcome'}</h1>
             {siteConfig?.hero_subtitle && <p style={{ fontSize: 15, color: isLightTheme ? 'rgba(0,0,0,.5)' : 'rgba(255,255,255,.4)', lineHeight: 1.6 }}>{siteConfig.hero_subtitle}</p>}
           </div>
+          )}
 
           {/* About */}
-          {siteConfig?.about_text && (
+          {showAboutSection && siteConfig?.about_text && (
             <div style={{ marginBottom: 40, padding: '20px 24px', borderRadius: 16, border: `1px solid ${t.cardBorder}`, background: t.card, backdropFilter: isLightTheme ? 'none' : 'blur(12px)' }}>
               <p style={{ fontSize: 14, color: isLightTheme ? 'rgba(0,0,0,.6)' : 'rgba(255,255,255,.5)', lineHeight: 1.7 }}>{siteConfig.about_text}</p>
             </div>
@@ -999,11 +1009,11 @@ export default function PublicBookingPage() {
           )}
 
           {/* Services preview */}
-          {featuredServices.length > 0 && (
+          {showServicesSection && visibleFeaturedServices.length > 0 && (
             <div style={{ marginBottom: 40 }}>
               <div className="bp-section-title" style={{ fontSize: 12, color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Services</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-                {featuredServices.map(s => (
+                {visibleFeaturedServices.map(s => (
                   <div key={s.id} style={{ padding: '14px 16px', borderRadius: 14, border: `1px solid ${t.cardBorder}`, background: t.card }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: textMain }}>{s.name}</div>
@@ -1017,7 +1027,7 @@ export default function PublicBookingPage() {
           )}
 
           {/* Team */}
-          {barbers.length > 1 && (
+          {showTeamSection && barbers.length > 1 && (
             <div style={{ marginBottom: 40 }}>
               <div className="bp-section-title" style={{ fontSize: 12, color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Our {getStaffLabel(businessType, true)}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 12 }}>
@@ -1038,7 +1048,7 @@ export default function PublicBookingPage() {
           )}
 
           {/* Reviews */}
-          {reviews.length > 0 && (
+          {showReviewsSection && reviews.length > 0 && (
             <div style={{ marginBottom: 40 }}>
               <div style={{ fontSize: 12, color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Reviews</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1071,12 +1081,12 @@ export default function PublicBookingPage() {
                 <section style={{ marginBottom: 40, padding: '22px 24px', borderRadius: 18, border: `1px solid ${t.cardBorder}`, background: t.card, backdropFilter: isLightTheme ? 'none' : 'blur(12px)' }}>
                   <div style={{ fontSize: 11, color: textDim, letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 10 }}>Verified business details</div>
                   <div style={{ fontSize: 24, fontWeight: 700, color: textMain, marginBottom: 8 }}>{displayName}</div>
-                  <div style={{ fontSize: 13, color: textMuted, lineHeight: 1.7, marginBottom: hasBusinessDetails || featuredServices.length > 0 ? 18 : 14 }}>
+                  <div style={{ fontSize: 13, color: textMuted, lineHeight: 1.7, marginBottom: hasBusinessDetails || visibleFeaturedServices.length > 0 ? 18 : 14 }}>
                     Reviewers should be able to confirm that this public booking page belongs to {displayName} and that appointment messaging consent is tied to this business.
                   </div>
 
                   {hasBusinessDetails && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: featuredServices.length > 0 ? 18 : 14 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: visibleFeaturedServices.length > 0 ? 18 : 14 }}>
                       {publicAddress && (
                         <div>
                           <div style={{ fontSize: 11, color: textDim, letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 6 }}>Location</div>
@@ -1098,11 +1108,11 @@ export default function PublicBookingPage() {
                     </div>
                   )}
 
-                  {featuredServices.length > 0 && (
+                  {showServicesSection && visibleFeaturedServices.length > 0 && (
                     <div style={{ marginBottom: 18 }}>
                       <div className="bp-section-title" style={{ fontSize: 12, color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 12 }}>Services</div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-                        {featuredServices.map(s => (
+                        {visibleFeaturedServices.map(s => (
                           <div key={s.id} style={{ padding: '14px 16px', borderRadius: 14, border: `1px solid ${t.cardBorder}`, background: bgSubtle }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
                               <div style={{ fontSize: 14, fontWeight: 600, color: textMain }}>{s.name}</div>
@@ -1890,17 +1900,19 @@ export default function PublicBookingPage() {
       </main>
       )}
 
-      <footer className="bp-footer" style={{ padding: '20px 24px', borderTop: `1px solid ${borderSoft}`, textAlign: 'center', position: 'relative', zIndex: 2 }}>
+      <footer className="bp-footer" style={{ padding: showFooterCompliance ? '20px 24px' : '16px 24px', borderTop: `1px solid ${borderSoft}`, textAlign: 'center', position: 'relative', zIndex: 2 }}>
         <a href="https://vurium.com/vuriumbook" target="_blank" rel="noopener" style={{ fontSize: 11, color: isLightTheme ? 'rgba(0,0,0,.18)' : 'rgba(255,255,255,.12)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           <img src="/logo-white.jpg" alt="" style={{ width: 14, height: 14, borderRadius: 3, opacity: isLightTheme ? 0.35 : 0.25, filter: isLightTheme ? 'none' : 'invert(1)' }} />
           Powered by VuriumBook&trade;
         </a>
-        <div className="bp-legal" style={{ fontSize: 10, color: isLightTheme ? 'rgba(0,0,0,.3)' : 'rgba(255,255,255,.22)', lineHeight: 1.6, maxWidth: 400, margin: '8px auto 0' }}>
-          {smsFooterComplianceText}
-          <div style={{ marginTop: 3 }}>
-            <a href="https://vurium.com/privacy#sms" target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.3)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>Privacy Policy</a> &amp; <a href="https://vurium.com/terms#sms" target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.3)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>Terms</a>
+        {showFooterCompliance && (
+          <div className="bp-legal" style={{ fontSize: 10, color: isLightTheme ? 'rgba(0,0,0,.3)' : 'rgba(255,255,255,.22)', lineHeight: 1.6, maxWidth: 400, margin: '8px auto 0' }}>
+            {smsFooterComplianceText}
+            <div style={{ marginTop: 3 }}>
+              <a href="https://vurium.com/privacy#sms" target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.3)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>Privacy Policy</a> &amp; <a href="https://vurium.com/terms#sms" target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.3)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>Terms</a>
+            </div>
           </div>
-        </div>
+        )}
       </footer>
     </div>
   )
