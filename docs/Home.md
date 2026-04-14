@@ -84,9 +84,13 @@
 ## Tasks & Plans
 
 - [[Tasks/In Progress\|In Progress]] — Current sprint (P0 items + active tasks)
+- [[Tasks/3-AI-Remaining-Work-Split|3-AI Remaining Work Split]] — **current sprint plan** — every open item categorized by AI (Claude / Codex / Verdent / Owner) with priorities and effort
 - [[Tasks/Backlog\|Backlog]] — Feature ideas & bugs
 - [[Tasks/Launch Readiness Plan\|Launch Readiness Plan]] — Unified P0/P1/P2 plan (both AIs agreed)
 - [[Tasks/Telnyx-Integration-Plan|Telnyx Integration Plan]] — Hardening + P0 fixes (Verify profile, webhook sig, auto-provision on plan activation)
+- [[Tasks/Live-SMS-Verification-Checklist|Live SMS Verification Checklist]] — One-shot deep runbook for Gap 2–5 after deploy (AI 1, BE.3)
+- [[Tasks/Launch-Verification-Runbook|Launch Verification Runbook]] — Generic post-deploy flow verification (Verdent, VR.4)
+- [[Tasks/Deploy-Smoke-Test|Deploy Smoke Test]] — 5-minute post-push sanity check (Verdent, VR.5)
 - [[Tasks/Platform-Sender-Pivot-Decision|Platform Sender Pivot Decision]] — Decision note: чому НЕ переходимо на shared Vurium TFN зараз, draft листа Jonathan
 - [[Tasks/SMS Delivery Options Research\|SMS Delivery Options Research]] — Broader SMS provider, country, sender-ID, and architecture research
 - [[Tasks/SMS Finalization Plan\|SMS Finalization Plan]] — SMS launch steps
@@ -137,8 +141,11 @@ Latest first:
 ## QA & Quality
 
 - [[QA-Scanner-Guide]] — How to run QA/bug-hunting sessions
+- [[Tasks/QA-Scan-2026-04-15|QA Scan 2026-04-15]] — Sprint 1 post-commit status (Verdent VR.6)
 - [[Tasks/QA-Scan-2026-04-14|QA Scan 2026-04-14]] — AI 1 review of unstaged changes
 - [[Tasks/QA-Scan-2026-04-13|QA Scan 2026-04-13]] — Claude Opus QA session
+- [[Tasks/Launch-Verification-Runbook|Launch Verification Runbook]] — Full pre-launch checklist (VR.4)
+- [[Tasks/Deploy-Smoke-Test|Deploy Smoke Test]] — 5-min post-deploy sanity check (VR.5)
 - [[Permissions]] — Role permission matrix reference
 
 ---

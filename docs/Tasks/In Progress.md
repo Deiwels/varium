@@ -1,6 +1,8 @@
 # In Progress
 
-> [[Home]] > Tasks | See also: [[Tasks/Backlog|Backlog]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]]
+> [[Home]] > Tasks | See also: [[Tasks/3-AI-Remaining-Work-Split|3-AI Remaining Work Split]] (authoritative current sprint plan), [[Tasks/Backlog|Backlog]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]]
+
+> **2026-04-15**: [[Tasks/3-AI-Remaining-Work-Split]] is now the authoritative split for all open work (not just SMS). This file remains the day-to-day activity tracker.
 
 ## SMS — 3-AI EXECUTION SPLIT
 
