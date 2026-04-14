@@ -513,7 +513,7 @@ Three-AI consensus (Claude / Codex / Verdent):
 - [ ] Call with Jonathan (Telnyx) — Mon-Fri next week, 10AM-4PM CT
 - [x] Add ADMIN_NOTIFY_EMAIL GitHub Secret — user confirmed configured
 - [ ] Save the real Telnyx Verify Profile ID as the GitHub secret `TELNYX_VERIFY_PROFILE_ID`
-- [ ] Gmail API integration for Developer panel
+- [x] Gmail API integration for Developer panel — **CODE-COMPLETE** (verified 2026-04-15): 6 endpoints in `backend/index.js` (~2754–3040), frontend already wired at `app/developer/email/page.tsx`, secrets in `GitHub Secrets Inventory.md`. Only owner-side operation remains: verify OAuth redirect URI in Google Cloud Console + click Connect for each mailbox (support/billing/sales/security) in `/developer/email`
 - [ ] Wait for TFN +1-877-590-2138 verification
 - [ ] Create CUSTOMER_CARE campaign (after brand verified)
 
