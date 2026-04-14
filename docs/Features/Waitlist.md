@@ -104,6 +104,16 @@ created_at: ISO string
 - During trial (`billing_status: 'trialing'`): full access (custom plan)
 - Public resolve endpoint returns `waitlist_enabled: true/false` based on effective plan
 
+## Enable/Disable semantic (2026-04-15)
+
+Waitlist is **ON by default** on any plan that includes the feature. The `Settings → Waitlist enabled` toggle is an **explicit OFF override**, not an opt-in. Three backend sites enforce this consistently:
+
+1. `/public/config/:workspace_id` — emits `waitlist_enabled` **only** when the Firestore value is an explicit boolean. When absent, the field is omitted and the frontend falls back to the plan-feature value from `/public/resolve` via `cfg?.waitlist_enabled ?? !!resolved.waitlist_enabled`.
+2. `POST /public/waitlist/:workspace_id` — rejects only when the plan does not support waitlist OR when `settings.waitlist_enabled === false` explicitly. Undefined is treated as enabled.
+3. `tryWaitlistAutoFill()` — bails only on explicit `false`. Undefined passes.
+
+**Why this matters:** earlier a `!!data.waitlist_enabled` pattern (commit `849e998`, SET-006) turned the field into a forced boolean, which broke the fallback chain and silently hid the waitlist form on every Salon+ workspace that never touched the toggle (99% of them). Fixed in commit `a3c885f`. Keep the three sites in sync when changing waitlist gating — boolean defaults in public API responses are load-bearing.
+
 ## Related Files
 - `app/book/[id]/page.tsx` — public booking page with waitlist form
 - `app/waitlist/page.tsx` — admin waitlist management

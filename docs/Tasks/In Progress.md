@@ -27,6 +27,24 @@
   - Jonathan / Telnyx follow-up
   - Verify Profile account issues
 
+## HOTFIX 2026-04-15 — Waitlist regression (commit `a3c885f`)
+
+- [x] Owner reported: `Join waitlist` CTA disappeared from public booking page
+- [x] Root cause: my own SET-006 fix in `849e998` forced `waitlist_enabled: false` in `/public/config/` for every workspace that never touched the Settings toggle. Frontend `??` fallback could not kick in because `false` is not nullish.
+- [x] Investigation uncovered two latent pre-existing backend bugs on the same code path (`POST /public/waitlist/:wsId` + `tryWaitlistAutoFill()`) both silently disabling the feature for untouched-toggle workspaces
+- [x] Fix landed across all three sites in `a3c885f` with one consistent semantic: **waitlist is ON by default on any plan that includes the feature; Settings toggle is an explicit OFF override, not an opt-in**
+- [ ] **Owner verification after `a3c885f` Cloud Run deploy lands:**
+  - [ ] Public `/book/{salon-slug}` shows `Join waitlist` on a fully-booked day in incognito
+  - [ ] Waitlist submit succeeds (no 403)
+  - [ ] Admin `/waitlist` lists the new entry
+  - [ ] Booking cancel triggers waitlist auto-notify
+  - [ ] Salon+ workspace with explicit `waitlist_enabled: false` still hides form
+  - [ ] Individual plan still hidden (plan gate)
+  - [ ] Element Barbershop public page still renders Business details + Services preview (unaffected)
+- [ ] Codex frontend re-verify: `app/book/[id]/page.tsx:442` and `app/book/[id]/page.tsx:430` still consume `/public/resolve` + `/public/config` correctly — fall-through via `??` is load-bearing
+- [ ] Verdent: add retrospective bullet to `QA-Scan-2026-04-15.md` under a new "Regressions from Sprint 1 fixes" section so next scan catches similar default-flip patterns
+- See `docs/DevLog/2026-04-15.md` → "Hotfix: Waitlist disappeared..." for full diagnosis, behavior matrix, and lessons-learned note
+
 ## SMS — ELEMENT MANUAL REVIEW UPDATE
 
 - [x] Element Barbershop received an MNO response for campaign `CICHCOJ`
@@ -102,10 +120,17 @@
 - **Fix 2**: Fixed `requireCustomPerm()` dot notation bug — `'financial.access_terminal'` was looked up as flat key instead of nested `perms.guest.financial.access_terminal`
 - **Result**: Guest accounts now see Terminal, Cash, Zelle, Other based on custom permissions
 
-### Remaining PERM issues (AI 2 scope)
-- PERM-001: Dashboard hardcodes `if (isBarber && [...].includes(item.label)) return false` — ignores hasPerm()
-- PERM-002: Pill nav bottom bar only has 5 items — no way to navigate to Payments/Clients etc.
-- PERM-004: Payments page uses `isOwner` check instead of hasPerm()
+### AI 2 local permission batch — pending commit / verification
+- FE.15 / PERM-001: `components/Shell.tsx` now uses the computed `visibleNav` list for the bottom pill nav instead of a fixed 5-item bar, so Payments / Clients / Waitlist / Portfolio / Attendance / Cash / Membership / Analytics / Billing / Settings are reachable from the UI when the role has access
+- FE.15 follow-up: the pill nav is now horizontally scrollable on narrow screens, and missing icon cases (`portfolio`, `cash`, `billing`) were added so the expanded nav still looks intentional
+- FE.16 / PERM-002: `app/dashboard/page.tsx` shortcut filtering now uses permission-driven `pageId` checks plus `settings_access` visibility instead of hardcoded barber/student label filters, so enabling a page in Roles & Permissions can actually surface the shortcut
+- FE.17 / PERM-004: `app/payments/page.tsx` now imports `usePermissions()`, shows a clean access-restricted state when `pages.payments` is disabled, and stops using a raw `isOwner` gate as the only frontend permission model
+- FE.17 follow-up: Payments actions now match backend intent more closely:
+  - reconcile = owner/admin
+  - sync tips = owner
+  - refund button = owner/admin
+- FE.18 / BUG-004: `components/Shell.tsx` profile password flow now matches backend validation with `min 8 characters` copy and guardrails
+- FE.19 / BUG-007: `components/Shell.tsx` profile modal now exposes the `Password` tab when the role has `settings_access.change_password`
 
 ---
 
