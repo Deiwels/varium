@@ -69,6 +69,7 @@ Two email systems: (1) transactional emails sent to workspace clients/staff, (2)
   - left-aligned
   - mailbox-aware (`Support`, `Billing`, `Sales`, `Security`)
   - framed like a human response from the Vurium team, not like an appointment reminder
+  - now uses a transparent Vurium mark instead of a JPG logo tile with a baked-in background
 - Gmail send/reply in Developer Panel now use the same professional support layout
 - Direct admin send via `/api/vurium-dev/email/send` also uses that template and stores which mailbox context it was sent from
 - Inbound admin notify emails now use the same support-style layout too, so internal alert emails match the live support experience
