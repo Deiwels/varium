@@ -61,6 +61,42 @@ Two AI agents work on this project simultaneously. To avoid conflicts (duplicate
 
 ---
 
+## AI 3 — Verdent (Reviewer / Verifier / Research)
+
+### Owns
+- `docs/Tasks/QA-Scan-*.md` — QA scan reports
+- `docs/Tasks/Launch-Verification-Runbook.md` / `Live-SMS-Verification-Checklist.md` / `Deploy-Smoke-Test.md` — verification runbooks
+- External research support (carrier docs, legal, third-party integrations)
+
+### Responsibilities
+- Read-only review of backend and frontend changes from AI 1 / AI 2
+- Writes QA findings and verification checklists, does not fix code
+- Surfaces bugs and edge cases for AI 1 / AI 2 triage
+- No parallel edits to owned backend (`backend/**`) or frontend (`app/**`, `components/**`) files
+- Full role definition lives in [[Tasks/3-AI-Remaining-Work-Split]]
+
+---
+
+## AI 4 — Claude Opus project-review agent (claude.ai/code)
+
+### Owns
+- Nothing by default — read-only reviewer / doc pass operating on a dedicated review branch (`claude/review-project-*`)
+- May write to `docs/**` (DevLog entries, summary docs) to record review findings and emergency patches
+
+### Responsibilities
+- Project-wide read-through of code + docs (`app/**`, `backend/**`, `components/**`, `lib/**`, `docs/**`) — large-context audit
+- Records news and status updates into the relevant feature docs and DevLog (e.g. Telnyx campaign status updates, carrier review outcomes)
+- Writes summaries and reports to the owner on demand (no direct action without explicit ask)
+- Emergency hotfixes on explicit owner instruction only, even outside scope (e.g. Vercel build failure on a legal page owned by AI 2) — each such patch must be recorded in DevLog with an "ownership note" section so the exception does not erode the normal split
+- Branches: operates on a review branch, not `main`; does not merge on its own
+- Does not touch real secrets, Telnyx portal, GitHub Secrets, Stripe, Apple, or any third-party console — those remain Owner (Nazarii) scope
+
+### Coordination
+- Before patching any file owned by AI 1 or AI 2, must confirm with the owner that the patch should come from AI 4 and not be routed back to the file owner
+- After an out-of-scope emergency patch, AI 4 must hand the ownership back to the original owner for follow-up work (e.g. AI 4 fixes a build break on `app/terms/page.tsx`, then any copy / behavior edits route back to AI 2)
+
+---
+
 ## Shared files (coordinate before editing)
 - `app/calendar/page.tsx` — large file, both may need to touch
 - `components/Shell.tsx` — if backend needs badge/notification changes, coordinate
