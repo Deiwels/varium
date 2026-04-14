@@ -639,6 +639,46 @@ async function getWorkspaceEmailConfig(wsId) {
   };
 }
 
+// ─── Support/Admin Email Template — formal, logo in header bar ────────────────
+function vuriumSupportEmailTemplate(subject, bodyHtml) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#050505;font-family:'Inter','Helvetica Neue',Helvetica,Arial,sans-serif;color:#e8e8ed;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#050505;">
+<!-- Header bar with logo -->
+<tr><td>
+<table width="100%" style="max-width:560px;margin:0 auto;">
+<tr><td style="padding:28px 28px 20px;">
+<table cellpadding="0" cellspacing="0"><tr>
+<td style="width:32px;"><img src="https://vurium.com/logo-white.jpg" width="28" height="28" style="border-radius:7px;display:block;" alt="V"></td>
+<td style="padding-left:10px;font-size:15px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:-.01em;">Vurium</td>
+</tr></table>
+</td></tr>
+</table>
+</td></tr>
+<!-- Content -->
+<tr><td style="padding:0 20px 40px;">
+<table width="100%" style="max-width:560px;margin:0 auto;background:#0c0c0c;border:1px solid rgba(255,255,255,.06);border-radius:16px;overflow:hidden;">
+<tr><td style="padding:32px 32px 8px;">
+<h1 style="margin:0 0 20px;font-size:20px;font-weight:600;color:#e8e8ed;letter-spacing:-.02em;">${subject}</h1>
+</td></tr>
+<tr><td style="padding:0 32px 32px;font-size:14px;line-height:1.8;color:rgba(255,255,255,.55);">
+${bodyHtml}
+</td></tr>
+</table>
+</td></tr>
+<!-- Footer -->
+<tr><td style="padding:0 20px 32px;">
+<table width="100%" style="max-width:560px;margin:0 auto;">
+<tr><td style="padding:16px 0;border-top:1px solid rgba(255,255,255,.04);font-size:11px;color:rgba(255,255,255,.15);line-height:1.6;">
+Vurium Inc. &middot; <a href="https://vurium.com" style="color:rgba(255,255,255,.2);text-decoration:none;">vurium.com</a><br>
+<a href="https://vurium.com/privacy" style="color:rgba(255,255,255,.12);text-decoration:none;">Privacy Policy</a> &middot; <a href="https://vurium.com/terms" style="color:rgba(255,255,255,.12);text-decoration:none;">Terms of Service</a>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`;
+}
+
 async function scheduleReminders(wsCol, bookingId, booking, timeZone, shopName, fromNumber) {
   try {
     const startAt = parseIso(booking.start_at);
@@ -1553,13 +1593,14 @@ app.post('/auth/forgot-password', async (req, res) => {
       reset_token_expires: toIso(new Date(Date.now() + 3600000)),
     });
     const resetUrl = `https://vurium.com/reset-password?token=${token}&ws=${foundWsId}&uid=${foundUserId}`;
-    sendEmail(email, 'Reset Your Password', vuriumEmailTemplate('Reset Your Password', `
+    sendEmail(email, 'Reset Your Password', vuriumSupportEmailTemplate('Reset Your Password', `
       <p>We received a request to reset your password.</p>
       <div style="text-align:center;margin:24px 0;">
         <a href="${resetUrl}" style="display:inline-block;padding:14px 32px;border-radius:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#e8e8ed;text-decoration:none;font-weight:600;font-size:14px;">Reset Password</a>
       </div>
-      <p style="font-size:12px;color:rgba(255,255,255,.3);">This link expires in 1 hour. If you didn't request this, ignore this email.</p>
-    `, 'VuriumBook', null, 'modern')).catch(() => {});
+      <p style="font-size:12px;color:rgba(255,255,255,.25);">This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+      <p style="font-size:12px;color:rgba(255,255,255,.15);margin-top:16px;">— The Vurium Team</p>
+    `)).catch(() => {});
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -2074,7 +2115,7 @@ app.post('/api/vurium-dev/email/send', requireSuperadmin, async (req, res) => {
     const { to, subject, body_html } = req.body;
     if (!to || !subject) return res.status(400).json({ error: 'Missing to or subject' });
 
-    const html = vuriumEmailTemplate(subject, body_html || '<p>No content</p>', 'Vurium', 'https://vurium.com/logo.jpg', 'dark-cosmos');
+    const html = vuriumSupportEmailTemplate(subject, body_html || '<p>No content</p>');
     const result = await sendEmail(to, subject, html, 'Vurium');
 
     // Save outbound email
