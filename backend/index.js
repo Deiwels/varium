@@ -714,7 +714,7 @@ function vuriumSupportEmailTemplate(subject, bodyHtml, opts = {}) {
 <table cellpadding="0" cellspacing="0" style="margin:0 auto 0 0;">
 <tr>
 <td style="width:52px;vertical-align:middle;">
-<img src="https://vurium.com/logo-transparent-dark.png" width="52" height="52" style="width:52px;height:52px;display:block;object-fit:contain;" alt="Vurium">
+<img src="https://vurium.com/logo-transparent-dark.png?v=2" width="52" height="52" style="width:52px;height:52px;display:block;object-fit:contain;" alt="Vurium">
 </td>
 <td style="padding-left:14px;vertical-align:middle;">
 <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#667085;font-weight:600;">Vurium</div>
