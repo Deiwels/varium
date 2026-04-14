@@ -1,7 +1,10 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { API } from '@/lib/api'
+import { devFetch } from '../_lib/dev-fetch'
+import { DevErrorBoundary } from '../_components/DevErrorBoundary'
+import { useToast } from '../_components/Toast'
+import type { GmailMessage, GmailMessageFull, SentEmail } from '../_types'
 
 const card: React.CSSProperties = {
   borderRadius: 16, border: '1px solid rgba(255,255,255,.06)',
@@ -18,13 +21,6 @@ const btnPrimary: React.CSSProperties = {
   fontWeight: 600, fontFamily: 'inherit',
 }
 
-function devFetch(path: string, opts?: RequestInit) {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('vurium_dev_token') || '' : ''
-  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(opts?.headers as Record<string, string> || {}) }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-  return fetch(`${API}${path}`, { credentials: 'include', ...opts, headers }).then(r => r.json())
-}
-
 const MAILBOXES = [
   { email: 'support@vurium.com', label: 'Support', color: 'rgba(130,150,220,.7)', icon: 'M3 8l9 6 9-6' },
   { email: 'billing@vurium.com', label: 'Billing', color: 'rgba(130,220,170,.7)', icon: 'M3 6h18M3 12h18M3 18h18' },
@@ -32,26 +28,11 @@ const MAILBOXES = [
   { email: 'security@vurium.com', label: 'Security', color: 'rgba(220,130,160,.7)', icon: 'M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z' },
 ]
 
-interface GmailMessage {
-  id: string; threadId: string; snippet: string
-  from: string; to: string; subject: string; date: string
-  labelIds: string[]; isUnread: boolean
-}
-
-interface GmailMessageFull extends GmailMessage {
-  messageId: string; body_html: string; body_text: string
-}
-
-interface SentEmail {
-  id: string; direction: string; from: string; to: string
-  subject: string; body_html: string; body_text: string
-  status: string; read: boolean; created_at: string
-}
-
 type View = 'inbox' | 'detail' | 'compose-branded' | 'compose-gmail' | 'reply'
 
-export default function AdminEmailPage() {
+function AdminEmailPageInner() {
   const searchParams = useSearchParams()
+  const toast = useToast()
   const [activeAccount, setActiveAccount] = useState(MAILBOXES[0].email)
   const [connectionStatus, setConnectionStatus] = useState<Record<string, boolean>>({})
   const [messages, setMessages] = useState<GmailMessage[]>([])
@@ -62,29 +43,23 @@ export default function AdminEmailPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-
-  // Compose state
   const [composeTo, setComposeTo] = useState('')
+  const [composeCC, setComposeCC] = useState('')
+  const [composeBCC, setComposeBCC] = useState('')
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
   const [sending, setSending] = useState(false)
-
-  // Reply state
   const [replyBody, setReplyBody] = useState('')
-
-  // Branded (Resend) sent emails
   const [sentEmails, setSentEmails] = useState<SentEmail[]>([])
 
   const isConnected = connectionStatus[activeAccount]
 
-  // Load connection status
   useEffect(() => {
     devFetch('/api/vurium-dev/gmail/status')
-      .then(d => setConnectionStatus(d.status || {}))
+      .then(d => setConnectionStatus((d as { status?: Record<string, boolean> }).status || {}))
       .catch(() => {})
   }, [])
 
-  // Handle OAuth callback
   useEffect(() => {
     const connected = searchParams.get('connected')
     if (connected) {
@@ -93,7 +68,6 @@ export default function AdminEmailPage() {
     }
   }, [searchParams])
 
-  // Load messages when account changes
   const loadMessages = useCallback((account: string, pageToken?: string) => {
     if (!pageToken) { setLoading(true); setMessages([]) }
     else setLoadingMore(true)
@@ -104,42 +78,32 @@ export default function AdminEmailPage() {
 
     devFetch(`/api/vurium-dev/gmail/messages?${params}`)
       .then(d => {
-        if (d.needsAuth) return
-        if (pageToken) setMessages(prev => [...prev, ...(d.messages || [])])
-        else setMessages(d.messages || [])
-        setNextPageToken(d.nextPageToken || null)
+        const res = d as { needsAuth?: boolean; messages?: GmailMessage[]; nextPageToken?: string }
+        if (res.needsAuth) return
+        if (pageToken) setMessages(prev => [...prev, ...(res.messages || [])])
+        else setMessages(res.messages || [])
+        setNextPageToken(res.nextPageToken || null)
       })
       .catch(() => {})
       .finally(() => { setLoading(false); setLoadingMore(false) })
   }, [searchQuery])
 
   useEffect(() => {
-    if (isConnected) {
-      setView('inbox')
-      setSelectedMsg(null)
-      loadMessages(activeAccount)
-    }
+    if (isConnected) { setView('inbox'); setSelectedMsg(null); loadMessages(activeAccount) }
   }, [activeAccount, isConnected, loadMessages])
 
-  // Load branded sent emails
   useEffect(() => {
     devFetch('/api/vurium-dev/emails?direction=outbound&limit=20')
-      .then(d => setSentEmails(d.emails || []))
+      .then(d => setSentEmails((d as { emails?: SentEmail[] }).emails || []))
       .catch(() => {})
   }, [])
 
   function openMessage(msg: GmailMessage) {
     setLoadingDetail(true)
     devFetch(`/api/vurium-dev/gmail/messages/${msg.id}?account=${activeAccount}`)
-      .then(d => { setSelectedMsg(d); setView('detail') })
+      .then(d => { setSelectedMsg(d as GmailMessageFull); setView('detail') })
       .catch(() => {})
       .finally(() => setLoadingDetail(false))
-  }
-
-  function startReply() {
-    if (!selectedMsg) return
-    setReplyBody('')
-    setView('reply')
   }
 
   async function handleReply() {
@@ -152,21 +116,17 @@ export default function AdminEmailPage() {
       await devFetch('/api/vurium-dev/gmail/reply', {
         method: 'POST',
         body: JSON.stringify({
-          account: activeAccount,
-          to: fromAddr,
+          account: activeAccount, to: fromAddr,
           subject: selectedMsg.subject.startsWith('Re:') ? selectedMsg.subject : `Re: ${selectedMsg.subject}`,
           body_html: replyBody.replace(/\n/g, '<br>'),
-          threadId: selectedMsg.threadId,
-          messageId: selectedMsg.messageId,
+          threadId: selectedMsg.threadId, messageId: selectedMsg.messageId,
         }),
       })
-      setView('detail')
-      setReplyBody('')
+      setView('detail'); setReplyBody('')
+      toast.show('Reply sent')
     } catch {
-      alert('Failed to send reply')
-    } finally {
-      setSending(false)
-    }
+      toast.show('Failed to send reply', 'error')
+    } finally { setSending(false) }
   }
 
   async function handleGmailSend() {
@@ -176,20 +136,17 @@ export default function AdminEmailPage() {
       await devFetch('/api/vurium-dev/gmail/send', {
         method: 'POST',
         body: JSON.stringify({
-          account: activeAccount,
-          to: composeTo,
-          subject: composeSubject,
-          body_html: composeBody.replace(/\n/g, '<br>'),
+          account: activeAccount, to: composeTo,
+          cc: composeCC || undefined, bcc: composeBCC || undefined,
+          subject: composeSubject, body_html: composeBody.replace(/\n/g, '<br>'),
         }),
       })
-      setComposeTo(''); setComposeSubject(''); setComposeBody('')
-      setView('inbox')
-      loadMessages(activeAccount)
+      setComposeTo(''); setComposeCC(''); setComposeBCC(''); setComposeSubject(''); setComposeBody('')
+      setView('inbox'); loadMessages(activeAccount)
+      toast.show('Email sent')
     } catch {
-      alert('Failed to send email')
-    } finally {
-      setSending(false)
-    }
+      toast.show('Failed to send email', 'error')
+    } finally { setSending(false) }
   }
 
   async function handleBrandedSend() {
@@ -198,41 +155,66 @@ export default function AdminEmailPage() {
     try {
       await devFetch('/api/vurium-dev/email/send', {
         method: 'POST',
-        body: JSON.stringify({ to: composeTo, subject: composeSubject, body_html: composeBody.replace(/\n/g, '<br>') }),
+        body: JSON.stringify({
+          to: composeTo, cc: composeCC || undefined,
+          subject: composeSubject, body_html: composeBody.replace(/\n/g, '<br>'),
+        }),
       })
-      setComposeTo(''); setComposeSubject(''); setComposeBody('')
+      setComposeTo(''); setComposeCC(''); setComposeBCC(''); setComposeSubject(''); setComposeBody('')
       setView('inbox')
       devFetch('/api/vurium-dev/emails?direction=outbound&limit=20')
-        .then(d => setSentEmails(d.emails || []))
+        .then(d => setSentEmails((d as { emails?: SentEmail[] }).emails || []))
         .catch(() => {})
+      toast.show('Branded email sent')
     } catch {
-      alert('Failed to send email')
-    } finally {
-      setSending(false)
-    }
+      toast.show('Failed to send branded email', 'error')
+    } finally { setSending(false) }
   }
 
   function connectMailbox() {
     devFetch(`/api/vurium-dev/gmail/auth?account=${activeAccount}`)
-      .then(d => { if (d.url) window.location.href = d.url })
-      .catch(() => alert('Failed to start OAuth'))
+      .then(d => { const r = d as { url?: string }; if (r.url) window.location.href = r.url })
+      .catch(() => toast.show('Failed to start OAuth', 'error'))
   }
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault()
-    loadMessages(activeAccount)
-  }
+  function handleSearch(e: React.FormEvent) { e.preventDefault(); loadMessages(activeAccount) }
 
   const fmtDate = (s: string) => {
     if (!s) return ''
-    const d = new Date(s)
-    const now = new Date()
+    const d = new Date(s); const now = new Date()
     if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
     if (d.getFullYear() === now.getFullYear()) return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
   const activeMailbox = MAILBOXES.find(m => m.email === activeAccount)!
+
+  const composeFields = (includeCC = true) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div>
+          <label style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 4 }}>To</label>
+          <input value={composeTo} onChange={e => setComposeTo(e.target.value)} placeholder="recipient@example.com" style={inp} />
+        </div>
+        <div>
+          <label style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 4 }}>Subject</label>
+          <input value={composeSubject} onChange={e => setComposeSubject(e.target.value)} placeholder="Subject" style={inp} />
+        </div>
+      </div>
+      {includeCC && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 4 }}>CC</label>
+            <input value={composeCC} onChange={e => setComposeCC(e.target.value)} placeholder="cc@example.com" style={inp} />
+          </div>
+          <div>
+            <label style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 4 }}>BCC</label>
+            <input value={composeBCC} onChange={e => setComposeBCC(e.target.value)} placeholder="bcc@example.com" style={inp} />
+          </div>
+        </div>
+      )}
+    </div>
+  )
 
   return (
     <>
@@ -242,12 +224,12 @@ export default function AdminEmailPage() {
           <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', marginTop: 4 }}>Gmail inboxes & branded email</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => { setComposeTo(''); setComposeSubject(''); setComposeBody(''); setView('compose-branded') }}
+          <button onClick={() => { setComposeTo(''); setComposeCC(''); setComposeBCC(''); setComposeSubject(''); setComposeBody(''); setView('compose-branded') }}
             style={{ ...btnPrimary, background: 'rgba(220,170,100,.12)', color: 'rgba(220,170,100,.85)' }}>
             + Branded
           </button>
           {isConnected && (
-            <button onClick={() => { setComposeTo(''); setComposeSubject(''); setComposeBody(''); setView('compose-gmail') }}
+            <button onClick={() => { setComposeTo(''); setComposeCC(''); setComposeBCC(''); setComposeSubject(''); setComposeBody(''); setView('compose-gmail') }}
               style={btnPrimary}>
               + Compose
             </button>
@@ -266,16 +248,12 @@ export default function AdminEmailPage() {
               <button key={m.email} onClick={() => setActiveAccount(m.email)} style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10,
                 border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', width: '100%',
-                background: active ? 'rgba(255,255,255,.06)' : 'transparent',
-                transition: 'background .15s',
+                background: active ? 'rgba(255,255,255,.06)' : 'transparent', transition: 'background .15s',
               }}
                 onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,.03)' }}
                 onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
               >
-                <div style={{
-                  width: 8, height: 8, borderRadius: 4, flexShrink: 0,
-                  background: connected ? m.color : 'rgba(255,255,255,.1)',
-                }} />
+                <div style={{ width: 8, height: 8, borderRadius: 4, flexShrink: 0, background: connected ? m.color : 'rgba(255,255,255,.1)' }} />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: active ? 600 : 400, color: active ? 'rgba(255,255,255,.85)' : 'rgba(255,255,255,.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.label}</div>
                   {!connected && <div style={{ fontSize: 9, color: 'rgba(255,255,255,.2)', marginTop: 1 }}>Not connected</div>}
@@ -283,7 +261,6 @@ export default function AdminEmailPage() {
               </button>
             )
           })}
-
           <div style={{ height: 1, background: 'rgba(255,255,255,.06)', margin: '8px 0' }} />
           <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.25)', textTransform: 'uppercase', letterSpacing: '.1em', padding: '0 8px', marginBottom: 4 }}>Sent (Resend)</span>
           <button onClick={() => setView('inbox')} style={{
@@ -299,9 +276,8 @@ export default function AdminEmailPage() {
           </button>
         </div>
 
-        {/* Main content */}
-        <div style={{ ...card, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          {/* Not connected state */}
+        {/* Main content — position:relative needed for loadingDetail overlay */}
+        <div style={{ ...card, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
           {!isConnected && view === 'inbox' && (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40, gap: 16 }}>
               <div style={{
@@ -325,7 +301,6 @@ export default function AdminEmailPage() {
             </div>
           )}
 
-          {/* Inbox list */}
           {isConnected && view === 'inbox' && (
             <>
               <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -356,34 +331,23 @@ export default function AdminEmailPage() {
                         display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', width: '100%',
                         borderBottom: '1px solid rgba(255,255,255,.03)', background: 'transparent',
                         border: 'none', borderBlockEnd: '1px solid rgba(255,255,255,.03)',
-                        cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                        transition: 'background .1s',
+                        cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s',
                       }}
                         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,.03)' }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                       >
-                        <div style={{
-                          width: 6, height: 6, borderRadius: 3, flexShrink: 0,
-                          background: m.isUnread ? activeMailbox.color : 'transparent',
-                        }} />
+                        <div style={{ width: 6, height: 6, borderRadius: 3, flexShrink: 0, background: m.isUnread ? activeMailbox.color : 'transparent' }} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 2 }}>
-                            <span style={{
-                              fontSize: 13, color: m.isUnread ? 'rgba(255,255,255,.85)' : 'rgba(255,255,255,.55)',
-                              fontWeight: m.isUnread ? 600 : 400,
-                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            }}>{m.from.replace(/<.*>/, '').trim() || m.from}</span>
+                            <span style={{ fontSize: 13, color: m.isUnread ? 'rgba(255,255,255,.85)' : 'rgba(255,255,255,.55)', fontWeight: m.isUnread ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {m.from.replace(/<.*>/, '').trim() || m.from}
+                            </span>
                             <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', flexShrink: 0 }}>{fmtDate(m.date)}</span>
                           </div>
-                          <div style={{
-                            fontSize: 13, color: m.isUnread ? 'rgba(255,255,255,.7)' : 'rgba(255,255,255,.4)',
-                            fontWeight: m.isUnread ? 500 : 400,
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                          }}>{m.subject || '(no subject)'}</div>
-                          <div style={{
-                            fontSize: 12, color: 'rgba(255,255,255,.2)', marginTop: 2,
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                          }}>{m.snippet}</div>
+                          <div style={{ fontSize: 13, color: m.isUnread ? 'rgba(255,255,255,.7)' : 'rgba(255,255,255,.4)', fontWeight: m.isUnread ? 500 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {m.subject || '(no subject)'}
+                          </div>
+                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.2)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.snippet}</div>
                         </div>
                       </button>
                     ))}
@@ -401,7 +365,6 @@ export default function AdminEmailPage() {
             </>
           )}
 
-          {/* Email detail */}
           {view === 'detail' && selectedMsg && (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -410,27 +373,21 @@ export default function AdminEmailPage() {
                   color: 'rgba(130,150,220,.7)', fontSize: 13, fontFamily: 'inherit',
                 }}>&larr; Back</button>
                 <div style={{ flex: 1 }} />
-                <button onClick={startReply} style={{ ...btnPrimary, height: 32, padding: '0 16px', fontSize: 12 }}>Reply</button>
+                <button onClick={() => { setReplyBody(''); setView('reply') }} style={{ ...btnPrimary, height: 32, padding: '0 16px', fontSize: 12 }}>Reply</button>
               </div>
               <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
                 <h2 style={{ fontSize: 18, fontWeight: 600, color: 'rgba(255,255,255,.85)', margin: '0 0 12px' }}>{selectedMsg.subject}</h2>
-                <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
-                  <div>
-                    <span style={{ color: 'rgba(255,255,255,.3)' }}>From: </span>
-                    <span style={{ color: 'rgba(255,255,255,.6)' }}>{selectedMsg.from}</span>
-                  </div>
-                  <div>
-                    <span style={{ color: 'rgba(255,255,255,.3)' }}>To: </span>
-                    <span style={{ color: 'rgba(255,255,255,.6)' }}>{selectedMsg.to}</span>
-                  </div>
+                <div style={{ display: 'flex', gap: 16, fontSize: 13, flexWrap: 'wrap' }}>
+                  <div><span style={{ color: 'rgba(255,255,255,.3)' }}>From: </span><span style={{ color: 'rgba(255,255,255,.6)' }}>{selectedMsg.from}</span></div>
+                  <div><span style={{ color: 'rgba(255,255,255,.3)' }}>To: </span><span style={{ color: 'rgba(255,255,255,.6)' }}>{selectedMsg.to}</span></div>
                   <span style={{ color: 'rgba(255,255,255,.2)', marginLeft: 'auto' }}>{fmtDate(selectedMsg.date)}</span>
                 </div>
               </div>
-              <div style={{ flex: 1, overflow: 'auto', padding: 0 }}>
+              <div style={{ flex: 1, overflow: 'auto' }}>
                 {selectedMsg.body_html ? (
                   <iframe
                     srcDoc={`<!DOCTYPE html><html><head><style>body{margin:0;padding:24px;font-family:-apple-system,system-ui,sans-serif;font-size:14px;line-height:1.6;color:#333;background:#fafafa;}img{max-width:100%;height:auto;}a{color:#4a6cf7;}</style></head><body>${selectedMsg.body_html}</body></html>`}
-                    style={{ width: '100%', height: '100%', border: 'none', minHeight: 300, background: '#fafafa', borderRadius: 0 }}
+                    style={{ width: '100%', height: '100%', border: 'none', minHeight: 300, background: '#fafafa' }}
                     sandbox="allow-same-origin"
                   />
                 ) : (
@@ -442,14 +399,12 @@ export default function AdminEmailPage() {
             </div>
           )}
 
-          {/* Reply */}
           {view === 'reply' && selectedMsg && (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button onClick={() => setView('detail')} style={{
-                  background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 6,
-                  color: 'rgba(130,150,220,.7)', fontSize: 13, fontFamily: 'inherit',
-                }}>&larr; Back to message</button>
+                <button onClick={() => setView('detail')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 6, color: 'rgba(130,150,220,.7)', fontSize: 13, fontFamily: 'inherit' }}>
+                  &larr; Back to message
+                </button>
               </div>
               <div style={{ padding: 24, flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
@@ -459,113 +414,90 @@ export default function AdminEmailPage() {
                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,.3)' }}>
                     Subject: <span style={{ color: 'rgba(255,255,255,.55)' }}>{selectedMsg.subject.startsWith('Re:') ? selectedMsg.subject : `Re: ${selectedMsg.subject}`}</span>
                   </div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 4 }}>
-                    From: {activeAccount}
-                  </div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 4 }}>From: {activeAccount}</div>
+                </div>
+                {/* Quote */}
+                <div style={{ padding: '10px 14px', borderLeft: '2px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.02)', borderRadius: 4 }}>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', marginBottom: 4 }}>{selectedMsg.from} wrote:</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.5, maxHeight: 80, overflow: 'hidden' }}>{selectedMsg.snippet}</div>
                 </div>
                 <textarea value={replyBody} onChange={e => setReplyBody(e.target.value)} placeholder="Write your reply..."
-                  rows={10} style={{ ...inp, height: 'auto', padding: '12px', resize: 'vertical', lineHeight: 1.6, flex: 1 }} autoFocus />
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <button onClick={handleReply} disabled={sending || !replyBody.trim()} style={{
-                    ...btnPrimary, height: 38, padding: '0 28px',
-                    opacity: sending || !replyBody.trim() ? 0.4 : 1,
-                  }}>{sending ? 'Sending...' : 'Send Reply'}</button>
-                  <button onClick={() => setView('detail')} style={{
-                    ...btnPrimary, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.4)',
-                  }}>Cancel</button>
+                  rows={8} style={{ ...inp, height: 'auto', padding: '12px', resize: 'vertical', lineHeight: 1.6, flex: 1 }} autoFocus />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={handleReply} disabled={sending || !replyBody.trim()} style={{ ...btnPrimary, height: 38, padding: '0 28px', opacity: sending || !replyBody.trim() ? 0.4 : 1 }}>
+                    {sending ? 'Sending...' : 'Send Reply'}
+                  </button>
+                  <button onClick={() => setView('detail')} style={{ ...btnPrimary, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.4)' }}>Cancel</button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Compose via Gmail */}
           {view === 'compose-gmail' && (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button onClick={() => setView('inbox')} style={{
-                  background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 6,
-                  color: 'rgba(130,150,220,.7)', fontSize: 13, fontFamily: 'inherit',
-                }}>&larr; Cancel</button>
+                <button onClick={() => setView('inbox')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 6, color: 'rgba(130,150,220,.7)', fontSize: 13, fontFamily: 'inherit' }}>&larr; Cancel</button>
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.6)' }}>New Email</span>
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginLeft: 'auto' }}>via Gmail as {activeAccount}</span>
               </div>
               <div style={{ padding: 24, flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <div>
-                    <label style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 4 }}>To</label>
-                    <input value={composeTo} onChange={e => setComposeTo(e.target.value)} placeholder="recipient@example.com" style={inp} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 4 }}>Subject</label>
-                    <input value={composeSubject} onChange={e => setComposeSubject(e.target.value)} placeholder="Subject" style={inp} />
-                  </div>
-                </div>
+                {composeFields(true)}
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 4 }}>Body</label>
                   <textarea value={composeBody} onChange={e => setComposeBody(e.target.value)} placeholder="Write your message..."
                     rows={10} style={{ ...inp, height: '100%', padding: '12px', resize: 'vertical', lineHeight: 1.6 }} />
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <button onClick={handleGmailSend} disabled={sending || !composeTo || !composeSubject} style={{
-                    ...btnPrimary, height: 38, padding: '0 28px',
-                    opacity: sending || !composeTo || !composeSubject ? 0.4 : 1,
-                  }}>{sending ? 'Sending...' : 'Send'}</button>
-                  <button onClick={() => setView('inbox')} style={{
-                    ...btnPrimary, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.4)',
-                  }}>Cancel</button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={handleGmailSend} disabled={sending || !composeTo || !composeSubject} style={{ ...btnPrimary, height: 38, padding: '0 28px', opacity: sending || !composeTo || !composeSubject ? 0.4 : 1 }}>
+                    {sending ? 'Sending...' : 'Send'}
+                  </button>
+                  <button onClick={() => setView('inbox')} style={{ ...btnPrimary, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.4)' }}>Cancel</button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Compose Branded via Resend */}
           {view === 'compose-branded' && (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button onClick={() => setView('inbox')} style={{
-                  background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 6,
-                  color: 'rgba(130,150,220,.7)', fontSize: 13, fontFamily: 'inherit',
-                }}>&larr; Cancel</button>
+                <button onClick={() => setView('inbox')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 6, color: 'rgba(130,150,220,.7)', fontSize: 13, fontFamily: 'inherit' }}>&larr; Cancel</button>
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.6)' }}>Branded Email</span>
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginLeft: 'auto' }}>via Resend as noreply@vurium.com</span>
               </div>
               <div style={{ padding: 24, flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <div>
-                    <label style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 4 }}>To</label>
-                    <input value={composeTo} onChange={e => setComposeTo(e.target.value)} placeholder="recipient@example.com" style={inp} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 4 }}>Subject</label>
-                    <input value={composeSubject} onChange={e => setComposeSubject(e.target.value)} placeholder="Subject" style={inp} />
-                  </div>
-                </div>
+                {composeFields(true)}
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 4 }}>Body</label>
                   <textarea value={composeBody} onChange={e => setComposeBody(e.target.value)} placeholder="Write your message..."
                     rows={10} style={{ ...inp, height: '100%', padding: '12px', resize: 'vertical', lineHeight: 1.6 }} />
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={handleBrandedSend} disabled={sending || !composeTo || !composeSubject} style={{
                     ...btnPrimary, height: 38, padding: '0 28px',
                     background: 'rgba(220,170,100,.15)', color: 'rgba(220,170,100,.9)',
                     opacity: sending || !composeTo || !composeSubject ? 0.4 : 1,
                   }}>{sending ? 'Sending...' : 'Send Branded'}</button>
-                  <button onClick={() => setView('inbox')} style={{
-                    ...btnPrimary, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.4)',
-                  }}>Cancel</button>
+                  <button onClick={() => setView('inbox')} style={{ ...btnPrimary, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.4)' }}>Cancel</button>
                 </div>
               </div>
             </div>
           )}
 
           {loadingDetail && (
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.5)' }}>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.5)', borderRadius: 16 }}>
               <div style={{ fontSize: 13, color: 'rgba(255,255,255,.4)' }}>Loading...</div>
             </div>
           )}
         </div>
       </div>
     </>
+  )
+}
+
+export default function AdminEmailPage() {
+  return (
+    <DevErrorBoundary>
+      <AdminEmailPageInner />
+    </DevErrorBoundary>
   )
 }

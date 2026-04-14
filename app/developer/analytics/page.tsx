@@ -1,60 +1,32 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { API } from '@/lib/api'
+import { useEffect, useState, useMemo } from 'react'
+import { devFetch } from '../_lib/dev-fetch'
+import { MiniChart } from '../_components/MiniChart'
+import { StatCard } from '../_components/StatCard'
+import { DevErrorBoundary } from '../_components/DevErrorBoundary'
+import type { AnalyticsData } from '../_types'
 
 const card: React.CSSProperties = {
   borderRadius: 16, border: '1px solid rgba(255,255,255,.06)',
   background: 'rgba(255,255,255,.03)', padding: '20px 24px',
 }
-const statCard: React.CSSProperties = {
-  ...card, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 160,
-}
 
-function adminFetch(path: string) {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('vurium_dev_token') || '' : ''
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-  return fetch(`${API}${path}`, { credentials: 'include', headers }).then(r => r.json())
-}
-
-function MiniChart({ data, color }: { data: { label: string; value: number }[]; color: string }) {
-  if (!data.length) return null
-  const max = Math.max(...data.map(d => d.value), 1)
-  const w = 400, h = 100, px = data.length > 1 ? w / (data.length - 1) : 0
-  const points = data.map((d, i) => `${i * px},${h - (d.value / max) * (h - 10)}`).join(' ')
-  return (
-    <svg viewBox={`0 0 ${w} ${h + 10}`} style={{ width: '100%', height: 120 }} preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity=".3" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points={`0,${h + 10} ${points} ${w},${h + 10}`} fill="url(#cg)" />
-      <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {data.map((d, i) => (
-        <circle key={i} cx={i * px} cy={h - (d.value / max) * (h - 10)} r="3" fill={color} opacity=".6" />
-      ))}
-    </svg>
-  )
-}
-
-export default function AdminDashboard() {
-  const [data, setData] = useState<any>(null)
+function AdminDashboardInner() {
+  const [data, setData] = useState<AnalyticsData | null>(null)
   const [range, setRange] = useState('7d')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setLoading(true)
-    adminFetch(`/api/vurium-dev/analytics?range=${range}`)
-      .then(setData)
+    devFetch(`/api/vurium-dev/analytics?range=${range}`)
+      .then(d => setData(d as AnalyticsData))
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [range])
 
-  const chartData = data?.by_day
-    ? Object.entries(data.by_day).sort(([a], [b]) => a.localeCompare(b)).map(([label, value]) => ({ label, value: value as number }))
-    : []
+  const chartData = useMemo(() => data?.by_day
+    ? Object.entries(data.by_day).sort(([a], [b]) => a.localeCompare(b)).map(([label, value]) => ({ label, value }))
+    : [], [data])
 
   return (
     <>
@@ -83,31 +55,29 @@ export default function AdminDashboard() {
         <>
           {/* Stat cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12, marginBottom: 24 }}>
-            <div style={statCard}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Pageviews</span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: 'rgba(130,150,220,.9)' }}>{data.total_pageviews?.toLocaleString()}</span>
-            </div>
-            <div style={statCard}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Visitors</span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: 'rgba(130,220,170,.9)' }}>{data.unique_visitors?.toLocaleString()}</span>
-            </div>
-            <div style={statCard}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Sessions</span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: 'rgba(220,170,100,.9)' }}>{data.unique_sessions?.toLocaleString()}</span>
-            </div>
-            <div style={statCard}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Pages/Session</span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: 'rgba(255,255,255,.6)' }}>
-                {data.unique_sessions ? (data.total_pageviews / data.unique_sessions).toFixed(1) : '0'}
-              </span>
-            </div>
+            <StatCard label="Pageviews" value={data.total_pageviews?.toLocaleString()} color="rgba(130,150,220,.9)" />
+            <StatCard label="Visitors"  value={data.unique_visitors?.toLocaleString()} color="rgba(130,220,170,.9)" />
+            <StatCard label="Sessions"  value={data.unique_sessions?.toLocaleString()} color="rgba(220,170,100,.9)" />
+            <StatCard
+              label="Pages/Session"
+              value={data.unique_sessions ? (data.total_pageviews / data.unique_sessions).toFixed(1) : '0'}
+              color="rgba(255,255,255,.6)"
+            />
+            {data.bounce_rate != null && (
+              <StatCard label="Bounce Rate" value={`${data.bounce_rate.toFixed(1)}%`} color="rgba(220,170,100,.7)" />
+            )}
+            {data.avg_session_duration != null && (
+              <StatCard label="Avg Session" value={`${Math.round(data.avg_session_duration)}s`} color="rgba(130,150,220,.7)" />
+            )}
           </div>
 
           {/* Chart */}
           <div style={{ ...card, marginBottom: 20 }}>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Pageviews over time</span>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em' }}>
+              Pageviews over time
+            </span>
             <div style={{ marginTop: 12 }}>
-              <MiniChart data={chartData} color="rgba(130,150,220,.8)" />
+              <MiniChart data={chartData} color="rgba(130,150,220,.8)" gradientId="analytics-pageviews" height={100} dots />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
               {chartData.length > 0 && <span style={{ fontSize: 10, color: 'rgba(255,255,255,.2)' }}>{chartData[0].label}</span>}
@@ -115,24 +85,27 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Grid: Top pages + Referrers + Devices */}
+          {/* Top pages + Referrers */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-            {/* Top Pages */}
             <div style={card}>
               <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 12 }}>Top Pages</span>
-              {(data.top_pages || []).map((p: any, i: number) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
-                  <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{p.url}</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(130,150,220,.7)' }}>{p.count}</span>
+              {(data.top_pages || []).map((p, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.04)', gap: 8 }}>
+                  <span
+                    title={p.url}
+                    style={{ fontSize: 13, color: 'rgba(255,255,255,.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '75%' }}
+                  >
+                    {p.url}
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(130,150,220,.7)', flexShrink: 0 }}>{p.count}</span>
                 </div>
               ))}
               {!data.top_pages?.length && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.2)' }}>No data</span>}
             </div>
 
-            {/* Referrers */}
             <div style={card}>
               <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 12 }}>Top Referrers</span>
-              {(data.top_referrers || []).map((r: any, i: number) => (
+              {(data.top_referrers || []).map((r, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
                   <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>{r.source}</span>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(130,220,170,.7)' }}>{r.count}</span>
@@ -143,13 +116,13 @@ export default function AdminDashboard() {
           </div>
 
           {/* Devices + Funnel */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {/* Device breakdown */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
             <div style={card}>
               <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 12 }}>Devices</span>
-              {data.devices && Object.entries(data.devices).map(([device, count]: any) => {
-                const total = Object.values(data.devices).reduce((a: number, b: any) => a + b, 0) as number
+              {data.devices && Object.entries(data.devices).map(([device, count]) => {
+                const total = Object.values(data.devices).reduce((a, b) => a + b, 0)
                 const pct = total ? Math.round((count / total) * 100) : 0
+                const devColor = device === 'desktop' ? 'rgba(130,150,220,.6)' : device === 'mobile' ? 'rgba(130,220,170,.6)' : 'rgba(220,170,100,.6)'
                 return (
                   <div key={device} style={{ marginBottom: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'rgba(255,255,255,.5)', marginBottom: 4 }}>
@@ -157,14 +130,13 @@ export default function AdminDashboard() {
                       <span>{pct}% ({count})</span>
                     </div>
                     <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,.06)' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, borderRadius: 2, background: device === 'desktop' ? 'rgba(130,150,220,.6)' : device === 'mobile' ? 'rgba(130,220,170,.6)' : 'rgba(220,170,100,.6)' }} />
+                      <div style={{ height: '100%', width: `${pct}%`, borderRadius: 2, background: devColor }} />
                     </div>
                   </div>
                 )
               })}
             </div>
 
-            {/* Conversion funnel */}
             <div style={card}>
               <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 12 }}>Conversion Funnel</span>
               {data.funnel && (() => {
@@ -188,8 +160,31 @@ export default function AdminDashboard() {
               })()}
             </div>
           </div>
+
+          {/* Country breakdown (optional) */}
+          {data.by_country && data.by_country.length > 0 && (
+            <div style={card}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 12 }}>Top Countries</span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
+                {data.by_country.slice(0, 10).map((c, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'rgba(255,255,255,.5)', padding: '4px 0' }}>
+                    <span>{c.country || 'Unknown'}</span>
+                    <span style={{ fontWeight: 600, color: 'rgba(130,150,220,.7)' }}>{c.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
     </>
+  )
+}
+
+export default function AdminDashboard() {
+  return (
+    <DevErrorBoundary>
+      <AdminDashboardInner />
+    </DevErrorBoundary>
   )
 }
