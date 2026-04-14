@@ -19,12 +19,18 @@
    - `GET /api/stripe-connect/status` → `requireCustomPerm('financial.access_terminal')`
 3. Result: barbers with enabled permissions can now see payments, use terminal checkout
 
+### Guest role fix — commit `97be886`
+- **Problem**: `guest` role was missing from frontend `DEFAULT_PERMS` in `PermissionsProvider.tsx`
+- AI 2's permission checks (`hasPerm('financial', 'pay_cash')` etc.) always returned `false` for guest
+- Guest accounts saw only Cash button, no Terminal/Zelle/Other
+- **Fix 1**: Added `guest` to `DEFAULT_PERMS` with sensible defaults (calendar, clients, bookings, checkout, terminal, all payment methods)
+- **Fix 2**: Fixed `requireCustomPerm()` dot notation bug — `'financial.access_terminal'` was looked up as flat key instead of nested `perms.guest.financial.access_terminal`
+- **Result**: Guest accounts now see Terminal, Cash, Zelle, Other based on custom permissions
+
 ### Remaining PERM issues (AI 2 scope)
 - PERM-001: Dashboard hardcodes `if (isBarber && [...].includes(item.label)) return false` — ignores hasPerm()
 - PERM-002: Pill nav bottom bar only has 5 items — no way to navigate to Payments/Clients etc.
 - PERM-004: Payments page uses `isOwner` check instead of hasPerm()
-
-**Owner**: AI 1 — will implement after AI 2 finishes current backend edits
 
 ---
 
