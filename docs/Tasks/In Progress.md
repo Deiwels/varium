@@ -27,6 +27,69 @@
   - Jonathan / Telnyx follow-up
   - Verify Profile account issues
 
+## 🔴 ELEMENT 10DLC RESUBMIT — BLOCKED on 2 content typos + FE.Element-Verify (2026-04-15)
+
+**Status:** NOT READY for Resubmit. Two hard blockers + one open Codex verification pass.
+
+### Owner-side blockers (fix in Element Settings, then hit Save)
+
+- [ ] **BLOCKER A** — `shop_address` is `"1142 W Lake Cook Rd, Bufalo Grove, IL"` on production. Must become `"1142 W Lake Cook Rd, Buffalo Grove, IL 60089"` (fix `Bufalo → Buffalo`, add ZIP)
+- [ ] **BLOCKER B** — `shop_email` is `"contacts@element-barbersho.com"` on production. Must become `"contacts@element-barbershop.com"` (missing `p` before `.com`)
+
+**Why this matters:** MNO failure reason #1 was "brand website is lacking sufficient information about the company and its products." Reviewers cross-check address via Google and the email domain via web resolution. With `Bufalo Grove` (no Google match) and `element-barbersho.com` (domain does not exist), both checks fail — same failure class we already hit.
+
+Verification command after Save (anyone can run this):
+
+```bash
+curl -s https://vuriumbook-api-431945333485.us-central1.run.app/public/config/EZaC81SVGM0uuoYMxBCT \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print('addr:', d.get('shop_address')); print('mail:', d.get('shop_email'))"
+```
+
+Expected:
+```
+addr: 1142 W Lake Cook Rd, Buffalo Grove, IL 60089
+mail: contacts@element-barbershop.com
+```
+
+### FE.Element-Verify — Codex (AI 2) scope
+
+Full 5-step browser verification runbook is in [[Tasks/Element-10DLC-Resubmission-Checklist]] under "Step 2 — FE.Element-Verify". TL;DR:
+
+- [ ] **FE.Element-Verify.1** — `/book/elementbarbershop` renders Business details + Services preview + team grid after hydration on Chrome desktop + iPhone Safari 375px
+- [ ] **FE.Element-Verify.2** — Booking details step: SMS consent checkbox visible immediately, consent label mentions `Element Barbershop Appointment Notifications`, Privacy/Terms links contain `?business=Element%20Barbershop&slug=elementbarbershop` query params
+- [ ] **FE.Element-Verify.3** — Privacy + Terms pages show `Legal · Element Barbershop` label and business-context highlight panels at top and inside `#sms` section
+- [ ] **FE.Element-Verify.4** — Pill bar post-71a20e2 shows exactly 5 icons, no horizontal scroll strip, Dashboard shortcuts grid unchanged
+- [ ] **FE.Element-Verify.5** — If Element uses `custom` design template, Business identity and SMS consent are visible on the custom page variant too (the `8f7bec3` fix)
+
+**Why this is Codex scope:** `/book/[id]`, `/privacy`, `/terms` are `'use client'` Next.js routes. Curl only returns the Next.js shell + metadata — the React components do not render until JS hydrates in a real browser. AI 1 confirmed via curl that the pages return 200 and og metadata is business-branded, but could not confirm that the hydrated sections actually appear on screen. That is Codex's live-browser verification role.
+
+### Backend content state (verified live by AI 1 on 2026-04-15)
+
+- ✅ `shop_name = 'Element Barbershop'` (exact DBA match)
+- ❌ `shop_address = '1142 W Lake Cook Rd, Bufalo Grove, IL'` — typo + no ZIP
+- ✅ `shop_phone = '+1 (224) 584-5072'`
+- ❌ `shop_email = 'contacts@element-barbersho.com'` — typo missing `p`
+- ✅ `business_type = 'Barbershop'`
+- ✅ `sms_brand_name = 'Element Barbershop'` (matches DBA)
+- ✅ `online_booking_enabled = true`
+- ✅ 40 real services via `/public/services/` with names + real prices ($24.99–$100) + durations
+- ✅ 6 barbers via `/public/barbers/` (Arsen, Dan, Lili, Naz, Vio)
+- ✅ og:title on `/book/elementbarbershop` = "Book with Element Barbershop"
+- ✅ Backend submission code uses per-workspace URL in messageFlow (`getWorkspaceBookingUrl`, landed in `e97efd9`)
+- ✅ Frontend legal-link context code landed in `c2d0a99`
+
+### Unblock order
+
+1. Owner fixes 2 typos (Step 1 in checklist)
+2. Owner re-runs `curl` verification above → confirms corrected values
+3. Codex runs FE.Element-Verify.1–5 (Step 2 in checklist) → reports results back here
+4. Owner does independent incognito check on real iPhone + desktop (Step 3 in checklist)
+5. Resubmit CICHCOJ in Telnyx portal (Step 4 in checklist)
+
+See [[Tasks/Element-10DLC-Resubmission-Checklist]] + DevLog 2026-04-15 `Element Barbershop pre-resubmission live verification` for full evidence.
+
+---
+
 ## HOTFIX 2026-04-15 — Element legal links now preserve business context
 
 - [x] Owner raised a valid reviewer-flow concern: from `Element` booking page, `Privacy Policy` / `Terms` were opening generic Vurium legal pages with no obvious first-screen explanation of how `Element Barbershop` fit into the flow
