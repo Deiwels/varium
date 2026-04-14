@@ -187,17 +187,20 @@
 - **Fix 2**: Fixed `requireCustomPerm()` dot notation bug — `'financial.access_terminal'` was looked up as flat key instead of nested `perms.guest.financial.access_terminal`
 - **Result**: Guest accounts now see Terminal, Cash, Zelle, Other based on custom permissions
 
-### AI 2 local permission batch — pending commit / verification
-- FE.15 / PERM-001: `components/Shell.tsx` now uses the computed `visibleNav` list for the bottom pill nav instead of a fixed 5-item bar, so Payments / Clients / Waitlist / Portfolio / Attendance / Cash / Membership / Analytics / Billing / Settings are reachable from the UI when the role has access
-- FE.15 follow-up: the pill nav is now horizontally scrollable on narrow screens, and missing icon cases (`portfolio`, `cash`, `billing`) were added so the expanded nav still looks intentional
-- FE.16 / PERM-002: `app/dashboard/page.tsx` shortcut filtering now uses permission-driven `pageId` checks plus `settings_access` visibility instead of hardcoded barber/student label filters, so enabling a page in Roles & Permissions can actually surface the shortcut
-- FE.17 / PERM-004: `app/payments/page.tsx` now imports `usePermissions()`, shows a clean access-restricted state when `pages.payments` is disabled, and stops using a raw `isOwner` gate as the only frontend permission model
-- FE.17 follow-up: Payments actions now match backend intent more closely:
-  - reconcile = owner/admin
-  - sync tips = owner
-  - refund button = owner/admin
-- FE.18 / BUG-004: `components/Shell.tsx` profile password flow now matches backend validation with `min 8 characters` copy and guardrails
-- FE.19 / BUG-007: `components/Shell.tsx` profile modal now exposes the `Password` tab when the role has `settings_access.change_password`
+### AI 2 permission batch — landed, then narrowed by shell hotfix
+- `074ddd2` landed the core AI 2 permission batch:
+  - `app/dashboard/page.tsx` shortcut filtering now uses permission-driven `pageId` checks plus `settings_access` visibility instead of hardcoded barber/student label filters
+  - `app/payments/page.tsx` now imports `usePermissions()`, shows an access-restricted state when `pages.payments` is disabled, and no longer relies on raw `isOwner`
+  - payments action visibility is closer to backend intent:
+    - reconcile = owner/admin
+    - sync tips = owner
+    - refund = owner/admin
+  - `components/Shell.tsx` profile password flow now matches backend validation with `min 8 characters`
+  - `components/Shell.tsx` profile modal exposes the `Password` tab when the role has `settings_access.change_password`
+- `71a20e2` then intentionally narrowed one part of the Shell change:
+  - mobile bottom pill nav no longer renders the full `visibleNav`
+  - it is back to the canonical 5-slot pill (`dashboard`, `history`, `calendar`, `messages`, `settings`)
+  - reachability for the broader permission surface remains through the Dashboard shortcuts grid, not through a horizontally scrolling pill bar
 
 ---
 
