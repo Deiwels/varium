@@ -807,7 +807,12 @@ async function tryWaitlistAutoFill(wsId, cancelledBooking) {
     const wsCol = (col) => db.collection(`workspaces/${wsId}/${col}`);
     const settingsDoc = await wsCol('settings').doc('config').get();
     const settings = settingsDoc.exists ? settingsDoc.data() : {};
-    if (!settings.waitlist_enabled) return;
+    // SET-006 (revised): only bail if owner EXPLICITLY set waitlist_enabled to false.
+    // Previously a bare falsy check (undefined default) silently disabled auto-fill on
+    // every Salon+ workspace that never toggled the setting — the feature was dead by
+    // default. Plan-level gate is enforced below via `getEffectivePlan()` flow (see
+    // `POST /public/waitlist/:workspace_id` for the same guard).
+    if (settings.waitlist_enabled === false) return;
     const timeZone = settings.timezone || 'America/Chicago';
     const shopName = settings.shop_name || '';
 
@@ -9150,9 +9155,15 @@ app.get('/public/config/:workspace_id', async (req, res) => {
       // so the UI can render a clear "booking unavailable" state upfront instead of
       // letting the customer fill out the whole form and then hit a backend 400.
       online_booking_enabled: data.online_booking_enabled !== false,
-      // SET-006: same reasoning for waitlist — plan feature gate still applies on top
-      // of this, but the owner-facing setting now reaches the booking page.
-      waitlist_enabled: !!data.waitlist_enabled,
+      // SET-006 (revised 2026-04-15): waitlist defaults to ON for any plan that supports
+      // it; the Settings toggle is an explicit OFF-override, not an opt-in. Earlier
+      // version of this endpoint returned `!!data.waitlist_enabled` which forced false
+      // whenever the owner had never touched the toggle — that silently hid the waitlist
+      // form on every Salon+ workspace that was previously working. Fix: only include
+      // the field when it is explicitly set in settings; when absent, frontend falls
+      // back to `/public/resolve` which already returns the plan-feature value via the
+      // `??` (nullish coalescing) guard in `app/book/[id]/page.tsx`.
+      ...(typeof data.waitlist_enabled === 'boolean' ? { waitlist_enabled: data.waitlist_enabled } : {}),
       // SET-001 / SET-002 / SET-003
       display: publicDisplay,
       // SET-005
@@ -9386,7 +9397,14 @@ app.post('/public/waitlist/:workspace_id', async (req, res) => {
     const settingsDoc = await wsCol('settings').doc('config').get();
     const settingsData = settingsDoc.exists ? settingsDoc.data() : {};
     const waitlistAllowedByPlan = !!PLAN_FEATURES[effectivePlan]?.features?.includes('waitlist');
-    if (!waitlistAllowedByPlan || !settingsData?.waitlist_enabled) {
+    // SET-006 (revised): waitlist is ON by default on any plan that includes the feature.
+    // Previously this rejected any submission where `settingsData.waitlist_enabled` was
+    // falsy — but the field is undefined on every workspace that never toggled it in
+    // Settings, which matched 99% of Salon+ workspaces. That caused the form to render
+    // (because /public/resolve said the plan allows it) but submits to 403. We now only
+    // reject on (a) plan does not support waitlist, or (b) owner EXPLICITLY set
+    // waitlist_enabled to false in Settings.
+    if (!waitlistAllowedByPlan || settingsData?.waitlist_enabled === false) {
       return res.status(403).json({ error: 'Waitlist is currently disabled for this business.' });
     }
     const allowWaitlistNotes = settingsData?.display?.allow_notes !== false;
