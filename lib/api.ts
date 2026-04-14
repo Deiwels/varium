@@ -18,6 +18,12 @@ export async function apiRequest(path: string, opts?: RequestInit) {
   if (res.status === 401) {
     if (typeof window !== 'undefined' && !path.includes('/auth/login')) {
       localStorage.removeItem('VURIUMBOOK_TOKEN')
+      // Also clear the JS-readable role cookie. Without this the Edge middleware
+      // sees a still-valid `VURIUMBOOK_TOKEN=role:uid` cookie and bounces /signin
+      // back to /dashboard, creating a redirect loop on iOS where native UserDefaults
+      // keeps re-injecting an expired JWT into localStorage on every WebView load.
+      const isSecure = window.location.protocol === 'https:'
+      document.cookie = `VURIUMBOOK_TOKEN=; path=/; max-age=0; SameSite=Lax${isSecure ? '; Secure' : ''}`
       if (localStorage.getItem('VURIUMBOOK_PIN_HASH')) {
         window.dispatchEvent(new CustomEvent('vuriumbook-pin-required'))
       } else {
