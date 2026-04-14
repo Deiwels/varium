@@ -32,12 +32,14 @@ function getSmsUxState(settings: any) {
   const hasLegacyArtifacts = !!settings?.telnyx_brand_id || !!settings?.telnyx_campaign_id || LEGACY_SMS_STATUSES.has(smsStatus)
   const isTollFree = smsNumberType === 'toll-free'
   const isLegacyManual = smsNumberType === '10dlc' || (!isTollFree && hasLegacyArtifacts)
+  const hasAutoRetryScheduled = !!settings?.sms_auto_provision_next_retry_at && smsStatus !== 'failed_max_retries'
 
   let tollFreeState: 'not_enabled' | 'provisioning' | 'pending' | 'active' | 'failed' = 'not_enabled'
   if (isTollFree && (smsStatus === 'active' || smsStatus === 'verified')) tollFreeState = 'active'
   else if (smsStatus === 'provisioning') tollFreeState = 'provisioning'
+  else if (!isLegacyManual && hasAutoRetryScheduled) tollFreeState = 'provisioning'
   else if (isTollFree && (smsStatus === 'pending_verification' || smsStatus === 'pending_approval')) tollFreeState = 'pending'
-  else if (!isLegacyManual && (smsStatus === 'rejected' || smsStatus === 'failed')) tollFreeState = 'failed'
+  else if (!isLegacyManual && (smsStatus === 'rejected' || smsStatus === 'failed' || smsStatus === 'failed_max_retries')) tollFreeState = 'failed'
 
   return {
     smsStatus,
@@ -45,6 +47,7 @@ function getSmsUxState(settings: any) {
     hasNumber,
     isTollFree,
     isLegacyManual,
+    hasAutoRetryScheduled,
     tollFreeState,
   }
 }
@@ -85,57 +88,26 @@ function SmBtn({ onClick, children, danger, disabled }: { onClick: () => void; c
   )
 }
 
-// ─── Toll-Free SMS Enable (Individual plan) ─────────────────────────────────
-function TollFreeEnableButton({ settings, onDone }: { settings: any; onDone: (data: any) => void }) {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  async function handleEnable() {
-    setLoading(true); setError('')
-    try {
-      const { res, data } = await apiRequest('/api/sms/enable-tollfree', {
-        method: 'POST',
-      })
-      if (res.status === 409 && data?.status) {
-        onDone({
-          sms_registration_status: data.status,
-          sms_number_type: 'toll-free',
-          sms_brand_name: settings.shop_name || '',
-        })
-        return
-      }
-      if (!res.ok) throw new Error(data.error || 'Failed to enable SMS')
-      onDone({
-        sms_registration_status: data.status || 'active',
-        sms_from_number: data.phone_number,
-        sms_number_type: 'toll-free',
-        sms_brand_name: settings.shop_name || '',
-      })
-    } catch (e: any) {
-      setError(e.message || 'Something went wrong')
-    } finally {
-      setLoading(false)
-    }
-  }
-
+// ─── Toll-Free SMS Status (Individual plan) ─────────────────────────────────
+function TollFreeStatusCard({ settings }: { settings: any }) {
+  const { tollFreeState, hasAutoRetryScheduled } = getSmsUxState(settings)
+  const isRetry = tollFreeState === 'provisioning' && hasAutoRetryScheduled
+  const isTerminalFailure = tollFreeState === 'failed'
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center' }}>
       <div style={{ fontSize: 32 }}>&#128172;</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.6)' }}>Turn on SMS reminders</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.6)' }}>
+        {isRetry ? 'SMS setup is retrying automatically' : isTerminalFailure ? 'SMS setup needs support review' : 'SMS usually turns on automatically'}
+      </div>
       <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.5, maxWidth: 360 }}>
-        We&apos;ll assign a dedicated toll-free number to this workspace for confirmations, reminders, reschedules, and cancellations. Email reminders stay on while SMS setup or delivery approval is still in progress.
+        {isRetry
+          ? 'Automatic setup did not finish for this workspace yet. We keep retrying in the background and booking emails stay on while the dedicated toll-free sender is being prepared.'
+          : isTerminalFailure
+            ? 'Automatic setup did not finish after several attempts. Booking emails still work, and support may need to review this workspace before SMS can go live.'
+          : 'When a trial or paid plan starts, we usually assign a dedicated toll-free number to this workspace automatically. If setup has not finished yet, booking emails keep working while SMS activates in the background.'}
       </p>
-      {error && <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(220,80,80,.1)', border: '1px solid rgba(220,80,80,.2)', color: 'rgba(255,160,160,.9)', fontSize: 12, width: '100%' }}>{error}</div>}
-      <button onClick={handleEnable} disabled={loading} style={{
-        height: 42, padding: '0 28px', borderRadius: 999, border: 'none',
-        background: 'rgba(130,220,170,.15)', color: 'rgba(130,220,170,.9)',
-        cursor: loading ? 'wait' : 'pointer', fontWeight: 700, fontSize: 14, fontFamily: 'inherit',
-        opacity: loading ? 0.5 : 1,
-      }}>
-        {loading ? 'Provisioning toll-free number…' : 'Enable Dedicated Toll-Free Number'}
-      </button>
       <p style={{ fontSize: 10, color: 'rgba(255,255,255,.12)', lineHeight: 1.5, maxWidth: 300 }}>
-        No EIN or company registration is required for this default path. Msg &amp; data rates may apply to recipients. <a href="/privacy" style={{ color: 'rgba(130,150,220,.3)', textDecoration: 'none' }}>Privacy Policy</a>
+        No EIN or company registration is required for this default path. SMS activation and retry happen automatically for new workspaces. Msg &amp; data rates may apply to recipients. <a href="/privacy" style={{ color: 'rgba(130,150,220,.3)', textDecoration: 'none' }}>Privacy Policy</a>
       </p>
     </div>
   )
@@ -2105,7 +2077,7 @@ export default function SettingsPage() {
                             Your number: <span style={{ color: 'rgba(255,255,255,.5)', fontFamily: 'monospace' }}>{settings.sms_from_number}</span>
                           </div>
                           <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>
-                            This workspace is on the new default reminder path. Appointment confirmations and reminders use this dedicated toll-free number when SMS delivery is active for the workspace.
+                            This workspace is on the new default reminder path. Most new workspaces reach this state automatically after trial or plan activation, and appointment confirmations and reminders use this dedicated toll-free number when SMS delivery is active for the workspace.
                           </p>
                         </div>
                       )
@@ -2122,7 +2094,7 @@ export default function SettingsPage() {
                           </div>
                           <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>
                             {tollFreeState === 'provisioning'
-                              ? 'We are setting up a dedicated toll-free number for this workspace now. Email confirmations stay available while SMS setup finishes.'
+                              ? 'We are setting up a dedicated toll-free number for this workspace now. This usually starts automatically after trial or plan activation, and email confirmations stay available while SMS setup finishes.'
                               : 'Your toll-free reminder path is not fully active yet. The workspace stays on email-only reminders until SMS delivery is confirmed for this workspace.'}
                           </p>
                           <div style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(255,180,80,.12)', background: 'rgba(255,180,80,.04)', fontSize: 11, color: 'rgba(255,190,120,.72)', lineHeight: 1.55 }}>
@@ -2143,9 +2115,7 @@ export default function SettingsPage() {
                           </div>
                         ) : null}
 
-                        <TollFreeEnableButton settings={settings} onDone={(data: any) => {
-                          setSettings((prev: any) => ({ ...prev, ...data }))
-                        }} />
+                        <TollFreeStatusCard settings={settings} />
 
                         <details style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)' }}>
                           <summary style={{ cursor: 'pointer', listStyle: 'none', padding: '12px 14px', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.62)', letterSpacing: '.04em' }}>

@@ -7,6 +7,39 @@
 
 Finish SMS to a launch-ready state without breaking the protected legacy path.
 
+## 3-AI execution split
+
+Before anyone changes SMS again, re-read:
+- `docs/Tasks/Telnyx-Integration-Plan.md`
+- `docs/Tasks/Platform-Sender-Pivot-Decision.md`
+- `docs/Tasks/SMS Finalization Plan.md`
+- `docs/AI-Work-Split.md`
+- `docs/Tasks/In Progress.md`
+
+Current ownership:
+- `Claude / AI 1` owns backend SMS hardening and docs:
+  - `backend/index.js`
+  - `.github/workflows/deploy-backend.yml`
+  - SMS backend / ops docs
+- `Codex / AI 2` owns frontend SMS UX:
+  - `app/settings/page.tsx`
+  - `app/signup/page.tsx`
+  - related frontend-facing SMS copy alignment
+- `Verdent` acts as reviewer / verifier / research support:
+  - sanity-checks code and docs
+  - verifies the final shape matches the current launch decision
+  - does not open a parallel backend implementation track unless ownership is reassigned first
+- `Owner` handles external blockers:
+  - add `TELNYX_WEBHOOK_PUBLIC_KEY` to GitHub Secrets
+  - follow up with Jonathan / Telnyx
+  - unblock `TELNYX_VERIFY_PROFILE_ID` / account-level Verify issues
+
+Execution order:
+1. `Claude / AI 1` finishes backend gaps and commits them cleanly.
+2. `Codex / AI 2` ships the frontend SMS auto-activation UX as a separate clean package.
+3. `Verdent` performs verification / docs sanity after both packages land.
+4. Live SMS verification happens only after the backend + frontend packages are both visible in `main`.
+
 Locked product rules:
 - New workspaces use **toll-free-first** reminder setup
 - Existing / pending 10DLC workspaces stay on the **grandfathered manual** path

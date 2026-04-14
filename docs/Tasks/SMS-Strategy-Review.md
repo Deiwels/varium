@@ -1,7 +1,9 @@
 # SMS Strategy Review — Dual-Path Launch Memo
 
 > [[Home]] > Tasks | Priority: HIGH
-> Updated: 2026-04-15 | Related: [[SMS & 10DLC]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]], [[Tasks/In Progress|In Progress]]
+> Updated: 2026-04-15 | Related: [[SMS & 10DLC]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]], [[Tasks/In Progress|In Progress]], [[Tasks/Platform-Sender-Pivot-Decision|Platform Sender Pivot Decision]], [[Tasks/Telnyx-Integration-Plan|Telnyx Integration Plan]]
+
+> **2026-04-15 update:** On 2026-04-15 a proposal was raised to pivot to a Booksy/Square-style shared-sender model (one Vurium-owned TFN for all workspaces). After three-AI review (Claude / Codex / Verdent), the pivot was **declined for launch** — see [[Tasks/Platform-Sender-Pivot-Decision]] for the full analysis, historical 710 rejection context, and the draft Jonathan inquiry letter. The dual-path documented below remains the launch architecture, with auto-provision on plan activation added as a UX enhancement (see [[Tasks/Telnyx-Integration-Plan]] Gap 5).
 
 ## Decision
 

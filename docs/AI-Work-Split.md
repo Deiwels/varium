@@ -75,4 +75,37 @@ Two AI agents work on this project simultaneously. To avoid conflicts (duplicate
 
 ---
 
+## Documentation Rules (Obsidian)
+
+We use Obsidian as the shared project brain. Every AI must write docs so both Obsidian and humans can follow the project without re-explaining context in chat.
+
+### Required rules
+- Re-read the relevant docs before changing code or plans
+- Record every substantial change in `docs/DevLog/YYYY-MM-DD.md`
+- Update the matching tracker doc when status changes:
+  - `docs/Tasks/In Progress.md` for active work
+  - feature docs under `docs/Features/` for product behavior
+  - plan docs under `docs/Tasks/` for decisions, rollouts, and execution plans
+- Use Obsidian wiki links `[[Like This]]` for internal references whenever the target doc already exists
+- If you create a new important doc, add a link from `docs/Home.md` or the nearest parent doc so it does not become orphaned
+- Do not create duplicate docs for the same topic if an existing doc can be updated instead
+- Write concrete status, ownership, and dates; avoid vague notes like "fixed stuff" or "updated SMS"
+- When a decision changes, update the old plan/tracker docs too so Obsidian does not show contradictory versions of reality
+
+### Writing style
+- Prefer short sections with clear headings over long chat-style paragraphs
+- State who owns the work when multiple AI are involved
+- Use exact names for files, routes, env vars, and commits when relevant
+- Keep terminology consistent across docs (`toll-free-first`, `grandfathered manual 10DLC`, `Element Barbershop`, etc.)
+- If something is blocked by an external dependency, say exactly what is blocked and who must unblock it
+
+### Goal
+- Any AI should be able to open Obsidian, read the linked docs, and understand:
+  - what changed
+  - what is still open
+  - who owns the next step
+  - which doc is the source of truth
+
+---
+
 *Created 2026-04-13. Update this file if responsibilities shift.*

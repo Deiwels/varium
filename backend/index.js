@@ -1714,8 +1714,39 @@ app.post('/auth/reset-password', async (req, res) => {
 // ============================================================
 // TELNYX INBOUND SMS WEBHOOK (STOP / HELP) — before auth middleware
 // ============================================================
+
+// Gap 2: Ed25519 webhook signature verification (mirrors Stripe/Square pattern already in codebase).
+// Safely no-ops when TELNYX_WEBHOOK_PUBLIC_KEY env var is not set (dev / pre-secret-rotation).
+// Set TELNYX_WEBHOOK_PUBLIC_KEY in GitHub Secrets + deploy.yml to activate in production.
+function verifyTelnyxWebhookSignature(req) {
+  const publicKey = process.env.TELNYX_WEBHOOK_PUBLIC_KEY;
+  if (!publicKey) return; // dev/staging — do not block if key not set
+  const sig = req.headers['telnyx-signature-ed25519'];
+  const ts  = req.headers['telnyx-timestamp'];
+  if (!sig || !ts) {
+    const err = new Error('Missing Telnyx webhook signature');
+    err.statusCode = 401;
+    throw err;
+  }
+  try {
+    const msgBuf = Buffer.from(`${ts}|${JSON.stringify(req.body)}`);
+    const pubBuf = Buffer.from(publicKey, 'base64');
+    const sigBuf = Buffer.from(sig, 'base64');
+    const ok = crypto.verify(null, msgBuf,
+      { key: pubBuf, format: 'der', type: 'spki' },
+      sigBuf
+    );
+    if (!ok) throw new Error('Signature mismatch');
+  } catch {
+    const err = new Error('Invalid Telnyx webhook signature');
+    err.statusCode = 401;
+    throw err;
+  }
+}
+
 app.post('/api/webhooks/telnyx', async (req, res) => {
   try {
+    verifyTelnyxWebhookSignature(req);
     const payload = req.body?.data?.payload || req.body?.data || {};
     const direction = payload.direction || '';
     if (direction !== 'inbound') return res.status(200).json({ ok: true });
@@ -1732,35 +1763,38 @@ app.post('/api/webhooks/telnyx', async (req, res) => {
     let matchedShopName = 'Vurium';
     let matchedFromNumber = toNumber || safeStr(process.env.TELNYX_FROM);
 
-    // Try to find workspace by sms_from_number
-    const wsSnap = await db.collection('workspaces').limit(100).get();
-    for (const ws of wsSnap.docs) {
-      const wsCol = (col) => db.collection('workspaces').doc(ws.id).collection(col);
-      const cfg = await wsCol('settings').doc('config').get();
-      const cfgData = cfg.exists ? cfg.data() : {};
-      const wsFrom = safeStr(cfgData.sms_from_number || '').replace(/\D/g, '');
-      if (wsFrom && toNorm && wsFrom === toNorm) {
-        matchedWsId = ws.id;
-        matchedShopName = safeStr(cfgData.sms_brand_name || cfgData.shop_name || 'Vurium');
-        matchedFromNumber = cfgData.sms_from_number;
-        break;
+    // Gap 3: O(1) lookup via phone_number_index instead of scanning all workspaces
+    if (toNorm) {
+      const idxDoc = await db.collection('phone_number_index').doc(toNorm).get();
+      if (idxDoc.exists) {
+        const idx = idxDoc.data();
+        matchedWsId = idx.workspace_id || null;
+        matchedShopName = idx.shop_name || 'Vurium';
+        matchedFromNumber = idx.from_number || toNumber;
       }
     }
 
     if (body === 'STOP' || body === 'UNSUBSCRIBE' || body === 'CANCEL' || body === 'END' || body === 'QUIT') {
-      // Process opt-out across all workspaces where this phone exists
-      for (const ws of wsSnap.docs) {
-        const wsCol = (col) => db.collection('workspaces').doc(ws.id).collection(col);
-        const clientSnap = await wsCol('clients').where('phone_norm', '==', phoneNorm).limit(1).get();
-        if (!clientSnap.empty) {
-          await clientSnap.docs[0].ref.update({ sms_opt_out: true, sms_opt_out_at: toIso(new Date()) });
+      // Gap 3: collectionGroup query — find matching clients across all workspaces without O(N) scan
+      const allClientSnap = await db.collectionGroup('clients').where('phone_norm', '==', phoneNorm).get().catch(() => null);
+      const affectedWsIds = new Set();
+      if (allClientSnap && !allClientSnap.empty) {
+        for (const cDoc of allClientSnap.docs) {
+          await cDoc.ref.update({ sms_opt_out: true, sms_opt_out_at: toIso(new Date()) }).catch(() => {});
+          const wsId = cDoc.ref.parent?.parent?.id;
+          if (wsId) affectedWsIds.add(wsId);
         }
-        const reminderSnap = await wsCol('sms_reminders').where('sent', '==', false).limit(50).get();
+      }
+      // Cancel pending reminders for each affected workspace
+      for (const wsId of affectedWsIds) {
+        const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
+        const reminderSnap = await wsCol('sms_reminders').where('sent', '==', false).limit(50).get().catch(() => null);
+        if (!reminderSnap) continue;
         for (const r of reminderSnap.docs) {
           const rPhone = String(r.data().phone || '').replace(/\D/g, '');
           const rNorm = rPhone.length === 11 && rPhone.startsWith('1') ? rPhone.slice(1) : rPhone;
           if (rNorm === phoneNorm) {
-            await r.ref.update({ sent: true, cancelled: true, cancelled_at: toIso(new Date()) });
+            await r.ref.update({ sent: true, cancelled: true, cancelled_at: toIso(new Date()) }).catch(() => {});
           }
         }
       }
@@ -1781,6 +1815,7 @@ app.post('/api/webhooks/telnyx', async (req, res) => {
 // ============================================================
 app.post('/api/webhooks/telnyx-10dlc', async (req, res) => {
   try {
+    verifyTelnyxWebhookSignature(req);
     const event = req.body?.data || {};
     const eventType = event.event_type || req.body?.event_type || '';
     const payload = event.payload || event || {};
@@ -2001,6 +2036,17 @@ async function provisionTollFreeSmsForWorkspace(workspace, opts = {}) {
       updated_at: toIso(new Date()),
     }, { merge: true });
 
+    // Gap 3: write phone_number_index for O(1) inbound webhook lookup
+    if (phoneNumber) {
+      const idxKey = phoneNumber.replace(/\D/g, '');
+      db.collection('phone_number_index').doc(idxKey).set({
+        workspace_id: wsId,
+        shop_name: shopName,
+        from_number: phoneNumber,
+        updated_at: toIso(new Date()),
+      }).catch(() => {});
+    }
+
     const actor = safeStr(opts.actor_name || 'system');
     writeAuditLog(wsId, {
       action: 'sms.enable_tollfree',
@@ -2029,6 +2075,135 @@ async function provisionTollFreeSmsForWorkspace(workspace, opts = {}) {
     const err = new Error(e?.message || 'Failed to enable SMS');
     err.statusCode = e?.statusCode || 400;
     throw err;
+  }
+}
+
+// ============================================================
+// SMS AUTO-PROVISION (Gap 5 from Telnyx-Integration-Plan.md)
+// ============================================================
+// Non-throwing wrapper around provisionTollFreeSmsForWorkspace.
+// Called automatically at trial start, Stripe paid upgrade, and Apple IAP verify
+// so owners do not have to manually press "Enable SMS" in Settings.
+// On transient failure, schedules a background retry with exponential backoff.
+// Respects legacy/protected workspaces (Element Barbershop stays untouched).
+
+const SMS_AUTO_PROVISION_MAX_RETRIES = 5;
+// Backoff: 5min, 15min, 45min, 2h, 6h
+const SMS_AUTO_PROVISION_BACKOFF_MS = [5, 15, 45, 120, 360].map(m => m * 60 * 1000);
+
+function computeSmsAutoRetryAt(retryCount) {
+  const idx = Math.max(0, Math.min(retryCount, SMS_AUTO_PROVISION_BACKOFF_MS.length - 1));
+  return new Date(Date.now() + SMS_AUTO_PROVISION_BACKOFF_MS[idx]);
+}
+
+async function autoProvisionSmsOnActivation(workspaceLike, source = 'unknown') {
+  const wsId = safeStr(workspaceLike?.id || '');
+  if (!wsId) return { ok: false, skipped: 'missing_workspace_id' };
+
+  try {
+    // Load fresh workspace + settings state so guards are based on current data
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return { ok: false, skipped: 'workspace_not_found' };
+    const wsData = wsDoc.data() || {};
+    const workspace = { id: wsId, name: wsData.name || workspaceLike?.name || '', slug: wsData.slug || workspaceLike?.slug || '' };
+
+    const settingsRef = db.collection('workspaces').doc(wsId).collection('settings').doc('config');
+    const settingsDoc = await settingsRef.get();
+    const settings = settingsDoc.exists ? settingsDoc.data() : {};
+
+    // Guard 1: protected / legacy workspaces never auto-migrate
+    if (isLegacyManualSmsPath(workspace, settings)) {
+      return { ok: false, skipped: 'legacy_manual_path' };
+    }
+
+    // Guard 2: already active → nothing to do
+    const currentStatus = safeStr(settings.sms_registration_status || 'none');
+    if (currentStatus === 'active' && settings.sms_from_number) {
+      return { ok: true, already_active: true };
+    }
+
+    // Guard 3: provisioning in progress (another call fired just now)
+    if (currentStatus === 'provisioning') {
+      return { ok: false, skipped: 'already_provisioning' };
+    }
+
+    // Guard 4: max retries exhausted, owner needs to manually intervene
+    if (currentStatus === 'failed_max_retries') {
+      return { ok: false, skipped: 'max_retries_exhausted' };
+    }
+
+    // Only proceed from: none, rejected, failed
+    if (currentStatus && !['none', 'rejected', 'failed'].includes(currentStatus)) {
+      return { ok: false, skipped: `status:${currentStatus}` };
+    }
+
+    // Attempt provisioning
+    try {
+      const result = await provisionTollFreeSmsForWorkspace(workspace, {
+        source: `auto:${source}`,
+        actor_name: 'auto_provision',
+        actor_role: 'system',
+        actor_uid: 'system',
+      });
+      // On success, provisionTollFreeSmsForWorkspace already set status='active' and wrote audit log.
+      // Clear any retry metadata.
+      await settingsRef.set({
+        sms_auto_provision_retry_count: 0,
+        sms_auto_provision_next_retry_at: null,
+        sms_auto_provision_last_error: null,
+        sms_auto_provision_last_source: source,
+        sms_auto_provision_succeeded_at: toIso(new Date()),
+      }, { merge: true }).catch(() => {});
+      return { ok: true, result };
+    } catch (provisionErr) {
+      // provisionTollFreeSmsForWorkspace already set status='failed'.
+      // Track retry count + schedule next attempt.
+      const prevRetryCount = Number(settings.sms_auto_provision_retry_count || 0);
+      const nextRetryCount = prevRetryCount + 1;
+      const reachedMax = nextRetryCount >= SMS_AUTO_PROVISION_MAX_RETRIES;
+
+      const patch = {
+        sms_auto_provision_retry_count: nextRetryCount,
+        sms_auto_provision_last_error: safeStr(provisionErr?.message || 'unknown').slice(0, 500),
+        sms_auto_provision_last_source: source,
+        sms_auto_provision_last_attempt_at: toIso(new Date()),
+      };
+
+      if (reachedMax) {
+        patch.sms_registration_status = 'failed_max_retries';
+        patch.sms_auto_provision_next_retry_at = null;
+      } else {
+        patch.sms_auto_provision_next_retry_at = toIso(computeSmsAutoRetryAt(prevRetryCount));
+      }
+
+      await settingsRef.set(patch, { merge: true }).catch(() => {});
+
+      writeAuditLog(wsId, {
+        action: reachedMax ? 'sms.auto_provision_exhausted' : 'sms.auto_provision_failed',
+        data: {
+          source,
+          retry_count: nextRetryCount,
+          error: safeStr(provisionErr?.message || '').slice(0, 200),
+          next_retry_at: patch.sms_auto_provision_next_retry_at || null,
+        },
+        req: {
+          headers: {},
+          ip: 'system',
+          user: { uid: 'system', name: 'auto_provision', username: 'system', role: 'system' },
+        },
+      }).catch(() => {});
+
+      return {
+        ok: false,
+        error: provisionErr?.message || 'provision_failed',
+        retry_count: nextRetryCount,
+        reached_max: reachedMax,
+      };
+    }
+  } catch (e) {
+    // Defensive: never throw out of this helper — callers rely on fire-and-forget
+    console.warn('autoProvisionSmsOnActivation error for ws', wsId, e?.message);
+    return { ok: false, error: e?.message || 'unknown' };
   }
 }
 
@@ -3639,9 +3814,11 @@ app.post('/auth/signup', async (req, res) => {
 
     setAuthCookie(res, token);
 
-    // SMS activation happens later in Settings.
-    // New workspaces default to dedicated toll-free reminders.
-    // Grandfathered manual 10DLC remains available only for existing / support-driven exception workspaces.
+    // SMS auto-provision on trial start (Gap 5).
+    // New workspaces get a dedicated toll-free number automatically — owner does not
+    // have to click "Enable SMS" in Settings. Fire-and-forget so signup response is not blocked.
+    // Grandfathered manual 10DLC / Element Barbershop guarded inside the helper.
+    autoProvisionSmsOnActivation({ id: wsRef.id, name: wsData.name, slug }, 'signup_trial').catch(() => {});
 
     res.status(201).json({
       ok: true,
@@ -6717,6 +6894,19 @@ app.post('/api/sms/verify-otp', requireRole('owner'), async (req, res) => {
       updated_at: toIso(new Date()),
     });
 
+    // Gap 3: write phone_number_index so inbound STOP/HELP webhooks resolve this 10DLC
+    // workspace via O(1) lookup instead of scanning all workspaces (matches toll-free path).
+    if (phoneNumber) {
+      const idxKey = phoneNumber.replace(/\D/g, '');
+      db.collection('phone_number_index').doc(idxKey).set({
+        workspace_id: req.wsId,
+        shop_name: shopName,
+        from_number: phoneNumber,
+        number_type: '10dlc',
+        updated_at: toIso(new Date()),
+      }).catch(() => {});
+    }
+
     writeAuditLog(req.wsId, { action: 'sms.sp_verified', resource_id: brandId, data: { campaign_id: campaignId, phone_number: phoneNumber }, req }).catch(() => {});
 
     res.json({
@@ -9219,33 +9409,94 @@ async function runAutoReminders() {
   if (now - _lastReminderRun < 3 * 60 * 1000) return; // throttle 3 min
   _lastReminderRun = now;
   try {
-    const wsSnap = await db.collection('workspaces').limit(100).get();
-    for (const ws of wsSnap.docs) {
-      const wsCol = (col) => db.collection('workspaces').doc(ws.id).collection(col);
-      try {
-        const snap = await wsCol('sms_reminders').where('sent', '==', false).limit(50).get();
-        for (const d of snap.docs) {
-          const r = d.data();
-          if (!r.send_at || new Date(r.send_at) > new Date()) continue;
-          // Check SMS opt-out before sending (use stored phone_norm if available)
-          const phoneNorm = r.phone_norm || normPhone(r.phone);
-          if (phoneNorm) {
-            const optOutSnap = await wsCol('clients').where('phone_norm', '==', phoneNorm).where('sms_opt_out', '==', true).limit(1).get();
-            if (!optOutSnap.empty) {
-              await d.ref.update({ sent: true, cancelled: true, cancelled_reason: 'sms_opt_out', cancelled_at: toIso(new Date()) });
-              continue;
+    // Gap 4: paginate workspaces to handle >100 without skipping any
+    let lastDoc = null;
+    let hasMore = true;
+    while (hasMore) {
+      let q = db.collection('workspaces').orderBy('__name__').limit(50);
+      if (lastDoc) q = q.startAfter(lastDoc);
+      const wsSnap = await q.get();
+      if (wsSnap.empty) break;
+      for (const ws of wsSnap.docs) {
+        const wsCol = (col) => db.collection('workspaces').doc(ws.id).collection(col);
+        try {
+          const snap = await wsCol('sms_reminders').where('sent', '==', false).limit(50).get();
+          for (const d of snap.docs) {
+            const r = d.data();
+            if (!r.send_at || new Date(r.send_at) > new Date()) continue;
+            // Check SMS opt-out before sending (use stored phone_norm if available)
+            const phoneNorm = r.phone_norm || normPhone(r.phone);
+            if (phoneNorm) {
+              const optOutSnap = await wsCol('clients').where('phone_norm', '==', phoneNorm).where('sms_opt_out', '==', true).limit(1).get();
+              if (!optOutSnap.empty) {
+                await d.ref.update({ sent: true, cancelled: true, cancelled_reason: 'sms_opt_out', cancelled_at: toIso(new Date()) });
+                continue;
+              }
             }
+            // Use stored from_number or fetch workspace config
+            const reminderSmsConf = await getWorkspaceSmsConfig(ws.id, { allowGlobalFallback: false });
+            const reminderFrom = r.from_number || reminderSmsConf.fromNumber;
+            if (!reminderFrom || !reminderSmsConf.canSend) continue;
+            sendSms(r.phone, r.message, reminderFrom, ws.id).catch(() => {});
+            await d.ref.update({ sent: true, sent_at: toIso(new Date()) });
           }
-          // Use stored from_number or fetch workspace config
-          const reminderSmsConf = await getWorkspaceSmsConfig(ws.id, { allowGlobalFallback: false });
-          const reminderFrom = r.from_number || reminderSmsConf.fromNumber;
-          if (!reminderFrom || !reminderSmsConf.canSend) continue;
-          sendSms(r.phone, r.message, reminderFrom, ws.id).catch(() => {});
-          await d.ref.update({ sent: true, sent_at: toIso(new Date()) });
-        }
-      } catch (e) { console.warn('runAutoReminders error for ws', ws.id, e?.message); }
+        } catch (e) { console.warn('runAutoReminders error for ws', ws.id, e?.message); }
+      }
+      lastDoc = wsSnap.docs[wsSnap.docs.length - 1];
+      hasMore = wsSnap.docs.length === 50;
     }
   } catch (e) { console.warn('runAutoReminders error:', e?.message); }
+}
+
+// Gap 5: background retry for SMS auto-provisioning.
+// Iterates workspaces (paginated) and re-fires autoProvisionSmsOnActivation for any
+// workspace whose sms_auto_provision_next_retry_at is due. Uses plain workspace pagination
+// instead of a collectionGroup query so no extra Firestore index exemption is required.
+// Respects max retries and legacy/protected guards (inside autoProvisionSmsOnActivation).
+let _lastSmsAutoRetryRun = 0;
+async function runSmsAutoProvisionRetry() {
+  const now = Date.now();
+  if (now - _lastSmsAutoRetryRun < 5 * 60 * 1000) return; // throttle 5 min
+  _lastSmsAutoRetryRun = now;
+  try {
+    const nowMs = Date.now();
+    let lastDoc = null;
+    let hasMore = true;
+    let processed = 0;
+    const maxPerCycle = 500; // safety cap to avoid runaway scans
+    while (hasMore && processed < maxPerCycle) {
+      let q = db.collection('workspaces').orderBy('__name__').limit(50);
+      if (lastDoc) q = q.startAfter(lastDoc);
+      const wsSnap = await q.get();
+      if (wsSnap.empty) break;
+      for (const ws of wsSnap.docs) {
+        processed++;
+        try {
+          const settingsDoc = await db.collection('workspaces').doc(ws.id)
+            .collection('settings').doc('config').get();
+          if (!settingsDoc.exists) continue;
+          const data = settingsDoc.data() || {};
+          const retryAt = data.sms_auto_provision_next_retry_at;
+          if (!retryAt) continue;
+          if (new Date(retryAt).getTime() > nowMs) continue;
+          const status = safeStr(data.sms_registration_status || '');
+          if (status === 'active' || status === 'failed_max_retries') continue;
+          // Fire-and-forget; helper handles own errors and updates retry metadata
+          const wsData = ws.data() || {};
+          autoProvisionSmsOnActivation(
+            { id: ws.id, name: wsData.name || '', slug: wsData.slug || '' },
+            'auto_retry'
+          ).catch(() => {});
+        } catch (e) {
+          console.warn('runSmsAutoProvisionRetry error for ws', ws.id, e?.message);
+        }
+      }
+      lastDoc = wsSnap.docs[wsSnap.docs.length - 1];
+      hasMore = wsSnap.docs.length === 50;
+    }
+  } catch (e) {
+    console.warn('runSmsAutoProvisionRetry error:', e?.message);
+  }
 }
 
 async function runAutoMemberships() {
@@ -9776,6 +10027,7 @@ setInterval(() => {
   resetSecurityCounters();
   runPayrollAudit().catch(() => {});
   runBookingAudit().catch(() => {});
+  runSmsAutoProvisionRetry().catch(() => {});
 }, 3 * 60 * 1000);
 
 // AI Diagnostics — auto-scan every 30 minutes
@@ -10111,6 +10363,15 @@ app.post('/api/billing/apple-verify', requireRole('owner'), async (req, res) => 
 
     await wsRef.update(updateData);
     console.log(`[Apple IAP] Verified purchase for workspace ${req.workspaceId}: ${plan} (txn: ${transactionId})`);
+
+    // Gap 5: auto-provision SMS on Apple IAP activation.
+    // Fire-and-forget so Apple verify response is not blocked by Telnyx provisioning latency.
+    const freshWs = await wsRef.get().catch(() => null);
+    if (freshWs && freshWs.exists) {
+      const d = freshWs.data() || {};
+      autoProvisionSmsOnActivation({ id: req.workspaceId, name: d.name || '', slug: d.slug || '' }, 'apple_paid').catch(() => {});
+    }
+
     res.json({ ok: true, plan });
   } catch (e) {
     console.error('[Apple IAP] Verify error:', e);
@@ -10165,12 +10426,15 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 async function handleStripeEvent(wsId, type, obj) {
   const wsRef = db.collection('workspaces').doc(wsId);
   const patch = { updated_at: toIso(new Date()) };
+  let shouldAutoProvisionSms = false;
+
   if (type === 'checkout.session.completed') {
     if (obj.subscription) {
       patch.stripe_subscription_id = obj.subscription;
       patch.billing_status = 'active';
       patch.subscription_status = 'active';
       patch.trial_used = true;
+      shouldAutoProvisionSms = true;
     }
   } else if (type === 'customer.subscription.updated' || type === 'customer.subscription.created') {
     patch.stripe_subscription_id = obj.id;
@@ -10182,6 +10446,7 @@ async function handleStripeEvent(wsId, type, obj) {
     if (priceId === STRIPE_PRICES.individual) patch.plan_type = 'individual';
     else if (priceId === STRIPE_PRICES.salon) patch.plan_type = 'salon';
     else if (priceId === STRIPE_PRICES.custom) patch.plan_type = 'custom';
+    if (obj.status === 'active' || obj.status === 'trialing') shouldAutoProvisionSms = true;
   } else if (type === 'customer.subscription.deleted') {
     patch.billing_status = 'canceled';
     patch.subscription_status = 'canceled';
@@ -10189,8 +10454,22 @@ async function handleStripeEvent(wsId, type, obj) {
   } else if (type === 'invoice.payment_failed') {
     patch.billing_status = 'past_due';
     patch.subscription_status = 'past_due';
+  } else if (type === 'invoice.payment_succeeded') {
+    patch.billing_status = 'active';
+    patch.subscription_status = 'active';
+    shouldAutoProvisionSms = true;
   }
   await wsRef.update(patch).catch(() => {});
+
+  // Gap 5: auto-provision SMS on successful billing activation.
+  // Fire-and-forget — never block webhook ack. Helper handles legacy/protected guards internally.
+  if (shouldAutoProvisionSms) {
+    const freshWs = await wsRef.get().catch(() => null);
+    if (freshWs && freshWs.exists) {
+      const d = freshWs.data() || {};
+      autoProvisionSmsOnActivation({ id: wsId, name: d.name || '', slug: d.slug || '' }, `stripe:${type}`).catch(() => {});
+    }
+  }
 }
 
 // ============================================================

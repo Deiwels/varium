@@ -2,6 +2,29 @@
 
 > [[Home]] > Tasks | See also: [[Tasks/Backlog|Backlog]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]]
 
+## SMS — 3-AI EXECUTION SPLIT
+
+- Before touching SMS again, all AI should re-read:
+  - `docs/Tasks/Telnyx-Integration-Plan.md`
+  - `docs/Tasks/Platform-Sender-Pivot-Decision.md`
+  - `docs/Tasks/SMS Finalization Plan.md`
+  - `docs/AI-Work-Split.md`
+- `Claude / AI 1` owns backend SMS hardening:
+  - `backend/index.js`
+  - `.github/workflows/deploy-backend.yml`
+  - backend/docs updates for Gaps 2/3/4/5
+- `Codex / AI 2` owns frontend SMS UX:
+  - `app/settings/page.tsx`
+  - `app/signup/page.tsx`
+  - status-first / automatic-activation wording and flow cleanup
+- `Verdent` owns review / verification / research support:
+  - no parallel backend edits unless ownership changes first
+  - use as reviewer, doc-sanity check, and external-research support
+- `Owner` owns external unblockers:
+  - `TELNYX_WEBHOOK_PUBLIC_KEY`
+  - Jonathan / Telnyx follow-up
+  - Verify Profile account issues
+
 ## SUPPORT EMAIL STYLE — DONE
 
 - Re-read `docs/Features/Email System.md`, `docs/Features/Developer Panel.md`, and the current `backend/index.js` / `app/developer/email/page.tsx` paths before changing any support-email behavior
@@ -252,7 +275,36 @@ Type error: Cannot find name 'showConfirm'.
 
 ## SMS & 10DLC Compliance
 
-See also: [[Tasks/SMS Finalization Plan|SMS Finalization Plan]]
+See also: [[Tasks/SMS Finalization Plan|SMS Finalization Plan]] · [[Tasks/Telnyx-Integration-Plan|Telnyx Integration Plan]] · [[Tasks/Platform-Sender-Pivot-Decision|Platform Sender Pivot Decision]]
+
+### Decision log — 2026-04-15
+
+Three-AI consensus (Claude / Codex / Verdent):
+
+- **Launch path:** залишаємось на dual-path (per-workspace toll-free + grandfathered manual 10DLC + email-only fallback)
+- **NOT doing now:** Verdent's proposed `allowGlobalFallback` removal / shared `TELNYX_FROM` sender — platform-as-sender вже був rejected code 710 у квітні, повторний спроб без Telnyx approval = другий 710
+- **Doing now:** Telnyx hardening P0 (Verify profile, webhook sig, `phone_number_index`, pagination, auto-provision on plan activation) — див. [[Tasks/Telnyx-Integration-Plan]]
+- **Gated behind Jonathan reply:** окремий Platform-Sender-Pivot-Plan — writen only after Telnyx confirms shared-sender is compliant; draft inquiry letter в [[Tasks/Platform-Sender-Pivot-Decision]]
+
+### Telnyx hardening — active work items (AI 1)
+
+- [ ] **Gap 1** — `TELNYX_VERIFY_PROFILE_ID` — **BLOCKED** on Telnyx account `whitelisted_destinations` issue (pending Jonathan call). Fallback path works; not a launch blocker.
+- [x] **Gap 2** — `verifyTelnyxWebhookSignature()` Ed25519 helper implemented in `backend/index.js`, called in both Telnyx webhook handlers. **Enforcing gated** on `TELNYX_WEBHOOK_PUBLIC_KEY` — owner to add to GitHub Secrets + one-line append to `.github/workflows/deploy-backend.yml`. Helper is a safe no-op until the secret is set.
+- [x] **Gap 3** — `phone_number_index` Firestore collection writes in both `provisionTollFreeSmsForWorkspace()` and `POST /api/sms/verify-otp`; `POST /api/webhooks/telnyx` uses O(1) lookup + `collectionGroup('clients')` for STOP/HELP opt-out propagation instead of scanning every workspace.
+- [x] **Gap 4** — `runAutoReminders()` replaced `limit(100)` with `startAfter`-based pagination, 50 per batch, no upper cap per cycle.
+- [x] **Gap 5** — `autoProvisionSmsOnActivation()` non-throwing helper with legacy/protected/in-flight/max-retries guards; exponential backoff (5m→15m→45m→2h→6h → `failed_max_retries`); audit log; wired into `/auth/signup`, `handleStripeEvent`, `/api/billing/apple-verify`. New `runSmsAutoProvisionRetry()` background job paginates workspaces and fires due retries, added to the main `setInterval`.
+- [ ] Add `TELNYX_WEBHOOK_PUBLIC_KEY` secret + CI/CD wiring (**owner task**)
+- [ ] Live verification after deploy: new workspace auto-activation, Element legacy untouched, OTP fallback vs Verify, STOP/HELP via `phone_number_index`, email-only fallback for failed provision
+
+### Jonathan / Telnyx operational track
+
+- [ ] Надіслати draft letter з [[Tasks/Platform-Sender-Pivot-Decision]] на `10dlcquestions@telnyx.com` (або Jonathan напряму)
+- [ ] Записати відповідь в `DevLog/YYYY-MM-DD.md`
+- [ ] Якщо Telnyx підтвердить shared-sender — створити новий `Platform-Sender-Pivot-Plan.md` з TFV, consent re-flow, legal diffs
+- [ ] Якщо ні — оновити `SMS-Strategy-Review.md` як final decision
+
+---
+
 
 ### SMS finalization checklist — do this now
 
@@ -261,6 +313,7 @@ See also: [[Tasks/SMS Finalization Plan|SMS Finalization Plan]]
 - [ ] Verify new workspace does **not** surface EIN / SP registration as the primary setup path
 - [ ] Verify toll-free states render correctly: `not enabled -> provisioning -> pending/configured/failed`
   - User-facing `Configured` currently maps from backend `sms_registration_status: 'active'`
+- [x] Update frontend SMS UX for Gap 5 so new-workspace messaging is status-first / auto-activated instead of manual-enable-first
 - [ ] Verify booking + waitlist consent copy uses `{shopName} Appointment Notifications`
 - [ ] Verify email-only fallback copy is clear whenever workspace SMS is not active
 - [ ] Verify the legal pages still match the live SMS consent text after deploy
@@ -330,7 +383,16 @@ See also: [[Tasks/SMS Finalization Plan|SMS Finalization Plan]]
 - [x] 2.5 Consent metadata
   - Booking, pay-online, group booking, and waitlist submissions send both `sms_consent_text` and `sms_consent_text_version`
 - [x] 2.8 Toll-free copy softened
+- [x] 2.9 SMS UI reframed around auto-activation
+  - `app/settings/page.tsx` now treats manual enable as a start/retry control, not the primary expected path
+  - `app/signup/page.tsx` now frames dedicated toll-free SMS as something that normally starts automatically after trial or paid-plan activation
+- [x] 2.10 Manual SMS CTA removed from new-workspace flow
+  - `Settings -> SMS Notifications` now shows automatic activation / automatic retry messaging instead of a primary manual enable button
+  - `app/signup/page.tsx` no longer offers a direct "Start SMS setup now" action for the default new-workspace path
   - `Settings` and `signup` SMS copy now avoids over-promising that toll-free reminders are already fully live before the remaining Telnyx / pilot sign-off is complete
+- [x] 2.11 SMS state copy aligned with backend auto-retry lifecycle
+  - `app/settings/page.tsx` now distinguishes between background auto-retry and terminal `failed_max_retries`
+  - auto-retry stays framed as automatic, while terminal failure is shown as support-review-needed instead of a misleading generic retry state
 - [x] 2.9 SMS settings auth path hardened
   - `Settings -> SMS Notifications` now uses the shared auth-aware API helper instead of raw `fetch(window.__API...)`
   - Toll-free enable, manual registration, and OTP verification now follow the same Bearer-token / session handling as the rest of Settings

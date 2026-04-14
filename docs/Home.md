@@ -86,6 +86,8 @@
 - [[Tasks/In Progress\|In Progress]] — Current sprint (P0 items + active tasks)
 - [[Tasks/Backlog\|Backlog]] — Feature ideas & bugs
 - [[Tasks/Launch Readiness Plan\|Launch Readiness Plan]] — Unified P0/P1/P2 plan (both AIs agreed)
+- [[Tasks/Telnyx-Integration-Plan|Telnyx Integration Plan]] — Hardening + P0 fixes (Verify profile, webhook sig, auto-provision on plan activation)
+- [[Tasks/Platform-Sender-Pivot-Decision|Platform Sender Pivot Decision]] — Decision note: чому НЕ переходимо на shared Vurium TFN зараз, draft листа Jonathan
 - [[Tasks/SMS Delivery Options Research\|SMS Delivery Options Research]] — Broader SMS provider, country, sender-ID, and architecture research
 - [[Tasks/SMS Finalization Plan\|SMS Finalization Plan]] — SMS launch steps
 - [[Tasks/SMS-Strategy-Review\|SMS Strategy Review]] — Dual-path launch memo

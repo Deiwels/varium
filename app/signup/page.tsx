@@ -122,8 +122,6 @@ export default function SignupPage() {
   const [selectedPlan, setSelectedPlan] = useState<string>('salon')
   const [clientSecret, setClientSecret] = useState('')
   // Optional SMS setup after account creation / billing
-  const [smsRegLoading, setSmsRegLoading] = useState(false)
-  const [smsRegError, setSmsRegError] = useState('')
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [appleLoading, setAppleLoading] = useState(false)
   const [verifyCode, setVerifyCode] = useState('')
@@ -261,7 +259,7 @@ export default function SignupPage() {
       }))
       setAuthCookie('owner:' + data.user_id)
       setWsId(data.workspace_id)
-      setStep(1) // Go directly to plan selection — SMS can be enabled later in Settings
+      setStep(1) // Go directly to plan selection — SMS should auto-start after trial/plan activation
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
     } finally {
@@ -679,51 +677,29 @@ export default function SignupPage() {
         )}
 
         {/* STEP 2: Success */}
-        {/* STEP 1.5: Business Info for SMS Registration (Salon/Custom) */}
+        {/* STEP 1.5: SMS setup status */}
         {step === (1.5 as any) && (
           <div className="fade-up" style={{ maxWidth: 480, width: '100%' }}>
             <div className="glass-card" style={{ padding: '32px 28px' }}>
-              <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 6, color: '#e8e8ed', textAlign: 'center' }}>SMS Reminders</h2>
+              <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 6, color: '#e8e8ed', textAlign: 'center' }}>SMS setup starts automatically</h2>
               <p style={{ color: 'rgba(255,255,255,.35)', fontSize: 13, textAlign: 'center', marginBottom: 20, lineHeight: 1.5 }}>
-                New workspaces can use a dedicated toll-free number for appointment reminders. You can turn it on now or finish setup and come back to it later in Settings.
+                New workspaces use a dedicated toll-free number for appointment reminders. We normally start that setup for you after trial or paid-plan activation, so you do not need to do business registration or EIN setup first.
               </p>
-
-              {smsRegError && <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(220,80,80,.1)', border: '1px solid rgba(220,80,80,.2)', color: 'rgba(255,160,160,.9)', fontSize: 13, marginBottom: 16 }}>{smsRegError}</div>}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.08)', textAlign: 'left' }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.72)', marginBottom: 6 }}>What happens next</div>
                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', lineHeight: 1.6 }}>
-                    We&apos;ll assign a dedicated toll-free number to this workspace when you turn on SMS reminders. If SMS setup or delivery approval is still pending, booking emails still work and nothing blocks your launch.
+                    We&apos;ll usually assign a dedicated toll-free number to this workspace automatically after activation. If SMS setup or delivery approval is still pending, booking emails still work and nothing blocks your launch.
                   </div>
                 </div>
 
-                <button disabled={smsRegLoading} onClick={async () => {
-                  setSmsRegLoading(true); setSmsRegError('')
-                  try {
-                    const res = await fetch(`${API}/api/sms/enable-tollfree`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      credentials: 'include',
-                    })
-                    const data = await res.json()
-                    if (!res.ok) throw new Error(data.error || 'SMS setup failed')
-                    setStep(2)
-                  } catch (e: any) {
-                    setSmsRegError(e.message || 'Failed')
-                  } finally {
-                    setSmsRegLoading(false)
-                  }
-                }} className="btn-primary" style={{ width: '100%', fontSize: 15, fontFamily: 'inherit', opacity: smsRegLoading ? 0.5 : 1, marginTop: 8 }}>
-                  {smsRegLoading ? 'Enabling SMS…' : 'Enable Toll-Free Reminders'}
-                </button>
-
-                <button onClick={() => setStep(2)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.25)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', marginTop: 4 }}>
-                  Skip for now — I&apos;ll set up SMS later
+                <button onClick={() => setStep(2)} className="btn-primary" style={{ width: '100%', fontSize: 15, fontFamily: 'inherit', marginTop: 8 }}>
+                  Continue — finish SMS setup in background
                 </button>
 
                 <p style={{ fontSize: 10, color: 'rgba(255,255,255,.12)', textAlign: 'center', lineHeight: 1.5, marginTop: 4 }}>
-                  No EIN or company registration is required for the default reminder path. You can still switch to a manual business-sender setup later if support asks you to.
+                  No EIN or company registration is required for the default reminder path. SMS setup and retry now happen automatically in the background for new workspaces.
                 </p>
               </div>
             </div>
