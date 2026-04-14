@@ -1,6 +1,6 @@
 # Infrastructure & Deployment
 
-> Part of [[Home]] > Architecture | See also: [[Tech Stack]], [[Background Jobs]], [[Security & Audit]]
+> Part of [[Home]] > Architecture | See also: [[Tech Stack]], [[Background Jobs]], [[Security & Audit]], [[GitHub Secrets Inventory]]
 
 ## Hosting
 
@@ -44,18 +44,24 @@ Port: 8080
 
 ### Backend (GitHub Secrets → Cloud Run env)
 
+Owner-confirmed repository-secrets snapshot: [[GitHub Secrets Inventory]]
+
 | Category | Variables |
 |----------|-----------|
 | GCP | `GCP_PROJECT_ID`, `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT` |
 | Auth | `JWT_SECRET`, `PHONE_ENCRYPTION_KEY` |
 | Stripe | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_INDIVIDUAL`, `STRIPE_PRICE_SALON`, `STRIPE_PRICE_CUSTOM` |
 | Square | `SQUARE_APP_ID`, `SQUARE_APP_SECRET` |
-| SMS | `TELNYX_API_KEY`, `TELNYX_FROM` |
+| SMS | `TELNYX_API_KEY`, `TELNYX_FROM`, `TELNYX_WEBHOOK_PUBLIC_KEY`, `TELNYX_VERIFY_PROFILE_ID` |
 | Email | `RESEND_API_KEY` |
 | Apple | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_KEY_P8`, `APNS_BUNDLE_ID`, `APNS_ENVIRONMENT`, `APPLE_SHARED_SECRET` |
 | Google | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET` |
 | Admin | `ADMIN_EMAIL`, `ADMIN_NOTIFY_EMAIL`, `FRONTEND_URL` |
 | AI | `ANTHROPIC_API_KEY` |
+
+Notes:
+- This table shows what the backend expects over time.
+- For the owner-confirmed list of what is actually visible in GitHub Secrets, use [[GitHub Secrets Inventory]].
 
 ## Security Headers (next.config.mjs)
 

@@ -11,7 +11,7 @@
 | Gap | Status | Notes |
 |-----|--------|-------|
 | Gap 1 — `TELNYX_VERIFY_PROFILE_ID` wiring | 🔴 **BLOCKED** (external) | Telnyx account requires `whitelisted_destinations for call settings`; fallback path works; needs Jonathan call |
-| Gap 2 — Webhook signature verification | 🟡 **CODE DONE** · enforcing gated on secret | `verifyTelnyxWebhookSignature()` implemented in backend/index.js. No-op until `TELNYX_WEBHOOK_PUBLIC_KEY` is added to GitHub Secrets and wired through deploy-backend.yml |
+| Gap 2 — Webhook signature verification | 🟡 **CODE DONE** · secret confirmed | `verifyTelnyxWebhookSignature()` implemented in backend/index.js. Owner-confirmed GitHub secret `TELNYX_WEBHOOK_PUBLIC_KEY` now exists; remaining step is confirming production deploy / live webhook enforcement |
 | Gap 3 — `phone_number_index` + O(1) STOP lookup | ✅ **DONE** | Writes from both toll-free and 10DLC paths; reader uses single-doc lookup + `collectionGroup('clients')` for opt-out propagation |
 | Gap 4 — `runAutoReminders()` pagination | ✅ **DONE** | `startAfter` pagination loop; no workspace cap |
 | Gap 5 — Auto-provision on plan activation | ✅ **DONE** | `autoProvisionSmsOnActivation()` + `runSmsAutoProvisionRetry()` + wired into signup / Stripe / Apple paths with exponential backoff and `failed_max_retries` terminal state |
@@ -43,8 +43,8 @@ Sender architecture залишається **dual-path**:
 |---|---|---|
 | `TELNYX_API_KEY` | ✅ в GitHub Secrets | Деплоїться на Cloud Run через CI/CD workflow |
 | `TELNYX_FROM` | ✅ в GitHub Secrets | Глобальний fallback номер |
-| `TELNYX_VERIFY_PROFILE_ID` | ⚠️ Secret є, значення невідоме | Якщо порожнє — OTP іде через fallback (Firestore код) |
-| `TELNYX_WEBHOOK_PUBLIC_KEY` | ❌ відсутній | Не в secrets, не в workflow — webhook підписи не верифікуються |
+| `TELNYX_VERIFY_PROFILE_ID` | ⚠️ не видно в owner snapshot | Treat as missing / unconfirmed until rechecked in GitHub UI |
+| `TELNYX_WEBHOOK_PUBLIC_KEY` | ✅ в GitHub Secrets | Owner-confirmed in repository secrets snapshot; deploy verification still needed |
 | `sendSms()` | ✅ | `POST api.telnyx.com/v2/messages` Bearer auth |
 | `telnyxApi()` | ✅ | Generic REST helper для provisioning |
 | `POST /api/sms/enable-tollfree` | ✅ | Автоматичний toll-free provisioning |
@@ -53,7 +53,7 @@ Sender architecture залишається **dual-path**:
 | `POST /api/webhooks/telnyx-10dlc` | ✅ код є, ❌ підпис не верифікується | Brand/campaign status updates |
 | `runAutoReminders()` | ✅ | Кожні 3 хвилини, але ⚠️ cap 100 workspaces |
 
-**Порівняння:** Stripe і Square вже мають webhook signature verification (`backend/index.js` ~1495, ~7492, ~10125). Telnyx — ні.
+**Порівняння:** Stripe і Square вже мають webhook signature verification (`backend/index.js` ~1495, ~7492, ~10125). Telnyx code is now implemented too; secret/deploy verification remains.
 
 ---
 
@@ -307,7 +307,7 @@ do {
 --set-env-vars "TELNYX_VERIFY_PROFILE_ID=${{ secrets.TELNYX_VERIFY_PROFILE_ID }}"
 ```
 
-Треба додати:
+У `.github/workflows/deploy-backend.yml` уже є:
 ```yaml
 --set-env-vars "TELNYX_WEBHOOK_PUBLIC_KEY=${{ secrets.TELNYX_WEBHOOK_PUBLIC_KEY }}"
 ```
@@ -318,8 +318,8 @@ GitHub Secrets які повинні бути заповнені:
 |---|---|---|
 | `TELNYX_API_KEY` | portal.telnyx.com → Auth → API Keys | ✅ є в secrets |
 | `TELNYX_FROM` | Глобальний fallback TFN або залишити | ✅ є в secrets |
-| `TELNYX_VERIFY_PROFILE_ID` | portal.telnyx.com → Verify → Profiles | ⚠️ перевірити значення |
-| `TELNYX_WEBHOOK_PUBLIC_KEY` | portal.telnyx.com → Auth → Webhooks → Public Key | ❌ додати |
+| `TELNYX_VERIFY_PROFILE_ID` | portal.telnyx.com → Verify → Profiles | ⚠️ не видно в owner snapshot; перевірити / додати |
+| `TELNYX_WEBHOOK_PUBLIC_KEY` | portal.telnyx.com → Auth → Webhooks → Public Key | ✅ owner confirms it exists in repo secrets |
 
 ---
 
