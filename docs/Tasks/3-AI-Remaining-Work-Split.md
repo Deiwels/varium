@@ -2,7 +2,8 @@
 
 > [[Home]] > Tasks | Owner: AI 1 (docs) · Last full verification: **2026-04-15** (this pass)
 > ⚠️ **Read [[AI-Core-Manifesto]] first before starting any work.**
-> Related: [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]], [[Production-Plan-AI1]], [[Production-Plan-AI2]]
+> ⛔ **Before touching any item in this file, add a current-session entry to [[AI-Session-Acceptance-Log]].**
+> Related: [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]], [[Production-Plan-AI1]], [[Production-Plan-AI2]], [[AI-Session-Acceptance-Log]]
 
 ---
 

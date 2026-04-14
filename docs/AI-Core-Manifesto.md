@@ -1,8 +1,9 @@
 # AI Core Manifesto — Правила Співпраці
 
 > ⚠️ **CRITICAL: Кожен AI зобов'язаний прочитати цей документ перед початком будь-якої сесії роботи.**
+> ⛔ **Ніхто не має права продовжувати далі, поки не запише явне прийняття правил у [[AI-Session-Acceptance-Log]].**
 
-> [[Home]] | Related: [[Tasks/4-AI-Remaining-Work-Split|4-AI Work Split]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]]
+> [[Home]] | Related: [[Tasks/3-AI-Remaining-Work-Split|4-AI Work Split]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[AI-Session-Acceptance-Log]]
 > Created: 2026-04-15 | Owner: AI 3 (Verdent)
 
 ---
@@ -74,6 +75,42 @@
 - Що значить "масштабна": зачіпає 3+ файли, або змінює поведінку існуючих ендпоінтів, або впливає на дані клієнтів
 - Дрібні фікси (1-2 файли, очевидна помилка) AI 1 або AI 2 можуть робити самостійно — але документують у DevLog
 - **Ніхто не приймає архітектурних рішень одноосібно.** Навіть якщо дуже впевнений
+
+---
+
+## Hard Gate — Явне Прийняття Правил
+
+Це **обов'язковий стоп-кран** для кожної нової AI-сесії.
+
+Поки AI не зробив усі кроки нижче, він не має права:
+- аналізувати задачу як "робочу"
+- пропонувати план виконання
+- писати код
+- комітити
+- вважати свою сесію валідною
+
+### Обов'язковий Acceptance Protocol
+
+1. Прочитати:
+   - `docs/Home.md`
+   - `docs/Tasks/In Progress.md`
+   - `docs/Tasks/3-AI-Remaining-Work-Split.md`
+   - `docs/DevLog/YYYY-MM-DD.md`
+   - останній `docs/Tasks/QA-Scan-*.md`
+2. Відкрити [[AI-Session-Acceptance-Log]].
+3. Додати новий запис для поточної сесії у форматі:
+
+```md
+- YYYY-MM-DD HH:MM — AI <n> / <name> — scope: <backend|frontend|qa|emergency> — I have read and accept [[AI-Core-Manifesto]] and will follow it before doing any work.
+```
+
+4. Тільки після цього починати реальну роботу.
+
+### Hard Rule
+
+- **Немає запису в [[AI-Session-Acceptance-Log]] = немає дозволу рухатись далі.**
+- Будь-яка робота без acceptance-запису вважається **неавторизованою** і має бути зупинена, задокументована, і перевірена Owner/AI 3.
+- Якщо AI пропустив цей крок, його **перша дія** має бути не код, а acceptance-запис.
 
 ---
 

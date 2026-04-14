@@ -1,6 +1,7 @@
 # Varium (VuriumBook)
 
 > ⚠️ **ВСІМ AI: Читати [[AI-Core-Manifesto]] перед початком будь-якої роботи. Обов'язково.**
+> ⛔ **Поки немає нового запису в [[AI-Session-Acceptance-Log]], AI не має права продовжувати далі.**
 
 > Multi-tenant booking & business management SaaS for salons, barbershops, and service businesses.
 > Corporation: **Vurium Inc.** (Illinois, File #75519095)
@@ -15,7 +16,7 @@
 | **Goal** | Sell-ready: new business can sign up, onboard, book, and pay without manual rescue |
 | **Current focus** | P0 tasks in [[Tasks/Launch Readiness Plan\|Launch Readiness Plan]] |
 | **Active work** | [[Tasks/In Progress\|In Progress]] |
-| **Who's working** | 2 AI agents — see [[AI-Work-Split]] for ownership |
+| **Who's working** | 4 AI + Owner — see [[Tasks/3-AI-Remaining-Work-Split\|4-AI Work Split]] + [[AI-Session-Acceptance-Log]] |
 
 ---
 
