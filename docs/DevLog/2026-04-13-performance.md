@@ -73,6 +73,16 @@ All parallax rAF loops now:
 ## New File
 - `lib/useVisibilityPolling.ts` — hook that pauses polling when tab is hidden
 
+### Developer Section
+- AI diagnostics: `setInterval(3s)` → `useVisibilityPolling` (pauses when tab hidden)
+- Toast: removed `backdrop-filter: blur(8px)`
+- MiniChart: wrapped in `React.memo` + `useMemo` for max/points computation
+- Overview page: memoized `signupChart`, `totalBookings`, `totalClients`, `totalStaff`
+- Analytics page: memoized `chartData`
+- All developer cards: removed `backdrop-filter: blur(12px)` from always-visible card styles
+- Developer sidebar: `backdrop-filter: blur(20px)` → opaque `rgba(6,6,10,.88)`
+- Login/Verify cards: removed `backdrop-filter: blur(16px)`
+
 ## Commits
 - `5d70d82` perf: optimize site performance — fix rAF loop, visibility polling, self-hosted fonts
 - `8fbd1ec` perf: fix major Chrome performance bottlenecks
@@ -87,3 +97,5 @@ All parallax rAF loops now:
 - `207a0ef` perf: optimize analytics page — memoize derived data, extract DowHeatmap
 - `4695590` perf: optimize all developer pages — remove always-visible backdrop-filter
 - `81949f0` perf: replace all filter:blur(140px) nebula with radial-gradient
+- `d9178e5` docs: add performance optimization DevLog + CHANGELOG entry
+- `c6f60df` perf: optimize developer section — polling, memoization, blur removal

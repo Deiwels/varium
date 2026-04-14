@@ -58,6 +58,7 @@
 - **Browser caching enabled** — Removed `Cache-Control: max-age=0`
 - **GPU compositing** — Added `will-change` + `contain` to fixed layers
 - **Calendar localStorage poll** — 1.5s interval replaced with `storage` event + `visibilitychange`
+- **Developer section** — AI diagnostics polling (3s setInterval) → visibility-aware; removed Toast backdrop-filter; MiniChart wrapped in React.memo + useMemo; memoized derived data on overview, analytics, email pages
 
 ### UI
 - **Sign In nav link** — Changed from white button (`btn-nav-cta`) to regular text link on all 16 pages
