@@ -27,6 +27,13 @@
   - Jonathan / Telnyx follow-up
   - Verify Profile account issues
 
+## BUILD HOTFIX — AI 2
+
+- [x] Fixed Vercel TypeScript build regression in `components/Shell.tsx`
+  - build failure was caused by `setTab(t.id)` receiving a widened `string` instead of the local `'profile' | 'password'` union
+  - AI 2 replaced the inline inferred tab list with a typed `profileTabs` array
+  - no product behavior changed; this only restores a clean production build
+
 ## HOTFIX 2026-04-15 — Waitlist regression (commit `a3c885f`)
 
 - [x] Owner reported: `Join waitlist` CTA disappeared from public booking page

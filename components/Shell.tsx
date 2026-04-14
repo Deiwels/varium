@@ -313,6 +313,10 @@ function ProfileModal({ user, onClose, onUpdated, canChangePassword }: {
     fontSize: 10, letterSpacing: '.10em', textTransform: 'uppercase',
     color: 'rgba(255,255,255,.40)', display: 'block', marginBottom: 6
   }
+  const profileTabs: Array<{ id: 'profile' | 'password'; label: string }> = [
+    { id: 'profile', label: 'Profile' },
+    ...(canChangePassword ? [{ id: 'password' as const, label: 'Password' }] : []),
+  ]
 
   return (
     <div style={glassModal} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -323,10 +327,7 @@ function ProfileModal({ user, onClose, onUpdated, canChangePassword }: {
         </div>
 
         <div style={{ display: 'flex', gap: 6, padding: '12px 18px 0' }}>
-          {([
-            { id: 'profile', label: 'Profile' },
-            ...(canChangePassword ? [{ id: 'password', label: 'Password' }] : []),
-          ] as const).map(t => (
+          {profileTabs.map(t => (
             <button key={t.id} onClick={() => { setTab(t.id); setMsg(''); setErr('') }}
               style={{ height: 30, padding: '0 12px', borderRadius: 999, cursor: 'pointer', fontWeight: tab === t.id ? 600 : 400, fontSize: 11, fontFamily: 'inherit', border: `1px solid ${tab === t.id ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.06)'}`, background: tab === t.id ? 'rgba(255,255,255,.08)' : 'transparent', color: tab === t.id ? '#e8e8ed' : 'rgba(255,255,255,.35)', transition: 'all .2s' }}>
               {t.label}
