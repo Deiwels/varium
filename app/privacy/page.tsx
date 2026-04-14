@@ -1,16 +1,19 @@
-'use client'
-
-import { useSearchParams } from 'next/navigation'
-
 const heading: React.CSSProperties = { fontSize: 20, fontWeight: 600, color: 'rgba(130,150,220,.8)', marginBottom: 12, marginTop: 48 }
 const text: React.CSSProperties = { fontSize: 15, fontWeight: 300, color: 'rgba(255,255,255,.45)', lineHeight: 1.8, marginBottom: 16 }
 const list: React.CSSProperties = { ...text, paddingLeft: 24 }
 const highlight: React.CSSProperties = { background: 'rgba(130,150,220,.04)', border: '1px solid rgba(130,150,220,.08)', borderRadius: 14, padding: '24px 28px', marginBottom: 24, marginTop: 16 }
 
-export default function PrivacyPage() {
-  const searchParams = useSearchParams()
-  const smsBusinessName = String(searchParams.get('business') || '').trim()
-  const smsBusinessSlug = String(searchParams.get('slug') || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
+type PrivacyPageProps = {
+  searchParams: Promise<{
+    business?: string
+    slug?: string
+  }>
+}
+
+export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
+  const params = await searchParams
+  const smsBusinessName = String(params.business || '').trim()
+  const smsBusinessSlug = String(params.slug || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
   const smsBookingPath = smsBusinessSlug ? `/book/${encodeURIComponent(smsBusinessSlug)}` : ''
   const hasSmsBusinessContext = !!smsBusinessName
 
