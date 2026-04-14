@@ -1,6 +1,6 @@
 # SMS & 10DLC
 
-> Part of [[Home]] > Features | See also: [[Booking System]], [[Onboarding Wizard]], [[Tasks/SMS-Strategy-Review|SMS Strategy Review]], [[Tasks/SMS Delivery Options Research|SMS Delivery Options Research]]
+> Part of [[Home]] > Features | See also: [[Booking System]], [[Onboarding Wizard]], [[Tasks/SMS-Strategy-Review|SMS Strategy Review]], [[Tasks/SMS Delivery Options Research|SMS Delivery Options Research]], [[Tasks/US-A2P-CTA-Brand-Verification-Notes|US A2P CTA & Brand Verification Notes]]
 
 ## Overview
 
@@ -151,6 +151,17 @@ This is still the correct per-business architecture — each business gets its o
 - The reviewer also concluded the CTA / opt-in path they reviewed did not clearly match the registered or DBA brand name.
 - This means the next attempt should focus on **submission fidelity** and **public business proof**, not on changing sender architecture.
 
+**Research-backed interpretation**
+- Treat this as a classic **coherence** failure:
+  - sender identity
+  - CTA path
+  - public business proof
+  - sample messages
+  - policy links
+  must all point to the same business without ambiguity
+- Generic platform roots like `https://vurium.com/book/` are high-risk submission artifacts for per-business campaigns
+- Public pages that look like "just a form" are weak evidence; the reviewer should see real business identity and services without login
+
 **Concrete remediation before resubmission**
 - Use the exact booking / public business URL for Element in the 10DLC submission, not a generic `https://vurium.com/book/` root path.
 - Make sure the CTA text shown on the live booking page uses the same business / DBA name that was submitted for the campaign.
@@ -160,6 +171,34 @@ This is still the correct per-business architecture — each business gets its o
   - address / contact details
   - hours / staff / basic business identity
 - Recheck that Terms / Privacy remain public, linked, and consistent with the exact business name used in the CTA.
+- If more than one opt-in path is active (booking + waitlist), make sure the campaign `messageFlow` describes both, not just one.
+
+## US CTA / brand verification takeaways (Apr 2026)
+
+Latest research for US A2P 10DLC local-business SaaS traffic reinforces these operating rules:
+
+- **Per-business fidelity beats platform-generic artifacts**
+  - one business identity
+  - one exact booking URL
+  - one coherent sender story
+- **Exact-match discipline matters**
+  - legal name
+  - DBA
+  - address formatting
+  - website branding
+  - sample messages
+- **Public, no-login proof matters**
+  - business name
+  - contact details
+  - services
+  - visible opt-in language
+  - public privacy / terms pages
+- **All opt-in methods must be documented**
+  - booking form
+  - waitlist form
+  - any keyword or in-person path if used
+
+See [[Tasks/US-A2P-CTA-Brand-Verification-Notes]] for the full distilled guidance.
 
 ### Campaign 2 — CUSTOMER_CARE (VuriumBook Appointment Notifications)
 

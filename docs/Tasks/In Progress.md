@@ -79,6 +79,13 @@
 - [x] Backend submission fidelity patched for future resubmission
   - `backend/index.js` 10DLC submission now builds `messageFlow` from the exact workspace booking URL instead of generic `/book/`
   - submission CTA wording now explicitly says `${shopName} Appointment Notifications via SMS`
+- [x] New US A2P CTA / brand verification research distilled into docs
+  - added [[Tasks/US-A2P-CTA-Brand-Verification-Notes]]
+  - Element checklist now explicitly tracks:
+    - no-login public proof
+    - exact DBA / address matching discipline
+    - policy pages as first-class artifacts
+    - multiple opt-in methods in `messageFlow` when applicable
 
 ## SUPPORT EMAIL STYLE — DONE
 

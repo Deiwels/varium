@@ -73,7 +73,12 @@ Most likely remediation items:
 - Ensure the exact Element public path is used in the campaign submission
 - Ensure CTA text uses the exact registered / DBA brand name
 - Ensure the public page visibly shows business identity, services, and contact information
+- Ensure the page is inspectable without login and does not read like only a generic platform form
+- Ensure privacy / terms links are public, stable, and business-consistent
+- If more than one opt-in path is active (booking + waitlist), ensure the `messageFlow` describes both paths
 - Then resubmit the manual campaign
+
+See [[Tasks/US-A2P-CTA-Brand-Verification-Notes]] for the distilled cross-provider rules behind this remediation.
 
 ---
 

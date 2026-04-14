@@ -1,11 +1,39 @@
 # Element Barbershop — 10DLC Resubmission Checklist
 
 > [[Home]] > Tasks | Owner: Verdent (verification doc)
-> Related: [[Tasks/SMS-Strategy-Review|SMS Strategy Review]], [[Tasks/Platform-Sender-Pivot-Decision|Platform Sender Pivot]], [[Tasks/Telnyx-Integration-Plan|Telnyx Integration Plan]]
+> Related: [[Tasks/SMS-Strategy-Review|SMS Strategy Review]], [[Tasks/Platform-Sender-Pivot-Decision|Platform Sender Pivot]], [[Tasks/Telnyx-Integration-Plan|Telnyx Integration Plan]], [[Tasks/US-A2P-CTA-Brand-Verification-Notes|US A2P CTA & Brand Verification Notes]]
 > Created: 2026-04-15
 > Context: Campaign CICHCOJ failed MNO review with two reasons:
 > 1. "Brand website lacking sufficient information about the company and its products"
 > 2. "Call-to-action does not contain registered/DBA brand name"
+
+---
+
+## 🔴 Live verification — 2026-04-15 (BLOCKER found)
+
+Перевірено owner'ом в incognito на публічній booking сторінці Element:
+
+| Перевірка | Результат |
+|---|---|
+| Consent текст | ✅ Є і правильний — містить `Element Barbershop`, STOP, HELP, Terms/Privacy |
+| Адреса, телефон, email | ❌ **Не видно** — відсутні на сторінці |
+| Business details секція | ❌ **Не рендериться** або поля порожні |
+| Consent видимий без вводу | 🟡 **AI 2 patch shipped in `b74c79b`; re-check live after deploy** |
+
+### Що треба виправити перед resubmission
+
+**Blocker 1 — live re-check after latest frontend patches:**
+- Business details must be visible on initial page load whenever Element has saved `shop_address`, `shop_phone`, `shop_email`
+- Consent text must be visible on initial page load together with the form, without waiting for phone entry
+- The page does **not** need to move those details into the header specifically; it just needs them to be clearly visible to a reviewer without extra interaction
+
+**Blocker 2 — Owner:**
+- Перевірити чи `shop_address`, `shop_phone`, `shop_email` збережені в Element Settings (натиснути Save після заповнення)
+- Якщо поля порожні в Firestore — business details не покажуться навіть після frontend fix
+
+### Статус resubmission
+
+🔴 **НЕ resubmit поки обидва blocker'и не закриті.** Telnyx reviewer бачить порожню сторінку без контактів.
 
 ---
 
@@ -25,6 +53,8 @@ Open `https://vurium.com/book/elementbarbershop` in browser (incognito, not logg
 - [ ] Phone number visible
 - [ ] Email address visible
 - [ ] None of these fields are empty / "N/A"
+- [ ] Page is public and no-login; reviewer does not hit auth walls, redirects, or app-only screens
+- [ ] Page does not read like only a generic Vurium form; the business itself is clearly identifiable
 
 ### 1.2 Services visible
 - [ ] At least 3–5 real services listed with names and prices (or "price varies")
@@ -38,6 +68,7 @@ Open `https://vurium.com/book/elementbarbershop` in browser (incognito, not logg
 
 ### 1.4 Consent / opt-in language
 - [ ] SMS consent checkbox is present and visible before form submission
+- [ ] Consent language is visible on first render, not hidden until after phone entry
 - [ ] Consent text explicitly says SMS messages will come **from Element Barbershop** (not "Vurium" or "VuriumBook")
 - [ ] Example consent wording: *"By checking this box, you agree to receive SMS appointment reminders from Element Barbershop. Message & data rates may apply. Reply STOP to opt out."*
 - [ ] Links to Privacy Policy and Terms of Service present and working
@@ -45,8 +76,10 @@ Open `https://vurium.com/book/elementbarbershop` in browser (incognito, not logg
 ### 1.5 Legal pages
 - [ ] Privacy Policy URL works and loads (not 404)
 - [ ] Privacy Policy mentions SMS communications and opt-out rights
+- [ ] Privacy Policy includes the mobile-data no-sharing language needed for messaging compliance
 - [ ] Terms of Service URL works and loads
 - [ ] Both pages mention **Element Barbershop** (or parent company) as the entity — not just "VuriumBook Platform"
+- [ ] Policy pages are public and stable enough to be used as submission artifacts, not temporary or app-only pages
 
 ---
 
@@ -59,6 +92,8 @@ Log in to VuriumBook as Element owner → Settings.
 - [ ] `Shop address` = full address (street + city + state + ZIP)
 - [ ] `Shop phone` = real business phone number
 - [ ] `Shop email` = real business email
+- [ ] If legal entity differs from DBA, legal-name / DBA mapping is written down exactly as it will appear in the campaign submission
+- [ ] Address string is copied canonically; avoid casual reformatting / abbreviation drift between settings and submission
 
 ### 2.2 Services
 - [ ] At least 5 real services added (name + price + duration)
@@ -89,6 +124,7 @@ Log in to Telnyx portal → 10DLC → Campaign CICHCOJ → Edit.
   appointment confirmation and reminder texts from Element Barbershop.
   ```
 - [ ] Message Flow URL points to the actual booking page (not `https://vurium.com/book/` generic — must be the Element-specific URL)
+- [ ] If both booking and waitlist SMS opt-ins exist, the message flow lists both methods instead of only one
 - [ ] **Sample messages** use `Element Barbershop` as sender name, e.g.:
   ```
   Element Barbershop: Your appointment with [Barber] is confirmed for [Date] at [Time]. Reply STOP to opt out.
@@ -96,6 +132,7 @@ Log in to Telnyx portal → 10DLC → Campaign CICHCOJ → Edit.
   ```
 - [ ] Sample messages do NOT start with "VuriumBook:" or any platform name
 - [ ] Sample messages include opt-out language (`Reply STOP`)
+- [ ] Help / opt-out wording used in production is consistent with the booking page disclosures
 
 ### 3.3 Use case
 - [ ] Campaign use case = `2FA / One-Time Passwords` if sending OTPs, OR `Appointment Reminder` / `Customer Care` for reminders
