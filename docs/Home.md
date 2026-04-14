@@ -77,7 +77,7 @@
 | Staff Requests | Schedule/profile change requests, job applications | [[Staff Requests & Applications]] |
 | iOS App | WKWebView hybrid, StoreKit IAP, biometrics, push | [[iOS App]] |
 | Public Site | Marketing pages, blog, careers, legal pages | [[Public Website]] |
-| Dev Panel | Platform admin: magic link auth, analytics, email logs | [[Developer Panel]] |
+| Dev Panel | Platform admin: magic link auth, analytics, email, SMS ops | [[Developer Panel]] |
 
 ---
 
@@ -87,11 +87,22 @@
 - [[Tasks/Backlog\|Backlog]] — Feature ideas & bugs
 - [[Tasks/Launch Readiness Plan\|Launch Readiness Plan]] — Unified P0/P1/P2 plan (both AIs agreed)
 - [[Tasks/SMS Delivery Options Research\|SMS Delivery Options Research]] — Broader SMS provider, country, sender-ID, and architecture research
+- [[Tasks/SMS Finalization Plan\|SMS Finalization Plan]] — SMS launch steps
+- [[Tasks/SMS-Strategy-Review\|SMS Strategy Review]] — Dual-path launch memo
 - [[Tasks/Edge Case Bugs\|Edge Case Bugs]] — Deep scan edge cases
 - [[Tasks/Pre-Deploy Safety Audit\|Pre-Deploy Safety Audit]] — Pre-deploy checks
 - [[Production-Plan-AI1]] — AI 1 detailed scan (backend & finance)
 - [[Production-Plan-AI2]] — AI 2 detailed scan (frontend & UX)
 - [[AI-Work-Split]] — File ownership rules to prevent merge conflicts
+
+### Improvement Plans
+- [[Registration-Improvement-AI1]] — Signup page UX plan (AI 1)
+- [[Registration-Improvement-AI2]] — Signup page UX plan (AI 2)
+- [[PublicSite-AI1]] — Public mini-site backend plan (AI 1)
+- [[PublicSite-AI2]] — Public mini-site frontend plan (AI 2)
+- [[Developer Panel — Improvement Plan]] — Dev panel upgrade log
+- [[Theme-Light-AI1]] — Light theme: CSS architecture (AI 1)
+- [[Theme-Light-AI2]] — Light theme: components & toggle (AI 2)
 
 ---
 
@@ -114,6 +125,7 @@ Latest first:
   - [[DevLog/2026-04-13-square|Square integration]]
   - [[DevLog/2026-04-13-attendance|Attendance]]
   - [[DevLog/2026-04-13-session2|Session 2]]
+  - [[DevLog/2026-04-13-session3|Session 3 — Email, QA, Security, App Store]]
 - [[DevLog/2026-04-13-ios|2026-04-13 (iOS)]] — Calendar/dashboard iOS fixes, push notifications
 - [[DevLog/2026-04-12|2026-04-12]] — Payroll restyling, onboarding wizard, AI style
 - [[DevLog/2026-04-10|2026-04-10]] — Messages staff sync, payroll date range
