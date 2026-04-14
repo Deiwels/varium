@@ -63,6 +63,12 @@
 - [x] Website-side proof remediation started
   - `app/book/[id]/page.tsx` now shows a public `Business details` section and `Services` preview on the landing page
   - `/public/config/:workspace_id` now exposes allowlisted `shop_address`, `shop_phone`, and `shop_email` for the public booking page
+- [x] Element reviewer-facing consent visibility patched on the frontend
+  - `app/book/[id]/page.tsx` now renders SMS consent copy immediately on both booking and waitlist forms instead of waiting for phone input first
+  - the checkbox stays disabled until a valid phone number is entered, but the consent language, Terms, and Privacy links are visible to the reviewer from first render
+- [ ] Owner data dependency still remains for Element public proof
+  - `Business details` only render when `shop_address`, `shop_phone`, and/or `shop_email` are actually saved in Element Settings
+  - if those fields are empty in Firestore, no frontend patch can surface them for Telnyx review
 - [x] Backend submission fidelity patched for future resubmission
   - `backend/index.js` 10DLC submission now builds `messageFlow` from the exact workspace booking URL instead of generic `/book/`
   - submission CTA wording now explicitly says `${shopName} Appointment Notifications via SMS`

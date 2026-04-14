@@ -838,6 +838,8 @@ export default function PublicBookingPage() {
   const waitlistContactLabel = waitlistHasValidPhone
     ? formatWaitlistPhone(waitlistPhone)
     : (trimmedWaitlistEmail || '')
+  const bookingSmsConsentReady = !!clientPhone.trim() && isValidPhone(clientPhone)
+  const waitlistSmsConsentReady = waitlistHasValidPhone
 
   // Styles
   // card & inp are defined after template is resolved (see below)
@@ -1490,12 +1492,15 @@ export default function PublicBookingPage() {
                             </div>
                           </div>
 
-                          {waitlistHasValidPhone && (
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4 }}>
-                              <input type="checkbox" checked={waitlistSmsConsent} onChange={e => setWaitlistSmsConsent(e.target.checked)} disabled={waitlistSubmitting} id="wl-sms-consent" style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: waitlistSubmitting ? 'default' : 'pointer', flexShrink: 0 }} />
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4, opacity: waitlistSmsConsentReady ? 1 : 0.78 }}>
+                              <input type="checkbox" checked={waitlistSmsConsent} onChange={e => setWaitlistSmsConsent(e.target.checked)} disabled={waitlistSubmitting || !waitlistSmsConsentReady} id="wl-sms-consent" style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: waitlistSubmitting || !waitlistSmsConsentReady ? 'default' : 'pointer', flexShrink: 0 }} />
                               <label htmlFor="wl-sms-consent" style={{ fontSize: 12, color: textMuted, lineHeight: 1.5, cursor: 'pointer' }}>
                                 I agree to receive <strong>{smsProgramName}</strong> via SMS (confirmations, reminders, reschedules, and cancellations). Message frequency may vary (up to 5 per booking). Standard message and data rates may apply. Reply STOP to opt out. Reply HELP for help. Consent is not a condition of purchase. View our <a href="https://vurium.com/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a> and <a href="https://vurium.com/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy Policy</a>.
                               </label>
+                          </div>
+                          {!waitlistSmsConsentReady && (
+                            <div style={{ fontSize: 11, color: textDim, marginTop: 6, paddingLeft: 28, lineHeight: 1.5 }}>
+                              Add a valid phone number above to opt in to SMS waitlist updates.
                             </div>
                           )}
                         </div>
@@ -1679,22 +1684,25 @@ export default function PublicBookingPage() {
                 </>
               )}
 
-              {clientPhone && (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4, opacity: bookingSmsConsentReady ? 1 : 0.78 }}>
                   <input
                     type="checkbox"
                     checked={smsConsent}
                     onChange={e => setSmsConsent(e.target.checked)}
-                    disabled={bookingSubmitting}
+                    disabled={bookingSubmitting || !bookingSmsConsentReady}
                     id="sms-consent"
-                    style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: bookingSubmitting ? 'default' : 'pointer', flexShrink: 0 }}
+                    style={{ marginTop: 3, width: 18, height: 18, accentColor: 'rgba(130,220,170,.7)', cursor: bookingSubmitting || !bookingSmsConsentReady ? 'default' : 'pointer', flexShrink: 0 }}
                   />
                   <label htmlFor="sms-consent" style={{ fontSize: 12, color: textMuted, lineHeight: 1.5, cursor: 'pointer' }}>
                     I agree to receive <strong>{smsProgramName}</strong> via SMS (confirmations, reminders, reschedules, and cancellations). Message frequency may vary (up to 5 per booking). Standard message and data rates may apply. Reply STOP to opt out. Reply HELP for help. Consent is not a condition of purchase. View our <a href="https://vurium.com/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a> and <a href="https://vurium.com/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy Policy</a>.
                   </label>
                 </div>
+              {!bookingSmsConsentReady && (
+                <div style={{ fontSize: 11, color: textDim, marginTop: 6, paddingLeft: 28, lineHeight: 1.5 }}>
+                  Add a valid phone number above to opt in to SMS confirmations and reminders.
+                </div>
               )}
-              {clientPhone && !smsConsent && (
+              {bookingSmsConsentReady && !smsConsent && (
                 <div style={{ fontSize: 11, color: 'rgba(220,160,80,.6)', marginTop: 6, paddingLeft: 28 }}>
                   SMS notifications stay optional even when a phone number is provided.
                 </div>
