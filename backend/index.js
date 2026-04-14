@@ -713,12 +713,10 @@ function vuriumSupportEmailTemplate(subject, bodyHtml, opts = {}) {
 <tr><td style="padding:0 6px 18px;">
 <table cellpadding="0" cellspacing="0" style="margin:0 auto 0 0;">
 <tr>
-<td style="width:38px;">
-<div style="width:38px;height:38px;border-radius:11px;background:#050505;text-align:center;line-height:38px;">
-<img src="https://vurium.com/logo-white.jpg" width="26" height="26" style="border-radius:8px;display:inline-block;vertical-align:middle;" alt="Vurium">
-</div>
+<td style="width:52px;vertical-align:middle;">
+<img src="https://vurium.com/logo.jpg" width="52" height="52" style="width:52px;height:52px;border-radius:16px;display:block;object-fit:cover;" alt="Vurium">
 </td>
-<td style="padding-left:12px;">
+<td style="padding-left:14px;vertical-align:middle;">
 <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#667085;font-weight:600;">Vurium</div>
 <div style="font-size:16px;font-weight:600;color:#101828;letter-spacing:-.02em;">${teamLabel}</div>
 </td>
