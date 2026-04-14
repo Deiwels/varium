@@ -25,14 +25,14 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     waitlist: { view_ghost: true, confirm: false, view_phone: false, call_client: false },
   },
   guest: {
-    pages: { dashboard: false, calendar: true, history: false, clients: true, messages: false, waitlist: false, portfolio: false, payments: false, attendance: false, cash: false, membership: false, analytics: false },
+    pages: { dashboard: true, calendar: true, history: true, clients: true, messages: false, waitlist: true, portfolio: false, payments: false, attendance: false, cash: false, membership: false, analytics: false },
     bookings: { create: true, edit: true, delete: false, block_time: false, view_all: true },
     calendar_settings: { open_settings: false, manage_team: false, manage_services: false, edit_schedule: false, edit_own_profile: false },
     clients: { view: true, add: true, edit: false, view_phone: false, call_client: false, message_client: false, delete: false, view_all: true },
     schedule: { change_own: false, change_others: false, needs_approval: false },
     settings_access: { general: false, booking: false, site_builder: false, fees_tax: false, integrations: false, change_password: true, view_pin: false },
-    financial: { mark_paid: false, checkout_client: false, refund: false, access_terminal: false, pay_cash: false, pay_zelle: false, pay_other: false, view_earnings: false, view_all_earnings: false },
-    waitlist: { view_ghost: false, confirm: false, view_phone: false, call_client: false },
+    financial: { mark_paid: true, checkout_client: true, refund: false, access_terminal: true, pay_cash: true, pay_zelle: true, pay_other: true, view_earnings: false, view_all_earnings: false },
+    waitlist: { view_ghost: false, confirm: true, view_phone: false, call_client: false },
   },
   student: {
     pages: { dashboard: false, calendar: true, history: false, clients: false, messages: true, waitlist: false, portfolio: false, payments: false, attendance: false, cash: false, membership: false, analytics: false },
@@ -43,16 +43,6 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     settings_access: { general: false, booking: false, site_builder: false, fees_tax: false, integrations: false, change_password: true, view_pin: false },
     financial: { mark_paid: false, checkout_client: false, refund: false, access_terminal: false, pay_cash: false, pay_zelle: false, pay_other: false, view_earnings: false, view_all_earnings: false },
     waitlist: { view_ghost: false, confirm: false, view_phone: false, call_client: false },
-  },
-  guest: {
-    pages: { dashboard: true, calendar: true, history: true, clients: true, messages: false, waitlist: true, portfolio: false, payments: false, attendance: false, cash: false, membership: false, analytics: false },
-    bookings: { create: true, edit: true, delete: false, block_time: false, view_all: true },
-    calendar_settings: { open_settings: false, manage_team: false, manage_services: false, edit_schedule: false, edit_own_profile: false },
-    clients: { view: true, add: true, edit: false, view_phone: false, call_client: false, message_client: false, delete: false, view_all: true },
-    schedule: { change_own: false, change_others: false, needs_approval: false },
-    settings_access: { general: false, booking: false, site_builder: false, fees_tax: false, integrations: false, change_password: true, view_pin: false },
-    financial: { mark_paid: true, checkout_client: true, refund: false, access_terminal: true, pay_cash: true, pay_zelle: true, pay_other: true, view_earnings: false, view_all_earnings: false },
-    waitlist: { view_ghost: false, confirm: true, view_phone: false, call_client: false },
   },
 }
 
