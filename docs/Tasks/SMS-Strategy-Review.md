@@ -1,91 +1,117 @@
-# SMS Launch Decision Memo
+# SMS Strategy Review — Dual-Path Launch Memo
 
 > [[Home]] > Tasks | Priority: HIGH
-> Updated: 2026-04-15 | Related: [[SMS & 10DLC]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]], [[Production-Plan-AI1]], [[Production-Plan-AI2]]
+> Updated: 2026-04-15 | Related: [[SMS & 10DLC]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]], [[Tasks/In Progress|In Progress]]
 
 ## Decision
 
-**Launch with the current SMS architecture.**
+VuriumBook is pivoting to a **dual-path SMS strategy**:
 
-- OTP, signup, and booking verification use **Telnyx Verify**
-- Appointment reminders and business texting use **per-business SMS registration**
-- `Settings -> SMS Notifications` remains the owner-facing setup flow for launch
+- **Default for new workspaces**: dedicated **toll-free** sender per workspace
+- **Grandfathered path**: existing / pending **manual 10DLC** registration stays alive
+- **OTP / signup / booking verification**: stays on **Telnyx Verify** through the existing public routes
 
-**Do not pivot before launch** to:
-- full toll-free auto-provisioning as the default path
-- a single ISV/platform-sender architecture
-- a hybrid auto-provision + upgrade model
+This means we are no longer treating owner-facing EIN / Sole Proprietor registration as the normal reminder setup flow for new customers.
 
-These remain post-launch strategy options, not launch blockers.
+## Why we are changing direction
 
-## Why this is the launch decision
+- The current manual 10DLC flow creates too much friction for solo operators and first-time customers
+- We already have a working toll-free provisioning path in `POST /api/sms/enable-tollfree`
+- We need a launch UX closer to Square-style onboarding, where the platform hides most compliance complexity from the owner
+- Element and any other already-pending 10DLC businesses should not be interrupted or migrated mid-review
 
-- It matches the code that already exists in `backend/index.js` and the current Settings/booking UI
-- It avoids a late architecture change right before selling
-- It keeps the remaining work operational: live verification, Telnyx/account setup, and trustable docs
-- It reduces launch risk by verifying what we already built instead of reopening the messaging architecture
+## Evidence and competitive framing
 
-## Current launch architecture
+### Square
 
-### OTP / login / booking verification
+Square explicitly documents that appointment communication texts are sent from a **toll-free number**.
 
-- Stable public interface:
-  - `POST /public/verify/send/:wsId`
-  - `POST /public/verify/check/:wsId`
-- When `TELNYX_VERIFY_PROFILE_ID` is present, these routes use **Telnyx Verify**
-- When the env var is missing, the backend safely falls back to the legacy local-code path
+Source:
+- [Square Support — appointment communications](https://squareup.com/help/us/en/article/8447-troubleshoot-customer-appointment-communications)
 
-### Appointment reminders / business SMS
+### Booksy
 
-- Business messaging stays on the current per-business registration flow
-- Owners complete setup in `Settings -> SMS Notifications`
-- Sole proprietor registration, OTP verification, and activation are already implemented
+Booksy officially documents that:
+- appointment reminders are centrally sent by Booksy
+- verification codes and other texts are centrally handled by Booksy
 
-### Launch UX position
+But I did **not** find an official Booksy source that proves whether the sender rail is toll-free or 10DLC.
 
-- The Settings SMS wizard is the default launch path for business messaging
-- `/api/sms/enable-tollfree` is **not** the documented default customer-facing launch path
-- Public OTP route contracts stay stable; launch planning should not rename or move them
+Sources:
+- [Booksy reminders](https://support.booksy.com/hc/en-gb/articles/16463854228114-Does-Booksy-send-clients-reminders-of-their-upcoming-appointments)
+- [Booksy verification/text troubleshooting](https://support.booksy.com/hc/en-us/articles/18791260716690-Why-aren-t-my-clients-receiving-verification-codes-or-other-text-messages-from-Booksy)
 
-## What remains before SMS is launch-ready
+Important note:
+- older internal repo notes mention a Booksy long-code observation
+- treat that as **prior research / inference**, not official proof
 
-### Operational prerequisites
+## Launch position
 
-- Create one Telnyx Verify Profile and obtain the real `verify_profile_id`
-- Save it as the GitHub secret `TELNYX_VERIFY_PROFILE_ID`
-- Confirm Cloud Run picks up that secret on deploy
-- Finish Vurium Inc. Telnyx brand verification for business messaging
+### New workspaces
 
-### Live verification
+- Show **toll-free-first** SMS setup in `Settings -> SMS Notifications`
+- Provision the dedicated toll-free number **when the owner enables SMS reminders**
+- If SMS is not live yet, the product stays on **email-only fallback**
+- Do not require EIN or company formation for the default reminder path
 
-- Verify public OTP without the secret still falls back safely
-- Verify public OTP with the secret uses Telnyx Verify successfully
-- Verify the Settings SMS wizard is understandable on mobile
-- Verify booking and waitlist flows save `sms_consent_text` and `sms_consent_text_version`
-- Verify business-first consent copy is shown on the public booking flow
+### Existing / pending 10DLC workspaces
 
-## Deferred post-launch experiments
+- Keep the current manual path untouched
+- Do not auto-migrate or auto-rewrite their sender strategy
+- Keep support and docs clear that this is the **grandfathered / manual** path
+- Element remains the reference example for this path
 
-These are valid strategy tracks, but they are **not part of launch execution**:
+#### Protected case: Element Barbershop
 
-### Toll-free auto-provisioning
+- `Element Barbershop` is a **protected grandfathered workspace**
+- Its current pending manual / 10DLC approval flow must remain intact until Telnyx review is finished
+- Do not switch Element to the toll-free-first path during this review window
+- Do not rewrite its sender identity, registration state, or owner-facing SMS flow unless there is an explicit business decision after approval
 
-- Revisit as a post-launch onboarding simplification path
-- Evaluate cost, trust, deliverability, and whether it materially reduces owner setup burden
+### OTP interfaces
 
-### ISV / platform-sender retry
+Keep these public contracts stable:
+- `POST /public/verify/send/:wsId`
+- `POST /public/verify/check/:wsId`
 
-- Revisit only through Telnyx partnership/support guidance
-- Treat as a research/business-development track, not a launch dependency
+These stay separate from the reminder-sender strategy.
 
-### Hybrid instant-on SMS
+## Operational gate
 
-- Revisit only if support burden from per-business setup proves too high after launch
-- Any hybrid model must preserve the current stable OTP routes and avoid a breaking migration for existing workspaces
+The broad toll-free default is the product direction, but it should be treated as fully launch-safe only after one of these is true:
 
-## Implementation boundaries
+- we receive written Telnyx confirmation that Vurium’s verified toll-free setup can carry platform-managed appointment reminders for end businesses
+- or our internal pilot proves this path works cleanly for Vurium-owned test workspaces
 
-- Keep the public OTP interface stable
-- Keep the current Settings SMS wizard as the launch UX
-- Do not document toll-free enablement as the default launch path
-- Treat `TELNYX_VERIFY_PROFILE_ID` as an operational dependency, not a code blocker
+Until then:
+- keep the legacy manual path alive
+- keep new workspace UX toll-free-first
+- use **email-only fallback** instead of forcing EIN friction
+- keep `Element Barbershop` on its existing pending manual review path with no migration
+
+## Backend / frontend role split
+
+### Backend
+
+- `POST /api/sms/enable-tollfree` is now the default reminder provisioning path for new workspaces
+- `POST /api/sms/register` and `POST /api/sms/verify-otp` remain the manual grandfathered path
+- Appointment reminder flows should not fall back to the platform global sender when workspace SMS is not active
+
+### Frontend
+
+- New workspaces see a toll-free-first card with simple states:
+  - `Not enabled`
+  - `Provisioning`
+  - `Pending`
+  - `Active`
+  - `Failed`
+- The old SP / EIN-heavy flow is hidden behind manual / advanced fallback copy
+- Grandfathered workspaces still see the manual business-registration UI
+
+## Deferred items
+
+These are no longer launch blockers:
+
+- forcing all legacy workspaces to migrate to toll-free
+- retrying single-brand ISV / platform-sender 10DLC before launch
+- deciding the final long-term Booksy-equivalent architecture before our first toll-free pilot completes

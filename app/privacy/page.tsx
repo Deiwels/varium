@@ -28,7 +28,7 @@ export default function PrivacyPage() {
           Privacy Policy
         </h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,.25)', marginBottom: 48 }}>
-          Effective Date: April 1, 2026 &middot; Last Updated: April 3, 2026
+          Effective Date: April 1, 2026 &middot; Last Updated: April 13, 2026
         </p>
 
         {/* Introduction */}
@@ -43,7 +43,7 @@ export default function PrivacyPage() {
           <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Personal Information:</strong> Name, mobile phone number, and email address (when provided during booking or account creation).</li>
           <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Booking Data:</strong> Requested services, appointment date/time, barber or provider preference, and any notes you provide.</li>
           <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Technical Data:</strong> IP address, browser user agent, and device information &mdash; collected for consent record-keeping, security, and analytics.</li>
-          <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Payment Data:</strong> Processed securely by our third-party payment provider (Stripe). We do not store credit card numbers on our servers.</li>
+          <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Payment Data:</strong> Processed securely by third-party payment providers such as Stripe, Square, or Apple, depending on the payment method used. We do not store full credit card numbers on our servers.</li>
           <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Cookies:</strong> We use a strictly necessary authentication cookie to keep you signed in. See our <a href="/cookies" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>Cookie Policy</a> for details.</li>
         </ul>
 
@@ -73,18 +73,18 @@ export default function PrivacyPage() {
         <h3 style={{ ...heading, fontSize: 16, marginTop: 24 }}>Program A &mdash; Appointment Notifications (Customer Care)</h3>
         <div style={highlight}>
           <p style={{ ...text, marginBottom: 14 }}>
-            We collect and use phone numbers to send appointment-related SMS messages including booking confirmations, reminders, schedule changes, and cancellation notices. By providing your phone number and checking the SMS consent box at https://vurium.com/book/[workspace] during the online booking process, you explicitly opt in to receive these text messages from VuriumBook about your appointment with the business you are booking with.
+            We collect and use phone numbers to send appointment-related SMS messages including booking confirmations, reminders, schedule changes, and cancellation notices. By providing your phone number and checking the SMS consent box during the online booking process, you explicitly opt in to receive these text messages about your appointment with the business you are booking with. The consent text shown at booking identifies the program using the business name, such as &quot;[Business Name] Appointment Notifications.&quot;
           </p>
           <ul style={{ ...list, marginBottom: 0 }}>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Program Name:</strong> VuriumBook Appointment Notifications.</li>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Sender:</strong> VuriumBook (operated by Vurium Inc.).</li>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Types:</strong> Appointment confirmations, reminders (24 hours and 2 hours before your visit), schedule changes, and cancellation notices. No marketing or promotional content is sent under this program.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Program Name:</strong> The program is presented at booking as &quot;[Business Name] Appointment Notifications.&quot;</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Sender Identity:</strong> Messages concern your appointment with the specific business you booked with. Depending on that workspace&apos;s setup, they may be delivered through VuriumBook&apos;s messaging infrastructure using a dedicated toll-free number assigned to that business or, for grandfathered workspaces, the business&apos;s registered dedicated sender.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Types:</strong> Appointment confirmations, reminders (such as 24 hours and 2 hours before your visit), schedule changes, and cancellation notices. No marketing or promotional content is sent under this program.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Frequency:</strong> Up to 5 messages per booking, depending on appointment activity.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message and data rates may apply.</strong> Contact your wireless carrier for details about your plan.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Opt-Out:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>STOP</strong> to any message to opt out. No further appointment messages will be sent. Your booking will remain active. You may also email support@vurium.com to unsubscribe.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Help:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>HELP</strong> to any message for assistance, or email support@vurium.com or call (847) 630-1884.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>No Sharing:</strong> We will not sell, rent, or share your mobile phone number or SMS opt-in data with third parties for their marketing purposes. All categories of data sharing described in this Privacy Policy exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties except service providers that help us deliver these messages (such as telecommunications providers and messaging platforms), solely to provide the messaging service.</li>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Separate Consent:</strong> SMS consent is separate from any other form of consent (such as email communications) and applies only to appointment-related text messages from VuriumBook.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Separate Consent:</strong> SMS consent is separate from any other form of consent (such as email communications) and applies only to appointment-related text messages about your booking with that business.</li>
             <li>Consent to receive SMS is <strong style={{ color: 'rgba(255,255,255,.55)' }}>not a condition</strong> of purchasing any service or making a booking.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Customer Care:</strong> For questions about this SMS program, contact support@vurium.com or call (847) 630-1884.</li>
           </ul>
@@ -114,7 +114,7 @@ export default function PrivacyPage() {
         <h2 style={heading}>5. How We Share Your Information</h2>
         <p style={text}>We do not sell your personal data. We may share information with:</p>
         <ul style={list}>
-          <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Service Providers (Data Processors):</strong> Telnyx (SMS delivery, US), Google Cloud (hosting and infrastructure, US), Stripe (payment processing, US) &mdash; only as necessary to provide our services. Each provider is bound by a Data Processing Agreement.</li>
+          <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Service Providers (Data Processors):</strong> Telnyx (SMS delivery and verification, US), Google Cloud (hosting and infrastructure, US), and payment providers such as Stripe, Square, and Apple where applicable &mdash; only as necessary to provide our services. Each provider is bound by a Data Processing Agreement or comparable contractual controls where available.</li>
           <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Business Partners:</strong> The specific barbershop, salon, or service provider you book an appointment with receives your booking information to fulfill your appointment. These businesses act as independent data controllers for the data they receive.</li>
           <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Legal Compliance:</strong> When required by law, subpoena, or legal process.</li>
         </ul>

@@ -23,6 +23,31 @@ const lbl: React.CSSProperties = { fontSize: 10, letterSpacing: '.12em', textTra
 const card: React.CSSProperties = { borderRadius: 18, border: '1px solid rgba(255,255,255,.10)', background: 'linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02))', backdropFilter: 'blur(14px)', overflow: 'hidden' }
 const cardHead: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.12)' }
 const headLbl: React.CSSProperties = { fontSize: 12, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.70)' }
+const LEGACY_SMS_STATUSES = new Set(['pending_vetting', 'pending_otp', 'brand_created', 'pending_campaign', 'pending_number', 'pending_approval', 'verified'])
+
+function getSmsUxState(settings: any) {
+  const smsStatus = String(settings?.sms_registration_status || 'not_registered')
+  const smsNumberType = String(settings?.sms_number_type || '').toLowerCase()
+  const hasNumber = !!settings?.sms_from_number
+  const hasLegacyArtifacts = !!settings?.telnyx_brand_id || !!settings?.telnyx_campaign_id || LEGACY_SMS_STATUSES.has(smsStatus)
+  const isTollFree = smsNumberType === 'toll-free'
+  const isLegacyManual = smsNumberType === '10dlc' || (!isTollFree && hasLegacyArtifacts)
+
+  let tollFreeState: 'not_enabled' | 'provisioning' | 'pending' | 'active' | 'failed' = 'not_enabled'
+  if (isTollFree && (smsStatus === 'active' || smsStatus === 'verified')) tollFreeState = 'active'
+  else if (smsStatus === 'provisioning') tollFreeState = 'provisioning'
+  else if (isTollFree && (smsStatus === 'pending_verification' || smsStatus === 'pending_approval')) tollFreeState = 'pending'
+  else if (!isLegacyManual && (smsStatus === 'rejected' || smsStatus === 'failed')) tollFreeState = 'failed'
+
+  return {
+    smsStatus,
+    smsNumberType,
+    hasNumber,
+    isTollFree,
+    isLegacyManual,
+    tollFreeState,
+  }
+}
 
 function Toggle({ checked, onChange, label, sub }: { checked: boolean; onChange: (v: boolean) => void; label: string; sub?: string }) {
   return (
@@ -74,9 +99,17 @@ function TollFreeEnableButton({ settings, onDone }: { settings: any; onDone: (da
         credentials: 'include',
       })
       const data = await res.json()
+      if (res.status === 409 && data?.status) {
+        onDone({
+          sms_registration_status: data.status,
+          sms_number_type: 'toll-free',
+          sms_brand_name: settings.shop_name || '',
+        })
+        return
+      }
       if (!res.ok) throw new Error(data.error || 'Failed to enable SMS')
       onDone({
-        sms_registration_status: 'active',
+        sms_registration_status: data.status || 'active',
         sms_from_number: data.phone_number,
         sms_number_type: 'toll-free',
         sms_brand_name: settings.shop_name || '',
@@ -91,9 +124,9 @@ function TollFreeEnableButton({ settings, onDone }: { settings: any; onDone: (da
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center' }}>
       <div style={{ fontSize: 32 }}>&#128172;</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.6)' }}>SMS Appointment Reminders</div>
-      <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.5, maxWidth: 340 }}>
-        Enable SMS to automatically send appointment confirmations and reminders to your clients. No setup required — just click the button below.
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.6)' }}>Turn on SMS reminders</div>
+      <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.5, maxWidth: 360 }}>
+        We&apos;ll assign a dedicated toll-free number to this workspace for confirmations, reminders, reschedules, and cancellations. Until SMS is fully live, email reminders stay on.
       </p>
       {error && <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(220,80,80,.1)', border: '1px solid rgba(220,80,80,.2)', color: 'rgba(255,160,160,.9)', fontSize: 12, width: '100%' }}>{error}</div>}
       <button onClick={handleEnable} disabled={loading} style={{
@@ -102,10 +135,10 @@ function TollFreeEnableButton({ settings, onDone }: { settings: any; onDone: (da
         cursor: loading ? 'wait' : 'pointer', fontWeight: 700, fontSize: 14, fontFamily: 'inherit',
         opacity: loading ? 0.5 : 1,
       }}>
-        {loading ? 'Setting up…' : 'Enable SMS Reminders'}
+        {loading ? 'Provisioning toll-free number…' : 'Enable Dedicated Toll-Free Number'}
       </button>
       <p style={{ fontSize: 10, color: 'rgba(255,255,255,.12)', lineHeight: 1.5, maxWidth: 300 }}>
-        Included in your plan. Msg &amp; data rates may apply to recipients. <a href="/privacy" style={{ color: 'rgba(130,150,220,.3)', textDecoration: 'none' }}>Privacy Policy</a>
+        No EIN or company registration is required for this default path. Msg &amp; data rates may apply to recipients. <a href="/privacy" style={{ color: 'rgba(130,150,220,.3)', textDecoration: 'none' }}>Privacy Policy</a>
       </p>
     </div>
   )
@@ -247,7 +280,7 @@ function SmsRegistrationForm({ wsId, settings, onDone }: { wsId: string; setting
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', marginBottom: 4, lineHeight: 1.5 }}>
-        Set up a dedicated SMS number for appointment confirmations, reminders, reschedules, and cancellations. We&apos;ll guide you step by step.
+        Set up the legacy business-sender path for appointment confirmations, reminders, reschedules, and cancellations. We&apos;ll guide you step by step.
       </p>
 
       {error && <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(220,80,80,.1)', border: '1px solid rgba(220,80,80,.2)', color: 'rgba(255,160,160,.9)', fontSize: 12 }}>{error}</div>}
@@ -403,7 +436,7 @@ function SmsRegistrationForm({ wsId, settings, onDone }: { wsId: string; setting
       </div>
 
       <p style={{ fontSize: 10, color: 'rgba(255,255,255,.15)', lineHeight: 1.5, marginTop: 4 }}>
-        Registration costs: ~$4.50 brand fee + $15 campaign review + ~$1.50/mo for number. Approval takes 5-10 business days.
+        Manual business registration costs: ~$4.50 brand fee + $15 campaign review + ~$1.50/mo for number. Approval takes 5-10 business days.
       </p>
     </div>
   )
@@ -1960,76 +1993,131 @@ export default function SettingsPage() {
                   </div>
                 </SectionCard>
 
-                {/* SMS Status — per-business toll-free number */}
+                {/* SMS Status — toll-free default + grandfathered manual fallback */}
                 <SectionCard title="SMS Notifications" action={null}>
                   {(() => {
-                    const smsStatus = settings.sms_registration_status || 'not_registered'
-                    const hasNumber = !!settings.sms_from_number
-                    const needsSetup = smsStatus === 'none' || smsStatus === 'not_registered'
-                    const needsOtp = smsStatus === 'pending_otp'
+                    const { smsStatus, hasNumber, isLegacyManual, isTollFree, tollFreeState } = getSmsUxState(settings)
+                    const manualNeedsOtp = smsStatus === 'pending_otp'
+                    const manualNeedsSetup = smsStatus === 'none' || smsStatus === 'not_registered' || smsStatus === 'rejected'
+                    const manualInReview = ['pending_vetting', 'brand_created', 'pending_campaign', 'pending_number', 'pending_approval', 'verified'].includes(smsStatus)
 
-                    if (hasNumber) {
-                      const isVerified = smsStatus === 'active' || smsStatus === 'verified'
-                      const isPending = smsStatus === 'pending_verification' || smsStatus === 'pending_approval'
+                    if (isLegacyManual) {
+                      const isManualVerified = hasNumber && (smsStatus === 'active' || smsStatus === 'verified')
                       return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: 999, background: isVerified ? 'rgba(130,220,170,.8)' : isPending ? 'rgba(255,180,80,.7)' : 'rgba(255,255,255,.3)' }} />
-                            <span style={{ fontSize: 13, fontWeight: 600, color: isVerified ? 'rgba(130,220,170,.8)' : isPending ? 'rgba(255,180,80,.7)' : 'rgba(255,255,255,.4)' }}>
-                              {isVerified ? 'Active — SMS Enabled' : isPending ? 'Pending — Awaiting Carrier Approval (~5 business days)' : 'SMS Number Assigned'}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ width: 8, height: 8, borderRadius: 999, background: isManualVerified ? 'rgba(130,220,170,.8)' : 'rgba(255,180,80,.7)' }} />
+                              <span style={{ fontSize: 13, fontWeight: 600, color: isManualVerified ? 'rgba(130,220,170,.8)' : 'rgba(255,180,80,.7)' }}>
+                                {isManualVerified ? 'Active — legacy business sender' : manualNeedsOtp ? 'Finish owner verification' : manualInReview ? 'Manual business registration in progress' : 'Manual business sender setup'}
+                              </span>
+                            </div>
+                            <span style={{ padding: '4px 10px', borderRadius: 999, border: '1px solid rgba(255,180,80,.18)', background: 'rgba(255,180,80,.06)', color: 'rgba(255,190,120,.78)', fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+                              Grandfathered / manual path
                             </span>
                           </div>
-                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)' }}>Your number: <span style={{ color: 'rgba(255,255,255,.5)', fontFamily: 'monospace' }}>{settings.sms_from_number}</span></div>
-                          <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', lineHeight: 1.5 }}>
-                            {isPending
-                              ? 'Your number is awaiting carrier verification. SMS will be enabled once approved (typically 3-7 business days). To speed up approval, provide your EIN below.'
-                              : 'Appointment confirmations and reminders are sent from your dedicated number.'}
+
+                          {hasNumber && (
+                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)' }}>
+                              Your number: <span style={{ color: 'rgba(255,255,255,.5)', fontFamily: 'monospace' }}>{settings.sms_from_number}</span>
+                            </div>
+                          )}
+
+                          <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>
+                            {isManualVerified
+                              ? 'This workspace stays on the existing dedicated business sender path. We are not auto-migrating legacy registrations to toll-free.'
+                              : manualNeedsOtp
+                                ? 'Your business registration is waiting on the one-time code Telnyx sent to the owner phone. Enter it below to continue.'
+                                : manualNeedsSetup
+                                  ? 'This workspace is using the manual business-sender path. Keep this only if support told you to stay on 10DLC or you are resuming an older registration.'
+                                  : 'This workspace is staying on the existing manual business registration flow while carrier review finishes. Email reminders remain the safe fallback until SMS is active.'}
                           </p>
-                          {isPending && !settings.telnyx_brand_ein && (
-                            <div style={{ marginTop: 8, padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(255,180,80,.15)', background: 'rgba(255,180,80,.04)' }}>
-                              <p style={{ fontSize: 12, color: 'rgba(255,180,80,.6)', marginBottom: 8 }}>Complete verification by providing your business EIN (required by carriers):</p>
+
+                          {(manualNeedsSetup || manualNeedsOtp) && (
+                            <div style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(255,180,80,.15)', background: 'rgba(255,180,80,.04)' }}>
                               <SmsRegistrationForm wsId={s.slug || ''} settings={settings} onDone={(data: any) => {
                                 setSettings((prev: any) => ({ ...prev, ...data }))
                               }} />
+                            </div>
+                          )}
+
+                          {manualInReview && !manualNeedsOtp && !isManualVerified && (
+                            <div style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(255,180,80,.12)', background: 'rgba(255,180,80,.04)', fontSize: 11, color: 'rgba(255,190,120,.7)', lineHeight: 1.55 }}>
+                              Carrier review is still in progress for this workspace. We will keep booking emails on and only send appointment SMS after the dedicated business number is active.
                             </div>
                           )}
                         </div>
                       )
                     }
 
-                    if (needsSetup || needsOtp) {
+                    if (tollFreeState === 'active' && isTollFree) {
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(130,220,170,.8)' }} />
+                            <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(130,220,170,.8)' }}>Active — dedicated toll-free number live</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)' }}>
+                            Your number: <span style={{ color: 'rgba(255,255,255,.5)', fontFamily: 'monospace' }}>{settings.sms_from_number}</span>
+                          </div>
+                          <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>
+                            This workspace is on the new default reminder path. Appointment confirmations and reminders now send from your dedicated toll-free number.
+                          </p>
+                        </div>
+                      )
+                    }
+
+                    if (tollFreeState === 'provisioning' || tollFreeState === 'pending') {
                       return (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: 999, background: needsOtp ? 'rgba(255,180,80,.7)' : 'rgba(130,150,220,.75)' }} />
-                            <span style={{ fontSize: 13, fontWeight: 600, color: needsOtp ? 'rgba(255,180,80,.7)' : 'rgba(195,205,255,.86)' }}>
-                              {needsOtp ? 'Finish owner verification' : 'Set up SMS for this business'}
+                            <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(255,180,80,.7)' }} />
+                            <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,180,80,.7)' }}>
+                              {tollFreeState === 'provisioning' ? 'Provisioning your toll-free number' : 'Pending toll-free activation'}
                             </span>
                           </div>
                           <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>
-                            {needsOtp
-                              ? 'Your registration is waiting on the one-time code Telnyx sent to the owner phone. Enter it below to continue.'
-                              : 'SMS is no longer auto-provisioned. Start registration here when you want a dedicated business number for appointment notifications.'}
+                            {tollFreeState === 'provisioning'
+                              ? 'We are setting up a dedicated toll-free number for this workspace now. Email confirmations stay available while SMS finishes setup.'
+                              : 'Your toll-free reminder path is not fully active yet. The workspace stays on email-only reminders until SMS is confirmed live.'}
                           </p>
-                          <div style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(130,150,220,.12)', background: 'rgba(130,150,220,.04)' }}>
-                            <SmsRegistrationForm wsId={s.slug || ''} settings={settings} onDone={(data: any) => {
-                              setSettings((prev: any) => ({ ...prev, ...data }))
-                            }} />
+                          <div style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(255,180,80,.12)', background: 'rgba(255,180,80,.04)', fontSize: 11, color: 'rgba(255,190,120,.72)', lineHeight: 1.55 }}>
+                            No EIN is required for this default path. If support specifically asked you to stay on the older 10DLC path, use the manual fallback below instead.
                           </div>
                         </div>
                       )
                     }
 
-                    // Registration submitted, waiting on carrier review or number assignment
                     return (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(255,180,80,.7)' }} />
-                          <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,180,80,.7)' }}>Registration submitted</span>
-                        </div>
-                        <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.5 }}>
-                          Your SMS registration is in review. Carrier approval and number assignment can take a few business days depending on the registration type.
-                        </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {tollFreeState === 'failed' ? (
+                          <div style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(220,80,80,.16)', background: 'rgba(220,80,80,.06)' }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,160,160,.92)', marginBottom: 6 }}>Toll-free setup needs attention</div>
+                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.38)', lineHeight: 1.55 }}>
+                              We could not finish toll-free setup for this workspace yet. Email reminders stay available while you retry or switch to the manual business-sender path.
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <TollFreeEnableButton settings={settings} onDone={(data: any) => {
+                          setSettings((prev: any) => ({ ...prev, ...data }))
+                        }} />
+
+                        <details style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.14)' }}>
+                          <summary style={{ cursor: 'pointer', listStyle: 'none', padding: '12px 14px', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.62)', letterSpacing: '.04em' }}>
+                            Manual business registration fallback
+                          </summary>
+                          <div style={{ padding: '0 14px 14px' }}>
+                            <p style={{ fontSize: 11, color: 'rgba(255,255,255,.34)', lineHeight: 1.55, margin: '0 0 10px' }}>
+                              Use this only if support told you to stay on the older 10DLC path, or if you need to resume a manual business registration exception. It is no longer the default setup for new workspaces.
+                            </p>
+                            <div style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(255,180,80,.12)', background: 'rgba(255,180,80,.04)' }}>
+                              <SmsRegistrationForm wsId={s.slug || ''} settings={settings} onDone={(data: any) => {
+                                setSettings((prev: any) => ({ ...prev, ...data }))
+                              }} />
+                            </div>
+                          </div>
+                        </details>
                       </div>
                     )
                   })()}

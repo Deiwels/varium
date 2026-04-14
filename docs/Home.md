@@ -26,7 +26,7 @@
 | Database | Google Cloud Firestore |
 | Payments | Stripe Connect, Square |
 | Auth | JWT, Apple/Google OAuth, MFA |
-| SMS | Telnyx (10DLC, brand: BCFAC3G) |
+| SMS | Telnyx (toll-free default + grandfathered 10DLC + Verify) |
 | AI | Anthropic Claude API |
 | Hosting | Vercel (frontend), Cloud Run (backend) |
 | iOS | WKWebView wrapper + native push notifications |
@@ -43,7 +43,11 @@
 - [[API Routes]] — 193 endpoints across 15+ domains
 - [[Firestore Collections]] — Collection reference
 - [[App Routes]] — 43 pages (Next.js App Router)
-- [[Components]] — 10 core reusable components
+- [[Components]] — 11 reusable components (Shell, OnboardingWizard, ImageCropper, dialogs, gates)
+- [[Lib Utilities]] — 7 shared utils (API client, PIN crypto, terminology, timezones)
+- [[Infrastructure]] — CI/CD (GitHub Actions → Cloud Run), env vars, security headers, Docker
+- [[Background Jobs]] — 6 auto jobs (reminders, memberships, audits, cleanup)
+- [[Security & Audit]] — Rate limiting, audit logs, GDPR export
 
 ---
 
@@ -52,19 +56,27 @@
 | Feature | Description | Doc |
 |---------|-------------|-----|
 | Booking | Public booking, smart audit, auto-fix, satisfaction ping, rate limiter | [[Booking System]] |
-| Waitlist | Public self-join, preferred time range, email/SMS notifications, calendar ghost blocks, role permissions | [[Waitlist]] |
+| Calendar | Interactive grid, drag-and-drop, schedule overrides, mobile | [[Calendar & Scheduling]] |
+| Waitlist | Public self-join, preferred time range, email/SMS notifications, calendar ghost blocks | [[Waitlist]] |
 | Payments | Stripe Connect, Square, terminals, Apple IAP | [[Payments]] |
-| Calendar | Calendar view, schedule overrides, mobile layout | Calendar & Scheduling |
 | Clients | CRM, booking history, phone verification | [[Client Management]] |
+| Memberships | Recurring plans, auto-generated bookings, discounts | [[Memberships]] |
+| Reviews | Moderation, Google import, satisfaction ping, public display | [[Reviews]] |
 | Onboarding | 4-step wizard for new workspaces | [[Onboarding Wizard]] |
 | Templates | Pre-filled services per business type | [[Business Templates]] |
 | AI Style | AI-generated branding/themes for booking pages | [[AI Style]] |
 | Payroll | Clock in/out, commissions, tips, owner profit | [[Attendance & Payroll]] |
-| SMS & 10DLC | Telnyx 10DLC, platform-as-sender, 2FA + appointment SMS | [[SMS & 10DLC]] |
-| Messaging | Team DMs between staff | Messaging |
-| Memberships | Subscription plans for clients | Memberships |
-| Analytics | Summary & detailed business analytics | Analytics |
-| Reviews | Review management & import | Reviews |
+| Expenses | Business expenses with categories, cash register | [[Expenses & Cash Register]] |
+| Billing | Stripe + Apple IAP subscriptions, trial, plan gating | [[Billing & Subscriptions]] |
+| SMS & 10DLC | Telnyx toll-free default, grandfathered manual 10DLC, Telnyx Verify for OTP | [[SMS & 10DLC]] |
+| Push | APNs notifications, deep links, booking/message alerts | [[Push Notifications]] |
+| Email | Transactional emails, Gmail integration for admin | [[Email System]] |
+| Messaging | Team DMs between staff | [[Messages & Chat]] |
+| Analytics | Booking page traffic, sources, hourly breakdown | [[Analytics]] |
+| Permissions | Role-based access: admin, manager, staff | [[Role Permissions]] |
+| Staff Requests | Schedule/profile change requests, job applications | [[Staff Requests & Applications]] |
+| iOS App | WKWebView hybrid, StoreKit IAP, biometrics, push | [[iOS App]] |
+| Public Site | Marketing pages, blog, careers, legal pages | [[Public Website]] |
 | Dev Panel | Platform admin: magic link auth, analytics, email logs | [[Developer Panel]] |
 
 ---
@@ -74,6 +86,9 @@
 - [[Tasks/In Progress\|In Progress]] — Current sprint (P0 items + active tasks)
 - [[Tasks/Backlog\|Backlog]] — Feature ideas & bugs
 - [[Tasks/Launch Readiness Plan\|Launch Readiness Plan]] — Unified P0/P1/P2 plan (both AIs agreed)
+- [[Tasks/SMS Delivery Options Research\|SMS Delivery Options Research]] — Broader SMS provider, country, sender-ID, and architecture research
+- [[Tasks/Edge Case Bugs\|Edge Case Bugs]] — Deep scan edge cases
+- [[Tasks/Pre-Deploy Safety Audit\|Pre-Deploy Safety Audit]] — Pre-deploy checks
 - [[Production-Plan-AI1]] — AI 1 detailed scan (backend & finance)
 - [[Production-Plan-AI2]] — AI 2 detailed scan (frontend & UX)
 - [[AI-Work-Split]] — File ownership rules to prevent merge conflicts
@@ -84,11 +99,33 @@
 
 Latest first:
 - [[DevLog/2026-04-15|2026-04-15]] — Smart booking audit, auto-fix, satisfaction ping, waitlist auto-fill, rate limiter
+- [[DevLog/2026-04-14-website|2026-04-14 (Website)]] — Marketing pages, pricing, support
 - [[DevLog/2026-04-14|2026-04-14]] — Corporation approved, 10DLC brand, Developer Panel
-- [[DevLog/2026-04-13|2026-04-13]] — Payroll profit fix, tips, booking validation
+- [[DevLog/2026-04-13|2026-04-13]] — Payroll, tips, booking, settings mobile drill-down, SMS/10DLC
+  - [[DevLog/2026-04-13-history|History page]]
+  - [[DevLog/2026-04-13-analytics|Analytics page]]
+  - [[DevLog/2026-04-13-registration|Registration & onboarding]]
+  - [[DevLog/2026-04-13-performance|Performance optimization]]
+  - [[DevLog/2026-04-13-custom-code-sms|Custom code & SMS]]
+  - [[DevLog/2026-04-13-dashboard-widgets|Dashboard widgets]]
+  - [[DevLog/2026-04-13-accounts-permissions|Accounts & permissions]]
+  - [[DevLog/2026-04-13-messages|Messages]]
+  - [[DevLog/2026-04-13-waitlist|Waitlist]]
+  - [[DevLog/2026-04-13-square|Square integration]]
+  - [[DevLog/2026-04-13-attendance|Attendance]]
+  - [[DevLog/2026-04-13-session2|Session 2]]
 - [[DevLog/2026-04-13-ios|2026-04-13 (iOS)]] — Calendar/dashboard iOS fixes, push notifications
 - [[DevLog/2026-04-12|2026-04-12]] — Payroll restyling, onboarding wizard, AI style
 - [[DevLog/2026-04-10|2026-04-10]] — Messages staff sync, payroll date range
+
+---
+
+## QA & Quality
+
+- [[QA-Scanner-Guide]] — How to run QA/bug-hunting sessions
+- [[Tasks/QA-Scan-2026-04-14|QA Scan 2026-04-14]] — AI 1 review of unstaged changes
+- [[Tasks/QA-Scan-2026-04-13|QA Scan 2026-04-13]] — Claude Opus QA session
+- [[Permissions]] — Role permission matrix reference
 
 ---
 
@@ -96,4 +133,12 @@ Latest first:
 
 - [[CHANGELOG]] — Version history
 - [[APPLE_REVIEW_CHECKLIST]] — App Store submission checklist
-- [[Lib Utilities]] — API client, auth, PIN, terminology helpers
+- [[Element CRM App]] — Separate iOS app for Element Barbershop (not VuriumBook)
+
+### Telnyx & Legal Documents (`docs/Telnyx/`)
+- `CP_575_A.pdf` — IRS CP-575A letter for brand verification
+- `CorpArt.pdf` / `Corporation Articles of Incorporation.pdf` — Vurium Inc. articles
+- `IRS Apply for an EIN online.pdf` — EIN application reference
+- `Carrier-review readiness audit...pdf` — Telnyx 10DLC carrier review audit
+- `Platform-level CUSTOMER_CARE 10DLC...pdf` — 10DLC platform architecture docs
+- `VURIUM_Subscription_Account_Structure.pdf` — Subscription/account structure (root)

@@ -1,13 +1,15 @@
 # SMS & 10DLC
 
-> Part of [[Home]] > Features | See also: [[Booking System]], [[Onboarding Wizard]]
+> Part of [[Home]] > Features | See also: [[Booking System]], [[Onboarding Wizard]], [[Tasks/SMS-Strategy-Review|SMS Strategy Review]], [[Tasks/SMS Delivery Options Research|SMS Delivery Options Research]]
 
 ## Overview
 
 VuriumBook uses Telnyx for US A2P SMS messaging. Two messaging systems:
 
-- **Appointment Reminders** → Per-business 10DLC (Sole Proprietor or Standard brand per business)
-- **Account Verification (2FA)** → Telnyx Verify API (bypasses 10DLC entirely)
+- **Appointment reminders / booking SMS** → dual-path architecture
+  - **Default for new workspaces**: dedicated **toll-free** sender per workspace
+  - **Grandfathered path**: existing / pending **manual 10DLC** sender per workspace
+- **Account verification (2FA / signup / booking verification)** → **Telnyx Verify API** with legacy local fallback until the real Verify profile secret is live
 
 ## Architecture Decision (April 2026)
 
@@ -19,24 +21,30 @@ We initially tried a platform-as-sender model (one VuriumBook brand + one CUSTOM
 
 **Lesson**: For independent businesses (not franchise), each business must be registered as its own Brand.
 
-### Current architecture: Per-business 10DLC + Telnyx Verify ✅
+### Current architecture: Toll-free default + grandfathered manual 10DLC + Telnyx Verify ✅
 
 ```
 ┌─────────────────────────────────────────────────┐
 │  2FA / Login Codes                              │
 │  → Telnyx Verify API ($0.03/verification)       │
 │  → No 10DLC registration needed                 │
-│  → Works immediately                            │
+│  → Current public routes stay stable            │
 └─────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────┐
-│  Appointment Reminders (per business)           │
-│  → Sole Proprietor brand (no EIN needed)        │
-│  → SP campaign auto-approves after OTP          │
-│  → 1 dedicated local number per business        │
-│  → 1 messaging profile per business             │
-│  → Messages say: "[Business]: Your appt..."     │
-│  → ~2-10 min from signup to SMS live            │
+│  New Workspaces                                 │
+│  → Dedicated toll-free number per workspace     │
+│  → Owner enables it in Settings                 │
+│  → Email-only fallback while SMS is unavailable │
+│  → No EIN required for the default path         │
+└─────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────┐
+│  Existing / Pending 10DLC Workspaces            │
+│  → Stay on manual business registration         │
+│  → Sole Proprietor or Standard brand per biz    │
+│  → No auto-migration during launch              │
+│  → Element is the live reference example        │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -45,10 +53,20 @@ We initially tried a platform-as-sender model (one VuriumBook brand + one CUSTOM
 | Platform | Sender type | Evidence |
 |---|---|---|
 | Vagaro | Short code (89885) | Support docs say to unblock 89885 |
-| Square | Toll-free | Help center: "sent from a toll free number" |
-| Booksy | Long code (10DLC) | Support: text START to 618-228-1860 |
+| Square | Toll-free | Official support docs say appointment messages are sent from a toll-free number |
+| Booksy | Centrally managed sender | Official docs confirm Booksy-owned reminders / verification texts, but do not prove toll-free vs 10DLC |
 
-### Cost per business (Sole Proprietor path)
+### Product position
+
+- **New workspace default**: toll-free-first, enabled from `Settings -> SMS Notifications`
+- **Grandfathered workspaces**: keep the existing manual SP / 10DLC path
+- **Operational gate**: broad toll-free rollout is considered fully safe after written Telnyx confirmation or a successful internal pilot
+- **Fallback rule**: if toll-free is not active, the product stays on **email-only** appointment messaging instead of forcing EIN friction
+- **Protected review case**: `Element Barbershop` stays on its current pending manual / 10DLC approval path and must not be auto-migrated during the toll-free pivot
+
+### Cost notes
+
+#### Manual Sole Proprietor / 10DLC path
 
 | Item | Cost |
 |---|---|
@@ -80,8 +98,12 @@ POST /v2/verifications/by_phone_number/{phone}/actions/verify → Verify code
 - No 10DLC brand/campaign needed
 
 ### Status
-- **Not yet implemented** — next priority
-- Will replace the pending 10DLC 2FA campaign
+- Backend support is implemented at:
+  - `POST /public/verify/send/:wsId`
+  - `POST /public/verify/check/:wsId`
+- Current behavior:
+  - uses Telnyx Verify once `TELNYX_VERIFY_PROFILE_ID` is configured
+  - safely falls back to the legacy local-code path until the real secret exists
 
 ## 10DLC Campaigns
 
@@ -117,6 +139,11 @@ POST /v2/verifications/by_phone_number/{phone}/actions/verify → Verify code
 | Booking page | https://vurium.com/book/elementbarbershop |
 
 This is the correct per-business architecture — each business gets its own brand + campaign. No 710 risk because the sender matches the registered brand.
+
+**Protected status during pivot:**
+- Element is intentionally being left on this path while its current review is pending
+- Do not convert Element to the toll-free-default path mid-review
+- Treat it as the live regression check for the legacy/manual flow while new workspaces move to toll-free-first
 
 ### Campaign 2 — CUSTOMER_CARE (VuriumBook Appointment Notifications)
 
@@ -209,14 +236,18 @@ Must contain:
 
 Checkbox (unchecked by default, optional):
 ```
-☐ I agree to receive VuriumBook Appointment Notifications via SMS 
-about my booking (confirmations, reminders, reschedules, and 
-cancellations). Message frequency may vary (up to 5 messages per 
-booking). Standard message and data rates may apply. Reply STOP to 
-opt out. Reply HELP for help. Consent is not a condition of purchase. 
-Messages may be sent from different VuriumBook local phone numbers. 
-Terms: https://vurium.com/terms  Privacy: https://vurium.com/privacy
+☐ I agree to receive [Business Name] Appointment Notifications via SMS
+(confirmations, reminders, reschedules, and cancellations). Message
+frequency may vary (up to 5 per booking). Standard message and data
+rates may apply. Reply STOP to opt out. Reply HELP for help. Consent
+is not a condition of purchase. Terms: https://vurium.com/terms
+Privacy Policy: https://vurium.com/privacy
 ```
+
+Notes:
+- For new workspaces, reminder messages should normally come from a dedicated toll-free number assigned to that workspace.
+- Grandfathered manual workspaces may continue to use their registered dedicated sender.
+- If workspace SMS is not active, appointment updates should fall back to email instead of a platform/global SMS sender.
 
 Requirements:
 - Phone number field can be required for booking, but SMS checkbox must be **optional**
@@ -433,13 +464,12 @@ Existing endpoints at `/api/sms/register` and `/api/sms/verify-otp` need these f
 - `optinMessage`: add "Consent is not a condition of purchase"
 - In `/api/sms/verify-otp`: change `sms_registration_status: 'pending_approval'` → `'active'` (SP auto-approves)
 
-#### Task 1.3: Disable auto-TFN on signup — ✅ DONE
+#### Task 1.3: Keep signup / onboarding SMS-light — ✅ DONE
 
-In `/auth/signup` (around line 3274-3332), replace the auto-TFN provisioning block with:
-```javascript
-// SMS activation moved to Settings → SP 10DLC registration (per-business brand/campaign).
-// Auto-TFN removed: carriers require per-business 10DLC registration for appointment SMS.
-```
+Signup no longer needs to push owners into EIN-first SMS setup. The default product path is:
+- finish workspace creation
+- choose a plan
+- enable toll-free reminders later from `Settings -> SMS Notifications`
 
 #### Task 1.4: Message formats — ✅ ALREADY COMPLIANT (no changes needed)
 
@@ -447,59 +477,27 @@ Already uses `{shopName}: ` prefix + STOP/HELP language in all SMS.
 
 ---
 
-### AI 2 — Frontend (`app/settings/`, `app/book/`, `components/`) — PENDING
+### Current implementation status
 
-#### Task 2.1: Settings — SP Registration wizard
+### Default path for new workspaces
 
-Update `app/settings/page.tsx` SMS section.
+- `POST /api/sms/enable-tollfree` provisions a dedicated toll-free number per workspace
+- `app/settings/page.tsx` now shows toll-free-first UI for new workspaces
+- New workspace copy no longer frames EIN / Sole Proprietor registration as the default way to enable reminders
+- Appointment messaging no longer falls back to the platform global sender when workspace SMS is not active; the safe product fallback is email-only
 
-**UI states:**
+### Grandfathered manual path
 
-| `sms_registration_status` | What to show |
-|---|---|
-| `not_registered` | "Enable SMS Reminders" button → opens form |
-| `pending_otp` | OTP input + verify button |
-| `otp_sent` | OTP input + verify button + "Code sent to your mobile" |
-| `brand_verified` | "Setting up campaign..." (auto, call create-campaign + assign-number) |
-| `campaign_active` | "Assigning number..." (auto) |
-| `active` | ✅ "SMS Active" + assigned number + test button + logs |
-| `rejected` | Error message + retry button |
+- `POST /api/sms/register` and `POST /api/sms/verify-otp` remain active
+- Manual / grandfathered workspaces continue to see the SP / 10DLC flow in Settings
+- New backend saves now tag manual registrations with `sms_number_type: '10dlc'`
+- Element remains the live pending manual example
 
-**Registration form fields:**
-- Legal first name, legal last name
-- Business display name (pre-fill from shop_name)
-- Email (pre-fill from owner email)
-- Mobile phone (for OTP)
-- Business address (pre-fill from shop_address)
-- Vertical dropdown (e.g., "Professional Services")
+### OTP / verification path
 
-**API calls sequence:** register-sp → trigger-otp → [user enters code] → verify-otp → create-campaign → assign-number
-
-**Reuse:** Existing `SmsRegistrationForm` component (lines 115-200). Existing `apiFetch()`. Existing `inp`/`lbl` form styles.
-
-#### Task 2.2: Booking page — Update CTA text
-
-Update `app/book/[id]/page.tsx` SMS consent label (lines 1584-1597).
-
-**New consent text** (use `shopName` from config, not "VuriumBook"):
-```
-I agree to receive {shopName} Appointment Notifications via SMS 
-(confirmations, reminders, reschedules, and cancellations). Message 
-frequency may vary (up to 5 per booking). Standard message and data 
-rates may apply. Reply STOP to opt out. Reply HELP for help. Consent 
-is not a condition of purchase.
-Terms: https://vurium.com/terms  Privacy: https://vurium.com/privacy
-```
-
-Make Terms/Privacy clickable `<a>` links (not just text).
-
-#### Task 2.3: Booking page — Consent metadata
-
-Ensure booking submission sends:
-- `sms_consent_text_version` — hash/version of consent text shown
-- `sms_consent_ip` — (already sent)
-- `sms_consent_ua` — (already sent)
-- `sms_consent_at` — (already sent)
+- `POST /public/verify/send/:wsId` and `POST /public/verify/check/:wsId` remain stable
+- Public OTP uses Telnyx Verify once `TELNYX_VERIFY_PROFILE_ID` exists
+- Public OTP safely falls back to the legacy local-code path until that secret is configured
 
 ---
 
@@ -510,20 +508,28 @@ AI 1 (backend/index.js)           AI 2 (frontend)
 ─────────────────────────         ──────────────────────
 ✅ 1.1 Telnyx Verify API          ⏳ 2.1 Settings SP wizard
 ✅ 1.2 SP endpoints fixed         ⏳ 2.2 Booking page CTA text
-✅ 1.3 Auto-TFN removed           ⏳ 2.3 Consent metadata
-✅ 1.4 Message formats OK        
+✅ 1.3 Signup stays SMS-light     ⏳ 2.3 Consent metadata
+✅ Toll-free default endpoint     ✅ Toll-free-first Settings UI
+✅ Email-only reminder fallback   ✅ Signup SMS copy updated
+✅ Legacy 10DLC path preserved    ✅ Booking CTA uses business program name
+✅ 10DLC type tagging added
+✅ 1.4 Message formats OK
 ✅ 1.5 Docs updated               
 ```
 
 ### Verification checklist
 
 - [ ] Telnyx Verify: `/public/verify/send/:wsId` → receive OTP → `/public/verify/check/:wsId` → success
+- [ ] New workspace default: `Settings -> SMS Notifications` shows toll-free-first card and not EIN-first setup copy
+- [ ] Toll-free default path: click enable → number provisioned → UI lands in active or pending state
+- [ ] Email-only fallback: if workspace SMS is not active, booking confirmations/reminders stay on email and do not silently use the platform fallback sender
+- [ ] Grandfathered manual path: existing/pending 10DLC workspace still shows manual SP flow and no auto-migration
 - [ ] SP Registration: Settings → fill form → OTP → verify → campaign active → number assigned
 - [ ] Booking SMS: create booking with consent → SMS delivered with `{shopName}: ...` + STOP
 - [ ] Reminders: scheduled 24h/2h reminders have correct format + STOP language
 - [ ] STOP: reply STOP → opt-out recorded → no further messages
 - [ ] Booking CTA: consent text shows business name + all compliance elements + clickable links
-- [ ] New signup: no auto-TFN provisioning, `sms_registration_status: 'not_registered'`
+- [ ] Signup / onboarding: no EIN-first friction for the default reminder path
 
 ## Key Documents (docs/Telnyx/)
 

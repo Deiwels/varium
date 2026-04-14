@@ -28,7 +28,7 @@ export default function TermsPage() {
           Terms of Service
         </h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,.25)', marginBottom: 48 }}>
-          Effective Date: April 1, 2026 &middot; Last Updated: April 3, 2026
+          Effective Date: April 1, 2026 &middot; Last Updated: April 13, 2026
         </p>
 
         {/* 1. Acceptance */}
@@ -58,18 +58,18 @@ export default function TermsPage() {
         <h2 id="sms" style={heading}>4. SMS / Text Messaging Program Terms</h2>
         <div style={highlight}>
           <p style={{ ...text, marginBottom: 14 }}>
-            VuriumBook provides appointment-related text messaging as part of the booking experience. Messages are sent by VuriumBook (operated by Vurium Inc.) about your appointment with the business you are booking with. Messages include the business name solely to help you identify which appointment the notification refers to. By opting in to SMS at the time of booking, you agree to the following:
+            VuriumBook provides appointment-related text messaging as part of the booking experience. At the time of booking, the consent text identifies the program using the business name, such as &quot;[Business Name] Appointment Notifications.&quot; These messages concern your appointment with the business you are booking with. Depending on that workspace&apos;s setup, messages may be delivered using a dedicated toll-free number assigned to the business or, for grandfathered workspaces, the business&apos;s registered dedicated sender. By opting in to SMS at the time of booking, you agree to the following:
           </p>
           <ul style={{ ...list, marginBottom: 0 }}>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Program Name:</strong> VuriumBook Appointment Notifications.</li>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Program Description:</strong> Transactional text messages sent by VuriumBook related to your appointments with businesses using the VuriumBook platform. No marketing or promotional content is sent under this program.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Program Name:</strong> The program is presented at booking as &quot;[Business Name] Appointment Notifications.&quot;</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Program Description:</strong> Transactional text messages about your appointment with a business using the VuriumBook platform. No marketing or promotional content is sent under this program.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Types:</strong> Booking confirmations, appointment reminders (24-hour and 2-hour), schedule changes, and cancellation notices.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message Frequency:</strong> Up to 5 messages per booking.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Opt-Out:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>STOP</strong> to any message to opt out. No further appointment messages will be sent. Your booking will remain active.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Help:</strong> Reply <strong style={{ color: 'rgba(130,220,170,.7)' }}>HELP</strong> for assistance, or email support@vurium.com or call (847) 630-1884.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Message and data rates may apply.</strong> Check with your wireless carrier.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Supported Carriers:</strong> Major US carriers are supported. Carriers are not liable for delayed or undelivered messages.</li>
-            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Separate Consent:</strong> SMS consent is separate from any other form of consent and applies only to appointment-related text messages from VuriumBook.</li>
+            <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Separate Consent:</strong> SMS consent is separate from any other form of consent and applies only to appointment-related text messages about your booking with that business.</li>
             <li>Consent to receive SMS is <strong style={{ color: 'rgba(255,255,255,.55)' }}>not required</strong> to use the booking service or make a purchase.</li>
             <li><strong style={{ color: 'rgba(255,255,255,.55)' }}>Customer Care:</strong> For questions about this SMS program, contact support@vurium.com or call (847) 630-1884.</li>
           </ul>
@@ -109,7 +109,7 @@ export default function TermsPage() {
         <h2 style={heading}>6. Subscription &amp; Payment Terms</h2>
         <ul style={list}>
           <li>Business subscriptions are billed monthly according to your selected plan.</li>
-          <li>Payments are processed securely through Stripe. Vurium does not store credit card information.</li>
+          <li>Payments and subscriptions may be processed securely through third-party providers such as Stripe, Square, or Apple, depending on the plan and payment method used. Vurium does not store full credit card information on its own servers.</li>
           <li>All fees are stated in US Dollars unless otherwise indicated.</li>
           <li>You may cancel your subscription at any time. Cancellation takes effect at the end of the current billing period.</li>
           <li>Refunds are not provided for partial billing periods unless required by applicable law.</li>
@@ -119,7 +119,7 @@ export default function TermsPage() {
         {/* 7. Service Level */}
         <h2 style={heading}>7. Service Availability</h2>
         <p style={text}>
-          We strive to maintain high availability of the Service. While we target 99.9% uptime, the Service is provided on an &quot;as available&quot; basis and we do not guarantee uninterrupted access. Scheduled maintenance will be communicated in advance when possible. Current service status is available at <a href="https://status.vurium.com" style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>status.vurium.com</a>.
+          We strive to maintain high availability of the Service, but the Service is provided on an &quot;as available&quot; basis and we do not guarantee uninterrupted access. Scheduled maintenance and material service incidents will be communicated when reasonably practical.
         </p>
 
         {/* 8. Intellectual Property */}
