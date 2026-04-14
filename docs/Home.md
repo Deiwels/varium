@@ -71,7 +71,7 @@
 | SMS & 10DLC | Telnyx toll-free default, grandfathered manual 10DLC, Telnyx Verify for OTP | [[SMS & 10DLC]] |
 | Push | APNs notifications, deep links, booking/message alerts | [[Push Notifications]] |
 | Email | Transactional emails, Gmail integration for admin | [[Email System]] |
-| Messaging | Team DMs between staff | [[Messages & Chat]] · [[Messaging-System-AI1]] · [[Messaging-System-AI2]] |
+| Messaging | In-app staff chat plus shared SMS / email / push delivery notes | [[Messages & Chat]] · [[Messaging-System-AI1]] · [[Messaging-System-AI2]] |
 | Analytics | Booking page traffic, sources, hourly breakdown | [[Analytics]] |
 | Permissions | Role-based access: admin, manager, staff | [[Role Permissions]] |
 | Staff Requests | Schedule/profile change requests, job applications | [[Staff Requests & Applications]] |
