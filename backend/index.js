@@ -27,6 +27,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 const TOKEN_TTL = '24h';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
+// BE.1 — distributed job-lock instance id. Generated once at module load, unique per
+// Cloud Run revision/instance so `withJobLock()` can detect whether a lock is held by
+// "me" (safe to refresh/release) or "another instance" (skip this cycle).
+const JOB_INSTANCE_ID = crypto.randomBytes(8).toString('hex');
+
 if (NODE_ENV === 'production' && JWT_SECRET === 'dev-secret-change-in-production') {
   console.error('FATAL: JWT_SECRET must be set in production');
   process.exit(1);
@@ -10254,20 +10259,108 @@ async function runBookingAudit() {
   } catch (e) { console.warn('runBookingAudit error:', e?.message); }
 }
 
+// ============================================================
+// BE.1 — Distributed lock for background jobs (Firestore TTL)
+// ============================================================
+// When Cloud Run scales to multiple instances under load, every instance fires the
+// setInterval below on its own schedule. Without a distributed guard, all 7 jobs run
+// once per instance per cycle — duplicate SMS reminders, duplicate auto-notify emails,
+// duplicate Telnyx provision attempts, duplicate AI diagnostic spend.
+//
+// `withJobLock(jobName, ttlSeconds, fn)` acquires a lock row in `job_locks/{jobName}`.
+// If another instance already holds a valid lock (locked_until in the future and
+// locked_by !== our JOB_INSTANCE_ID), this cycle is skipped on our side. If we hold it,
+// we run `fn()` under try/catch, then release the lock in `finally` via a conditional
+// transaction that only deletes when we still own it. On crash, the lock expires
+// naturally via TTL within at most `ttlSeconds`.
+//
+// Internal per-job throttles (e.g. `_lastReminderRun`) stay in place as the inner
+// guard; the distributed lock is an additional outer guard for multi-instance safety.
+// `resetSecurityCounters` is intentionally NOT locked — synchronous, in-memory, harmless
+// to double-run.
+
+let _jobInstanceLogged = false;
+async function withJobLock(jobName, ttlSeconds, fn) {
+  if (!_jobInstanceLogged) {
+    console.log(`[JOBS] Instance id: ${JOB_INSTANCE_ID} · distributed lock active`);
+    _jobInstanceLogged = true;
+  }
+  const ref = db.collection('job_locks').doc(jobName);
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + Math.max(30, ttlSeconds) * 1000);
+
+  // Phase 1: acquire
+  let acquired = false;
+  try {
+    acquired = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (snap.exists) {
+        const data = snap.data() || {};
+        const lockedUntil = data.locked_until ? new Date(data.locked_until) : null;
+        if (lockedUntil && lockedUntil > now && data.locked_by && data.locked_by !== JOB_INSTANCE_ID) {
+          return false;
+        }
+      }
+      tx.set(ref, {
+        job_name: jobName,
+        locked_by: JOB_INSTANCE_ID,
+        locked_at: toIso(now),
+        locked_until: toIso(expiresAt),
+      });
+      return true;
+    });
+  } catch (e) {
+    console.warn(`[JOBS] ${jobName} lock acquire failed:`, e?.message);
+    return { skipped: true, reason: 'lock_error' };
+  }
+  if (!acquired) {
+    return { skipped: true, reason: 'locked_by_another_instance' };
+  }
+
+  // Phase 2: run job (non-throwing — callers already wrap errors internally)
+  try {
+    await fn();
+  } catch (e) {
+    console.warn(`[JOBS] ${jobName} threw:`, e?.message);
+  } finally {
+    // Phase 3: release only if we still own it
+    try {
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        if (snap.exists && snap.data()?.locked_by === JOB_INSTANCE_ID) {
+          tx.delete(ref);
+        }
+      });
+    } catch (e) {
+      // Lock will expire naturally via TTL if release fails
+      console.warn(`[JOBS] ${jobName} lock release failed (will expire on TTL):`, e?.message);
+    }
+  }
+  return { ran: true };
+}
+
 setInterval(() => {
-  runAutoReminders().catch(() => {});
-  runAutoMemberships().catch(() => {});
-  runRetentionCleanup().catch(() => {});
+  withJobLock('runAutoReminders', 600, runAutoReminders).catch(() => {});
+  withJobLock('runAutoMemberships', 600, runAutoMemberships).catch(() => {});
+  withJobLock('runRetentionCleanup', 900, runRetentionCleanup).catch(() => {});
+  // resetSecurityCounters is synchronous + in-memory — double-run is harmless, no lock needed
   resetSecurityCounters();
-  runPayrollAudit().catch(() => {});
-  runBookingAudit().catch(() => {});
-  runSmsAutoProvisionRetry().catch(() => {});
+  withJobLock('runPayrollAudit', 900, runPayrollAudit).catch(() => {});
+  withJobLock('runBookingAudit', 900, runBookingAudit).catch(() => {});
+  withJobLock('runSmsAutoProvisionRetry', 600, runSmsAutoProvisionRetry).catch(() => {});
 }, 3 * 60 * 1000);
 
-// AI Diagnostics — auto-scan every 30 minutes
+// AI Diagnostics — auto-scan every 30 minutes. Wrapped in withJobLock too so multi-instance
+// deploys do not burn double Anthropic spend on scans.
 if (ANTHROPIC_API_KEY) {
-  setTimeout(() => runAIDiagnosticScan('auto').catch(e => console.warn('AI scan error:', e?.message)), 120000);
-  setInterval(() => runAIDiagnosticScan('auto').catch(e => console.warn('AI scan error:', e?.message)), 30 * 60 * 1000);
+  setTimeout(
+    () => withJobLock('runAIDiagnosticScan', 1800, () => runAIDiagnosticScan('auto')).catch(e => console.warn('AI scan error:', e?.message)),
+    120000
+  );
+  setInterval(
+    () => withJobLock('runAIDiagnosticScan', 1800, () => runAIDiagnosticScan('auto')).catch(e => console.warn('AI scan error:', e?.message)),
+    30 * 60 * 1000
+  );
 }
 
 // ============================================================

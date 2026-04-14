@@ -27,6 +27,67 @@
   - Jonathan / Telnyx follow-up
   - Verify Profile account issues
 
+## BE.1 — Distributed lock for background jobs (plan + implementation, 2026-04-15)
+
+> AI 1 (Claude) · Status: **implementation in progress** · Owner greenlit + Codex confirmed parallel to FE.Element-Verify · AI 3 (Verdent) post-commit review requested
+
+### Plan summary (Manifesto Rule 5 micro-plan)
+
+This is a **low-risk additive defensive infra item** from [[Tasks/3-AI-Remaining-Work-Split|3-AI Remaining Work Split]] (now renamed 4-AI). Normally Rule 5 would require an AI 3 plan before architectural work; this entry is the inline plan-before-code record for the case where:
+- Owner approved parallel execution
+- AI 2 (Codex) explicitly confirmed "не заважає і не конфліктує" with FE.Element-Verify
+- The change is 1 file (`backend/index.js`), additive only, no changes to existing job logic, no migration, no data touching
+
+**Problem.** Seven background jobs run via `setInterval(..., 3 * 60 * 1000)` at `backend/index.js:10257` + `runAIDiagnosticScan` via a separate interval at 10270. When Cloud Run scales to multiple instances under load, every instance fires all seven jobs simultaneously on every cycle. Consequences: duplicate SMS reminders, duplicate auto-notify emails, duplicate Telnyx provision attempts, duplicate payroll audits, duplicate booking audits, double AI diagnostic spend.
+
+Currently `min_instances=0` and typical warm instance count is 1, so the risk is low right now — but it is **real** any time Cloud Run decides to spin a second instance (load spike, cold start over warm, scale-to-zero → scale-up).
+
+**Design.**
+
+1. New top-level Firestore collection `job_locks/{jobName}`. Document shape: `{ job_name, locked_by (instance_id), locked_at, locked_until }`.
+2. New module-level constant `JOB_INSTANCE_ID` — `crypto.randomBytes(8).toString('hex')` generated once at module load. Each Cloud Run revision/instance gets a unique id.
+3. New helper `withJobLock(jobName, ttlSeconds, fn)`:
+   - Uses `db.runTransaction` to read `job_locks/{jobName}` and conditionally write
+   - If lock exists AND `locked_until > now` AND `locked_by !== JOB_INSTANCE_ID` → skip (return `{skipped: true}`)
+   - Otherwise → write lock with our `JOB_INSTANCE_ID` and `locked_until = now + ttlSeconds`
+   - Run `fn()` under try/catch
+   - `finally`: release lock via a second transaction that only deletes the doc if `locked_by === JOB_INSTANCE_ID` (avoid stepping on a replacement holder that grabbed it after TTL)
+   - If release fails, TTL naturally expires the lock
+4. Wrap each setInterval call with `withJobLock(..., ...)`:
+   - `runAutoReminders` · 600 s TTL
+   - `runAutoMemberships` · 600 s TTL
+   - `runRetentionCleanup` · 900 s TTL
+   - `runPayrollAudit` · 900 s TTL
+   - `runBookingAudit` · 900 s TTL
+   - `runSmsAutoProvisionRetry` · 600 s TTL
+   - `runAIDiagnosticScan` (separate setInterval) · 1800 s TTL
+5. `resetSecurityCounters` stays unlocked — it's synchronous and purely in-memory; a double-run is harmless and would cost a Firestore round-trip for no benefit.
+
+**What this does NOT change.**
+- Internal throttles inside each job (`_lastReminderRun < 3 * 60 * 1000` etc.) stay in place — distributed lock is an additional outer guard, not a replacement for per-instance throttle
+- Job function bodies — zero changes
+- `setInterval` cadence — still every 3 min
+- Job behavior when only one instance is running — functionally identical (lock always acquires on first try)
+- Job behavior on failure — lock releases in `finally` OR expires via TTL within at most 15 min
+
+**Cost estimate.** ~28 Firestore ops per 3-min cycle (7 jobs × (1 tx read + 1 tx write for acquire + 1 tx read + 1 tx delete for release)) = ~13k ops/day per instance. Well within Firestore free tier baseline.
+
+**Rollback.** If anything breaks, revert the commit. Existing jobs go back to unlocked setInterval (current behavior). No data migration, no state to clean up except `job_locks/` docs which expire on their own.
+
+### Owner ack
+
+Recorded as owner greenlit in chat at 2026-04-15. Codex explicitly confirmed parallel execution does not conflict with FE.Element-Verify for Element Barbershop resubmission.
+
+### AI 3 (Verdent) post-commit review request
+
+After commit lands:
+- [ ] Verdent: read the `withJobLock` helper in `backend/index.js` and the seven wrapped call sites
+- [ ] Verdent: confirm the transaction pattern is correct for the `@google-cloud/firestore` client this repo uses (direct `db.runTransaction(async tx => { ... })`)
+- [ ] Verdent: add a line to `docs/Tasks/QA-Scan-2026-04-15.md` under either "Fixed" or "Needs eyes" depending on assessment
+- [ ] Verdent: check that Cloud Run logs show `[JOBS] Instance id: ...` on startup after deploy
+
+---
+
 ## 🔴 ELEMENT 10DLC RESUBMIT — BLOCKED on 2 content typos + FE.Element-Verify (2026-04-15)
 
 **Status:** NOT READY for Resubmit. Two hard blockers + one open Codex verification pass.
@@ -107,6 +168,11 @@ See [[Tasks/Element-10DLC-Resubmission-Checklist]] + DevLog 2026-04-15 `Element 
 
 ## BUILD HOTFIX — AI 2
 
+- [x] Fixed Next.js prerender blocker for `/terms` and `/privacy`
+  - Vercel failed with `useSearchParams() should be wrapped in a suspense boundary`
+  - cause: legal pages were switched to `'use client'` only to read query params for Element reviewer context
+  - AI 2 moved both pages back to server-side `searchParams` props
+  - branded legal context remains intact; pages should prerender cleanly again
 - [x] Fixed Vercel TypeScript build regression in `components/Shell.tsx`
   - build failure was caused by `setTab(t.id)` receiving a widened `string` instead of the local `'profile' | 'password'` union
   - AI 2 replaced the inline inferred tab list with a typed `profileTabs` array
