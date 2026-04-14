@@ -73,6 +73,15 @@
 - [x] Element reviewer-facing consent visibility patched on the frontend
   - `app/book/[id]/page.tsx` now renders SMS consent copy immediately on both booking and waitlist forms instead of waiting for phone input first
   - the checkbox stays disabled until a valid phone number is entered, but the consent language, Terms, and Privacy links are visible to the reviewer from first render
+- [x] Custom-template public proof block added for reviewer visibility
+  - `app/book/[id]/page.tsx` now renders a standardized branded compliance / business-proof section even when the page uses custom HTML
+  - this block surfaces:
+    - exact business name
+    - address / phone / email when saved
+    - services preview
+    - SMS compliance footer text
+    - public Privacy / Terms links
+    - a branded CTA (`Book with {Business}`)
 - [ ] Owner data dependency still remains for Element public proof
   - `Business details` only render when `shop_address`, `shop_phone`, and/or `shop_email` are actually saved in Element Settings
   - if those fields are empty in Firestore, no frontend patch can surface them for Telnyx review

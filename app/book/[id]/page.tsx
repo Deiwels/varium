@@ -826,6 +826,8 @@ export default function PublicBookingPage() {
   const hasBusinessDetails = !!(publicAddress || publicPhone || publicEmail)
   const featuredServices = services.slice(0, 6)
   const timezoneLabel = formatTimezoneLabel(config.timezone)
+  const brandedBookingLabel = displayName ? `Book with ${displayName}` : 'Book now'
+  const showCustomBusinessProof = activeTemplate === 'custom' && !!(displayName || hasBusinessDetails || featuredServices.length > 0)
   const phoneReadyForBooking = clientPhone ? isValidPhone(clientPhone) : !requirePhone
   const canSubmitBooking = !!clientName.trim() && isValidEmail(clientEmail) && phoneReadyForBooking
   const bookingSubmitting = bookLoading || paymentLoading
@@ -1065,6 +1067,74 @@ export default function PublicBookingPage() {
                 onClick={handleCustomBlockClick}
                 dangerouslySetInnerHTML={{ __html: processedCustomHTML }}
               />
+              {showCustomBusinessProof && (
+                <section style={{ marginBottom: 40, padding: '22px 24px', borderRadius: 18, border: `1px solid ${t.cardBorder}`, background: t.card, backdropFilter: isLightTheme ? 'none' : 'blur(12px)' }}>
+                  <div style={{ fontSize: 11, color: textDim, letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 10 }}>Verified business details</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: textMain, marginBottom: 8 }}>{displayName}</div>
+                  <div style={{ fontSize: 13, color: textMuted, lineHeight: 1.7, marginBottom: hasBusinessDetails || featuredServices.length > 0 ? 18 : 14 }}>
+                    Reviewers should be able to confirm that this public booking page belongs to {displayName} and that appointment messaging consent is tied to this business.
+                  </div>
+
+                  {hasBusinessDetails && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: featuredServices.length > 0 ? 18 : 14 }}>
+                      {publicAddress && (
+                        <div>
+                          <div style={{ fontSize: 11, color: textDim, letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 6 }}>Location</div>
+                          <div style={{ fontSize: 14, color: textMuted, lineHeight: 1.6 }}>{publicAddress}</div>
+                        </div>
+                      )}
+                      {publicPhone && (
+                        <div>
+                          <div style={{ fontSize: 11, color: textDim, letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 6 }}>Phone</div>
+                          <a href={phoneHref(publicPhone)} style={{ fontSize: 14, color: textMain, textDecoration: 'none' }}>{publicPhone}</a>
+                        </div>
+                      )}
+                      {publicEmail && (
+                        <div>
+                          <div style={{ fontSize: 11, color: textDim, letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 6 }}>Email</div>
+                          <a href={`mailto:${publicEmail}`} style={{ fontSize: 14, color: textMain, textDecoration: 'none', wordBreak: 'break-word' }}>{publicEmail}</a>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {featuredServices.length > 0 && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div className="bp-section-title" style={{ fontSize: 12, color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 12 }}>Services</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+                        {featuredServices.map(s => (
+                          <div key={s.id} style={{ padding: '14px 16px', borderRadius: 14, border: `1px solid ${t.cardBorder}`, background: bgSubtle }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
+                              <div style={{ fontSize: 14, fontWeight: 600, color: textMain }}>{s.name}</div>
+                              {showPublicPrices && s.price_cents > 0 && <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(130,220,170,.75)' }}>{fmtPrice(s.price_cents)}</div>}
+                            </div>
+                            <div style={{ fontSize: 12, color: textMuted, marginTop: 5 }}>{s.duration_minutes} min</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ paddingTop: 14, borderTop: `1px solid ${borderSoft}` }}>
+                    <div style={{ fontSize: 11, color: textDim, lineHeight: 1.6 }}>{smsFooterComplianceText}</div>
+                    <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                      <a href="https://vurium.com/privacy#sms" target="_blank" rel="noopener" style={{ color: textSoft, textDecoration: 'underline', textUnderlineOffset: '2px', fontSize: 12 }}>Privacy Policy</a>
+                      <a href="https://vurium.com/terms#sms" target="_blank" rel="noopener" style={{ color: textSoft, textDecoration: 'underline', textUnderlineOffset: '2px', fontSize: 12 }}>Terms</a>
+                    </div>
+                  </div>
+
+                  {onlineBookingEnabled && (
+                    <div style={{ marginTop: 18 }}>
+                      <button onClick={() => setShowBooking(true)} style={{
+                        padding: '14px 22px', borderRadius: 12, fontSize: 14, fontWeight: 600, fontFamily: 'inherit',
+                        background: isLightTheme ? t.accent : 'rgba(255,255,255,.1)',
+                        border: `1px solid ${isLightTheme ? t.accent : 'rgba(255,255,255,.15)'}`,
+                        color: isLightTheme ? '#fff' : t.text, cursor: 'pointer',
+                      }}>{brandedBookingLabel}</button>
+                    </div>
+                  )}
+                </section>
+              )}
             </>
           )}
 
@@ -1077,7 +1147,7 @@ export default function PublicBookingPage() {
                 background: isLightTheme ? t.accent : 'rgba(255,255,255,.1)',
                 border: `1px solid ${isLightTheme ? t.accent : 'rgba(255,255,255,.15)'}`,
                 color: isLightTheme ? '#fff' : t.text, cursor: 'pointer', transition: 'all .2s',
-              }}>Book Now</button>
+              }}>{brandedBookingLabel}</button>
             ) : (
               <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 8, alignItems: 'center', padding: '16px 22px', borderRadius: 16, border: `1px solid ${t.cardBorder}`, background: t.card }}>
                 <div style={{ fontSize: 15, fontWeight: 600, color: textMain }}>Online booking is temporarily unavailable</div>
