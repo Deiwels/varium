@@ -1073,10 +1073,27 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
           ) : children}
         </div>
 
-        {/* ── Bottom Pill Navigation ── */}
+        {/* ── Bottom Pill Navigation ──
+            Fixed 5-item mobile pill as per the 2026-04-13 design
+            (Home · History · Calendar · Messages · Settings). This is
+            NOT the full navigation — pages not in this list (Payments,
+            Clients, Waitlist, Portfolio, Membership, Analytics, Cash,
+            Expenses, Payroll, Billing) are reachable from the Dashboard
+            shortcuts grid which already respects hasPerm().
+
+            An earlier fix for PERM-001 replaced this list with a
+            `visibleNav.map(...)` render which caused up to 8+ icons to
+            appear in the pill for owners/admins — visually broken on
+            mobile and user-reported as a regression. This restores the
+            fixed 5-item layout and still filters each item through
+            `visibleNav` so role-restricted users who can't see (e.g.)
+            messages or history simply lose that slot — same as before.
+        */}
         <div className={`pill-bar${keyboardOpen ? ' keyboard-open' : ''}`}>
           <div className="pill-inner">
-            {visibleNav.map(item => {
+            {(['dashboard', 'history', 'calendar', 'messages', 'settings'] as const).map(id => {
+              const item = visibleNav.find(n => n.id === id)
+              if (!item) return null
               const active = item.href === '/dashboard'
                 ? pathname === item.href
                 : pathname === item.href || pathname.startsWith(`${item.href}/`)

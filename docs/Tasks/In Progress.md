@@ -56,6 +56,23 @@
 - [ ] Verdent: add retrospective bullet to `QA-Scan-2026-04-15.md` under a new "Regressions from Sprint 1 fixes" section so next scan catches similar default-flip patterns
 - See `docs/DevLog/2026-04-15.md` → "Hotfix: Waitlist disappeared..." for full diagnosis, behavior matrix, and lessons-learned note
 
+## HOTFIX 2026-04-15 — Mobile pill bar showed 8 icons instead of 5 (PERM-001 overshoot)
+
+- [x] Owner screenshot from live waitlist page: bottom pill rendered 8 icons (dashboard, calendar, history, messages, waitlist, portfolio, clients, payments). Canonical design per CHANGELOG 2026-04-13 is a fixed 5-item pill: Home · History · Calendar · Messages · Settings
+- [x] Root cause: Codex commit `074ddd2 fix(frontend): align role permissions` fixed PERM-001 by swapping the hardcoded 5-item pill render for `{visibleNav.map(...)}`. That made `visibleNav` render correctly but overshot — `visibleNav` is the full filtered list, so owners/admins got 8+ icons crammed into the mobile pill
+- [x] Correct navigation architecture is **two-tier**: pill bar = fixed 5 canonical destinations; Dashboard shortcuts grid = everything else (and Codex already fixed its PERM-002 `isBarber` hardcoded filter so it respects `hasPerm()`)
+- [x] Fix in `components/Shell.tsx`: restored hardcoded 5-item allowlist via `(['dashboard', 'history', 'calendar', 'messages', 'settings'] as const).map(id => visibleNav.find(item => item.id === id))`. Still filters each slot through `visibleNav`, so roles that cannot see a particular item simply drop that slot
+- [x] PERM-001 remains fixed via the Dashboard shortcuts grid (the architecturally correct place for "reach every allowed page")
+- [x] Ownership note: `components/Shell.tsx` is Codex (AI 2) scope, but Claude patched directly on explicit owner instruction — this is an emergency hotfix exception, recorded in DevLog so the pattern stays visible
+- [x] Local preview verification not possible (this machine has no `npm` / Node locally). Deferred to post-Vercel-deploy visual confirmation
+- [ ] **Owner verification after Vercel deploy lands:**
+  - [ ] Open `/dashboard`, `/waitlist`, `/calendar`, `/messages` on iPhone → pill bar shows exactly Home · History · Calendar · Messages · Settings (5 icons)
+  - [ ] Owner role sees all 5; barber/student may see fewer if role-gated
+  - [ ] No horizontal scroll in pill on 375px width
+  - [ ] Dashboard shortcuts grid still reaches Payments / Clients / Waitlist / Portfolio / Membership / Analytics (PERM-002 unaffected)
+- [ ] Codex follow-up: if there is a long-term plan for a left sidebar drawer to render the full `visibleNav`, that belongs in Codex's own commit; `sidebarOpen` state already half-exists in Shell.tsx. Tracked in 3-AI split as a separate item if/when revisited
+- See `docs/DevLog/2026-04-15.md` → "Hotfix: Mobile bottom pill bar..." for full post-mortem
+
 ## SMS — ELEMENT MANUAL REVIEW UPDATE
 
 - [x] Element Barbershop received an MNO response for campaign `CICHCOJ`
