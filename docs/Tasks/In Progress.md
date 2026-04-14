@@ -99,6 +99,12 @@
     - exact DBA / address matching discipline
     - policy pages as first-class artifacts
     - multiple opt-in methods in `messageFlow` when applicable
+- [x] Temporary reminder fallback guidance distilled into docs
+  - added [[Tasks/Temporary-Reminder-Delivery-Options]]
+  - current team direction clarified:
+    - immediate fallback = transactional email
+    - short-term SMS alternative = per-business verified toll-free
+    - not pursuing shared short codes / platform-wide shared sender / omnichannel expansion as a launch unblocker
 
 ## SUPPORT EMAIL STYLE — DONE
 

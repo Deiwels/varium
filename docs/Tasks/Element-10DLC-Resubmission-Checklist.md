@@ -1,7 +1,7 @@
 # Element Barbershop — 10DLC Resubmission Checklist
 
 > [[Home]] > Tasks | Owner: Verdent (verification doc)
-> Related: [[Tasks/SMS-Strategy-Review|SMS Strategy Review]], [[Tasks/Platform-Sender-Pivot-Decision|Platform Sender Pivot]], [[Tasks/Telnyx-Integration-Plan|Telnyx Integration Plan]], [[Tasks/US-A2P-CTA-Brand-Verification-Notes|US A2P CTA & Brand Verification Notes]]
+> Related: [[Tasks/SMS-Strategy-Review|SMS Strategy Review]], [[Tasks/Platform-Sender-Pivot-Decision|Platform Sender Pivot]], [[Tasks/Telnyx-Integration-Plan|Telnyx Integration Plan]], [[Tasks/US-A2P-CTA-Brand-Verification-Notes|US A2P CTA & Brand Verification Notes]], [[Tasks/Temporary-Reminder-Delivery-Options|Temporary Reminder Delivery Options]]
 > Created: 2026-04-15
 > Context: Campaign CICHCOJ failed MNO review with two reasons:
 > 1. "Brand website lacking sufficient information about the company and its products"
@@ -81,6 +81,14 @@ Open `https://vurium.com/book/elementbarbershop` in browser (incognito, not logg
 - [ ] Both pages mention **Element Barbershop** (or parent company) as the entity — not just "VuriumBook Platform"
 - [ ] Policy pages are public and stable enough to be used as submission artifacts, not temporary or app-only pages
 
+### 1.6 Screenshot backup artifacts
+- [ ] If the live flow still feels visually ambiguous, capture and host stable screenshots of:
+  - the initial booking page with `Element Barbershop` visible
+  - the visible SMS consent copy
+  - the public Privacy / Terms links
+  - the visible business details / services block
+- [ ] Keep screenshot URLs stable and public enough to share in a support / appeal thread if Telnyx requests additional opt-in evidence
+
 ---
 
 ## Part 2 — Settings (owner must fill before resubmission)
@@ -133,6 +141,7 @@ Log in to Telnyx portal → 10DLC → Campaign CICHCOJ → Edit.
 - [ ] Sample messages do NOT start with "VuriumBook:" or any platform name
 - [ ] Sample messages include opt-out language (`Reply STOP`)
 - [ ] Help / opt-out wording used in production is consistent with the booking page disclosures
+- [ ] If a support / appeal path is used instead of direct resubmission, include screenshot links as supplemental evidence rather than relying only on the text description
 
 ### 3.3 Use case
 - [ ] Campaign use case = `2FA / One-Time Passwords` if sending OTPs, OR `Appointment Reminder` / `Customer Care` for reminders
@@ -148,6 +157,13 @@ After clicking resubmit in Telnyx:
 - [ ] Monitor `POST /api/webhooks/telnyx-10dlc` webhook → `sms_registration_status` update in Firestore
 - [ ] Telnyx MNO review typically takes 3–7 business days
 - [ ] If rejected again → check exact failure reason code and compare with this checklist
+
+---
+
+## Temporary fallback while review is pending
+
+- [ ] Appointment messaging for Element stays on **transactional email fallback** while SMS approval is blocked
+- [ ] Do not switch Element to a rushed shared sender or platform-wide fallback during this review cycle
 
 ---
 

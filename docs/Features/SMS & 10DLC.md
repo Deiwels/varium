@@ -1,6 +1,6 @@
 # SMS & 10DLC
 
-> Part of [[Home]] > Features | See also: [[Booking System]], [[Onboarding Wizard]], [[Tasks/SMS-Strategy-Review|SMS Strategy Review]], [[Tasks/SMS Delivery Options Research|SMS Delivery Options Research]], [[Tasks/US-A2P-CTA-Brand-Verification-Notes|US A2P CTA & Brand Verification Notes]]
+> Part of [[Home]] > Features | See also: [[Booking System]], [[Onboarding Wizard]], [[Tasks/SMS-Strategy-Review|SMS Strategy Review]], [[Tasks/SMS Delivery Options Research|SMS Delivery Options Research]], [[Tasks/US-A2P-CTA-Brand-Verification-Notes|US A2P CTA & Brand Verification Notes]], [[Tasks/Temporary-Reminder-Delivery-Options|Temporary Reminder Delivery Options]]
 
 ## Overview
 
@@ -63,6 +63,17 @@ We initially tried a platform-as-sender model (one VuriumBook brand + one CUSTOM
 - **Operational gate**: broad toll-free rollout is considered fully safe after written Telnyx confirmation or a successful internal pilot
 - **Fallback rule**: if toll-free is not active, the product stays on **email-only** appointment messaging instead of forcing EIN friction
 - **Protected review case**: `Element Barbershop` stays on its current failed-review manual / 10DLC remediation path and must not be auto-migrated during the toll-free pivot
+
+### Temporary reminder fallback position
+
+If a workspace is temporarily blocked on 10DLC CTA / brand review:
+
+- first fallback = **transactional email**
+- best short-term SMS alternative = **per-business verified toll-free**
+- do **not** use a rushed platform-wide shared sender as a temporary workaround
+- do **not** treat short code / RCS / WhatsApp as launch unblockers for the current stack
+
+See [[Tasks/Temporary-Reminder-Delivery-Options]] for the concrete operating guidance.
 
 ### Cost notes
 
