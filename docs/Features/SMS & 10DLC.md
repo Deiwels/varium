@@ -137,6 +137,30 @@ POST /v2/verifications/by_phone_number/{phone}/actions/verify → Verify code
 
 **Will not be resubmitted.** Switched to per-business brand architecture.
 
+### Platform-level Vurium campaign — MNO_PROVISIONED ✅ (Apr 2026)
+
+| Field | Value |
+|---|---|
+| Brand name | Vurium |
+| TCR Campaign ID | CADKC00 |
+| Telnyx Campaign ID | 4b30019d-824f-170e-e36f-4dcef49247c7 |
+| Status | **MNO_PROVISIONED** |
+| Status reason | "Campaign is now provisioned" |
+| Notified via | Telnyx campaign status update email |
+| Support contact | Telnyx support — 1.888.980.9750 / 10dlcquestions@telnyx.com |
+
+**What this means**
+- The campaign has passed MNO (mobile network operator) review and is now fully provisioned across carriers.
+- This is the first time a Vurium-brand campaign reaches `MNO_PROVISIONED` — the earlier platform CUSTOMER_CARE attempt (CKAOXOW) was rejected with 710 and the platform 2FA campaign was going to be abandoned in favor of Telnyx Verify.
+- This does NOT change the documented product architecture: new workspaces continue defaulting to **per-workspace toll-free**, grandfathered manual paths (Element) stay on their own brand/campaign remediation, and 2FA continues to use Telnyx Verify.
+- Operational note: before routing any production traffic through this campaign, AI 1 / Owner must confirm the assigned sender number, throughput class, and whether this campaign is intended for platform-internal traffic (alerts / ops) or for customer-facing reminders. Without that confirmation, keep the current toll-free-first + email-only fallback behavior.
+
+**Follow-up actions**
+- [ ] Owner: capture the exact campaign type (2FA / CUSTOMER_CARE / LOW_VOLUME_MIXED) and assigned sender number from Telnyx portal; record them here.
+- [ ] AI 1: if this campaign is intended to replace the earlier platform-level rejections, update `sendSms()` routing + docs (`Tasks/Platform-Sender-Pivot-Decision.md`, `Tasks/SMS Finalization Plan.md`) to reflect the new live status.
+- [ ] AI 1: update `docs/Architecture/GitHub Secrets Inventory.md` if a new sender / profile ID needs to be added to Cloud Run env.
+- [ ] Verdent: sanity-check that this provisioning does NOT accidentally pull Element off its own per-business remediation path.
+
 ### Per-business campaign: Element Barbershop (first customer)
 
 | Field | Value |
