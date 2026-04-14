@@ -406,33 +406,36 @@ function formatPhone(phone) {
   return null;
 }
 
-// Get per-workspace SMS config (dedicated 10DLC number, brand name)
-// Per-business toll-free SMS: each workspace gets its own TFN.
-// Like Square (assigns 855 numbers per business), not a shared platform number.
-// Fallback to global TELNYX_FROM only if workspace has no number yet (for backward compat).
-async function getWorkspaceSmsConfig(wsId) {
-  const fallbackFrom = safeStr(process.env.TELNYX_FROM);
-  if (!wsId) return { fromNumber: fallbackFrom, brandName: '', status: 'none', canSend: !!fallbackFrom };
+// Get per-workspace SMS config.
+// New workspaces should use a dedicated toll-free number once the owner enables SMS in Settings.
+// Legacy / grandfathered workspaces may still use their dedicated 10DLC registration path.
+// Global TELNYX_FROM is allowed only for flows that explicitly opt into fallback
+// (for example public OTP while Verify is still using the legacy local-code path).
+async function getWorkspaceSmsConfig(wsId, opts = {}) {
+  const allowGlobalFallback = opts.allowGlobalFallback !== false;
+  const fallbackFrom = allowGlobalFallback ? safeStr(process.env.TELNYX_FROM) : '';
+  if (!wsId) return { fromNumber: fallbackFrom, brandName: '', status: 'none', numberType: '', canSend: !!fallbackFrom };
   try {
     const doc = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
     const data = doc.exists ? doc.data() : {};
     const status = safeStr(data.sms_registration_status || 'none');
+    const numberType = safeStr(data.sms_number_type || '');
     const hasOwnNumber = !!data.sms_from_number;
     const isVerified = status === 'active' || status === 'verified';
-    // Can send if: own number is verified/active, OR fallback to global TELNYX_FROM (must also be verified)
-    const canSend = (hasOwnNumber && isVerified) || !!fallbackFrom;
+    const canSend = (hasOwnNumber && isVerified) || (!hasOwnNumber && !!fallbackFrom);
     return {
-      fromNumber: hasOwnNumber ? safeStr(data.sms_from_number) : fallbackFrom,
+      fromNumber: hasOwnNumber && isVerified ? safeStr(data.sms_from_number) : fallbackFrom,
       brandName: safeStr(data.sms_brand_name || data.shop_name || ''),
       status,
+      numberType,
       canSend,
     };
-  } catch { return { fromNumber: fallbackFrom, brandName: '', status: 'none', canSend: !!fallbackFrom }; }
+  } catch { return { fromNumber: fallbackFrom, brandName: '', status: 'none', numberType: '', canSend: !!fallbackFrom }; }
 }
 
 async function sendSms(to, body, fromOverride, wsId) {
-  // Platform-first: always send via global TELNYX_FROM.
-  // If workspace has own dedicated number, fromOverride will use it instead.
+  // By default, send from the workspace sender when one is active.
+  // Some OTP flows still pass a global fallback sender explicitly while Verify is being rolled out.
   const { apiKey, from } = telnyxCredentials();
   if (!apiKey) { console.warn('Telnyx not configured'); return Promise.resolve(null); }
   const effectiveFrom = fromOverride || from;
@@ -693,7 +696,7 @@ async function tryWaitlistAutoFill(wsId, cancelledBooking) {
     const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone });
     const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone });
     const bookUrl = `https://vurium.com/book/${wsId}`;
-    const smsConf = await getWorkspaceSmsConfig(wsId);
+    const smsConf = await getWorkspaceSmsConfig(wsId, { allowGlobalFallback: false });
     const prefix = shopName ? `${shopName}: ` : '';
 
     for (const wDoc of waitSnap.docs) {
@@ -709,7 +712,7 @@ async function tryWaitlistAutoFill(wsId, cancelledBooking) {
       const wlPhoneNorm = normPhone(w.phone_raw || w.phone_norm);
       if (wlPhoneNorm) {
         const optOut = await wsCol('clients').where('phone_norm', '==', wlPhoneNorm).where('sms_opt_out', '==', true).limit(1).get();
-        if (optOut.empty) {
+        if (optOut.empty && smsConf.canSend) {
           sendSms(wlPhoneNorm, `${prefix}A spot just opened up for ${svcText} with ${w.barber_name || 'your specialist'} on ${dateKey} at ${timeStr}. Book now: ${bookUrl} Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, smsConf.fromNumber, wsId).catch(() => {});
         }
       }
@@ -764,10 +767,10 @@ async function scheduleSatisfactionPing(wsId, wsCol, bookingId, bookingData) {
     const clientName = bookingData.client_name || 'there';
     const barberName = bookingData.barber_name || 'your specialist';
     const sendAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours from now
-    const smsConf = await getWorkspaceSmsConfig(wsId);
+    const smsConf = await getWorkspaceSmsConfig(wsId, { allowGlobalFallback: false });
 
     // Schedule SMS (if phone + Google review URL available)
-    if (phone && googleReviewUrl) {
+    if (phone && googleReviewUrl && smsConf.canSend) {
       const prefix = shopName ? `${shopName}: ` : '';
       const message = `${prefix}Hi ${clientName}! Thanks for your visit with ${barberName}. We'd love your feedback — leave a review here: ${googleReviewUrl} Msg & data rates may apply. Reply STOP to opt out, HELP for help.`;
       await wsCol('sms_reminders').add({
@@ -3290,9 +3293,9 @@ app.post('/auth/signup', async (req, res) => {
 
     setAuthCookie(res, token);
 
-    // SMS activation moved to Settings → SP 10DLC registration (per-business brand/campaign).
-    // Auto-TFN removed: carriers require per-business 10DLC registration for appointment SMS.
-    // Business owners activate SMS via Settings → "Enable SMS Reminders" → Sole Proprietor flow.
+    // SMS activation happens later in Settings.
+    // New workspaces default to dedicated toll-free reminders.
+    // Grandfathered manual 10DLC remains available only for existing / support-driven exception workspaces.
 
     res.status(201).json({
       ok: true,
@@ -4668,9 +4671,11 @@ app.post('/api/bookings', async (req, res) => {
         const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
         const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
         const prefix = shopName ? `${shopName}: ` : '';
-        const wsSmsConf = await getWorkspaceSmsConfig(req.wsId);
-        sendSms(doc.client_phone, `${prefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your specialist'}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`, wsSmsConf.fromNumber, req.wsId).catch(() => {});
-        scheduleReminders(req.ws, bookingRef.id, doc, tz, shopName, wsSmsConf.fromNumber).catch(() => {});
+        const wsSmsConf = await getWorkspaceSmsConfig(req.wsId, { allowGlobalFallback: false });
+        if (wsSmsConf.canSend) {
+          sendSms(doc.client_phone, `${prefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your specialist'}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`, wsSmsConf.fromNumber, req.wsId).catch(() => {});
+          scheduleReminders(req.ws, bookingRef.id, doc, tz, shopName, wsSmsConf.fromNumber).catch(() => {});
+        }
       }
     }
     sendCrmPushToStaff(req.ws, doc.barber_id, 'New Booking', `${doc.client_name || 'Client'} booked for ${doc.start_at?.slice(0, 10)}`, { type: 'booking_confirmed' }, 'push_booking_confirm', req.user.uid).catch(() => {});
@@ -4828,8 +4833,10 @@ app.delete('/api/bookings/:id', async (req, res) => {
         const cancelSettings = await req.ws('settings').doc('config').get();
         const cancelShopName = cancelSettings.exists ? safeStr(cancelSettings.data()?.shop_name || '') : '';
         const cancelPrefix = cancelShopName ? `${cancelShopName}: ` : '';
-        const cancelSmsConf = await getWorkspaceSmsConfig(req.wsId);
-        sendSms(bookingData.client_phone, `${cancelPrefix}Your appointment with ${bookingData.barber_name || 'your specialist'} has been cancelled. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, cancelSmsConf.fromNumber, req.wsId).catch(() => {});
+        const cancelSmsConf = await getWorkspaceSmsConfig(req.wsId, { allowGlobalFallback: false });
+        if (cancelSmsConf.canSend) {
+          sendSms(bookingData.client_phone, `${cancelPrefix}Your appointment with ${bookingData.barber_name || 'your specialist'} has been cancelled. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, cancelSmsConf.fromNumber, req.wsId).catch(() => {});
+        }
       }
     }
     sendCrmPushToBarber(req.ws, bookingData.barber_id, 'Booking Cancelled', `${bookingData.client_name || 'Client'} cancelled`, { type: 'booking_cancelled' }, 'push_cancel').catch(() => {});
@@ -6021,7 +6028,7 @@ app.post('/api/payroll/rules/:id', requireRole('owner'), async (req, res) => {
 // ============================================================
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app';
 
-// Toll-Free SMS setup for Individual plan (no 10DLC registration needed)
+// Toll-free SMS setup — default reminder path for new workspaces.
 app.post('/api/sms/enable-tollfree', requireRole('owner'), async (req, res) => {
   try {
     const settingsRef = req.ws('settings').doc('config');
@@ -6168,6 +6175,7 @@ app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
     }
     const brandId = brandResult?.data?.brandId || brandResult?.data?.id || '';
     await settingsRef.update({
+      sms_number_type: '10dlc',
       telnyx_brand_id: brandId,
       sms_brand_name: displayName,
       sms_registration_status: 'pending_vetting',
@@ -6183,7 +6191,7 @@ app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
           pinSms: `VuriumBook: Your verification code is @OTP_PIN@. Enter this code to verify your identity. Expires in 24 hours.`,
           successSms: `VuriumBook: Your brand has been verified successfully. You can now send SMS to your clients.`,
         });
-        await settingsRef.update({ sms_registration_status: 'pending_otp' });
+      await settingsRef.update({ sms_registration_status: 'pending_otp', sms_number_type: '10dlc' });
         // Return early — user must verify OTP before campaign can be created
         return res.json({
           ok: true, step: 'otp_sent', brand_id: brandId, status: 'pending_otp',
@@ -6227,11 +6235,12 @@ app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
         directLending: false,
       });
     } catch (e) {
-      await settingsRef.update({ sms_registration_status: 'brand_created' });
+      await settingsRef.update({ sms_registration_status: 'brand_created', sms_number_type: '10dlc' });
       return res.status(400).json({ error: 'Campaign creation failed: ' + e.message, step: 'campaign', brand_id: brandId });
     }
     const campaignId = campaignResult?.data?.campaignId || campaignResult?.data?.id || '';
     await settingsRef.update({
+      sms_number_type: '10dlc',
       telnyx_campaign_id: campaignId,
       sms_registration_status: 'pending_campaign',
       updated_at: toIso(new Date()),
@@ -6252,7 +6261,7 @@ app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
       });
       phoneNumber = availableNumber;
     } catch (e) {
-      await settingsRef.update({ sms_registration_status: 'pending_number' });
+      await settingsRef.update({ sms_registration_status: 'pending_number', sms_number_type: '10dlc' });
       return res.status(400).json({ error: 'Number purchase failed: ' + e.message, step: 'number', brand_id: brandId, campaign_id: campaignId });
     }
 
@@ -6305,6 +6314,7 @@ app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
     // Step 6: Save all to settings
     await settingsRef.update({
       sms_from_number: phoneNumber,
+      sms_number_type: '10dlc',
       sms_messaging_profile_id: profileId,
       sms_registration_status: 'pending_approval',
       updated_at: toIso(new Date()),
@@ -6345,7 +6355,7 @@ app.post('/api/sms/verify-otp', requireRole('owner'), async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired code: ' + e.message });
     }
 
-    await settingsRef.update({ sms_registration_status: 'verified', updated_at: toIso(new Date()) });
+    await settingsRef.update({ sms_registration_status: 'verified', sms_number_type: '10dlc', updated_at: toIso(new Date()) });
 
     // Now auto-create campaign + buy number + assign (same flow as regular registration continues)
     const displayName = safeStr(data.sms_brand_name || data.shop_name || '');
@@ -6433,6 +6443,7 @@ app.post('/api/sms/verify-otp', requireRole('owner'), async (req, res) => {
     await settingsRef.update({
       telnyx_campaign_id: campaignId,
       sms_from_number: phoneNumber,
+      sms_number_type: '10dlc',
       sms_messaging_profile_id: profileId,
       sms_registration_status: 'active', // SP campaigns auto-approve after OTP verification
       updated_at: toIso(new Date()),
@@ -6460,6 +6471,7 @@ app.get('/api/sms/status', requireRole('owner', 'admin'), async (req, res) => {
       brand_id: data.telnyx_brand_id || null,
       campaign_id: data.telnyx_campaign_id || null,
       from_number: data.sms_from_number || null,
+      number_type: data.sms_number_type || null,
       brand_name: data.sms_brand_name || data.shop_name || null,
       messaging_profile_id: data.sms_messaging_profile_id || null,
       registered_at: data.sms_registered_at || null,
@@ -6843,8 +6855,10 @@ app.get('/api/admin/waitlist/check', requireRole('owner', 'admin'), async (req, 
         if (wlPhoneNorm) {
           const wlOptOut = await req.ws('clients').where('phone_norm', '==', wlPhoneNorm).where('sms_opt_out', '==', true).limit(1).get();
           if (!wlOptOut.empty) { await wDoc.ref.update({ notified: true, notified_at: toIso(new Date()), cancelled_reason: 'sms_opt_out' }); continue; }
-          const wlSmsConf = await getWorkspaceSmsConfig(req.wsId);
-          sendSms(wlPhoneNorm, msg, wlSmsConf.fromNumber, req.wsId).catch(() => {});
+          const wlSmsConf = await getWorkspaceSmsConfig(req.wsId, { allowGlobalFallback: false });
+          if (wlSmsConf.canSend) {
+            sendSms(wlPhoneNorm, msg, wlSmsConf.fromNumber, req.wsId).catch(() => {});
+          }
         }
         await wDoc.ref.update({ notified: true, notified_at: toIso(new Date()), notified_slot: toIso(slots[0]) });
         notified++;
@@ -6999,7 +7013,8 @@ app.post('/api/receipts/send', async (req, res) => {
       'Thank you for your visit!',
       'Reply STOP to opt out, HELP for help.'
     ].filter(Boolean).join('\n');
-    const receiptSmsConf = await getWorkspaceSmsConfig(req.wsId);
+    const receiptSmsConf = await getWorkspaceSmsConfig(req.wsId, { allowGlobalFallback: false });
+    if (!receiptSmsConf.canSend) return res.json({ ok: true, skipped: 'sms_unavailable' });
     await sendSms(phone, lines, receiptSmsConf.fromNumber, req.wsId);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -7019,7 +7034,7 @@ app.get('/api/square/oauth/url', requireRole('owner'), async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
 
-app.get('/api/square/oauth/status', requireRole('owner', 'admin'), async (req, res) => {
+app.get('/api/square/oauth/status', requireCustomPerm('financial.access_terminal'), async (req, res) => {
   try {
     const doc = await req.ws('settings').doc('square_oauth').get();
     if (!doc.exists || !doc.data()?.access_token) return res.json({ connected: false });
@@ -7080,7 +7095,7 @@ app.get('/api/stripe-connect/oauth/url', requireRole('owner'), async (req, res) 
 });
 
 // Check Stripe Connect status
-app.get('/api/stripe-connect/status', requireRole('owner', 'admin'), async (req, res) => {
+app.get('/api/stripe-connect/status', requireCustomPerm('financial.access_terminal'), async (req, res) => {
   try {
     const doc = await req.ws('settings').doc('stripe_connect').get();
     if (!doc.exists || !doc.data()?.account_id) {
@@ -8187,9 +8202,11 @@ app.post('/public/bookings/:workspace_id', (req, res, next) => {
       const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
       const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
       const pubPrefix = pubShopName ? `${pubShopName}: ` : '';
-      const pubSmsConf = await getWorkspaceSmsConfig(wsId);
-      sendSms(clientPhone, `${pubPrefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your specialist'}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`, pubSmsConf.fromNumber, wsId).catch(() => {});
-      scheduleReminders(wsCol, bookingRef.id, doc, tz, pubShopName, pubSmsConf.fromNumber).catch(() => {});
+      const pubSmsConf = await getWorkspaceSmsConfig(wsId, { allowGlobalFallback: false });
+      if (pubSmsConf.canSend) {
+        sendSms(clientPhone, `${pubPrefix}Your appointment is confirmed for ${dateStr} at ${timeStr} with ${doc.barber_name || 'your specialist'}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`, pubSmsConf.fromNumber, wsId).catch(() => {});
+        scheduleReminders(wsCol, bookingRef.id, doc, tz, pubShopName, pubSmsConf.fromNumber).catch(() => {});
+      }
     }
     // Email confirmation
     const bookingEmail = doc.client_email;
@@ -8406,11 +8423,13 @@ app.post('/public/bookings-group/:workspace_id', async (req, res) => {
       const timeStr = startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
       const dateStr = startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
       const pubPrefix = pubShopName ? `${pubShopName}: ` : '';
-      const pubSmsConf = await getWorkspaceSmsConfig(wsId);
+      const pubSmsConf = await getWorkspaceSmsConfig(wsId, { allowGlobalFallback: false });
       const withText = allBarberNames.length > 1 ? `with ${allBarberNames.join(' & ')}` : `with ${allBarberNames[0] || 'your specialist'}`;
-      sendSms(clientPhone, `${pubPrefix}Your appointment is confirmed for ${dateStr} at ${timeStr} ${withText}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`, pubSmsConf.fromNumber, wsId).catch(() => {});
-      // Schedule reminders for first booking
-      scheduleReminders(wsCol, bookingRefs[0].id, bookingDocs[0], tz, pubShopName, pubSmsConf.fromNumber).catch(() => {});
+      if (pubSmsConf.canSend) {
+        sendSms(clientPhone, `${pubPrefix}Your appointment is confirmed for ${dateStr} at ${timeStr} ${withText}. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy`, pubSmsConf.fromNumber, wsId).catch(() => {});
+        // Schedule reminders for first booking
+        scheduleReminders(wsCol, bookingRefs[0].id, bookingDocs[0], tz, pubShopName, pubSmsConf.fromNumber).catch(() => {});
+      }
     }
     if (clientEmail) {
       const emailSettingsDoc = pubSettingsDocPre;
@@ -8625,7 +8644,7 @@ app.post('/public/verify/send/:workspace_id', async (req, res) => {
     const verifySettings = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
     const verifyShopName = verifySettings.exists ? safeStr(verifySettings.data()?.shop_name || '') : '';
     const verifyPrefix = verifyShopName || 'VuriumBook';
-    const verifySmsConf = await getWorkspaceSmsConfig(wsId);
+    const verifySmsConf = await getWorkspaceSmsConfig(wsId, { allowGlobalFallback: true });
     sendSms(formatted, `${verifyPrefix}: Your verification code is ${code}. Do not share this code. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, verifySmsConf.fromNumber, wsId).catch(e => console.warn('verify SMS error:', e?.message));
     return res.json({ ok: true, sent: true, provider: 'legacy_local' });
   } catch (e) { res.status(500).json({ error: e?.message }); }
@@ -8950,7 +8969,9 @@ async function runAutoReminders() {
             }
           }
           // Use stored from_number or fetch workspace config
-          const reminderFrom = r.from_number || (await getWorkspaceSmsConfig(ws.id)).fromNumber;
+          const reminderSmsConf = await getWorkspaceSmsConfig(ws.id, { allowGlobalFallback: false });
+          const reminderFrom = r.from_number || reminderSmsConf.fromNumber;
+          if (!reminderFrom || !reminderSmsConf.canSend) continue;
           sendSms(r.phone, r.message, reminderFrom, ws.id).catch(() => {});
           await d.ref.update({ sent: true, sent_at: toIso(new Date()) });
         }
@@ -9309,9 +9330,11 @@ async function runBookingAudit() {
                 ghostOptedOut = !goSnap.empty;
               }
               if (!ghostOptedOut) {
-                const ghostSmsConf = await getWorkspaceSmsConfig(wsDoc.id);
+                const ghostSmsConf = await getWorkspaceSmsConfig(wsDoc.id, { allowGlobalFallback: false });
                 const ghostPrefix = shopName ? `${shopName}: ` : '';
-                sendSms(b.client_phone, `${ghostPrefix}Your specialist ${b.barber_name || ''} is no longer available for your appointment on ${(b.start_at || '').slice(0, 10)}. Please rebook with another specialist: ${bookUrl} Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, ghostSmsConf.fromNumber, wsDoc.id).catch(() => {});
+                if (ghostSmsConf.canSend) {
+                  sendSms(b.client_phone, `${ghostPrefix}Your specialist ${b.barber_name || ''} is no longer available for your appointment on ${(b.start_at || '').slice(0, 10)}. Please rebook with another specialist: ${bookUrl} Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, ghostSmsConf.fromNumber, wsDoc.id).catch(() => {});
+                }
               }
             }
             // Email notification
