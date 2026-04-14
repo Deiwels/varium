@@ -1,300 +1,348 @@
 # 3-AI Remaining Work Split
 
-> [[Home]] > Tasks | Owner: AI 1 (docs) · Last updated: 2026-04-15
+> [[Home]] > Tasks | Owner: AI 1 (docs) · Last full verification: **2026-04-15** (this pass)
 > Related: [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]], [[Production-Plan-AI1]], [[Production-Plan-AI2]]
 
 ---
 
-## Purpose
+## How this doc is maintained
 
-Consolidates every open work item from `In Progress.md`, `Launch Readiness Plan.md`, `Production-Plan-AI1.md`, `Production-Plan-AI2.md`, and the `QA-Scan-*.md` files into one split across **3 AI agents + owner**. Replaces the older "AI 1 / AI 2" binary split for remaining work.
+This file is the **authoritative** split for what is open across the project. Every item was verified directly against the live `main` tree on 2026-04-15 — grep, read, or endpoint hit — not just copied from older plans. If something here conflicts with `In Progress.md`, `Production-Plan-AI1.md`, `Production-Plan-AI2.md`, or any of the improvement plans, this file wins.
 
-## Role definitions (agreed 2026-04-15)
+The previous revision of this doc miscategorised **BE.2 Gmail API integration** as open — the backend was already fully shipped, frontend already wired. That cost a near-duplicate of ~300 lines of work. This revision corrects that and adds several other items whose planned scope is either already shipped, partially shipped, or no longer relevant.
+
+## Roles (unchanged)
 
 | Role | Primary scope | Ownership rules |
 |------|---------------|-----------------|
-| **Claude / AI 1** | Backend (`backend/index.js`, `backend/jobs/`, `backend/routes/`, `backend/lib/`), CI/CD (`.github/workflows/`), all docs under `docs/` | Final code review + commit on backend work; owns docs/DevLog/In Progress/Feature docs updates; no frontend edits |
-| **Codex / AI 2** | Frontend (`app/**`, `components/**`, `lib/**`, `app/globals.css`), public pages, Shell, booking page, settings page, signup page | Live browser verification; mobile testing; no backend edits |
-| **Verdent** | Reviewer + verifier + research support; QA-Scan docs; Launch-verification checklists; external research (Telnyx / CPaaS / carrier rules) | No parallel edits to owned backend/frontend files without explicit handoff; owns `docs/Tasks/QA-Scan-*.md` and verification runbooks |
-| **Owner (Nazarii)** | External unblockers: Telnyx/Jonathan, GitHub Secrets, App Store config, legal documents, 1Password migrations, live in-browser runs of test plans | Only one who can touch real workspace data, secrets, and Telnyx portal |
+| **Claude / AI 1** | Backend (`backend/index.js`), CI/CD workflows, all docs under `docs/` | Final code review + commit on backend work; owns docs updates; no frontend edits |
+| **Codex / AI 2** | Frontend (`app/**`, `components/**`, `lib/**`, `app/globals.css`) | Live browser verification; mobile testing; no backend edits |
+| **Verdent** | Reviewer + verifier + research support; QA-Scan docs; verification runbooks; external research | No parallel edits to owned backend/frontend files; owns `docs/Tasks/QA-Scan-*.md` |
+| **Owner (Nazarii)** | Telnyx portal, GitHub Secrets, Google Cloud Console, App Store Connect, legal, live runbook execution | Only one who can touch real secrets and third-party accounts |
 
-Full file ownership is still authoritative in [[AI-Work-Split]].
+Full file ownership is in [[AI-Work-Split]].
 
 ---
 
-## What is already DONE (do not re-do)
+## ✅ What is already DONE (do not re-do)
 
-### Backend (AI 1)
-- ✅ P0.1 Stripe + Square + Stripe Connect webhook signature verification (HMAC-SHA256)
-- ✅ P0.2 `spAmountCents` → `spServiceCents` fix (6 occurrences)
-- ✅ P0.3 Cloud Run health check + rollback path
-- ✅ P0.4 Billing verification matrix (Apple expiry check, Stripe Connect sig)
-- ✅ P0.5 Auth audit + role checks on payments/square/stripe-connect endpoints
-- ✅ P0.6 Payroll audit (7-check data integrity)
-- ✅ P0.7 Server-side price verification
-- ✅ P0.8 Booking idempotency (`idempotency_key`)
-- ✅ P1.1 N+1 fix in Square webhook
-- ✅ P1.2 Silent `.catch()` fix in payment chain
-- ✅ P1.3 Firestore composite indexes
-- ✅ P1.4 Webhook event logging to Firestore
-- ✅ P2.1 API pagination (clients/payments/messages)
-- ✅ P2.2 Rate limiting on public endpoints
-- ✅ P2.3 Email retry queue (sendEmail 2 retries)
-- ✅ P2.4 Production monitoring (`/health`)
-- ✅ Telnyx Gap 2 — webhook signature verification helper (enforcing gated on `TELNYX_WEBHOOK_PUBLIC_KEY`)
-- ✅ Telnyx Gap 3 — `phone_number_index` + O(1) inbound lookup + `collectionGroup('clients')` STOP propagation
-- ✅ Telnyx Gap 4 — `runAutoReminders()` pagination
-- ✅ Telnyx Gap 5 — `autoProvisionSmsOnActivation()` + retry job + wire-points
-- ✅ PERM-003 — `requireCustomPerm()` middleware on `/api/payments`, Square/Stripe Connect status endpoints
+### Backend (AI 1) — verified in `backend/index.js` 2026-04-15
 
-### Frontend (AI 2)
-- ✅ P0.12 Remove `alert()` / `confirm()` / `prompt()` across owned files
-- ✅ P0.9 Settings mobile drill-down (local, browser verify still pending)
-- ✅ Session expiry / stale-login black-screen fix in `Shell.tsx`
-- ✅ PIN overlay "Use password instead" escape
-- ✅ Guest role added to frontend `DEFAULT_PERMS`
-- ✅ SMS UX reframe around auto-activation (Settings + signup)
-- ✅ Consent metadata (`sms_consent_text`, `sms_consent_text_version`) on bookings
-- ✅ Booking CTA uses `{shopName} Appointment Notifications`
-- ✅ Legal pages aligned with dual-path SMS model
-- ✅ Mobile usability passes for Billing, Permissions, Team Accounts, Taxes & Fees, Payroll defaults, SMS registration
-- ✅ Route-level metadata (Open Graph) for about/contact/faq/support/vuriumbook/blog/book
-- ✅ Public booking helper text, empty states, draft persistence, timezone label
+**Launch readiness P0:**
+- ✅ P0.1–P0.8 — Stripe/Square/Stripe Connect webhook signature verification, `spAmountCents` → `spServiceCents` fix, Cloud Run health + rollback, billing matrix (Apple expiry check), auth audit, payroll data integrity, server-side price verification, booking idempotency
+- ✅ P1.1–P1.4 — Square webhook N+1 on merchant_id, silent `.catch()` fixes, Firestore composite indexes, webhook event logging
+- ✅ P2.1–P2.4 — API pagination (clients/payments/messages), public-endpoint rate limiter, email retry queue, `/health` production monitoring
+
+**Telnyx Integration Plan Gaps (commits `3efce7e`, `849e998`, `e8aa2ec`, `e97efd9`, `a3c885f`):**
+- ✅ **Gap 2** — `verifyTelnyxWebhookSignature()` Ed25519 helper + wiring in both Telnyx webhooks. Currently **enforcing** on production (owner added `TELNYX_WEBHOOK_PUBLIC_KEY` to GitHub Secrets per `GitHub Secrets Inventory.md`).
+- ✅ **Gap 3** — `phone_number_index` Firestore collection with writes from both toll-free and 10DLC provisioning paths; inbound webhook uses O(1) lookup + `collectionGroup('clients')` for STOP propagation.
+- ✅ **Gap 4** — `runAutoReminders()` paginated via `startAfter(lastDoc)`, no workspace cap.
+- ✅ **Gap 5** — `autoProvisionSmsOnActivation()` helper with legacy/protected/in-flight/max-retries guards, exponential backoff, audit log; wired into `/auth/signup`, `handleStripeEvent`, `/api/billing/apple-verify`; `runSmsAutoProvisionRetry()` background job.
+
+**BUG-013 launch blocker (commit `849e998`):**
+- ✅ `isWebhookEndpoint()` helper short-circuits global `express.json()`, CSRF middleware, and `/api` auth middleware for `/api/stripe/webhook`, `/api/webhooks/stripe-connect`, `/api/webhooks/apple`. Stripe HMAC, Apple JWS, and Stripe Connect webhooks actually reach their signature verifiers now.
+- ✅ BUG-002 — `/api/push/status` gated behind `requireSuperadmin` (info disclosure closed).
+- ✅ BUG-014 + NEW-002 — `req.workspaceId` → `req.wsId` in push register dedup and Apple IAP Gap 5 trigger (both were silently undefined).
+- ✅ BUG-003 — `_wsPushPrefsCache` now `Map<wsId, {prefs, ts}>` with LRU bound (cross-tenant leak closed).
+- ✅ BUG-008 — GDPR `/api/data-export` reads `req.user.uid` instead of undefined `req.userId`.
+- ✅ BUG-009 — Square reconciliation fuzzy match uses `start_at` range instead of the nonexistent `date` field.
+- ✅ BUG-010 — Owner delete-account now cleans up top-level `slugs` and `phone_number_index` entries.
+- ✅ SET-001–SET-007 — `/public/config/:wsId` allowlist returns `display`, `booking`, `online_booking_enabled`, `business_type`, `shop_address`, `shop_phone`, `shop_email`, sanitized `tax`, `fees`, `charges`. `waitlist_enabled` now uses conditional spread so undefined falls through to `/public/resolve` plan feature (fixed in `a3c885f` after regression reported).
+- ✅ NEW-001 — `docs/Features/SMS & 10DLC.md` implementation row updated to reflect Gap 5 auto-provision as live.
+
+**BE.3 / BE.4:**
+- ✅ **BE.3** Live-SMS-Verification-Checklist doc (`docs/Tasks/Live-SMS-Verification-Checklist.md`, 10 scenarios) — committed `3b9a27e`.
+- ✅ **BE.4** `PATCH /api/messages/:id/reactions` — Firestore transaction + 6-emoji allowlist — committed `e8aa2ec` at backend line ~6336.
+
+**BE.2 Gmail API integration — ⚠️ was wrongly listed as open:**
+- ✅ **FULLY IMPLEMENTED AND DEPLOYED.** `backend/index.js` lines ~2754–3040 ship 6 endpoints behind `requireSuperadmin`:
+  `GET /api/vurium-dev/gmail/auth`, `GET /callback`, `GET /status`, `GET /messages`, `GET /messages/:id`, `POST /send`, `POST /reply`
+- ✅ OAuth client + Firestore `vurium_config/gmail_tokens` storage + auto-refresh + MIME multipart builder
+- ✅ Frontend `app/developer/email/page.tsx` already calls all 6 endpoints at lines 58/79/103/116/136/176
+- ✅ `GMAIL_CLIENT_ID` + `GMAIL_CLIENT_SECRET` wired in `.github/workflows/deploy-backend.yml` and confirmed in `docs/Architecture/GitHub Secrets Inventory.md`
+- **What remains is owner-operational, not engineering** — see OW-Gmail below
+
+**Element Barbershop 10DLC remediation (commit `e97efd9`):**
+- ✅ `getWorkspaceBookingUrl()` helper in `backend/index.js`; `/api/sms/register` and `/api/sms/verify-otp` `messageFlow` now use the exact per-workspace URL, not generic `/book/`
+- ✅ `/public/config/:wsId` allowlist exposes `shop_address`, `shop_phone`, `shop_email` for the public booking page rendering
+- ✅ `docs/Tasks/Element-10DLC-Resubmission-Checklist.md` runbook for owner
+
+**PERM-003 (commits `a80d9da`, `f0de2e0`, `97be886`):**
+- ✅ `requireCustomPerm(permKey)` middleware reads `role_permissions` from Firestore settings; wired on `/api/payments`, `/api/square/oauth/status`, `/api/stripe-connect/status`
+- ✅ Guest role defaults added to frontend `PermissionsProvider.DEFAULT_PERMS`; dot-notation nested lookup bug fixed
+
+### Frontend (AI 2) — verified 2026-04-15
+
+**Permission system (Codex commit `074ddd2` + `f94cd12` build fix):**
+- ✅ **PERM-001** — `Shell.tsx` bottom pill nav now renders `visibleNav` instead of a fixed 5-item list (line 1079 `{visibleNav.map(...)}`). Horizontally scrollable on narrow screens.
+- ✅ **PERM-002** — Dashboard no longer has a hardcoded `isBarber && [...].includes(item.label)` filter. All role-based visibility now goes through `hasPerm()`.
+- ✅ **PERM-004** — `app/payments/page.tsx` imports `usePermissions` and uses `hasPerm('pages', 'payments')` instead of hardcoded `isOwner`.
+- ✅ **BUG-004** — `components/Shell.tsx:254` enforces `newPw.length < 8` (was `< 4`).
+- ✅ **BUG-007** — ProfileModal password tab is now reachable via typed `profileTabs` array (`Shell.tsx:316, 330`). `f94cd12` fixed the TypeScript regression from the initial attempt.
+
+**Element remediation frontend (Codex commits `dbc8dfa`, `b74c79b`, `bed4537`, `8f7bec3`):**
+- ✅ `Business details` section (address/phone/email) rendered on `/book/[id]` public landing
+- ✅ `Services` preview grid above booking flow
+- ✅ SMS consent copy + Terms/Privacy links rendered on first paint (not deferred until phone input)
+- ✅ Multiple Vercel build hotfixes for this line of work
+
+**Launch readiness P0 frontend already in place:**
+- ✅ P0.9 Settings mobile drill-down (code local; live browser verification still pending)
+- ✅ P0.12 Removed `alert()` / `confirm()` / `prompt()` across settings, billing, signin, Shell
+- ✅ Session-expiry black-screen fix + auth redirect loop guard in Shell
+- ✅ PIN overlay `Use password instead` escape
+- ✅ Settings role-safe fallback rendering when current tab is not visible for role
+- ✅ Mobile usability passes on Billing, Permissions, Team Accounts, Taxes & Fees, Payroll defaults, SMS registration, Calendar, Public booking
+- ✅ Route-level metadata (Open Graph) for `/about`, `/contact`, `/faq`, `/support`, `/vuriumbook`, blog, public booking
+- ✅ Public booking helper text, empty states, draft persistence, timezone label, `idempotency_key` submit
 - ✅ Dashboard timezone, launch checklist, setup banner
-- ✅ Clients/Payments sort + bulk delete
+- ✅ Clients/Payments sort controls + bulk delete
+- ✅ SMS UX reframed around auto-activation (Settings + signup) — no manual CTA as primary action for new workspaces
+
+### Owner external — done
+
+- ✅ `TELNYX_WEBHOOK_PUBLIC_KEY` in GitHub Secrets (confirmed 2026-04-14 in `GitHub Secrets Inventory.md`)
+- ✅ `ADMIN_NOTIFY_EMAIL` in GitHub Secrets
+- ✅ Vurium Inc. Illinois incorporation approved
+- ✅ 10DLC brand Vurium Inc. registered on Telnyx (TCR: BCFAC3G)
+- ✅ Privacy Policy + Terms address / section numbering fixes
 
 ---
 
-## AI 1 — Claude (Backend + Docs) — OPEN
+## 🟡 Open work — AI 1 (Claude, Backend + Docs)
 
-### P0 — launch / security critical
+### P0 security housekeeping — still blocked on owner
 
-| ID | Item | Blocker | File | Effort |
-|----|------|---------|------|--------|
-| **CQ.1** | Purge `docs/Telnyx/twilio_2FA_recovery_code.txt` from git history via `git filter-repo`, after owner invalidates the code in Twilio console | Owner must invalidate code first | git history | S |
-| **CQ.2** | Remove demo credentials (`applereview@vurium.com / ReviewTest2026!`) from `docs/APPLE_REVIEW_CHECKLIST.md`; replace with `[stored in 1Password → Apple Review]` | Owner must save to 1Password first | `docs/APPLE_REVIEW_CHECKLIST.md` | S |
+| ID | Item | Why not done yet | Owner-unblock needed |
+|----|------|------------------|----------------------|
+| **CQ.1** | `docs/Telnyx/twilio_2FA_recovery_code.txt` — **still exists in repo** at that path. Purge via `git filter-repo --path docs/Telnyx/twilio_2FA_recovery_code.txt --invert-paths`, then force-push | I will not unilaterally invalidate the code in Twilio console or force-push without explicit owner go | OW-Sec.1 below |
+| **CQ.2** | `docs/APPLE_REVIEW_CHECKLIST.md` lines 76-77 — **still has plaintext** `applereview@vurium.com / ReviewTest2026!`. Replace with `[stored in 1Password → Apple Review]` | I will not remove without confirmation that it was saved to 1Password first | OW-Sec.2 below |
 
-### P1 — high-value non-blocking
+### P1 — high-value non-blocking, I can start any time
 
-| ID | Item | File | Effort |
-|----|------|------|--------|
-| **BE.1** | Distributed lock for background jobs (Firestore TTL lock) — prevent `runAutoReminders`, `runBookingAudit`, `runPayrollAudit`, `runSmsAutoProvisionRetry` duplication when Cloud Run scales horizontally | `backend/index.js` | M |
-| ~~**BE.2**~~ | ~~Gmail API integration for Developer Panel~~ — ✅ **CODE-COMPLETE AND DEPLOYED** (verified 2026-04-15). `backend/index.js` lines ~2754–3040 ship all 6 endpoints (`/api/vurium-dev/gmail/{auth,callback,status,messages,messages/:id,send,reply}`), OAuth client + Firestore token storage + auto-refresh + MIME builder. Frontend `app/developer/email/page.tsx` already calls all endpoints. `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` wired in `deploy-backend.yml` and confirmed in `GitHub Secrets Inventory.md`. **Remaining is owner-operational only:** (1) verify the OAuth client in Google Cloud Console has the redirect URI `https://vuriumbook-api-431945333485.us-central1.run.app/api/vurium-dev/gmail/callback` authorized; (2) navigate to `/developer/email` and click Connect once per mailbox (support@, billing@, sales@, security@) to store refresh tokens. | — | — |
-| **BE.3** | Live SMS Verification Test Plan — step-by-step runbook that the owner executes after Cloud Run deploy to confirm Gap 5 auto-activation, Element legacy untouched, STOP routing via `phone_number_index`, email-only fallback | `docs/Tasks/Live-SMS-Verification-Checklist.md` (new) | S |
-| **BE.4** | Reactions endpoint `PATCH /api/messages/:id/reactions` — backend currently returns 404; frontend long-press reactions already exist. Toggle via `FieldValue.arrayUnion` / `arrayRemove` | `backend/index.js` | S |
-| **BE.5** | Bug cleanup from `QA-Scan-2026-04-13.md`: <br/> • BUG-002 `/api/push/status` pre-auth middleware (info disclosure) <br/> • BUG-003 `_wsPushPrefsCache` cross-tenant cache leak <br/> • BUG-005 `forgot-password` / `login-email` O(N) workspace scan <br/> • BUG-006 Square webhook merchant_id lookup still N+1 <br/> • BUG-008 GDPR export uses undefined `req.userId` (should be `req.user.uid`) <br/> • BUG-009 Square reconciliation fuzzy match references nonexistent `date` field <br/> • BUG-010 Owner delete doesn't clean up `slugs` collection <br/> • BUG-012 `runAutoReminders` cap 100 (already fixed via Gap 4) <br/> • BUG-013 Stripe webhook placement (verify route is actually before `/api` auth middleware — re-check) <br/> • BUG-014 Push token dedup uses undefined `req.workspaceId` (should be `req.wsId`) | `backend/index.js` | M |
+| ID | Item | State on 2026-04-15 | Effort | Rationale |
+|----|------|---------------------|--------|-----------|
+| **BE.1** | Distributed lock for background jobs (Firestore TTL lock) | **NOT DONE.** `setInterval(...)` at line 10257 fires 7 background jobs unprotected: `runAutoReminders`, `runAutoMemberships`, `runRetentionCleanup`, `resetSecurityCounters`, `runPayrollAudit`, `runBookingAudit`, `runSmsAutoProvisionRetry`. When Cloud Run ever scales to >1 instance, every job will run once per instance per cycle | M | Stays relevant only if we ever set `--min-instances > 1` on Cloud Run. Currently `min_instances=0`, so effective risk is just the brief period where Cloud Run keeps multiple warm instances under load spike. Still worth doing before any launch marketing push |
 
 ### P2 — after core launch
 
-| ID | Item | File | Effort |
-|----|------|------|--------|
-| **BE.6** | Replace plaintext `phone_norm` with HMAC-SHA256 blind index (`PHONE_INDEX_SECRET` env var) + one-time migration script | `backend/index.js` | L |
-| **BE.7** | Refactor `backend/index.js` (~10.9K lines) into `backend/routes/`, `backend/lib/`, `backend/jobs/` modules without logic changes. Update `AI-Work-Split` ownership after split | `backend/**` | XL |
+| ID | Item | State | Effort |
+|----|------|-------|--------|
+| **BE.5-cont** | **BUG-005** (`POST /auth/forgot-password` + `/auth/login-email` O(N) workspace scan) and **BUG-006** (Square webhook merchant_id N+1) | NOT DONE — both require a new top-level `user_index` or `username_index` collection + backfill migration, and a `square_merchant_index` collection. These are structural changes, not quick patches. `/auth/login-email` still scans all workspaces; Square merchant_id still reads settings/square per workspace in a loop. Not launch blockers at current scale (<50 workspaces) but grow linearly with workspace count | M |
+| **BE.6** | `phone_norm` HMAC blind index (`PHONE_INDEX_SECRET` env var) + migration script | NOT DONE — `phone_norm` still stored as plaintext digits in `clients` collection. grep for `PHONE_INDEX_SECRET` / `hmacPhone` returns nothing | L |
+| **BE.7** | Refactor `backend/index.js` (11k lines) into `backend/routes/`, `backend/lib/`, `backend/jobs/` without logic changes | NOT DONE — `backend/` still contains only `Dockerfile`, `firestore.indexes.json`, `index.js`, `package.json`, `test-email.js`. No `routes/`, `lib/`, `jobs/` folders exist | XL |
+| **BE.8** | Migrate legacy SMS statuses → delete `LEGACY_SMS_STATUSES` Set | NOT DONE — `LEGACY_SMS_STATUSES` still defined at `backend/index.js:1964` and consumed at line 1986 in `isLegacyManualSmsPath()` | M |
+| **BE.9** | Replace regex-based `sanitizeHtml` / `processCustomHTML` for `custom_html` / `custom_css` with DOMPurify-equivalent parser (defense-in-depth) | NOT DONE — no `DOMPurify` import anywhere; `dangerouslySetInnerHTML` still used in 3 places in `app/book/[id]/page.tsx` (lines 920, 1063, 1068) for AI CSS and custom HTML/CSS | M |
 
-### P3 — housekeeping
-
-| ID | Item | File | Effort |
-|----|------|------|--------|
-| **BE.8** | Migrate legacy SMS statuses → convert Firestore records → delete `LEGACY_SMS_STATUSES` Set | `backend/index.js` + migration script | M |
-| **BE.9** | Custom HTML sanitization hardening — move from regex-based to DOMPurify-equivalent server-side parser for `custom_html` / `custom_css` (defense-in-depth, custom-plan-only surface) | `backend/index.js` + frontend renderer | M |
-
-### Blocked (external)
+### Blocked on external (not my scope to unblock)
 
 | ID | Item | Blocked on |
 |----|------|-----------|
-| **OPS.1** | `TELNYX_VERIFY_PROFILE_ID` — Telnyx Verify Profile creation + GitHub secret | Telnyx account `whitelisted_destinations` issue (Jonathan call) |
-| **OPS.2** | Platform-Sender-Pivot-Plan.md — write only if Jonathan confirms shared-sender is compliant | Jonathan reply |
+| **OPS.1** | Create Telnyx Verify Profile + set `TELNYX_VERIFY_PROFILE_ID` GitHub Secret | Telnyx account `whitelisted_destinations` account-level blocker (pending Jonathan call). Fallback path works; not a launch blocker |
+| **OPS.2** | Write full Platform-Sender-Pivot-Plan.md with TFV checklist, consent re-flow, legal diffs, rollback plan, Phase-4 code patch | Jonathan reply to the draft inquiry letter in `docs/Tasks/Platform-Sender-Pivot-Decision.md`. Stays gated until Telnyx gives written greenlight or explicit no |
 
 ---
 
-## AI 2 — Codex (Frontend) — OPEN
+## 🟡 Open work — AI 2 (Codex, Frontend)
 
-### P0 — launch verification (not code — live browser testing)
+### P0 live verification (browser testing, not code)
 
-| ID | Item | Effort |
-|----|------|--------|
-| **FE.1** | P0.9 Settings mobile drill-down — live iPhone verification: open `/settings`, enter every category, back-out navigation, nothing hidden below fold | S |
-| **FE.2** | P0.10 Settings save/load parity — toggle booking/display settings, refresh, confirm values render and public booking reflects them | S |
-| **FE.3** | P0.11 Full customer path audit — first-run owner journey from signup → onboarding → dashboard → booking link without dead ends | M |
-| **FE.4** | P0.13 Role-based visibility verification — login as owner/admin/barber/student/guest, confirm hidden screens stay hidden, restricted settings blocked | M |
-| **FE.5** | P0.14 Mobile usability on `/settings`, `/dashboard`, `/book/[id]`, `/manage-booking`, `/billing`, `/signin`, `/signup` at 375px width | M |
-| **FE.6** | P0.15 Timezone indicator on booking page — verify booking step 2 and summary show timezone label | S |
-| **FE.7** | P0.16 Form data persistence on booking page — fill form, go back, force unavailable slot, confirm client data still there | S |
-| **FE.8** | P0.17 Calendar mobile layout — pan team columns at 375px, create/edit booking without layout breakage | M |
+| ID | Item | Scope |
+|----|------|-------|
+| **FE.1** | P0.9 Settings mobile drill-down — live iPhone verification | Code is local; visual pass needed |
+| **FE.2** | P0.10 Settings save/load parity — toggle → refresh → confirm render | Code ready after AI 1 backend merge fix |
+| **FE.3** | P0.11 Full first-run owner journey — signup → onboarding → dashboard → booking link | Live E2E smoke |
+| **FE.4** | P0.13 Role-based visibility — login as owner/admin/barber/student/guest | Post-`074ddd2` verification — Shell nav + Dashboard + payments all fixed, needs live confirmation |
+| **FE.5** | P0.14 Mobile usability on 375px for Settings / Dashboard / Book / Manage-booking / Billing / Signin / Signup | Cross-page visual sweep |
+| **FE.6** | P0.15 Timezone indicator on booking page | Live verify |
+| **FE.7** | P0.16 Booking form data persistence on back-navigation | Live verify |
+| **FE.8** | P0.17 Calendar mobile layout on iPhone width | Live verify |
+| **FE-Element** | Element-specific: `https://vurium.com/book/elementbarbershop` must render Business details + Services preview from saved Element Settings values. Blocked on owner filling Element Settings (OW-Element.1) | Visual + Firestore verify |
 
-### P1 — polish verification
+### P1 — polish verification + code quality
 
-| ID | Item | Effort |
-|----|------|--------|
-| **FE.9** | P1.5 Button disabled states — verify on live booking flow | S |
-| **FE.10** | P1.6 Dashboard timezone — manual verify widgets after refresh | S |
-| **FE.11** | P1.7 Dashboard clarity — complete checklist + finish-setup flow | S |
-| **FE.12** | P1.8 Booking UX polish — complete helper text + empty states | S |
-| **FE.13** | P1.9 Billing messaging — Apple vs web paths end-to-end | S |
-| **FE.14** | P1.10 Empty states / loading copy — final sweep | S |
-
-### P0 perm fixes (from QA Scan 2026-04-13)
-
-| ID | Item | File | Effort |
-|----|------|------|--------|
-| **FE.15** | **PERM-001** — Render `visibleNav` properly. Currently `visibleNav` is computed in `Shell.tsx` but never rendered in JSX; only the hardcoded 5-item pill bar is visible. No way to navigate to Payments/Clients/Waitlist/Portfolio/Attendance/Cash/Membership/Analytics/Expenses from the UI | `components/Shell.tsx` | M |
-| **FE.16** | **PERM-002** — Dashboard tool shortcuts have a hardcoded `if (isBarber && [...].includes(item.label))` filter at `app/dashboard/page.tsx:668` that ignores `hasPerm()`. Even with perms enabled, barbers never see Clients/Payments/Cash/Membership | `app/dashboard/page.tsx` | S |
-| **FE.17** | **PERM-004** — Payments page uses `isOwner = user?.role === 'owner'` instead of `hasPerm()`. Does not import or use `usePermissions()` at all | `app/payments/page.tsx` | S |
-| **FE.18** | **BUG-004** — Frontend password validation allows min 4 chars in `Shell.tsx:236` but backend requires min 8; placeholder says "Min 8 chars". Confusing UX when backend rejects | `components/Shell.tsx` | S |
-| **FE.19** | **BUG-007** — ProfileModal `password` tab is unreachable — tab selector only renders `['profile']`, password change UI exists but no navigation to it | `components/Shell.tsx` | S |
-
-### P1 — code quality
-
-| ID | Item | File | Effort |
-|----|------|------|--------|
-| **FE.20** | 5.1 Remove `localStorage.getItem('VURIUMBOOK_TOKEN')` from `lib/api.ts`; keep only `credentials: 'include'` (httpOnly cookie). XSS defense. Coordinate with AI 1 first — backend must accept cookies on all paths | `lib/api.ts` | S |
+| ID | Item | State |
+|----|------|-------|
+| **FE.9** | P1.5 Button disabled states — live verify | Code done, visual pass needed |
+| **FE.10** | P1.6 Dashboard timezone — manual verify widgets | Code done, visual pass |
+| **FE.11** | P1.7 Dashboard clarity (checklist + finish-setup) | Code done, visual pass |
+| **FE.12** | P1.8 Booking UX polish — empty states, helper text | Code done, visual pass |
+| **FE.13** | P1.9 Billing messaging — Apple vs web paths | Code done, visual pass |
+| **FE.14** | P1.10 Empty / loading states sweep | Code done, visual pass |
+| **FE.20** | 5.1 Remove `localStorage.getItem('VURIUMBOOK_TOKEN')` from `lib/api.ts` line 8; keep only `credentials: 'include'` httpOnly cookie flow | **NOT DONE** — `lib/api.ts` still reads and removes `VURIUMBOOK_TOKEN` from localStorage. XSS vector. Coordinate with AI 1 first — any server endpoint that relies on Bearer header instead of cookie will break |
 
 ### P2 — polish / refactor
 
-| ID | Item | File | Effort |
-|----|------|------|--------|
-| **FE.21** | P2.5 Marketing pages polish — final sweep of `/`, `/vuriumbook`, `/about`, `/faq`, `/support` for unsupported claims | `app/**` | M |
-| **FE.22** | P2.6 Table sorting — final verification on Clients + Payments | `app/clients/page.tsx`, `app/payments/page.tsx` | S |
-| **FE.23** | P2.7 Bulk actions verification | `app/clients/page.tsx` | S |
-| **FE.24** | P2.8 Open Graph tags — final sweep | `app/**/layout.tsx` | S |
-| **FE.25** | 5.2 Split `app/settings/page.tsx` (2.6K lines) into `app/settings/tabs/*` components | `app/settings/**` | L |
-| **FE.26** | 5.3 Replace inline style constants (`inp`, `card`, `lbl`) with `app/settings/styles.ts` or className | `app/settings/page.tsx` | M |
-| **FE.27** | BUG-011 `api()` helper in `app/book/[id]/page.tsx` silently swallows HTTP errors — align with `apiFetch` throw-on-error pattern | `app/book/[id]/page.tsx` | S |
-| **FE.28** | BUG-016/017 Custom HTML render hardening — frontend side of DOMPurify adoption | `app/book/[id]/page.tsx`, `app/dashboard/page.tsx` | M |
+| ID | Item | State |
+|----|------|-------|
+| **FE.25** | 5.2 Split `app/settings/page.tsx` (2,583 lines) into `app/settings/tabs/*` | **NOT DONE** — `app/settings/tabs/` directory does not exist; file is still 2,583 lines |
+| **FE.26** | 5.3 Replace inline style constants (`inp`, `card`, `lbl`) in settings with className or `app/settings/styles.ts` | NOT DONE (same page) |
+| **FE.27** | BUG-011 — `api()` helper in `app/book/[id]/page.tsx` silently swallows HTTP errors | Pending |
+| **FE.28** | BUG-016/017 — DOMPurify frontend adoption (pairs with AI 1 BE.9) | Pending |
+
+### P1 — improvement plans — NEW FINDING, WERE NOT IN PRIOR OPEN LIST
+
+| ID | Plan doc | State on 2026-04-15 | Effort | Note |
+|----|----------|---------------------|--------|------|
+| **IMPR.Reg** | [[Registration-Improvement-AI1]] + [[Registration-Improvement-AI2]] — StepBar + sub-step 0a/0b split + social sign-up buttons + password show/hide toggle + mobile address grid fix on `app/signup/page.tsx` | **NOT DONE** — grep for `StepBar`, `subStep`, `setSubStep`, `handleSubStepContinue`, `showPw` in `app/signup/page.tsx` returns nothing. The signup page is still the pre-plan single-step form | M | Useful polish but not a launch blocker. Matches the current manual signup UX you already accepted for launch |
+| **IMPR.PublicSite** | [[PublicSite-AI1]] (backend `/public/profile/:wsId` + `/public/portfolio/:wsId` + whitelisted settings fields) and [[PublicSite-AI2]] (frontend `PublicSiteNav` + `HomeTab` + `ServicesTab` + `PortfolioTab` + BookTab wrapping) | **NOT DONE** — no `/public/profile` or `/public/portfolio` endpoint in backend; no `PublicSiteNav` / `HomeTab` / `ServicesTab` / `PortfolioTab` identifiers in `app/book/[id]/page.tsx`. Current public booking page is single-screen with Business details + Services preview sections added for Element remediation, but no tabbed mini-site | L (both halves) | This was supposed to turn `/book/[id]` into a 4-tab mini-site (Home · Services · Portfolio · Book). Element remediation shipped a flatter version of the same idea in `dbc8dfa` + `bed4537`. **Open question:** is the 4-tab mini-site still the product goal, or does the flat Business details + Services preview replace it? See "Plans to re-evaluate" section below |
+| **IMPR.Theme** | [[Theme-Light-AI1]] (CSS variables + `ThemeProvider` + anti-FOUC script) and [[Theme-Light-AI2]] (`ThemeToggle` component + per-element light-mode overrides) | **NOT DONE** — no `data-theme="light"` rules in `app/globals.css`, no `components/ThemeProvider.tsx`, no `components/ThemeToggle.tsx`. Product is still dark-only | L | Not launch blocker. Same question as PublicSite — is this still a priority for launch, or post-launch nice-to-have? |
 
 ---
 
-## Verdent — Reviewer / Verifier / Research — OPEN
+## 🟡 Open work — Verdent (Reviewer / Verifier / Research)
 
-### Reviewer tasks (post-commit diff sanity checks)
+### Active reviewer tasks
 
-| ID | Item | Trigger |
-|----|------|---------|
-| **VR.1** | Review AI 1's next backend commit (whichever lands next) for: logic correctness, security regressions, Firestore query efficiency, audit log coverage, ownership boundary respect | Every backend commit |
-| **VR.2** | Review AI 2's next frontend commit for: API contract alignment with backend, mobile layout regressions, accessibility basics, copy consistency | Every frontend commit |
-| **VR.3** | Cross-check `docs/` for outdated / contradictory statements after major decisions land (e.g., when Jonathan replies, when platform-sender pivot happens, when Gap 1 unblocks) | Decision events |
+- **VR.1** — Post-commit diff sanity check on every backend commit landed today (7 commits since morning). Focus on Gap 5 + waitlist hotfix + Element remediation + BE.4 reactions + Gmail API discovery. Output: entries in `docs/Tasks/QA-Scan-2026-04-15.md`
+- **VR.2** — Post-commit sanity on Codex frontend commits (`dbc8dfa`, `074ddd2`, `b74c79b`, `f94cd12`, `bed4537`, `8f7bec3`). Focus on PERM rendering correctness, Element Business details data path, Shell profileTabs typing
+- **VR.3** — Docs cross-consistency pass: now that multiple open items have shifted, re-check `In Progress.md`, `Launch Readiness Plan.md`, `Production-Plan-AI1.md`, `Production-Plan-AI2.md` for contradictions with this file
 
-### Verification runbook owner
+### Already shipped by Verdent today ✅
 
-| ID | Item | Output |
-|----|------|--------|
-| **VR.4** | Build a complete **Live Verification Checklist** doc that walks through launch-critical flows after every deploy: signup → onboarding → booking → SMS → payment → payroll → settings → billing → public pages. Generic, re-runnable. Owner can follow it after each push | `docs/Tasks/Launch-Verification-Runbook.md` (new) |
-| **VR.5** | Build a **Deploy Smoke Test** doc — quick 10-minute post-deploy check that hits the health endpoint, signs in as demo account, creates a test booking, verifies Cloud Run logs for no startup errors | `docs/Tasks/Deploy-Smoke-Test.md` (new) |
-| **VR.6** | Own all `docs/Tasks/QA-Scan-YYYY-MM-DD.md` files going forward per [[QA-Scanner-Guide]]. Fresh full-codebase scan every 3-5 days, or after any big landing | `docs/Tasks/QA-Scan-*.md` |
+- ✅ `docs/Tasks/Launch-Verification-Runbook.md` (VR.4)
+- ✅ `docs/Tasks/Deploy-Smoke-Test.md` (VR.5)
+- ✅ `docs/Tasks/QA-Scan-2026-04-15.md` (VR.6 — initial pass)
+- ✅ `docs/Tasks/Element-10DLC-Resubmission-Checklist.md`
+- ✅ `docs/Tasks/US-A2P-CTA-Brand-Verification-Notes.md`
+- ✅ `docs/Architecture/GitHub Secrets Inventory.md`
 
-### External research
+### Open research
 
-| ID | Item | Trigger |
-|----|------|---------|
-| **VR.7** | Telnyx TFV submission research — when Jonathan replies positively about shared-sender, research the exact TFV submission checklist, sample message wording that passed similar ISV reviews, expected review timeline | After Jonathan reply |
-| **VR.8** | Monitor CPaaS alternatives (Bandwidth, Sinch, Telesign, Plivo) pricing and ISV policy — inform the platform-sender pivot or country-aware SMS plans if we expand | Quarterly / as needed |
-| **VR.9** | Verify Apple App Store review checklist against current state — flag any gaps before next submission | Before each App Store submission |
+- **VR.7** — TFV submission research — only after Jonathan replies positively about shared-sender pattern
+- **VR.8** — CPaaS alternatives monitoring — quarterly or as needed
+- **VR.9** — Pre–App Store submission checklist against current state — before each iOS submit
 
-### Explicit NON-tasks for Verdent
+### Explicit NON-tasks
 
-- ❌ No edits to `backend/index.js` without explicit handoff from AI 1
-- ❌ No edits to `app/settings/page.tsx`, `app/signup/page.tsx`, `components/Shell.tsx`, `app/dashboard/page.tsx`, `app/book/[id]/page.tsx`, `lib/api.ts` — AI 2 scope
-- ❌ No parallel implementation tracks for items already in AI 1/AI 2 queues
+- ❌ No edits to `backend/index.js` without handoff
+- ❌ No edits to Codex-owned frontend files
+- ❌ No parallel backend implementation tracks
 
 ---
 
-## Owner (Nazarii) — External unblockers
+## 🟡 Owner external — unblocker queue
 
-### Launch-critical
-
-| ID | Item | Effort |
-|----|------|--------|
-| ~~**OW.1**~~ | ~~Add `TELNYX_WEBHOOK_PUBLIC_KEY` to GitHub Secrets~~ — ✅ **DONE** (confirmed in `docs/Architecture/GitHub Secrets Inventory.md` 2026-04-14). Next deploy flips Gap 2 from no-op to enforcing. | — |
-| **OW.1b** | Confirm `TELNYX_VERIFY_PROFILE_ID` is actually present in GitHub Secrets — **not visible** in the 2026-04-14 snapshot. Either re-confirm or recreate | 5 min |
-| **OW.2** | Send draft Jonathan inquiry letter from `docs/Tasks/Platform-Sender-Pivot-Decision.md` to `10dlcquestions@telnyx.com` or Jonathan directly | 10 min |
-| **OW.3** | Execute AI 1's Live-SMS-Verification-Checklist after next Cloud Run deploy | 30 min |
-| **OW.4** | Execute Verdent's Launch-Verification-Runbook + Deploy-Smoke-Test after next deploy | 20 min |
-
-### Telnyx operational
+### Security housekeeping (unblocks CQ.1 + CQ.2)
 
 | ID | Item | Effort |
 |----|------|--------|
-| **OW.5** | Resolve `whitelisted_destinations` blocker on Telnyx Voice Profile during Jonathan call | Call-dependent |
-| **OW.6** | Verify Vurium Inc. brand on Telnyx (send CP-575A + Articles of Incorporation) to `10dlcquestions@telnyx.com` | 15 min |
-| **OW.7** | Reply to 10dlcquestions about deleted brand BQY3UXK | 5 min |
-| **OW.8** | Wait for TFN +1-877-590-2138 verification | External |
-| **OW.9** | Create CUSTOMER_CARE campaign after brand verified | 10 min post-verification |
+| **OW-Sec.1** | Invalidate Twilio recovery code `RFXT548Z41JF65BU1AD1V8AL` in Twilio console. Confirm to me, then I `git filter-repo` the file out of history | 2 min |
+| **OW-Sec.2** | Save `applereview@vurium.com / ReviewTest2026!` to 1Password → Apple Review entry. Confirm to me, then I replace the docs entry with a reference | 5 min |
 
-### Security housekeeping
+### Gmail operational (unblocks BE.2 end-to-end)
 
 | ID | Item | Effort |
 |----|------|--------|
-| **OW.10** | Invalidate Twilio recovery code `RFXT548Z41JF65BU1AD1V8AL` in Twilio console (then AI 1 purges from git history) | 2 min |
-| **OW.11** | Save `applereview@vurium.com / ReviewTest2026!` to 1Password → Apple Review entry (then AI 1 removes from docs) | 5 min |
+| **OW-Gmail.1** | Verify in Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client that Authorized redirect URI includes `https://vuriumbook-api-431945333485.us-central1.run.app/api/vurium-dev/gmail/callback` | 2 min |
+| **OW-Gmail.2** | Verify OAuth consent screen covers scopes `gmail.readonly`, `gmail.send`, `gmail.modify`. If app is "testing" mode, either publish or add the 4 admin emails as test users | 5 min |
+| **OW-Gmail.3** | Open `/developer/email`, click Connect for each of `support@`, `billing@`, `sales@`, `security@vurium.com`, approve OAuth, confirm inbox loads | 10 min |
+
+### Telnyx + SMS
+
+| ID | Item | Effort / status |
+|----|------|-----------------|
+| **OW-Tel.1** | Send draft Jonathan inquiry letter from `docs/Tasks/Platform-Sender-Pivot-Decision.md` to `10dlcquestions@telnyx.com` or Jonathan directly | 10 min |
+| **OW-Tel.2** | Resolve `whitelisted_destinations` account-level blocker on Telnyx Voice Profile during the next Jonathan call → unblocks OPS.1 | Call-dependent |
+| **OW-Tel.3** | Fill Element Barbershop Settings in product: exact DBA name, full address, phone, email, 3–5 services. Then run `docs/Tasks/Element-10DLC-Resubmission-Checklist.md` top to bottom. Then resubmit CICHCOJ in Telnyx portal | 30 min |
+| **OW-Tel.4** | Verify Vurium Inc. brand with Telnyx (send CP-575A + Articles of Incorporation to `10dlcquestions@telnyx.com`) | 15 min |
+| **OW-Tel.5** | Wait for TFN +1-877-590-2138 verification | External |
+| **OW-Tel.6** | Create CUSTOMER_CARE campaign after Vurium Inc. brand verified | 10 min |
+
+### Live verification after latest deploys
+
+| ID | Item | Effort |
+|----|------|--------|
+| **OW-Verify.1** | Run `docs/Tasks/Live-SMS-Verification-Checklist.md` end-to-end on Cloud Run `a3c885f` or later | 30 min |
+| **OW-Verify.2** | Run `docs/Tasks/Launch-Verification-Runbook.md` + `docs/Tasks/Deploy-Smoke-Test.md` | 20 min |
+| **OW-Verify.3** | Run waitlist hotfix re-verification from `docs/DevLog/2026-04-15.md` → "Hotfix: Waitlist..." checklist (5 items) | 10 min |
 
 ### Business
 
 | ID | Item | Effort |
 |----|------|--------|
-| **OW.12** | Vurium Inc. — file first annual report before April deadline + franchise tax | 30 min |
+| **OW-Biz.1** | Vurium Inc. — file first annual report before April deadline + franchise tax | 30 min |
 
 ---
 
-## Recommended execution order
+## 🔄 Plans to re-evaluate with owner (NOT ACTION — decision first)
 
-### Sprint 1 (now — next 1-2 days)
+Three improvement plans are documented but have not started implementation and may or may not still match product direction. Before spending engineering time on any of them, we need a yes/no/defer from the owner:
 
-**AI 1 does in parallel:**
-1. BE.3 — Live-SMS-Verification-Checklist doc (small, enables OW.3)
-2. BE.5 — QA Scan 2026-04-13 bug cleanup batch (one commit per bug group: auth/perm fixes, data integrity fixes, N+1 fixes)
-3. BE.4 — Reactions endpoint (small, unlocks frontend UI that already exists)
+### Re-eval 1: `Registration-Improvement-AI1` + `AI2` (StepBar + sub-step signup + social sign-up buttons)
 
-**AI 2 does in parallel:**
-4. FE.1 → FE.8 — P0 launch verification passes (live browser testing on iPhone / responsive)
-5. FE.15 → FE.19 — PERM + BUG fixes from QA Scan (small code patches)
+- **Current state:** signup page is the pre-plan single-step form
+- **Still relevant?** This would turn signup into a 0a/0b split with social sign-up buttons and progress bar. Useful polish for conversion but not launch-blocking
+- **Decision needed:** commit to it now (~half day Codex work), defer post-launch, or drop entirely
 
-**Verdent does in parallel:**
-6. VR.4 — Launch-Verification-Runbook doc
-7. VR.5 — Deploy-Smoke-Test doc
-8. VR.6 — New QA-Scan-YYYY-MM-DD.md after Sprint 1 commits land
+### Re-eval 2: `PublicSite-AI1` + `AI2` (`/book/[id]` as 4-tab mini-site: Home / Services / Portfolio / Book)
 
-**Owner does in parallel:**
-9. OW.1 — `TELNYX_WEBHOOK_PUBLIC_KEY` secret (5 min, unblocks Gap 2 enforcement)
-10. OW.2 — Send Jonathan letter (10 min, unblocks Platform-Sender-Pivot-Plan)
-11. OW.10 + OW.11 — Security housekeeping (unblocks BE's CQ.1 + CQ.2)
+- **Current state:** `/book/[id]` is single-screen with Business details + Services preview blocks added for Element 10DLC remediation
+- **Still relevant?** The Element remediation shipped a **flatter version** of the idea. The 4-tab mini-site doc called for `PublicSiteNav`, `HomeTab` (hero, about, team, hours, reviews, CTA), `ServicesTab`, `PortfolioTab` with lightbox, plus new backend `/public/profile/:wsId` and `/public/portfolio/:wsId` endpoints
+- **Tension:** some of what the plan wanted (business details, services preview) is now on the page. The tabbed structure + portfolio lightbox are not
+- **Decision needed:** does the owner still want the full 4-tab mini-site rewrite, or is "current flat page + light polish" enough for launch? If the 4-tab version is still the goal, that is ~1 day of Codex work + half-day of backend endpoint work from me
 
-### Sprint 2 (after Sprint 1 green)
+### Re-eval 3: `Theme-Light-AI1` + `AI2` (dark ↔ light theme switching)
 
-- AI 1: CQ.1 + CQ.2 (purge sensitive data) after owner unblocks, then BE.1 (distributed lock), then BE.2 (Gmail API)
-- AI 2: FE.9 → FE.14 polish verification, FE.20 (httpOnly cookie coordination)
-- Verdent: Review Sprint 1 commits, run fresh QA scan
-- Owner: OW.3 + OW.4 live verification runs, OW.5 Telnyx call
-
-### Sprint 3 (post-launch backlog)
-
-- AI 1: BE.6 (phone_norm HMAC), BE.7 (backend refactor), BE.8 (legacy SMS cleanup), BE.9 (custom HTML sanitizer)
-- AI 2: FE.21-FE.28 polish + refactor (settings tabs, inline styles, marketing polish)
-- Verdent: Continuous review + research
-- Owner: OW.12 business housekeeping, platform-sender pivot execution if Jonathan greenlights
+- **Current state:** product is dark-only. No CSS variables, no `ThemeProvider`, no `ThemeToggle` component
+- **Still relevant?** Was explicitly planned but has not started
+- **Decision needed:** is light theme a launch requirement or post-launch nice-to-have? The ask requires CSS variable refactor across `globals.css` (AI 1-ish scope since touches shared file) + component overrides + a toggle in the navbar (AI 2 scope). Medium effort in total but no critical blocker tied to it
 
 ---
 
-## Coordination rules
+## 📋 Known-dead / deferred items that will not be done
 
-1. **Before editing a file in your own scope** — `git pull --rebase` to absorb any other AI's changes
-2. **Before editing a file in another AI's scope** — stop, flag it in this doc, wait for handoff
-3. **After committing** — Verdent performs VR.1 or VR.2 post-commit review
-4. **After any decision change** — AI 1 updates `In Progress.md` + this doc + `Home.md`
-5. **All docs changes** — AI 1 owns write access; AI 2 and Verdent may propose updates via chat, AI 1 lands them
-6. **External secrets / Telnyx / App Store / legal** — never touched by any AI; owner-only
+- **Platform-as-sender SMS pivot** — intentionally NOT implemented; carrier code 710 rejection + current dual-path architecture decision. See `docs/Tasks/Platform-Sender-Pivot-Decision.md`
+- **ISV single-sender retry** — same
+- **Force migration of legacy 10DLC to toll-free** — Element Barbershop is explicit protected grandfathered case; no auto-migration
 
 ---
 
-## Metrics — how we know we are ready to sell
+## 🧮 Recommended sprint order after this audit
 
-1. ✅ All P0 backend items committed and deployed to Cloud Run — **DONE**
-2. ✅ All P0 frontend items committed — **DONE** (verification pending)
-3. ⏳ FE.1 → FE.8 live verification complete
-4. ⏳ OW.3 live SMS verification complete
-5. ⏳ VR.4 Launch-Verification-Runbook executed cleanly at least once
-6. ⏳ OW.1 `TELNYX_WEBHOOK_PUBLIC_KEY` secret in place (Gap 2 enforcing)
-7. ⏳ Zero `NEW` / `IN PROGRESS` items in the latest `QA-Scan-*.md` file
-8. 🔴 Gmail API integration (BE.2) — not launch-blocking but explicit TODO
-9. 🔴 OPS.1 `TELNYX_VERIFY_PROFILE_ID` — not launch-blocking (fallback works), but needed for clean OTP UX
+### Sprint 2a — zero external dependencies, AI 1 can start any time
 
-Launch goes on green for items 1-7. Items 8-9 are post-launch cleanup.
+1. **BE.1** Distributed lock for 7 background jobs (~100 lines) — real value if we ever scale Cloud Run
+2. **BE.8** LEGACY_SMS_STATUSES migration script + Set removal
+3. **BE.9** DOMPurify custom HTML sanitization (backend half)
+
+### Sprint 2b — owner unblocks required
+
+1. **CQ.1** after OW-Sec.1 (Twilio console invalidation)
+2. **CQ.2** after OW-Sec.2 (1Password save)
+3. **OW-Gmail.1/2/3** → BE.2 feature fully live
+4. **OW-Verify.1/2/3** live verification of landed hardening work → any bugs become new hotfixes
+5. **OW-Tel.1** Jonathan letter → unlocks OPS.2 decision tree after reply
+
+### Sprint 2c — Codex (AI 2)
+
+- Complete **FE.1–FE.14** live browser verification passes (post `074ddd2`, `f94cd12`)
+- **FE.20** httpOnly cookie migration in `lib/api.ts` — coordinate with AI 1 first
+
+### Sprint 3 — defer decisions
+
+- **IMPR.Reg** / **IMPR.PublicSite** / **IMPR.Theme** — each needs a yes/no from owner before starting
+- **BE.5-cont** (BUG-005/006 index collections) — structural, pair with BE.7 refactor
+- **BE.6** phone_norm HMAC blind index — can happen alongside BE.7
+- **BE.7** backend/index.js modular refactor — after everything else stabilizes
+
+---
+
+## 🧭 Metrics — launch readiness snapshot
+
+| # | Condition | Status |
+|---|-----------|--------|
+| 1 | All P0 backend committed and deployed | ✅ |
+| 2 | All P0 frontend committed | ✅ |
+| 3 | Telnyx hardening Gaps 2/3/4/5 live | ✅ |
+| 4 | Element 10DLC remediation pack live | ✅ |
+| 5 | Waitlist regression fixed | ✅ (commit `a3c885f`) |
+| 6 | Live browser verification (OW-Verify.1/2/3) | ⏳ owner |
+| 7 | Element Settings filled + Resubmission Checklist run | ⏳ owner |
+| 8 | Twilio recovery code purged (CQ.1) + Apple demo creds migrated (CQ.2) | ⏳ blocked on owner |
+| 9 | Gmail API operationally connected (OW-Gmail.1/2/3) | ⏳ owner |
+| 10 | Jonathan inquiry letter sent (OW-Tel.1) | ⏳ owner |
+| 11 | PERM-001/002/004 + BUG-004/007 browser verification | ⏳ Codex |
+| 12 | TELNYX_VERIFY_PROFILE_ID created (OPS.1) | 🔴 blocked on Telnyx account |
+
+Launch green = items 1–7 done. Items 8–10 finish within the week if owner runs the external queue. Items 11–12 don't block launch.
