@@ -2,25 +2,27 @@
 
 > [[Home]] > Tasks | See also: [[Tasks/Backlog|Backlog]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]]
 
-## PERMISSIONS FIX — PERM-003 Backend (AI 1)
+## PERMISSIONS FIX — PERM-003 Backend (AI 1) — DONE
 
-**Status**: PLANNED — waiting for AI 2 to finish backend work before editing
+### Commits
+- `a80d9da` — requireCustomPerm middleware + /api/payments fix
+- `f0de2e0` — Square/Stripe status endpoints use custom permissions
 
-**Problem**: `GET /api/payments` has `requireRole('owner', 'admin')` which blocks barbers even if owner enabled `pages.payments = true` in custom permissions.
-
-**Root cause**: Backend uses hardcoded `PERMISSIONS` object (line 1089) and `requireRole()`. It never checks `role_permissions` from Firestore `settings/config`.
-
-**Fix plan**:
-1. Create `requireCustomPerm(permKey)` middleware that:
-   - Allows owner/admin always
-   - For barber/student: reads `role_permissions` from workspace settings
-   - Checks if `role_permissions[role][permKey]` is true
-   - Returns 403 if not
-2. Replace `requireRole('owner', 'admin')` on these endpoints:
+### What was done
+1. Created `requireCustomPerm(permKey)` middleware (line ~1294):
+   - Owner/admin always pass
+   - Barber/student: reads `role_permissions` from Firestore `settings/config`
+   - Checks `role_permissions[role][permKey]` — returns 403 if not set
+2. Fixed endpoints:
    - `GET /api/payments` → `requireCustomPerm('pages.payments')`
-   - `GET /api/clients` → keep open (barbers need client access for booking)
-   - Other gated endpoints as needed
-3. Cache `role_permissions` per request (already on `req.ws`)
+   - `GET /api/square/oauth/status` → `requireCustomPerm('financial.access_terminal')`
+   - `GET /api/stripe-connect/status` → `requireCustomPerm('financial.access_terminal')`
+3. Result: barbers with enabled permissions can now see payments, use terminal checkout
+
+### Remaining PERM issues (AI 2 scope)
+- PERM-001: Dashboard hardcodes `if (isBarber && [...].includes(item.label)) return false` — ignores hasPerm()
+- PERM-002: Pill nav bottom bar only has 5 items — no way to navigate to Payments/Clients etc.
+- PERM-004: Payments page uses `isOwner` check instead of hasPerm()
 
 **Owner**: AI 1 — will implement after AI 2 finishes current backend edits
 
@@ -215,7 +217,12 @@ Type error: Cannot find name 'showConfirm'.
 
 ## SMS & 10DLC Compliance
 
-### Backend (AI 1) — ALL DONE
+### Product direction — dual path
+- **New workspaces**: toll-free-first reminder setup
+- **Existing / pending 10DLC workspaces**: grandfathered manual path
+- **OTP**: stays on `POST /public/verify/send/:wsId` + `/check/:wsId`
+
+### Backend (AI 1 + AI 2) — IN PROGRESS
 - [x] 1.1 Telnyx Verify API — already at `/public/verify/send/:wsId` + `/check/:wsId`
 - [x] 1.2 SP registration fields — **re-implemented** commit `2c8ce2c`
   - messageFlow: WEBFORM → descriptive opt-in narrative
@@ -223,25 +230,38 @@ Type error: Cannot find name 'showConfirm'.
   - optinMessage: added "Consent is not a condition of purchase"
   - SP status: pending_approval → active (auto-approves)
   - embeddedLink: false
-- [x] 1.3 Auto-TFN removed from signup — **re-implemented** commit `2c8ce2c` (60 lines removed)
-- [x] 1.4 Message formats compliant
-- [x] 1.5 Docs updated
+- [x] 1.3 Appointment messaging now avoids platform/global sender fallback when workspace SMS is not active
+  - New workspaces stay on email-only reminders until their own SMS sender is active
+- [x] 1.4 Manual business registrations are now tagged with `sms_number_type: '10dlc'`
+- [x] 1.5 Toll-free endpoint remains the default provisioning path for new workspaces
+- [x] 1.6 Docs updated
 
-### Frontend (AI 2) — TODO
-- [ ] **2.1** Settings — SP Registration wizard UI (guide owner through Telnyx SP setup) — **IN PROGRESS**
-  - `Settings -> SMS Notifications` no longer implies auto-provisioning; it now shows a manual self-serve setup state when SMS is not registered yet
-  - `SmsRegistrationForm` now walks owners through business profile, contact details, and sole-proprietor verification as a guided step flow instead of one long raw form
-  - Pending: browser verification of the step flow and OTP resume state
-- [ ] **2.2** Booking page — update CTA text (business name instead of VuriumBook) — **IN PROGRESS**
-  - Booking and waitlist SMS opt-in copy now uses a business-specific program name (`{shopName} Appointment Notifications`) instead of platform-first VuriumBook wording
+### Frontend (AI 2) — IN PROGRESS
+- [x] 2.1 Settings — toll-free-first SMS card for new workspaces
+  - `Settings -> SMS Notifications` now treats toll-free as the default path
+  - States are framed around enable/provisioning/pending/active/failed instead of EIN-first setup
+- [x] 2.7 Legal copy alignment for reviewer-facing pages
+  - `app/privacy/page.tsx` and `app/terms/page.tsx` now match the current booking consent text and the dual-path SMS architecture
+  - Appointment SMS is described as `[Business Name] Appointment Notifications`, with toll-free default for new workspaces and grandfathered dedicated senders for manual paths
+  - Payment language now reflects Stripe / Square / Apple instead of Stripe-only wording
+  - Unsupported `99.9% uptime` / `status.vurium.com` language was removed from Terms
+- [x] 2.2 Settings — manual SP / 10DLC flow hidden behind manual fallback for new workspaces
+  - Grandfathered/pending manual workspaces still see the existing wizard
+- [x] 2.3 Signup copy no longer frames EIN / business registration as the default reminder path
+- [x] 2.4 Booking page — business-specific consent text
+  - Booking and waitlist SMS opt-in copy uses `{shopName} Appointment Notifications`
   - Terms and Privacy links stay clickable directly inside the opt-in label
-- [ ] **2.3** Consent metadata (SMS consent wording in booking flow) — **IN PROGRESS**
-  - Booking, pay-online, group booking, and waitlist submissions now send both `sms_consent_text` and `sms_consent_text_version`
-  - Pending: browser verification of the updated consent flow on a live booking page
+- [x] 2.5 Consent metadata
+  - Booking, pay-online, group booking, and waitlist submissions send both `sms_consent_text` and `sms_consent_text_version`
+- [ ] 2.6 Live verification
+  - Pending browser pass for toll-free-first settings UX, grandfathered manual resume state, and email-only fallback behavior
 
 ### Pre-deploy
 - [ ] Create Telnyx Verify Profile → `TELNYX_VERIFY_PROFILE_ID`
 - [x] Add env var to Cloud Run deploy workflow — wired in `.github/workflows/deploy-backend.yml`
+- [ ] Written Telnyx confirmation or internal pilot sign-off for Vurium-managed toll-free appointment reminders
+- [ ] Confirm Element / existing manual 10DLC workspaces remain untouched after the pivot
+  - `Element Barbershop` is the explicit protected pending-review case; do not migrate or rewrite its SMS path while approval is in progress
 
 ## Other Active Tasks
 
