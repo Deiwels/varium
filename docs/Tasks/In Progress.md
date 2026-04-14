@@ -88,14 +88,73 @@ After commit lands:
 
 ---
 
-## 🔴 ELEMENT 10DLC RESUBMIT — BLOCKED on 2 content typos + FE.Element-Verify (2026-04-15)
+## 🟢 ELEMENT 10DLC RESUBMIT — VERIFIED READY (2026-04-15)
 
-**Status:** NOT READY for Resubmit. Two hard blockers + one open Codex verification pass.
+**Status flipped BLOCKED → READY.** Owner fixed both Settings typos, Codex (AI 2) completed FE.Element-Verify.1–5 in live browser, AI 1 (Claude) independently re-verified the backend via `/public/config/` curl against production. All four pre-resubmit gates green.
 
-### Owner-side blockers (fix in Element Settings, then hit Save)
+### Independent backend verification (AI 1, live curl — 2026-04-15)
 
-- [ ] **BLOCKER A** — `shop_address` is `"1142 W Lake Cook Rd, Bufalo Grove, IL"` on production. Must become `"1142 W Lake Cook Rd, Buffalo Grove, IL 60089"` (fix `Bufalo → Buffalo`, add ZIP)
-- [ ] **BLOCKER B** — `shop_email` is `"contacts@element-barbersho.com"` on production. Must become `"contacts@element-barbershop.com"` (missing `p` before `.com`)
+```
+shop_name:    'Element Barbershop'
+shop_address: '1142 W Lake Cook Rd, Buffalo Grove, IL 60089'
+shop_email:   'contacts@element-barbershop.com'
+shop_phone:   '+1 (224) 584-5072'
+```
+
+Both typos cleared: `Bufalo` → `Buffalo`, ZIP `60089` added, email domain now resolves to `element-barbershop.com`.
+
+### Codex FE.Element-Verify.1–5 — all green
+
+Confirmed in live Chrome DevTools + iPhone Safari 375 px:
+
+- [x] **FE.Element-Verify.1** — `/book/elementbarbershop` renders `Verified business details` with name, address, phone, email
+- [x] **FE.Element-Verify.2** — Booking CTA branded `Book with Element Barbershop`; SMS consent label reads `Element Barbershop Appointment Notifications` and renders on first paint
+- [x] **FE.Element-Verify.3** — `Privacy Policy` / `Terms` links carry business context and the legal pages render the Element-branded highlight panels
+- [x] **FE.Element-Verify.4** — Pill bar = 5 icons (`71a20e2` hotfix still good)
+- [x] **FE.Element-Verify.5** — Custom template path unchanged
+
+### MNO failure-reason mapping
+
+| Original 2026-04-14 MNO rejection reason | Current remediation state |
+|---|---|
+| "The brand website is lacking sufficient information about the company and its products" | ✅ Fixed — name, full address + ZIP, phone, email, 40 services with prices, 6-person team, SMS consent all visible on `/book/elementbarbershop` |
+| "Call-to-action does not contain registered/DBA brand name" | ✅ Fixed — CTA reads `Book with Element Barbershop`; SMS consent reads `Element Barbershop Appointment Notifications`; `messageFlow` submission field is now built from per-workspace URL via `getWorkspaceBookingUrl()` (backend commit `e97efd9`) |
+
+### Owner final step — one Telnyx portal check, then click Resubmit
+
+**Before clicking Resubmit in Telnyx Portal → 10DLC → Campaigns → CICHCOJ, verify the submission form contains:**
+
+- **Brand website / CTA URL** → must be `https://vurium.com/book/elementbarbershop` (per-workspace URL, NOT generic `https://vurium.com/book/`)
+- **messageFlow** (if the portal surfaces it for edit) → same per-workspace URL. Our backend already builds this correctly via `getWorkspaceBookingUrl()`, but if the portal pre-populated the form with the previous failed submission's values, the generic `/book/` could have carried over — worth a one-second glance
+- **sample1 / sample2** → format `Element Barbershop: Your appointment ...` with the DBA name as the prefix
+
+Then hit **Resubmit**.
+
+### Expected MNO timeline
+
+- T-Mobile: instant → 24 h
+- AT&T: 1–3 business days
+- Verizon: 1–3 business days
+
+### Post-resubmit protocol
+
+1. Record submit timestamp in `docs/DevLog/2026-04-15.md` under a new "Element CICHCOJ resubmitted" heading
+2. Monitor `POST /api/webhooks/telnyx-10dlc` — it updates `sms_registration_status` on `workspaces/EZaC81SVGM0uuoYMxBCT/settings/config`
+3. **On approval** (status → `active`): update `docs/Features/SMS & 10DLC.md` Element campaign row from `Failed MNO Review` → `Active`; move this whole block from In Progress into a DevLog "Done" section
+4. **On second failure**: capture new MNO reasons verbatim, open `docs/Tasks/QA-Scan-YYYY-MM-DD.md`, treat as a separate analysis task — do NOT hot-patch without understanding the new failure class. Stop and re-plan with AI 3 (Verdent)
+
+### ✅ Pre-Resubmit DoD
+
+- [x] Owner fixed `shop_address` typo and added ZIP `60089`
+- [x] Owner fixed `shop_email` domain typo
+- [x] Codex ran FE.Element-Verify.1–5 live and reported all 5 green
+- [x] AI 1 independently re-verified `/public/config/` in production
+- [x] Element remediation pack deployed: `e97efd9` (backend messageFlow URL), `dbc8dfa` + `b74c79b` + `bed4537` + `8f7bec3` (frontend business proof + consent + custom pages), `c2d0a99` (legal-link context), `779f524` (Suspense wrapper for CSR bailout)
+- [x] Unrelated same-day hotfixes covered in this sweep: `71a20e2` pill bar, `a3c885f` waitlist regression
+- [x] BE.1 distributed lock for background jobs landed (`5dab7a1`) — no impact on Element flow, just hardening against Cloud Run multi-instance dupes
+- [ ] **Owner: verify in Telnyx portal that CTA URL = `https://vurium.com/book/elementbarbershop`**
+- [ ] **Owner: click Resubmit on CICHCOJ**
+- [ ] Record submit timestamp in DevLog (AI 1 or AI 3 will do this after owner confirms)
 
 **Why this matters:** MNO failure reason #1 was "brand website is lacking sufficient information about the company and its products." Reviewers cross-check address via Google and the email domain via web resolution. With `Bufalo Grove` (no Google match) and `element-barbersho.com` (domain does not exist), both checks fail — same failure class we already hit.
 

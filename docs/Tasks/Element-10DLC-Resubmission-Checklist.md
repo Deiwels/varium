@@ -9,7 +9,13 @@
 
 ---
 
-## 🔴 Live verification — 2026-04-15 (2 content typos found — HARD BLOCKERS)
+## 🟢 Live verification — 2026-04-15 — VERIFIED READY
+
+> Status flipped from 🔴 BLOCKED to 🟢 READY after owner fixed both typos (`Bufalo Grove` → `Buffalo Grove, IL 60089`; `element-barbersho.com` → `element-barbershop.com`), Codex ran FE.Element-Verify.1–5 live and all 5 passed, and AI 1 re-verified backend state via `/public/config/` against production. All four pre-resubmit gates are green. Owner's remaining task is a one-second CTA-URL check in the Telnyx portal before clicking Resubmit.
+>
+> Full state + post-resubmit protocol is in [[Tasks/In Progress|In Progress]] → "ELEMENT 10DLC RESUBMIT — VERIFIED READY (2026-04-15)" section. The block below preserves the earlier state for history.
+
+## 🕰️ Earlier state (2026-04-15 ~11:40 local) — 2 content typos found — HARD BLOCKERS
 
 Owner asked if Element is ready for Resubmit after the full remediation chain (`e97efd9` backend + `dbc8dfa`/`b74c79b`/`bed4537`/`8f7bec3`/`c2d0a99` frontend). AI 1 (Claude) ran a live production verification against `/public/config/`, `/public/services/`, `/public/barbers/` and curled the booking / privacy / terms HTML shells.
 
@@ -70,9 +76,11 @@ NOT confirmed from curl:
 
 Only a real browser visit can confirm the hydrated output. This is a **Codex (AI 2) verification task** (FE.Element-Verify below).
 
-### Status: 🔴 NOT READY FOR RESUBMIT
+### Status at that time: 🔴 NOT READY FOR RESUBMIT
 
-Two hard blockers (backend content typos) + one verification gap (hydrated render not yet confirmed). Proceeding to resubmit without fixing these would very likely produce a second MNO failure in the same failure class.
+Two hard blockers (backend content typos) + one verification gap (hydrated render not yet confirmed). Proceeding at that moment would very likely have produced a second MNO failure in the same failure class.
+
+**This earlier state was resolved within a few hours.** Owner fixed both typos, Codex completed the FE.Element-Verify.1–5 live browser pass, AI 1 re-verified backend. See current state at the top of this file and in `In Progress.md` → "ELEMENT 10DLC RESUBMIT — VERIFIED READY".
 
 ---
 
