@@ -1,5 +1,7 @@
 # Varium (VuriumBook)
 
+> ⚠️ **ВСІМ AI: Читати [[AI-Core-Manifesto]] перед початком будь-якої роботи. Обов'язково.**
+
 > Multi-tenant booking & business management SaaS for salons, barbershops, and service businesses.
 > Corporation: **Vurium Inc.** (Illinois, File #75519095)
 

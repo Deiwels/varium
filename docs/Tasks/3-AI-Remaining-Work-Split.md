@@ -1,6 +1,7 @@
-# 3-AI Remaining Work Split
+# 4-AI Remaining Work Split
 
 > [[Home]] > Tasks | Owner: AI 1 (docs) · Last full verification: **2026-04-15** (this pass)
+> ⚠️ **Read [[AI-Core-Manifesto]] first before starting any work.**
 > Related: [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]], [[Production-Plan-AI1]], [[Production-Plan-AI2]]
 
 ---
@@ -9,18 +10,17 @@
 
 This file is the **authoritative** split for what is open across the project. Every item was verified directly against the live `main` tree on 2026-04-15 — grep, read, or endpoint hit — not just copied from older plans. If something here conflicts with `In Progress.md`, `Production-Plan-AI1.md`, `Production-Plan-AI2.md`, or any of the improvement plans, this file wins.
 
-The previous revision of this doc miscategorised **BE.2 Gmail API integration** as open — the backend was already fully shipped, frontend already wired. That cost a near-duplicate of ~300 lines of work. This revision corrects that and adds several other items whose planned scope is either already shipped, partially shipped, or no longer relevant.
-
-## Roles (unchanged)
+## Roles (updated — 4 AI system)
 
 | Role | Primary scope | Ownership rules |
 |------|---------------|-----------------|
 | **Claude / AI 1** | Backend (`backend/index.js`), CI/CD workflows, all docs under `docs/` | Final code review + commit on backend work; owns docs updates; no frontend edits |
 | **Codex / AI 2** | Frontend (`app/**`, `components/**`, `lib/**`, `app/globals.css`) | Live browser verification; mobile testing; no backend edits |
-| **Verdent** | Reviewer + verifier + research support; QA-Scan docs; verification runbooks; external research | No parallel edits to owned backend/frontend files; owns `docs/Tasks/QA-Scan-*.md` |
+| **Verdent / AI 3** | Planner + Verifier + QA | Складає детальні плани, перевіряє виконання, веде QA Scans та Runbooks. Не пише продуктовий код без погодженого плану. |
+| **Phone AI / AI 4** | Universal Quick-Fixer | Повний доступ до всього коду — тільки для термінових emergency фіксів коли система падає або інші AI застрягли. |
 | **Owner (Nazarii)** | Telnyx portal, GitHub Secrets, Google Cloud Console, App Store Connect, legal, live runbook execution | Only one who can touch real secrets and third-party accounts |
 
-Full file ownership is in [[AI-Work-Split]].
+Full file ownership is in [[AI-Work-Split]]. Core rules in [[AI-Core-Manifesto]].
 
 ---
 
