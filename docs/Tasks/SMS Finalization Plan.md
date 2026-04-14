@@ -43,7 +43,7 @@ Execution order:
 Locked product rules:
 - New workspaces use **toll-free-first** reminder setup
 - Existing / pending 10DLC workspaces stay on the **grandfathered manual** path
-- `Element Barbershop` stays on its current pending manual review path with **no migration**
+- `Element Barbershop` stays on its current **failed-review / manual 10DLC remediation** path with **no migration**
 - OTP stays on:
   - `POST /public/verify/send/:wsId`
   - `POST /public/verify/check/:wsId`
@@ -105,7 +105,7 @@ Locked product rules:
 - If provisioning can succeed before reminder delivery is truly live, adjust backend status semantics before launch instead of letting the product overstate readiness
 
 ### 4. Protect legacy workspace behavior
-- Confirm `Element Barbershop` still shows the manual / pending 10DLC path
+- Confirm `Element Barbershop` still shows the manual / failed-review 10DLC path
 - Confirm no migration, no sender rewrite, and no flow rewrite happened during the toll-free pivot
 
 ### 5. Finish launch gate

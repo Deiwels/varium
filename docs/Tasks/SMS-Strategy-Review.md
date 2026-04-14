@@ -20,7 +20,7 @@ This means we are no longer treating owner-facing EIN / Sole Proprietor registra
 - The current manual 10DLC flow creates too much friction for solo operators and first-time customers
 - We already have a working toll-free provisioning path in `POST /api/sms/enable-tollfree`
 - We need a launch UX closer to Square-style onboarding, where the platform hides most compliance complexity from the owner
-- Element and any other already-pending 10DLC businesses should not be interrupted or migrated mid-review
+- Element and any other grandfathered manual 10DLC businesses should not be interrupted or migrated while review or remediation is in progress
 
 ## Evidence and competitive framing
 
@@ -66,7 +66,7 @@ Important note:
 #### Protected case: Element Barbershop
 
 - `Element Barbershop` is a **protected grandfathered workspace**
-- Its current pending manual / 10DLC approval flow must remain intact until Telnyx review is finished
+- Its current manual / 10DLC remediation flow must remain intact after the failed MNO review
 - Do not switch Element to the toll-free-first path during this review window
 - Do not rewrite its sender identity, registration state, or owner-facing SMS flow unless there is an explicit business decision after approval
 
@@ -89,7 +89,7 @@ Until then:
 - keep the legacy manual path alive
 - keep new workspace UX toll-free-first
 - use **email-only fallback** instead of forcing EIN friction
-- keep `Element Barbershop` on its existing pending manual review path with no migration
+- keep `Element Barbershop` on its existing manual review / remediation path with no migration
 
 ## Backend / frontend role split
 

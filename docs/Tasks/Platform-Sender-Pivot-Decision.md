@@ -198,7 +198,7 @@ l track:** Підняти Варіант B як запит до Jonathan (лис
 > - Vurium Inc. brand verified on Telnyx (TCR ID: BCFAC3G)
 > - We previously submitted a platform-level CUSTOMER_CARE campaign (TCR Campaign ID: CKAOXOW) that was rejected with carrier code 710 — "Reseller / Non-compliant KYC"
 > - After that, we moved to a per-workspace model: each business gets its own dedicated toll-free number via `POST /v2/number_orders`, with their own messaging profile, and reminders are sent with the format `{Business Name}: <message>`
-> - Element Barbershop (TCR Campaign ID: CICHCOJ) is still on the manual 10DLC grandfathered path, pending MNO review
+> - Element Barbershop (TCR Campaign ID: CICHCOJ) is still on the manual 10DLC grandfathered path and has now received a failed MNO review for website / CTA issues
 >
 > **What we want to understand:**
 >

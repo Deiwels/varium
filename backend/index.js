@@ -1982,6 +1982,14 @@ function isLegacyManualSmsPath(workspace, settings) {
     || isProtectedLegacyWorkspace(workspace, settings);
 }
 
+function getWorkspaceBookingUrl(workspaceLike) {
+  const frontendUrl = String(process.env.FRONTEND_URL || 'https://vurium.com').replace(/\/+$/, '');
+  const slug = safeStr(workspaceLike?.slug || '');
+  const id = safeStr(workspaceLike?.id || '');
+  const handle = slug || id;
+  return handle ? `${frontendUrl}/book/${encodeURIComponent(handle)}` : `${frontendUrl}/book/`;
+}
+
 async function provisionTollFreeSmsForWorkspace(workspace, opts = {}) {
   const wsId = safeStr(workspace?.id || '');
   if (!wsId) {
@@ -6740,6 +6748,9 @@ app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Business email is required' });
     if (!street || !city || !state || !postalCode) return res.status(400).json({ error: 'Full address is required' });
 
+    const workspaceDoc = await db.collection('workspaces').doc(req.wsId).get();
+    const bookingUrl = getWorkspaceBookingUrl({ id: req.wsId, ...(workspaceDoc.exists ? workspaceDoc.data() : {}) });
+
     const settingsRef = req.ws('settings').doc('config');
 
     // Step 1: Create Brand
@@ -6810,7 +6821,7 @@ app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
         brandId,
         usecase: campaignUseCase,
         description: `${shopName} sends transactional appointment-related SMS to clients who book appointments. Message types include booking confirmations, 24-hour reminders, 2-hour reminders, and cancellation notices. Messages are non-marketing and sent only after the client provides explicit SMS consent during the booking flow.`,
-        messageFlow: `Clients opt in on the online booking page at https://vurium.com/book/. During booking, the client enters their mobile number and checks an optional SMS consent checkbox stating they agree to receive appointment SMS from ${shopName}. The consent text includes message frequency, rates disclosure, STOP/HELP instructions, and links to Terms and Privacy Policy. Consent is not a condition of booking.`,
+        messageFlow: `Clients opt in on the online booking page at ${bookingUrl}. During booking, the client enters their mobile number and checks an optional SMS consent checkbox stating they agree to receive ${shopName} Appointment Notifications via SMS. The consent text includes message frequency, rates disclosure, STOP/HELP instructions, and links to Terms and Privacy Policy. Consent is not a condition of booking.`,
         sample1: `${shopName}: Your appointment is confirmed for Mon Apr 7 at 2:00 PM with John. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`,
         sample2: `${shopName}: Reminder: Your appointment with John is tomorrow Mon Apr 7 at 2:00 PM. Reply STOP to opt out, HELP for help.`,
         helpMessage: `${shopName}: For help, contact support@vurium.com or call (847) 630-1884. Visit https://vurium.com/privacy for our Privacy Policy. Reply STOP to opt out.`,
@@ -6949,6 +6960,8 @@ app.post('/api/sms/verify-otp', requireRole('owner'), async (req, res) => {
     await settingsRef.update({ sms_registration_status: 'verified', sms_number_type: '10dlc', updated_at: toIso(new Date()) });
 
     // Now auto-create campaign + buy number + assign (same flow as regular registration continues)
+    const workspaceDoc = await db.collection('workspaces').doc(req.wsId).get();
+    const bookingUrl = getWorkspaceBookingUrl({ id: req.wsId, ...(workspaceDoc.exists ? workspaceDoc.data() : {}) });
     const displayName = safeStr(data.sms_brand_name || data.shop_name || '');
     const shopName = displayName || 'Business';
     const state = safeStr(data.shop_address?.split(',').slice(-2, -1)[0]?.trim() || '');
@@ -6960,7 +6973,7 @@ app.post('/api/sms/verify-otp', requireRole('owner'), async (req, res) => {
         brandId,
         usecase: 'SOLE_PROPRIETOR',
         description: `${shopName} sends transactional appointment-related SMS to clients who book appointments. Message types include booking confirmations, 24-hour reminders, 2-hour reminders, and cancellation notices. Messages are non-marketing and sent only after the client provides explicit SMS consent during the booking flow.`,
-        messageFlow: `Clients opt in on the online booking page at https://vurium.com/book/. During booking, the client enters their mobile number and checks an optional SMS consent checkbox stating they agree to receive appointment SMS from ${shopName}. The consent text includes message frequency, rates disclosure, STOP/HELP instructions, and links to Terms and Privacy Policy. Consent is not a condition of booking.`,
+        messageFlow: `Clients opt in on the online booking page at ${bookingUrl}. During booking, the client enters their mobile number and checks an optional SMS consent checkbox stating they agree to receive ${shopName} Appointment Notifications via SMS. The consent text includes message frequency, rates disclosure, STOP/HELP instructions, and links to Terms and Privacy Policy. Consent is not a condition of booking.`,
         sample1: `${shopName}: Your appointment is confirmed for Mon Apr 7 at 2:00 PM. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`,
         sample2: `${shopName}: Reminder: Your appointment is tomorrow at 2:00 PM. Reply STOP to opt out, HELP for help.`,
         helpMessage: `${shopName}: For help, contact support@vurium.com. Visit https://vurium.com/privacy for Privacy Policy. Reply STOP to opt out.`,
@@ -9127,6 +9140,9 @@ app.get('/public/config/:workspace_id', async (req, res) => {
       hero_media_url: safeStr(data.hero_media_url || data.hero_url || ''),
       hero_media_type: safeStr(data.hero_media_type || 'video'),
       shop_name: safeStr(data.shop_name || ''),
+      shop_address: safeStr(data.shop_address || ''),
+      shop_phone: safeStr(data.shop_phone || ''),
+      shop_email: safeStr(data.shop_email || ''),
       sms_brand_name: safeStr(data.sms_brand_name || data.shop_name || ''),
       timezone: safeStr(data.timezone || 'America/Chicago'),
       business_type: safeStr(data.business_type || ''),

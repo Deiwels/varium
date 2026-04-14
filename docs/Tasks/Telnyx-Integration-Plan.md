@@ -55,6 +55,26 @@ Sender architecture залишається **dual-path**:
 
 **Порівняння:** Stripe і Square вже мають webhook signature verification (`backend/index.js` ~1495, ~7492, ~10125). Telnyx code is now implemented too; secret/deploy verification remains.
 
+### Element manual 10DLC review update (2026-04-14)
+
+Element Barbershop campaign `CICHCOJ` is no longer "pending review". The owner received:
+
+- **Status:** `Failed MNO Review`
+- **Failure reasons:**
+  - `The brand website is lacking sufficient information about the company and its products.`
+  - `Call-to-action does not contain registered/DBA brand name.`
+
+This changes the immediate next step for the manual path:
+- do **not** pivot Element to toll-free-first
+- do **not** resubmit blindly
+- first fix the public business proof + CTA alignment issues
+
+Most likely remediation items:
+- Ensure the exact Element public path is used in the campaign submission
+- Ensure CTA text uses the exact registered / DBA brand name
+- Ensure the public page visibly shows business identity, services, and contact information
+- Then resubmit the manual campaign
+
 ---
 
 ## Архітектура потоків
@@ -289,7 +309,7 @@ do {
 
 | Компонент | Чому |
 |---|---|
-| `Element Barbershop` workspace | Захищений — pending manual 10DLC review, без змін |
+| `Element Barbershop` workspace | Захищений — failed-review manual 10DLC remediation path, без змін |
 | `POST /api/sms/register` | Grandfathered 10DLC шлях залишається |
 | `POST /public/verify/send/:wsId` | Публічний контракт — сигнатура не змінюється |
 | `POST /public/verify/check/:wsId` | Те саме |

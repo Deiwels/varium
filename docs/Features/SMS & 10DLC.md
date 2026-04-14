@@ -62,7 +62,7 @@ We initially tried a platform-as-sender model (one VuriumBook brand + one CUSTOM
 - **Grandfathered workspaces**: keep the existing manual SP / 10DLC path
 - **Operational gate**: broad toll-free rollout is considered fully safe after written Telnyx confirmation or a successful internal pilot
 - **Fallback rule**: if toll-free is not active, the product stays on **email-only** appointment messaging instead of forcing EIN friction
-- **Protected review case**: `Element Barbershop` stays on its current pending manual / 10DLC approval path and must not be auto-migrated during the toll-free pivot
+- **Protected review case**: `Element Barbershop` stays on its current failed-review manual / 10DLC remediation path and must not be auto-migrated during the toll-free pivot
 
 ### Cost notes
 
@@ -134,16 +134,32 @@ POST /v2/verifications/by_phone_number/{phone}/actions/verify → Verify code
 | TCR Campaign ID | CICHCOJ |
 | Brand | Element Barbershop |
 | Use case | Low Volume Mixed |
-| Status | **Pending MNO Review** (submitted Apr 12, 2026) |
+| Status | **Failed MNO Review** (response received Apr 14, 2026) |
+| Failure reasons | "The brand website is lacking sufficient information about the company and its products." / "Call-to-action does not contain registered/DBA brand name." |
 | Sender in messages | `Element Barbershop:` |
 | Booking page | https://vurium.com/book/elementbarbershop |
 
-This is the correct per-business architecture — each business gets its own brand + campaign. No 710 risk because the sender matches the registered brand.
+This is still the correct per-business architecture — each business gets its own brand + campaign. The new failure is **not** a repeat of platform-level 710 reseller rejection; it is now a **website / CTA verifiability** problem on the Element business submission.
 
 **Protected status during pivot:**
-- Element is intentionally being left on this path while its current review is pending
+- Element is intentionally being left on this path while its website / CTA remediation is in progress
 - Do not convert Element to the toll-free-default path mid-review
 - Treat it as the live regression check for the legacy/manual flow while new workspaces move to toll-free-first
+
+**What this failure tells us**
+- The reviewer could not verify enough real-world business information for `Element Barbershop` from the submitted website path.
+- The reviewer also concluded the CTA / opt-in path they reviewed did not clearly match the registered or DBA brand name.
+- This means the next attempt should focus on **submission fidelity** and **public business proof**, not on changing sender architecture.
+
+**Concrete remediation before resubmission**
+- Use the exact booking / public business URL for Element in the 10DLC submission, not a generic `https://vurium.com/book/` root path.
+- Make sure the CTA text shown on the live booking page uses the same business / DBA name that was submitted for the campaign.
+- Strengthen the public Element page so a reviewer can clearly see:
+  - business name
+  - services / what the business offers
+  - address / contact details
+  - hours / staff / basic business identity
+- Recheck that Terms / Privacy remain public, linked, and consistent with the exact business name used in the CTA.
 
 ### Campaign 2 — CUSTOMER_CARE (VuriumBook Appointment Notifications)
 
@@ -495,7 +511,7 @@ Already uses `{shopName}: ` prefix + STOP/HELP language in all SMS.
 - `POST /api/sms/register` and `POST /api/sms/verify-otp` remain active
 - Manual / grandfathered workspaces continue to see the SP / 10DLC flow in Settings
 - New backend saves now tag manual registrations with `sms_number_type: '10dlc'`
-- Element remains the live pending manual example
+- Element remains the live manual-path remediation example
 
 ### OTP / verification path
 

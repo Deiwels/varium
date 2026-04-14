@@ -27,6 +27,28 @@
   - Jonathan / Telnyx follow-up
   - Verify Profile account issues
 
+## SMS — ELEMENT MANUAL REVIEW UPDATE
+
+- [x] Element Barbershop received an MNO response for campaign `CICHCOJ`
+  - Status: `Failed MNO Review`
+  - Reasons:
+    - website lacks sufficient company / product information
+    - CTA does not contain registered / DBA brand name
+- [ ] Before Element resubmission, fix submission fidelity:
+  - use the exact Element booking / public URL, not generic `/book/`
+  - confirm CTA copy matches the submitted DBA / brand name exactly
+- [ ] Before Element resubmission, strengthen public business proof on the Element-facing page:
+  - clear business identity
+  - services / what the business offers
+  - address / contact information
+  - enough visible business information for reviewer verification
+- [x] Website-side proof remediation started
+  - `app/book/[id]/page.tsx` now shows a public `Business details` section and `Services` preview on the landing page
+  - `/public/config/:workspace_id` now exposes allowlisted `shop_address`, `shop_phone`, and `shop_email` for the public booking page
+- [x] Backend submission fidelity patched for future resubmission
+  - `backend/index.js` 10DLC submission now builds `messageFlow` from the exact workspace booking URL instead of generic `/book/`
+  - submission CTA wording now explicitly says `${shopName} Appointment Notifications via SMS`
+
 ## SUPPORT EMAIL STYLE — DONE
 
 - Re-read `docs/Features/Email System.md`, `docs/Features/Developer Panel.md`, and the current `backend/index.js` / `app/developer/email/page.tsx` paths before changing any support-email behavior
@@ -406,7 +428,7 @@ Three-AI consensus (Claude / Codex / Verdent):
 - [x] Add env var to Cloud Run deploy workflow — wired in `.github/workflows/deploy-backend.yml`
 - [ ] Written Telnyx confirmation or internal pilot sign-off for Vurium-managed toll-free appointment reminders
 - [ ] Confirm Element / existing manual 10DLC workspaces remain untouched after the pivot
-  - `Element Barbershop` is the explicit protected pending-review case; do not migrate or rewrite its SMS path while approval is in progress
+  - `Element Barbershop` is the explicit protected failed-review remediation case; do not migrate or rewrite its SMS path while website / CTA fixes are in progress
 
 ## Code Quality & Security (2026-04-13)
 
