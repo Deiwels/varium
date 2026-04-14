@@ -27,6 +27,21 @@
   - Jonathan / Telnyx follow-up
   - Verify Profile account issues
 
+## HOTFIX 2026-04-15 — Element legal links now preserve business context
+
+- [x] Owner raised a valid reviewer-flow concern: from `Element` booking page, `Privacy Policy` / `Terms` were opening generic Vurium legal pages with no obvious first-screen explanation of how `Element Barbershop` fit into the flow
+- [x] AI 2 updated `app/book/[id]/page.tsx` so legal links and stored SMS consent text now carry `business` + `slug` context
+- [x] AI 2 updated `app/privacy/page.tsx` and `app/terms/page.tsx` so the linked pages render a business-aware context panel, including the relationship:
+  - customer books with the business
+  - the appointment-notification program is branded to that business
+  - VuriumBook is the scheduling / messaging platform
+- [ ] Owner live-check after Vercel deploy:
+  - [ ] Open `/book/elementbarbershop`
+  - [ ] Click `Privacy Policy`
+  - [ ] Confirm the page explicitly says the booking / SMS context is for `Element Barbershop` via VuriumBook
+  - [ ] Click `Terms`
+  - [ ] Confirm the same business-context panel appears near the `#sms` section
+
 ## BUILD HOTFIX — AI 2
 
 - [x] Fixed Vercel TypeScript build regression in `components/Shell.tsx`

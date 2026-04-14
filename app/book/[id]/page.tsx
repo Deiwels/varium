@@ -810,8 +810,17 @@ export default function PublicBookingPage() {
   const smsProgramName = shopName || config.shop_name
     ? `${smsSenderName} Appointment Notifications`
     : 'appointment notifications'
+  const bookingSlug = String(wsId || '').trim()
+  const legalContextQuery = new URLSearchParams({
+    business: displayName,
+    slug: bookingSlug,
+  }).toString()
+  const privacyHref = `/privacy?${legalContextQuery}#sms`
+  const termsHref = `/terms?${legalContextQuery}#sms`
+  const privacyUrl = `https://vurium.com${privacyHref}`
+  const termsUrl = `https://vurium.com${termsHref}`
   const smsConsentTextVersion = 'booking-sms-optin-business-name-v1'
-  const smsConsentText = `I agree to receive ${smsProgramName} via SMS (confirmations, reminders, reschedules, and cancellations). Message frequency may vary (up to 5 per booking). Standard message and data rates may apply. Reply STOP to opt out. Reply HELP for help. Consent is not a condition of purchase. Terms: https://vurium.com/terms Privacy Policy: https://vurium.com/privacy`
+  const smsConsentText = `I agree to receive ${smsProgramName} via SMS (confirmations, reminders, reschedules, and cancellations). Message frequency may vary (up to 5 per booking). Standard message and data rates may apply. Reply STOP to opt out. Reply HELP for help. Consent is not a condition of purchase. Terms: ${termsUrl} Privacy Policy: ${privacyUrl}`
   const smsFooterComplianceText = `${shopName || config.shop_name ? smsProgramName : 'Appointment notifications'}: up to 5 messages per booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`
   const bookingSettings = config.booking || {}
   const displaySettings = config.display || {}
@@ -1128,8 +1137,8 @@ export default function PublicBookingPage() {
                   <div style={{ paddingTop: 14, borderTop: `1px solid ${borderSoft}` }}>
                     <div style={{ fontSize: 11, color: textDim, lineHeight: 1.6 }}>{smsFooterComplianceText}</div>
                     <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                      <a href="https://vurium.com/privacy#sms" target="_blank" rel="noopener" style={{ color: textSoft, textDecoration: 'underline', textUnderlineOffset: '2px', fontSize: 12 }}>Privacy Policy</a>
-                      <a href="https://vurium.com/terms#sms" target="_blank" rel="noopener" style={{ color: textSoft, textDecoration: 'underline', textUnderlineOffset: '2px', fontSize: 12 }}>Terms</a>
+                      <a href={privacyHref} target="_blank" rel="noopener" style={{ color: textSoft, textDecoration: 'underline', textUnderlineOffset: '2px', fontSize: 12 }}>Privacy Policy</a>
+                      <a href={termsHref} target="_blank" rel="noopener" style={{ color: textSoft, textDecoration: 'underline', textUnderlineOffset: '2px', fontSize: 12 }}>Terms</a>
                     </div>
                   </div>
 
@@ -1909,7 +1918,7 @@ export default function PublicBookingPage() {
           <div className="bp-legal" style={{ fontSize: 10, color: isLightTheme ? 'rgba(0,0,0,.3)' : 'rgba(255,255,255,.22)', lineHeight: 1.6, maxWidth: 400, margin: '8px auto 0' }}>
             {smsFooterComplianceText}
             <div style={{ marginTop: 3 }}>
-              <a href="https://vurium.com/privacy#sms" target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.3)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>Privacy Policy</a> &amp; <a href="https://vurium.com/terms#sms" target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.3)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>Terms</a>
+              <a href={privacyHref} target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.3)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>Privacy Policy</a> &amp; <a href={termsHref} target="_blank" rel="noopener" style={{ color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.3)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>Terms</a>
             </div>
           </div>
         )}

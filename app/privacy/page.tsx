@@ -1,11 +1,19 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
+
 const heading: React.CSSProperties = { fontSize: 20, fontWeight: 600, color: 'rgba(130,150,220,.8)', marginBottom: 12, marginTop: 48 }
 const text: React.CSSProperties = { fontSize: 15, fontWeight: 300, color: 'rgba(255,255,255,.45)', lineHeight: 1.8, marginBottom: 16 }
 const list: React.CSSProperties = { ...text, paddingLeft: 24 }
 const highlight: React.CSSProperties = { background: 'rgba(130,150,220,.04)', border: '1px solid rgba(130,150,220,.08)', borderRadius: 14, padding: '24px 28px', marginBottom: 24, marginTop: 16 }
 
 export default function PrivacyPage() {
+  const searchParams = useSearchParams()
+  const smsBusinessName = String(searchParams.get('business') || '').trim()
+  const smsBusinessSlug = String(searchParams.get('slug') || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
+  const smsBookingPath = smsBusinessSlug ? `/book/${encodeURIComponent(smsBusinessSlug)}` : ''
+  const hasSmsBusinessContext = !!smsBusinessName
+
   return (
     <>
       <nav className="navbar">
@@ -23,13 +31,26 @@ export default function PrivacyPage() {
       </nav>
 
       <main style={{ minHeight: '100vh', maxWidth: 800, margin: '0 auto', padding: 'clamp(100px, 12vh, 140px) 24px 80px', position: 'relative', zIndex: 2 }}>
-        <p className="label-glow" style={{ marginBottom: 12 }}>Legal</p>
+        <p className="label-glow" style={{ marginBottom: 12 }}>
+          Legal{hasSmsBusinessContext ? ` · ${smsBusinessName}` : ''}
+        </p>
         <h1 className="shimmer-text" style={{ fontSize: 'clamp(28px, 4.5vw, 42px)', fontWeight: 600, letterSpacing: '-.03em', marginBottom: 8 }}>
           Privacy Policy
         </h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,.25)', marginBottom: 48 }}>
           Effective Date: April 1, 2026 &middot; Last Updated: April 13, 2026
         </p>
+
+        {hasSmsBusinessContext && (
+          <div style={{ ...highlight, marginTop: 0 }}>
+            <p style={{ ...text, marginBottom: 12 }}>
+              <strong style={{ color: 'rgba(255,255,255,.6)' }}>{smsBusinessName}</strong> uses VuriumBook as its scheduling and messaging platform. This page explains how appointment-booking data and SMS consent are handled when a client books with {smsBusinessName} through VuriumBook.
+            </p>
+            <p style={{ ...text, marginBottom: 0 }}>
+              Reviewer context: the business is <strong style={{ color: 'rgba(255,255,255,.6)' }}>{smsBusinessName}</strong>; Vurium Inc. is the platform operator. {smsBookingPath ? <>Return to the public booking page: <a href={smsBookingPath} style={{ color: 'rgba(130,150,220,.7)', textDecoration: 'none' }}>{smsBookingPath}</a>.</> : null}
+            </p>
+          </div>
+        )}
 
         {/* Introduction */}
         <p style={text}>
@@ -69,6 +90,17 @@ export default function PrivacyPage() {
 
         {/* 4. SMS / Text Messaging Programs */}
         <h2 id="sms" style={heading}>4. SMS / Text Messaging Programs</h2>
+
+        {hasSmsBusinessContext && (
+          <div style={{ ...highlight, marginTop: 18 }}>
+            <p style={{ ...text, marginBottom: 12 }}>
+              For this booking flow, the consumer-facing SMS program is presented as <strong style={{ color: 'rgba(255,255,255,.6)' }}>&quot;{smsBusinessName} Appointment Notifications.&quot;</strong>
+            </p>
+            <p style={{ ...text, marginBottom: 0 }}>
+              In plain terms: customers book with {smsBusinessName}, opt in to that business&apos;s appointment reminders, and VuriumBook provides the platform infrastructure used to deliver and log those messages.
+            </p>
+          </div>
+        )}
 
         <h3 style={{ ...heading, fontSize: 16, marginTop: 24 }}>Program A &mdash; Appointment Notifications (Customer Care)</h3>
         <div style={highlight}>
