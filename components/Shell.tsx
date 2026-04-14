@@ -73,6 +73,12 @@ function Icon({ id, color }: { id: string; color: string }) {
         <path d="M1 4v6h6" {...s}/>
         <path d="M3.51 15a9 9 0 1 0 .49-7.5" {...s}/>
       </svg>
+    case 'portfolio':
+      return <svg width="17" height="17" viewBox="0 0 24 24" {...{}}>
+        <rect x="3" y="3" width="18" height="18" rx="2.5" {...s}/>
+        <circle cx="8.5" cy="8.5" r="1.5" fill={color}/>
+        <path d="M21 15l-5-5L5 21" {...s}/>
+      </svg>
     case 'clients':
       return <svg width="17" height="17" viewBox="0 0 24 24" {...{}}>
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" {...s}/>
@@ -89,6 +95,11 @@ function Icon({ id, color }: { id: string; color: string }) {
     case 'attendance':
       return <svg width="17" height="17" viewBox="0 0 24 24" {...{}}>
         <circle cx="12" cy="12" r="10" {...s}/><polyline points="12 6 12 12 16 14" {...s}/>
+      </svg>
+    case 'cash':
+      return <svg width="17" height="17" viewBox="0 0 24 24" {...{}}>
+        <line x1="12" y1="1" x2="12" y2="23" {...s}/>
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" {...s}/>
       </svg>
     case 'membership':
       return <svg width="17" height="17" viewBox="0 0 24 24" {...{}}>
@@ -119,6 +130,12 @@ function Icon({ id, color }: { id: string; color: string }) {
         <circle cx="12" cy="12" r="3" {...s}/>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" {...s}/>
       </svg>
+    case 'billing':
+      return <svg width="17" height="17" viewBox="0 0 24 24" {...{}}>
+        <rect x="2" y="5" width="20" height="14" rx="2.5" {...s}/>
+        <line x1="2" y1="10" x2="22" y2="10" {...s}/>
+        <line x1="6" y1="15" x2="10" y2="15" {...s}/>
+      </svg>
     default:
       return <svg width="17" height="17" viewBox="0 0 24 24" {...{}}>
         <circle cx="12" cy="12" r="4" {...s}/>
@@ -127,8 +144,8 @@ function Icon({ id, color }: { id: string; color: string }) {
 }
 
 // ─── Profile Modal ────────────────────────────────────────────────────────────
-function ProfileModal({ user, onClose, onUpdated }: {
-  user: User; onClose: () => void; onUpdated: (u: User) => void
+function ProfileModal({ user, onClose, onUpdated, canChangePassword }: {
+  user: User; onClose: () => void; onUpdated: (u: User) => void; canChangePassword: boolean
 }) {
   const { showConfirm } = useDialog()
   const [name, setName] = useState(user.name || '')
@@ -234,7 +251,7 @@ function ProfileModal({ user, onClose, onUpdated }: {
 
   async function savePassword() {
     if (!currentPw || !newPw) { setErr('Fill both fields'); return }
-    if (newPw.length < 4) { setErr('Min 4 characters'); return }
+    if (newPw.length < 8) { setErr('Min 8 characters'); return }
     setSaving(true); setMsg(''); setErr('')
     try {
       const token = localStorage.getItem('VURIUMBOOK_TOKEN') || ''
@@ -306,10 +323,13 @@ function ProfileModal({ user, onClose, onUpdated }: {
         </div>
 
         <div style={{ display: 'flex', gap: 6, padding: '12px 18px 0' }}>
-          {(['profile'] as const).map(t => (
-            <button key={t} onClick={() => { setTab(t as any); setMsg(''); setErr('') }}
-              style={{ height: 30, padding: '0 12px', borderRadius: 999, cursor: 'pointer', fontWeight: tab === t ? 600 : 400, fontSize: 11, fontFamily: 'inherit', border: `1px solid ${tab === t ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.06)'}`, background: tab === t ? 'rgba(255,255,255,.08)' : 'transparent', color: tab === t ? '#e8e8ed' : 'rgba(255,255,255,.35)', transition: 'all .2s' }}>
-              Profile
+          {([
+            { id: 'profile', label: 'Profile' },
+            ...(canChangePassword ? [{ id: 'password', label: 'Password' }] : []),
+          ] as const).map(t => (
+            <button key={t.id} onClick={() => { setTab(t.id); setMsg(''); setErr('') }}
+              style={{ height: 30, padding: '0 12px', borderRadius: 999, cursor: 'pointer', fontWeight: tab === t.id ? 600 : 400, fontSize: 11, fontFamily: 'inherit', border: `1px solid ${tab === t.id ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.06)'}`, background: tab === t.id ? 'rgba(255,255,255,.08)' : 'transparent', color: tab === t.id ? '#e8e8ed' : 'rgba(255,255,255,.35)', transition: 'all .2s' }}>
+              {t.label}
             </button>
           ))}
         </div>
@@ -343,11 +363,11 @@ function ProfileModal({ user, onClose, onUpdated }: {
 
           {tab === 'password' && <>
             <div><label style={lbl}>Current password</label><input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} placeholder="••••••••" style={inp} /></div>
-            <div><label style={lbl}>New password</label><input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="Min 8 chars, letter + number" style={inp} /></div>
+            <div><label style={lbl}>New password</label><input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="Min 8 characters" style={inp} /></div>
             <button onClick={savePassword} disabled={saving} style={{ height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: '#e8e8ed', cursor: 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'inherit', opacity: saving ? .5 : 1 }}>
               {saving ? 'Saving…' : 'Update password'}
             </button>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Password change and account deletion available in Settings → Accounts</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>You can also manage account deletion from Settings → Accounts.</div>
           </>}
 
 
@@ -757,9 +777,10 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
   const isStudent = role === 'student'
   const isGuest = role === 'guest'
   // Check if user has any settings_access permission
-  const hasAnySettingsAccess = role === 'owner' || ['general', 'booking', 'site_builder', 'fees_tax', 'integrations'].some(k => hasPerm('settings_access', k))
+  const hasAnySettingsAccess = role === 'owner' || ['general', 'booking', 'site_builder', 'fees_tax', 'integrations', 'change_password', 'view_pin'].some(k => hasPerm('settings_access', k))
   const visibleNav = NAV.filter(item => {
     if ((item as any).ownerOnly && role !== 'owner') return false
+    if ((item as any).feature && !planHasFeature((item as any).feature)) return false
     // Settings: show if user has any settings_access permission
     if (item.id === 'settings') return hasAnySettingsAccess
     // For non-owner roles, check permissions
@@ -952,7 +973,13 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
           border:1px solid rgba(255,255,255,.05);
           box-shadow:0 2px 16px rgba(0,0,0,.35);
           animation: navBreathe 4s ease-in-out infinite;
+          max-width:calc(100vw - 32px);
+          overflow-x:auto;
+          overflow-y:hidden;
+          scrollbar-width:none;
+          -ms-overflow-style:none;
         }
+        .pill-inner::-webkit-scrollbar{display:none;}
         .pill-item{
           display:flex;align-items:center;justify-content:center;
           padding:7px 20px;border-radius:18px;
@@ -1048,27 +1075,13 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         {/* ── Bottom Pill Navigation ── */}
         <div className={`pill-bar${keyboardOpen ? ' keyboard-open' : ''}`}>
           <div className="pill-inner">
-            {[
-              { id: 'dashboard', href: '/dashboard', label: 'Home' },
-              { id: 'history', href: '/history', label: 'History' },
-              { id: 'calendar', href: '/calendar', label: 'Calendar' },
-              { id: 'messages', href: '/messages', label: 'Messages', feature: 'messages' },
-              { id: 'settings', href: '/settings', label: 'Settings' },
-            ].filter(item => {
-              // Permissions-based nav filtering
-              if (role !== 'owner' && item.id !== 'settings') {
-                if (!hasPerm('pages', item.id)) return false
-              }
-              // Settings: show if user has any settings_access permission
-              if (item.id === 'settings') return hasAnySettingsAccess
-              // Plan-based: hide items whose feature is not in current plan
-              if ((item as any).feature && !planHasFeature((item as any).feature)) return false
-              return true
-            }).map(item => {
-              const active = pathname === item.href || (item.id === 'settings' && ['/settings', '/billing', '/waitlist', '/portfolio', '/attendance', '/cash', '/membership', '/expenses', '/payroll', '/payments'].some(p => pathname.startsWith(p)))
+            {visibleNav.map(item => {
+              const active = item.href === '/dashboard'
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(`${item.href}/`)
               const hasUnread = item.id === 'messages' && !!unreadChat && pathname !== '/messages'
               return (
-                <Link key={item.id} href={item.href} className={`pill-item${active ? ' active' : ''}`}>
+                <Link key={item.id} href={item.href} className={`pill-item${active ? ' active' : ''}`} aria-label={item.label} title={item.label}>
                   <div className={`pill-ico${hasUnread ? ' has-unread' : ''}`}>
                     <Icon id={item.id} color="#fff" />
                     {hasUnread && <div className="pill-unread-dot" />}
@@ -1084,6 +1097,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
       {showProfile && user && (
         <ProfileModal
           user={user}
+          canChangePassword={role === 'owner' || hasPerm('settings_access', 'change_password')}
           onClose={() => setShowProfile(false)}
           onUpdated={u => { setUser(u); setShowProfile(false) }}
         />

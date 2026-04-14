@@ -2,6 +2,7 @@
 import Shell from '@/components/Shell'
 import { useEffect, useState, useCallback } from 'react'
 import { useDialog } from '@/components/StyledDialog'
+import { usePermissions } from '@/components/PermissionsProvider'
 
 import { apiFetch } from '@/lib/api'
 import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
@@ -186,9 +187,14 @@ export default function PaymentsPage() {
   const [sortBy, setSortBy] = useState<'date'|'amount'|'tip'|'client'|'status'|'method'>('date')
   const [sortDir, setSortDir] = useState<'asc'|'desc'>('desc')
   const { showConfirm, showError } = useDialog()
+  const { hasPerm, loading: permsLoading } = usePermissions()
 
   const [user] = useState(() => { try { return JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || '{}') } catch { return {} } })
-  const isOwner = user?.role === 'owner'
+  const role = user?.role || 'barber'
+  const canViewPayments = role === 'owner' || hasPerm('pages', 'payments')
+  const canReconcilePayments = role === 'owner' || role === 'admin'
+  const canSyncTips = role === 'owner'
+  const canRefundPayments = role === 'owner' || role === 'admin'
 
   // Sync tips from Square payment objects to bookings
   async function syncTips() {
@@ -223,6 +229,14 @@ export default function PaymentsPage() {
   const [filterMethod, setFilterMethod] = useState('')
 
   const load = useCallback(async () => {
+    if (permsLoading) return
+    if (!canViewPayments) {
+      setPayments([])
+      setTotals(null)
+      setLoading(false)
+      setError('')
+      return
+    }
     setLoading(true); setError('')
     try {
       const data = await apiFetch(`/api/payments?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
@@ -231,7 +245,7 @@ export default function PaymentsPage() {
       setTotals(data?.totals || null)
     } catch (e: any) { setError(e.message) }
     setLoading(false)
-  }, [from, to])
+  }, [canViewPayments, from, permsLoading, to])
 
   useVisibilityPolling(load, 30000, [load])
 
@@ -309,6 +323,18 @@ export default function PaymentsPage() {
 
   return (
     <Shell page="payments">
+      {!permsLoading && !canViewPayments ? (
+        <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
+          <div style={{ width: 'min(420px,100%)', borderRadius: 22, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.03)', padding: '22px 20px', textAlign: 'center', color: '#e8e8ed' }}>
+            <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', marginBottom: 8 }}>Access restricted</div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Payments are not enabled for this role</div>
+            <div style={{ fontSize: 13, lineHeight: 1.6, color: 'rgba(255,255,255,.58)' }}>
+              Ask the workspace owner to enable the <strong style={{ color: '#fff' }}>Payments</strong> page for your role in Settings → Roles &amp; Permissions if you need access here.
+            </div>
+          </div>
+        </div>
+      ) : (
+      <>
       <style>{`
         ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
         select option{background:#111}
@@ -356,16 +382,18 @@ export default function PaymentsPage() {
                 style={{ height: 34, padding: '0 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(255,255,255,.04)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontWeight: 800, fontSize: 10, fontFamily: 'inherit' }}>
                 CSV
               </button>
-              {isOwner && (
+              {canReconcilePayments && (
                 <>
                   <button onClick={reconcilePayments} disabled={syncing}
                     style={{ height: 34, padding: '0 10px', borderRadius: 999, border: '1px solid rgba(130,150,220,.35)', background: 'rgba(130,150,220,.06)', color: 'rgba(130,150,220,.7)', cursor: syncing ? 'wait' : 'pointer', fontWeight: 800, fontSize: 10, fontFamily: 'inherit', opacity: syncing ? .5 : 1 }}>
                     {syncing ? '…' : 'Reconcile'}
                   </button>
+                  {canSyncTips && (
                   <button onClick={syncTips} disabled={syncing}
                     style={{ height: 34, padding: '0 10px', borderRadius: 999, border: '1px solid rgba(143,240,177,.35)', background: 'rgba(143,240,177,.06)', color: 'rgba(130,220,170,.5)', cursor: syncing ? 'wait' : 'pointer', fontWeight: 800, fontSize: 10, fontFamily: 'inherit', opacity: syncing ? .5 : 1 }}>
                     {syncing ? '…' : 'Sync Tips'}
                   </button>
+                  )}
                 </>
               )}
             </div>
@@ -574,7 +602,7 @@ export default function PaymentsPage() {
                 </>)}
 
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {p.status === 'paid' && p.square_id && (
+                  {canRefundPayments && p.status === 'paid' && p.square_id && (
                     <button onClick={() => setRefundTarget(p)}
                       style={{ height: 36, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(255,107,107,.55)', background: 'rgba(255,107,107,.10)', color: 'rgba(220,130,160,.5)', cursor: 'pointer', fontWeight: 900, fontSize: 12, fontFamily: 'inherit' }}>
                       Refund
@@ -601,6 +629,8 @@ export default function PaymentsPage() {
         <RefundModal payment={refundTarget} onClose={() => setRefundTarget(null)} onDone={() => { setRefundTarget(null); load() }} />
       )}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </>
+      )}
     </Shell>
   )
 }

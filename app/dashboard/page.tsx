@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import Shell from '@/components/Shell'
 import OnboardingWizard from '@/components/OnboardingWizard'
+import { usePermissions } from '@/components/PermissionsProvider'
 import { apiFetch } from '@/lib/api'
 import { useVisibilityPolling } from '@/lib/useVisibilityPolling'
 
@@ -333,6 +334,8 @@ export default function DashboardPage() {
   const role: string = user?.role || 'owner'
   const isBarber = role === 'barber'
   const isStudent = role === 'student'
+  const { hasPerm } = usePermissions()
+  const hasAnySettingsAccess = role === 'owner' || ['general', 'booking', 'site_builder', 'fees_tax', 'integrations', 'change_password', 'view_pin'].some(key => hasPerm('settings_access', key))
 
   // Fetch audit warnings for payroll badge (owner only)
   useEffect(() => {
@@ -649,24 +652,24 @@ export default function DashboardPage() {
   // Tools — filtered by dashboard settings + role
   // Default 4 core always shown, extras only if enabled in settings
   const allActions = [
-    { label: 'Calendar', desc: 'Bookings & schedule', href: '/calendar', dashKey: 'dash_calendar', core: true },
-    { label: 'History', desc: 'Booking records', href: '/history', dashKey: 'dash_history', core: true },
-    { label: 'Clients', desc: 'Your client base', href: '/clients', dashKey: 'dash_clients', core: true },
-    { label: 'Payments', desc: 'Transactions', href: '/payments', dashKey: 'dash_payments', core: true },
-    { label: 'Waitlist', desc: 'Queue & notify', href: '/waitlist', dashKey: 'dash_waitlist' },
-    { label: 'Portfolio', desc: 'Work gallery', href: '/portfolio', dashKey: 'dash_portfolio' },
-    { label: 'Cash', desc: 'Daily register', href: '/cash', dashKey: 'dash_cash' },
-    { label: 'Membership', desc: 'Recurring clients', href: '/membership', dashKey: 'dash_membership' },
-    { label: 'Attendance', desc: 'Clock in / out', href: '/attendance', dashKey: 'dash_attendance' },
+    { label: 'Calendar', desc: 'Bookings & schedule', href: '/calendar', dashKey: 'dash_calendar', core: true, pageId: 'calendar' },
+    { label: 'History', desc: 'Booking records', href: '/history', dashKey: 'dash_history', core: true, pageId: 'history' },
+    { label: 'Clients', desc: 'Your client base', href: '/clients', dashKey: 'dash_clients', core: true, pageId: 'clients' },
+    { label: 'Payments', desc: 'Transactions', href: '/payments', dashKey: 'dash_payments', core: true, pageId: 'payments' },
+    { label: 'Waitlist', desc: 'Queue & notify', href: '/waitlist', dashKey: 'dash_waitlist', pageId: 'waitlist' },
+    { label: 'Portfolio', desc: 'Work gallery', href: '/portfolio', dashKey: 'dash_portfolio', pageId: 'portfolio' },
+    { label: 'Cash', desc: 'Daily register', href: '/cash', dashKey: 'dash_cash', pageId: 'cash' },
+    { label: 'Membership', desc: 'Recurring clients', href: '/membership', dashKey: 'dash_membership', pageId: 'membership' },
+    { label: 'Attendance', desc: 'Clock in / out', href: '/attendance', dashKey: 'dash_attendance', pageId: 'attendance' },
     ...(role === 'owner' ? [
-      { label: 'Expenses', desc: 'Track costs', href: '/expenses', dashKey: 'dash_expenses' },
+      { label: 'Expenses', desc: 'Track costs', href: '/expenses', dashKey: 'dash_expenses', pageId: 'expenses' },
       { label: 'Payroll', desc: 'Commission + tips', href: '/payroll', dashKey: 'dash_payroll' },
     ] : []),
-    { label: 'Settings', desc: 'Config & team', href: '/settings', dashKey: null, core: true },
+    { label: 'Settings', desc: 'Config & team', href: '/settings', dashKey: null, core: true, settingsAccess: true },
   ]
   const actions = allActions.filter(item => {
-    if (isBarber && ['Clients', 'Payments', 'Cash', 'Membership', 'Expenses', 'Payroll', 'Settings'].includes(item.label)) return false
-    if (isStudent && item.label !== 'Calendar') return false
+    if ((item as any).settingsAccess && !hasAnySettingsAccess) return false
+    if (role !== 'owner' && (item as any).pageId && !hasPerm('pages', (item as any).pageId)) return false
     // Core items always shown; extras only if enabled in settings
     if (!(item as any).core && item.dashKey && dashSettings[item.dashKey] === false) return false
     return true
