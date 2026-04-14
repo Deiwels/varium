@@ -33,6 +33,10 @@
   - build failure was caused by `setTab(t.id)` receiving a widened `string` instead of the local `'profile' | 'password'` union
   - AI 2 replaced the inline inferred tab list with a typed `profileTabs` array
   - no product behavior changed; this only restores a clean production build
+- [x] Fixed Vercel TypeScript build regression in `app/book/[id]/page.tsx`
+  - build failure was caused by `showCustomBusinessProof` referencing `activeTemplate` before `activeTemplate` was declared
+  - AI 2 moved the custom-page proof flag below template resolution
+  - no UI logic changed; this only restores the Element custom-page proof patch to a build-safe state
 
 ## HOTFIX 2026-04-15 — Waitlist regression (commit `a3c885f`)
 

@@ -827,7 +827,6 @@ export default function PublicBookingPage() {
   const featuredServices = services.slice(0, 6)
   const timezoneLabel = formatTimezoneLabel(config.timezone)
   const brandedBookingLabel = displayName ? `Book with ${displayName}` : 'Book now'
-  const showCustomBusinessProof = activeTemplate === 'custom' && !!(displayName || hasBusinessDetails || featuredServices.length > 0)
   const phoneReadyForBooking = clientPhone ? isValidPhone(clientPhone) : !requirePhone
   const canSubmitBooking = !!clientName.trim() && isValidEmail(clientEmail) && phoneReadyForBooking
   const bookingSubmitting = bookLoading || paymentLoading
@@ -875,6 +874,7 @@ export default function PublicBookingPage() {
   }
   // Individual: Vurium (modern) unless AI style. Salon/Custom: use selected template.
   const activeTemplate = template === 'ai' ? 'ai' : (effectivePlan === 'salon' || effectivePlan === 'custom') ? template : 'modern'
+  const showCustomBusinessProof = activeTemplate === 'custom' && !!(displayName || hasBusinessDetails || featuredServices.length > 0)
   const t = TEMPLATES[activeTemplate] || TEMPLATES.modern
   const isLightTheme = ['classic', 'colorful'].includes(activeTemplate)
 
