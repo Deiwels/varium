@@ -1009,18 +1009,34 @@ function sendApnsPush(deviceToken, title, body, data = {}, bundleId) {
   });
 }
 
-// Helper: get workspace push notification settings (from Settings → Booking)
-let _wsPushPrefsCache = {};
-let _wsPushPrefsCacheTime = 0;
+// Helper: get workspace push notification settings (from Settings → Booking).
+// BUG-003 fix: cache is now keyed per workspace (was a single shared object that caused a
+// 30-second cross-tenant leak — e.g. workspace A's push_chat_messages=false would cause
+// workspace B to silently drop chat pushes for up to 30s, or vice versa). The cache is
+// also capped at 256 entries to bound memory under churn.
+const _wsPushPrefsCache = new Map(); // wsId -> { prefs, ts }
+const WS_PUSH_PREFS_TTL_MS = 30000;
+const WS_PUSH_PREFS_MAX = 256;
 async function getWorkspacePushPrefs(wsCol) {
   const now = Date.now();
-  if (_wsPushPrefsCache && now - _wsPushPrefsCacheTime < 30000) return _wsPushPrefsCache;
   try {
-    const snap = await wsCol('settings').doc('config').get();
+    const settingsRef = wsCol('settings').doc('config');
+    // Path shape: workspaces/{wsId}/settings/config
+    const wsId = settingsRef.path.split('/')[1] || '__unknown__';
+
+    const cached = _wsPushPrefsCache.get(wsId);
+    if (cached && now - cached.ts < WS_PUSH_PREFS_TTL_MS) return cached.prefs;
+
+    const snap = await settingsRef.get();
     const data = snap.exists ? snap.data() : {};
     const booking = data.booking || {};
-    _wsPushPrefsCache = booking;
-    _wsPushPrefsCacheTime = now;
+
+    // Evict oldest entry if cache is full — cheap bounded LRU-ish
+    if (_wsPushPrefsCache.size >= WS_PUSH_PREFS_MAX) {
+      const firstKey = _wsPushPrefsCache.keys().next().value;
+      if (firstKey !== undefined) _wsPushPrefsCache.delete(firstKey);
+    }
+    _wsPushPrefsCache.set(wsId, { prefs: booking, ts: now });
     return booking;
   } catch { return {}; }
 }
@@ -1628,8 +1644,21 @@ app.post('/api/webhooks/square', async (req, res) => {
               break;
             }
           }
-          // Fuzzy match by date + amount
-          const bSnap = await wsCol('bookings').where('date', '==', spDate).limit(100).get();
+          // Fuzzy match by date + amount.
+          // BUG-009 fix: booking documents do not have a top-level `date` field —
+          // the CRM create path and public booking create path both write `start_at`
+          // as an ISO datetime string and nothing else. Querying `.where('date', '==', spDate)`
+          // returned zero matches every time, so Square payments without a booking
+          // id in the note stayed unreconciled forever. We now do a ranged query on
+          // `start_at` covering spDate 00:00 → 24:00 UTC-ish (best-effort; exact
+          // workspace timezone is not needed for this ±$2 tolerance reconciliation).
+          const dayStart = `${spDate}T00:00:00.000Z`;
+          const dayEnd = `${spDate}T23:59:59.999Z`;
+          const bSnap = await wsCol('bookings')
+            .where('start_at', '>=', dayStart)
+            .where('start_at', '<=', dayEnd)
+            .limit(100)
+            .get();
           for (const bDoc of bSnap.docs) {
             const b = bDoc.data();
             if (b.paid) continue;
@@ -4544,6 +4573,31 @@ app.delete('/api/auth/delete-account', async (req, res) => {
     if (req.user.role === 'owner') {
       // Owner: delete entire workspace and all subcollections
       const wsRef = db.collection('workspaces').doc(req.wsId);
+
+      // BUG-010 fix: the top-level `slugs` collection and the top-level
+      // `phone_number_index` entry (Gap 3) both point into this workspace. If we do
+      // not delete them first, the slug stays reserved forever (new signups can
+      // never reuse the friendly URL) and the inbound SMS webhook still resolves
+      // STOP replies to a dead workspace id.
+      try {
+        const wsDocSnap = await wsRef.get();
+        const slug = wsDocSnap.exists ? (wsDocSnap.data()?.slug || '') : '';
+        if (slug) {
+          await db.collection('slugs').doc(slug).delete().catch(() => {});
+        }
+        // Clean up phone_number_index for this workspace's SMS sender
+        const cfgSnap = await wsRef.collection('settings').doc('config').get();
+        if (cfgSnap.exists) {
+          const cfgData = cfgSnap.data() || {};
+          const fromNumber = safeStr(cfgData.sms_from_number || '').replace(/\D/g, '');
+          if (fromNumber) {
+            await db.collection('phone_number_index').doc(fromNumber).delete().catch(() => {});
+          }
+        }
+      } catch (e) {
+        console.warn('Slug / phone_number_index cleanup warning:', e?.message);
+      }
+
       const subcollections = [
         'users', 'barbers', 'services', 'clients', 'bookings', 'memberships',
         'expenses', 'reviews', 'applications', 'attendance', 'audit_logs',
@@ -6257,6 +6311,60 @@ app.post('/api/messages', requirePlanFeature('messages'), async (req, res) => {
     }
     res.status(201).json({ id: ref.id, ...doc });
   } catch (e) { res.status(500).json({ error: e?.message }); }
+});
+
+// BE.4: toggle an emoji reaction on a message.
+// Frontend has supported long-press reactions for weeks, but this endpoint was
+// missing — every reaction tap returned 404 in production.
+// Stored shape: `reactions: { [emoji]: uid[] }` — if uid is already in the array
+// for that emoji we remove it (untoggle), otherwise we add it. A Firestore
+// transaction keeps concurrent taps from stomping each other; `@google-cloud/firestore`
+// does not expose a directly-imported `FieldValue`, so we use read-modify-write.
+app.patch('/api/messages/:id/reactions', requirePlanFeature('messages'), async (req, res) => {
+  try {
+    const msgId = safeStr(req.params.id);
+    if (!msgId) return res.status(400).json({ error: 'message id required' });
+    const emojiRaw = safeStr(req.body?.emoji || '');
+    // Allow only a small fixed set of emojis to match the frontend picker and
+    // avoid unbounded keys in the Firestore doc.
+    const ALLOWED_REACTIONS = new Set(['👍', '❤️', '😂', '🔥', '👏', '😢']);
+    if (!ALLOWED_REACTIONS.has(emojiRaw)) return res.status(400).json({ error: 'unsupported emoji' });
+
+    const uid = safeStr(req.user.uid);
+    if (!uid) return res.status(401).json({ error: 'no user' });
+
+    const msgRef = req.ws('messages').doc(msgId);
+    let toggled = 'unchanged';
+    let finalReactions = {};
+
+    await db.runTransaction(async (tx) => {
+      const msgDoc = await tx.get(msgRef);
+      if (!msgDoc.exists) {
+        const err = new Error('message not found');
+        err.statusCode = 404;
+        throw err;
+      }
+      const current = msgDoc.data() || {};
+      const reactions = (current.reactions && typeof current.reactions === 'object') ? { ...current.reactions } : {};
+      const arr = Array.isArray(reactions[emojiRaw]) ? reactions[emojiRaw].slice() : [];
+      if (arr.includes(uid)) {
+        const filtered = arr.filter(u => u !== uid);
+        if (filtered.length === 0) delete reactions[emojiRaw];
+        else reactions[emojiRaw] = filtered;
+        toggled = 'removed';
+      } else {
+        reactions[emojiRaw] = [...arr, uid];
+        toggled = 'added';
+      }
+      finalReactions = reactions;
+      tx.update(msgRef, { reactions });
+    });
+
+    res.json({ ok: true, toggled, reactions: finalReactions });
+  } catch (e) {
+    if (e?.statusCode === 404) return res.status(404).json({ error: e.message });
+    res.status(500).json({ error: e?.message });
+  }
 });
 
 // ============================================================
@@ -10862,7 +10970,11 @@ app.post('/public/manage-booking/reschedule', async (req, res) => {
 app.get('/api/data-export', requireAuth, async (req, res) => {
   try {
     const wsId = req.wsId;
-    const userId = req.userId;
+    // BUG-008 fix: auth middleware sets req.user.uid, never req.userId. Previously every
+    // query below ran with userId=undefined and silently returned empty results — GDPR
+    // export responded with a zero-content file that still claimed to be a valid export.
+    const userId = req.user?.uid;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
     const wsCol = (col) => db.collection('workspaces').doc(wsId).collection(col);
 
     // Gather user profile
