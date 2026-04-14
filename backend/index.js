@@ -639,39 +639,122 @@ async function getWorkspaceEmailConfig(wsId) {
   };
 }
 
+function getVuriumMailboxMeta(account) {
+  const email = safeStr(account || '').trim().toLowerCase();
+  if (email === 'billing@vurium.com') {
+    return {
+      teamLabel: 'Billing',
+      teamEmail: 'billing@vurium.com',
+      fromName: 'Vurium Billing',
+      fromHeader: 'Vurium Billing <billing@vurium.com>',
+      eyebrow: 'Billing message',
+      intro: 'You are receiving this message from the Vurium billing team.',
+      actionNote: 'Reply directly to this email if you need help with billing, invoices, or plan changes.',
+      signature: 'Vurium Billing',
+    };
+  }
+  if (email === 'sales@vurium.com') {
+    return {
+      teamLabel: 'Sales',
+      teamEmail: 'sales@vurium.com',
+      fromName: 'Vurium Sales',
+      fromHeader: 'Vurium Sales <sales@vurium.com>',
+      eyebrow: 'Sales message',
+      intro: 'You are receiving this message from the Vurium sales team.',
+      actionNote: 'Reply directly to this email if you would like help with pricing, demos, or rollout questions.',
+      signature: 'Vurium Sales',
+    };
+  }
+  if (email === 'security@vurium.com') {
+    return {
+      teamLabel: 'Security',
+      teamEmail: 'security@vurium.com',
+      fromName: 'Vurium Security',
+      fromHeader: 'Vurium Security <security@vurium.com>',
+      eyebrow: 'Security message',
+      intro: 'You are receiving this message from the Vurium security team.',
+      actionNote: 'Reply directly to this email if you need help with account safety or security-related questions.',
+      signature: 'Vurium Security',
+    };
+  }
+  return {
+    teamLabel: 'Support',
+    teamEmail: 'support@vurium.com',
+    fromName: 'Vurium Support',
+    fromHeader: 'Vurium Support <support@vurium.com>',
+    eyebrow: 'Support message',
+    intro: 'You are receiving this message from the Vurium support team.',
+    actionNote: 'Reply directly to this email if you need anything else and our team will pick it up.',
+    signature: 'Vurium Support',
+  };
+}
+
 // ─── Support/Admin Email Template — formal, logo in header bar ────────────────
-function vuriumSupportEmailTemplate(subject, bodyHtml) {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#050505;font-family:'Inter','Helvetica Neue',Helvetica,Arial,sans-serif;color:#e8e8ed;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#050505;">
-<!-- Header bar with logo -->
+function vuriumSupportEmailTemplate(subject, bodyHtml, opts = {}) {
+  const teamLabel = sanitizeHtml(safeStr(opts.teamLabel || 'Support'));
+  const teamEmail = sanitizeHtml(safeStr(opts.teamEmail || 'support@vurium.com'));
+  const eyebrow = sanitizeHtml(safeStr(opts.eyebrow || `${teamLabel} message`));
+  const intro = sanitizeHtml(safeStr(opts.intro || `You are receiving this message from the Vurium ${teamLabel.toLowerCase()} team.`));
+  const actionNote = sanitizeHtml(safeStr(opts.actionNote || 'Reply directly to this email if you need anything else and our team will pick it up.'));
+  const signature = sanitizeHtml(safeStr(opts.signature || `Vurium ${teamLabel}`));
+  const cleanSubject = sanitizeHtml(safeStr(subject || 'Message from Vurium'));
+  const preheader = sanitizeHtml(safeStr(opts.preheader || `${cleanSubject} — message from ${signature}`));
+  const safeBody = bodyHtml || '<p style="margin:0;color:#475467;">No message content.</p>';
+
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+</head>
+<body style="margin:0;padding:0;background:#eef2f7;font-family:'Inter','Helvetica Neue',Helvetica,Arial,sans-serif;color:#101828;">
+<div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0;">${preheader}</div>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;padding:32px 20px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;">
+<tr><td style="padding:0 6px 18px;">
+<table cellpadding="0" cellspacing="0" style="margin:0 auto 0 0;">
+<tr>
+<td style="width:38px;">
+<div style="width:38px;height:38px;border-radius:11px;background:#050505;text-align:center;line-height:38px;">
+<img src="https://vurium.com/logo-white.jpg" width="26" height="26" style="border-radius:8px;display:inline-block;vertical-align:middle;" alt="Vurium">
+</div>
+</td>
+<td style="padding-left:12px;">
+<div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#667085;font-weight:600;">Vurium</div>
+<div style="font-size:16px;font-weight:600;color:#101828;letter-spacing:-.02em;">${teamLabel}</div>
+</td>
+</tr>
+</table>
+</td></tr>
 <tr><td>
-<table width="100%" style="max-width:560px;margin:0 auto;">
-<tr><td style="padding:28px 28px 20px;">
-<table cellpadding="0" cellspacing="0"><tr>
-<td style="width:32px;"><img src="https://vurium.com/logo-white.jpg" width="28" height="28" style="border-radius:7px;display:block;" alt="V"></td>
-<td style="padding-left:10px;font-size:15px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:-.01em;">Vurium</td>
-</tr></table>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #dfe5ef;border-radius:22px;overflow:hidden;">
+<tr><td style="padding:28px 32px 18px;border-bottom:1px solid #edf1f7;">
+<div style="display:inline-block;padding:7px 12px;border-radius:999px;background:#eef2ff;border:1px solid #d8ddf5;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#4f5f86;">${eyebrow}</div>
+<h1 style="margin:18px 0 10px;font-size:28px;line-height:1.18;font-weight:650;color:#101828;letter-spacing:-.03em;">${cleanSubject}</h1>
+<p style="margin:0;font-size:14px;line-height:1.7;color:#667085;">${intro}</p>
+</td></tr>
+<tr><td style="padding:24px 32px 8px;">
+<div style="font-size:15px;line-height:1.8;color:#344054;">
+${safeBody}
+</div>
+</td></tr>
+<tr><td style="padding:0 32px 30px;">
+<div style="margin-top:24px;padding:16px 18px;border-radius:14px;background:#f8fafc;border:1px solid #e8edf5;font-size:13px;line-height:1.7;color:#475467;">
+${actionNote}
+</div>
+<div style="margin-top:26px;font-size:14px;line-height:1.7;color:#475467;">
+<div style="margin-bottom:2px;">Best,</div>
+<div style="font-weight:600;color:#101828;">${signature}</div>
+<div><a href="mailto:${teamEmail}" style="color:#4f5f86;text-decoration:none;">${teamEmail}</a></div>
+</div>
 </td></tr>
 </table>
 </td></tr>
-<!-- Content -->
-<tr><td style="padding:0 20px 40px;">
-<table width="100%" style="max-width:560px;margin:0 auto;background:#0c0c0c;border:1px solid rgba(255,255,255,.06);border-radius:16px;overflow:hidden;">
-<tr><td style="padding:32px 32px 8px;">
-<h1 style="margin:0 0 20px;font-size:20px;font-weight:600;color:#e8e8ed;letter-spacing:-.02em;">${subject}</h1>
-</td></tr>
-<tr><td style="padding:0 32px 32px;font-size:14px;line-height:1.8;color:rgba(255,255,255,.55);">
-${bodyHtml}
-</td></tr>
-</table>
-</td></tr>
-<!-- Footer -->
-<tr><td style="padding:0 20px 32px;">
-<table width="100%" style="max-width:560px;margin:0 auto;">
-<tr><td style="padding:16px 0;border-top:1px solid rgba(255,255,255,.04);font-size:11px;color:rgba(255,255,255,.15);line-height:1.6;">
-Vurium Inc. &middot; <a href="https://vurium.com" style="color:rgba(255,255,255,.2);text-decoration:none;">vurium.com</a><br>
-<a href="https://vurium.com/privacy" style="color:rgba(255,255,255,.12);text-decoration:none;">Privacy Policy</a> &middot; <a href="https://vurium.com/terms" style="color:rgba(255,255,255,.12);text-decoration:none;">Terms of Service</a>
+<tr><td style="padding:18px 10px 0;font-size:11px;line-height:1.7;color:#98a2b3;">
+<a href="https://vurium.com" style="color:#98a2b3;text-decoration:none;">vurium.com</a>
+&nbsp;&middot;&nbsp;
+<a href="https://vurium.com/privacy" style="color:#98a2b3;text-decoration:underline;">Privacy Policy</a>
+&nbsp;&middot;&nbsp;
+<a href="https://vurium.com/terms" style="color:#98a2b3;text-decoration:underline;">Terms of Service</a>
 </td></tr>
 </table>
 </td></tr>
@@ -2311,16 +2394,18 @@ app.get('/api/vurium-dev/analytics', requireSuperadmin, async (req, res) => {
 // ── Email: Send (superadmin only) ──
 app.post('/api/vurium-dev/email/send', requireSuperadmin, async (req, res) => {
   try {
-    const { to, subject, body_html } = req.body;
+    const { to, subject, body_html, mailbox } = req.body;
     if (!to || !subject) return res.status(400).json({ error: 'Missing to or subject' });
 
-    const html = vuriumSupportEmailTemplate(subject, body_html || '<p>No content</p>');
-    const result = await sendEmail(to, subject, html, 'Vurium');
+    const mailboxMeta = getVuriumMailboxMeta(mailbox);
+    const html = vuriumSupportEmailTemplate(subject, body_html || '<p>No content</p>', mailboxMeta);
+    const result = await sendEmail(to, subject, html, mailboxMeta.fromName);
 
     // Save outbound email
     await db.collection('vurium_emails').add({
       direction: 'outbound',
       from: `noreply@vurium.com`,
+      mailbox: mailboxMeta.teamEmail,
       to, subject,
       body_html: body_html || '',
       body_text: '',
@@ -2360,21 +2445,29 @@ app.post('/api/vurium-dev/email/inbound', express.json({ limit: '5mb' }), async 
 
     // Forward notification to admin's personal email
     if (ADMIN_NOTIFY_EMAIL) {
-      const notifyHtml = vuriumEmailTemplate('New Email Received', `
-        <p style="margin:0 0 12px;color:rgba(255,255,255,.6);">You received a new email on <strong style="color:rgba(255,255,255,.8);">${recipientEmail}</strong></p>
-        <div style="margin:16px 0;padding:16px 20px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);">
-          <p style="margin:0 0 8px;font-size:12px;color:rgba(255,255,255,.35);">FROM</p>
-          <p style="margin:0 0 16px;color:rgba(255,255,255,.7);">${senderEmail}</p>
-          <p style="margin:0 0 8px;font-size:12px;color:rgba(255,255,255,.35);">SUBJECT</p>
-          <p style="margin:0 0 16px;font-weight:600;color:rgba(255,255,255,.8);">${cleanSubject}</p>
-          <p style="margin:0 0 8px;font-size:12px;color:rgba(255,255,255,.35);">PREVIEW</p>
-          <p style="margin:0;color:rgba(255,255,255,.5);font-size:13px;">${safeStr(text || '').substring(0, 300)}${(text || '').length > 300 ? '...' : ''}</p>
+      const notifyHtml = vuriumSupportEmailTemplate('New Email Received', `
+        <p style="margin:0 0 12px;color:#475467;">You received a new email on <strong style="color:#101828;">${recipientEmail}</strong>.</p>
+        <div style="margin:16px 0;padding:16px 20px;border-radius:14px;background:#f8fafc;border:1px solid #e8edf5;">
+          <p style="margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#98a2b3;">From</p>
+          <p style="margin:0 0 16px;color:#344054;">${senderEmail}</p>
+          <p style="margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#98a2b3;">Subject</p>
+          <p style="margin:0 0 16px;font-weight:600;color:#101828;">${cleanSubject}</p>
+          <p style="margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#98a2b3;">Preview</p>
+          <p style="margin:0;color:#475467;font-size:13px;line-height:1.7;">${safeStr(text || '').substring(0, 300)}${(text || '').length > 300 ? '...' : ''}</p>
         </div>
         <p style="margin:16px 0 0;text-align:center;">
-          <a href="https://vurium.com/developer/email" style="display:inline-block;padding:10px 28px;border-radius:999px;background:rgba(130,150,220,.15);color:rgba(130,150,220,.95);font-weight:700;font-size:13px;text-decoration:none;border:1px solid rgba(130,150,220,.2);">Open in Developer Panel</a>
+          <a href="https://vurium.com/developer/email" style="display:inline-block;padding:11px 26px;border-radius:999px;background:#eef2ff;color:#4f5f86;font-weight:700;font-size:13px;text-decoration:none;border:1px solid #d8ddf5;">Open in Developer Panel</a>
         </p>
-      `, 'Vurium', 'https://vurium.com/logo.jpg', 'dark-cosmos');
-      sendEmail(ADMIN_NOTIFY_EMAIL, `[Vurium] ${cleanSubject} — from ${senderEmail}`, notifyHtml, 'Vurium').catch(() => {});
+      `, {
+        teamLabel: 'Support Inbox',
+        teamEmail: 'support@vurium.com',
+        fromName: 'Vurium Support',
+        eyebrow: 'Inbox alert',
+        intro: 'A new message was received in the Vurium support inbox.',
+        actionNote: 'Open the Developer Panel to review the full thread and reply from the correct Vurium mailbox.',
+        signature: 'Vurium Support Operations',
+      });
+      sendEmail(ADMIN_NOTIFY_EMAIL, `[Vurium] ${cleanSubject} — from ${senderEmail}`, notifyHtml, 'Vurium Support').catch(() => {});
     }
 
     console.log('[DEV-EMAIL] Inbound from', senderEmail, 'subject:', cleanSubject);
@@ -2508,7 +2601,7 @@ function extractBody(payload) {
   return { html, text };
 }
 
-function buildRawEmail({ from, to, subject, html, inReplyTo, references }) {
+function buildRawEmail({ from, to, cc, bcc, subject, html, inReplyTo, references }) {
   const boundary = 'boundary_' + crypto.randomBytes(16).toString('hex');
   const headers = [
     `From: ${from}`,
@@ -2517,6 +2610,8 @@ function buildRawEmail({ from, to, subject, html, inReplyTo, references }) {
     `MIME-Version: 1.0`,
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
   ];
+  if (cc) headers.push(`Cc: ${cc}`);
+  if (bcc) headers.push(`Bcc: ${bcc}`);
   if (inReplyTo) headers.push(`In-Reply-To: ${inReplyTo}`, `References: ${references || inReplyTo}`);
   const body = [
     `--${boundary}`,
@@ -2655,13 +2750,14 @@ app.get('/api/vurium-dev/gmail/messages/:id', requireSuperadmin, async (req, res
 // Gmail: Send email
 app.post('/api/vurium-dev/gmail/send', requireSuperadmin, async (req, res) => {
   try {
-    const { account, to, subject, body_html } = req.body;
+    const { account, to, cc, bcc, subject, body_html } = req.body;
     if (!account || !to || !subject) return res.status(400).json({ error: 'account, to, subject required' });
     const gmail = await getGmailClient(account);
     if (!gmail) return res.status(400).json({ error: 'Account not connected', needsAuth: true });
 
-    const styledHtml = vuriumEmailTemplate(subject, body_html || '', 'Vurium', 'https://vurium.com/logo.jpg', 'dark-cosmos');
-    const raw = buildRawEmail({ from: account, to, subject, html: styledHtml });
+    const mailboxMeta = getVuriumMailboxMeta(account);
+    const styledHtml = vuriumSupportEmailTemplate(subject, body_html || '', mailboxMeta);
+    const raw = buildRawEmail({ from: mailboxMeta.fromHeader, to, cc, bcc, subject, html: styledHtml });
     const result = await gmail.users.messages.send({ userId: 'me', requestBody: { raw } });
     res.json({ ok: true, id: result.data.id, threadId: result.data.threadId });
   } catch (e) {
@@ -2678,9 +2774,10 @@ app.post('/api/vurium-dev/gmail/reply', requireSuperadmin, async (req, res) => {
     const gmail = await getGmailClient(account);
     if (!gmail) return res.status(400).json({ error: 'Account not connected', needsAuth: true });
 
-    const styledHtml = vuriumEmailTemplate(subject, body_html || '', 'Vurium', 'https://vurium.com/logo.jpg', 'dark-cosmos');
+    const mailboxMeta = getVuriumMailboxMeta(account);
+    const styledHtml = vuriumSupportEmailTemplate(subject, body_html || '', mailboxMeta);
     const raw = buildRawEmail({
-      from: account, to, subject,
+      from: mailboxMeta.fromHeader, to, subject,
       html: styledHtml,
       inReplyTo: messageId,
       references: messageId,

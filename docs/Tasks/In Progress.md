@@ -2,6 +2,18 @@
 
 > [[Home]] > Tasks | See also: [[Tasks/Backlog|Backlog]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]]
 
+## SUPPORT EMAIL STYLE — DONE
+
+- Re-read `docs/Features/Email System.md`, `docs/Features/Developer Panel.md`, and the current `backend/index.js` / `app/developer/email/page.tsx` paths before changing any support-email behavior
+- Replaced the old reminder-like support card with a mailbox-aware professional correspondence template used for:
+  - direct admin support sends via `/api/vurium-dev/email/send`
+  - Gmail send / reply from `support@`, `billing@`, `sales@`, and `security@`
+  - inbound admin notify emails forwarded to `ADMIN_NOTIFY_EMAIL`
+- Direct admin send now records the mailbox context and uses the matching display name (`Vurium Support`, `Vurium Billing`, etc.) instead of a generic `Vurium` sender label
+- Developer Panel email UI copy now matches the new model too:
+  - `Branded` wording removed
+  - support/team correspondence language used instead
+
 ## DEVELOPER PANEL — SMS OPERATIONS SYNC — DONE
 
 - Re-read `docs/Features/Developer Panel.md`, `docs/Features/Developer Panel — Improvement Plan.md`, and current `app/developer/*` code after AI Verdent's developer-panel work

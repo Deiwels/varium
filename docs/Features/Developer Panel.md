@@ -24,7 +24,7 @@ Private platform admin dashboard at `/developer` for managing `vurium.com`. Acce
 
 ### Email (`/developer/email`)
 - Gmail integration for inbox triage
-- Branded outbound email composer
+- Professional mailbox-aware outbound composer for Support / Billing / Sales / Security
 - Sent history, reply flow, CC/BCC support
 
 ### SMS (`/developer/sms`)

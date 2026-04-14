@@ -156,7 +156,8 @@ function AdminEmailPageInner() {
       await devFetch('/api/vurium-dev/email/send', {
         method: 'POST',
         body: JSON.stringify({
-          to: composeTo, cc: composeCC || undefined,
+          mailbox: activeAccount,
+          to: composeTo,
           subject: composeSubject, body_html: composeBody.replace(/\n/g, '<br>'),
         }),
       })
@@ -165,9 +166,9 @@ function AdminEmailPageInner() {
       devFetch('/api/vurium-dev/emails?direction=outbound&limit=20')
         .then(d => setSentEmails((d as { emails?: SentEmail[] }).emails || []))
         .catch(() => {})
-      toast.show('Branded email sent')
+      toast.show(`${activeMailbox.label} email sent`)
     } catch {
-      toast.show('Failed to send branded email', 'error')
+      toast.show(`Failed to send ${activeMailbox.label.toLowerCase()} email`, 'error')
     } finally { setSending(false) }
   }
 
@@ -221,12 +222,12 @@ function AdminEmailPageInner() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.85)', margin: 0 }}>Email</h1>
-          <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', marginTop: 4 }}>Gmail inboxes & branded email</p>
+          <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', marginTop: 4 }}>Gmail inboxes & professional team correspondence</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => { setComposeTo(''); setComposeCC(''); setComposeBCC(''); setComposeSubject(''); setComposeBody(''); setView('compose-branded') }}
             style={{ ...btnPrimary, background: 'rgba(220,170,100,.12)', color: 'rgba(220,170,100,.85)' }}>
-            + Branded
+            + {activeMailbox.label} Note
           </button>
           {isConnected && (
             <button onClick={() => { setComposeTo(''); setComposeCC(''); setComposeBCC(''); setComposeSubject(''); setComposeBody(''); setView('compose-gmail') }}
@@ -272,7 +273,7 @@ function AdminEmailPageInner() {
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
           >
             <div style={{ width: 8, height: 8, borderRadius: 4, flexShrink: 0, background: 'rgba(220,170,100,.5)' }} />
-            Branded history ({sentEmails.length})
+            Team history ({sentEmails.length})
           </button>
         </div>
 
@@ -461,22 +462,25 @@ function AdminEmailPageInner() {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button onClick={() => setView('inbox')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 6, color: 'rgba(130,150,220,.7)', fontSize: 13, fontFamily: 'inherit' }}>&larr; Cancel</button>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.6)' }}>Branded Email</span>
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginLeft: 'auto' }}>via Resend as noreply@vurium.com</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.6)' }}>{activeMailbox.label} Email</span>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginLeft: 'auto' }}>via Resend as {activeMailbox.label} on noreply@vurium.com</span>
               </div>
               <div style={{ padding: 24, flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {composeFields(true)}
+                {composeFields(false)}
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.1em', display: 'block', marginBottom: 4 }}>Body</label>
                   <textarea value={composeBody} onChange={e => setComposeBody(e.target.value)} placeholder="Write your message..."
                     rows={10} style={{ ...inp, height: '100%', padding: '12px', resize: 'vertical', lineHeight: 1.6 }} />
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.28)', lineHeight: 1.6 }}>
+                  This sends a support-style email through Resend with the selected Vurium team label.
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={handleBrandedSend} disabled={sending || !composeTo || !composeSubject} style={{
                     ...btnPrimary, height: 38, padding: '0 28px',
                     background: 'rgba(220,170,100,.15)', color: 'rgba(220,170,100,.9)',
                     opacity: sending || !composeTo || !composeSubject ? 0.4 : 1,
-                  }}>{sending ? 'Sending...' : 'Send Branded'}</button>
+                  }}>{sending ? 'Sending...' : `Send ${activeMailbox.label}`}</button>
                   <button onClick={() => setView('inbox')} style={{ ...btnPrimary, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.4)' }}>Cancel</button>
                 </div>
               </div>

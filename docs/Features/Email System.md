@@ -52,8 +52,23 @@ Two email systems: (1) transactional emails sent to workspace clients/staff, (2)
 - `/developer/email` — email management dashboard
 - `/developer/email/[id]` — individual email view
 - Full threaded conversation support
+- Support-style team correspondence for:
+  - `support@vurium.com`
+  - `billing@vurium.com`
+  - `sales@vurium.com`
+  - `security@vurium.com`
 
 ## Direct Email (Admin)
 | Method | Path | Purpose |
 |--------|------|---------|
 | POST | `/api/vurium-dev/email/send` | Send email directly (admin only) |
+
+## Support / Team Email Style
+- Support-facing emails now use a dedicated correspondence template instead of the generic branded booking-style card
+- The template is:
+  - left-aligned
+  - mailbox-aware (`Support`, `Billing`, `Sales`, `Security`)
+  - framed like a human response from the Vurium team, not like an appointment reminder
+- Gmail send/reply in Developer Panel now use the same professional support layout
+- Direct admin send via `/api/vurium-dev/email/send` also uses that template and stores which mailbox context it was sent from
+- Inbound admin notify emails now use the same support-style layout too, so internal alert emails match the live support experience
