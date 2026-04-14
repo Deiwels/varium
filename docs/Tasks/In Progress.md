@@ -238,8 +238,12 @@ See also: [[Tasks/SMS Finalization Plan|SMS Finalization Plan]]
 - [ ] Verify the legal pages still match the live SMS consent text after deploy
 
 #### AI 1 — backend / ops / Telnyx finalization
-- [ ] Create the real Telnyx Verify Profile and capture `TELNYX_VERIFY_PROFILE_ID` — **OWNER MANUAL TASK**
-- [ ] Save `TELNYX_VERIFY_PROFILE_ID` as the GitHub secret — **OWNER MANUAL TASK**
+- [ ] Create the real Telnyx Verify Profile and capture `TELNYX_VERIFY_PROFILE_ID` — **BLOCKED**
+  - Telnyx requires "whitelisted_destinations for call settings" even though we only need SMS
+  - We added US+Canada to Outbound Voice Profile allowed destinations but Telnyx still blocks
+  - **Action**: Ask Jonathan on next call to resolve this account-level blocker
+  - **NOT a launch blocker**: OTP works via legacy fallback (local 6-digit code + SMS)
+- [ ] Save `TELNYX_VERIFY_PROFILE_ID` as the GitHub secret — **BLOCKED** (waiting for profile creation)
 - [x] Confirm OTP endpoints work before and after secret — **CODE VERIFIED**
   - Without secret: legacy local 6-digit code via Firestore + SMS
   - With secret: Telnyx Verify API. Both have rate limiting.
