@@ -108,6 +108,9 @@ interface Barber { id: string; name: string; photo_url?: string; level?: string;
 interface Service { id: string; name: string; duration_minutes: number; price_cents: number; barber_ids?: string[]; service_type?: string }
 interface Config {
   shop_name?: string
+  shop_address?: string
+  shop_phone?: string
+  shop_email?: string
   hero_media_url?: string
   bannerText?: string
   bannerEnabled?: boolean
@@ -187,6 +190,11 @@ function processCustomHTML(html: string, data: { shopName: string; barbers: Barb
   })
 
   return result
+}
+
+function phoneHref(raw?: string): string {
+  const digits = String(raw || '').replace(/[^\d+]/g, '')
+  return digits ? `tel:${digits}` : ''
 }
 
 async function api(path: string, opts?: RequestInit) {
@@ -812,6 +820,11 @@ export default function PublicBookingPage() {
   const requirePhone = !!displaySettings.require_phone
   const allowBookingNotes = displaySettings.allow_notes !== false
   const cancellationHours = Math.max(0, Number(bookingSettings.cancellation_hours || 0))
+  const publicAddress = String(config.shop_address || '').trim()
+  const publicPhone = String(config.shop_phone || '').trim()
+  const publicEmail = String(config.shop_email || '').trim()
+  const hasBusinessDetails = !!(publicAddress || publicPhone || publicEmail)
+  const featuredServices = services.slice(0, 6)
   const timezoneLabel = formatTimezoneLabel(config.timezone)
   const phoneReadyForBooking = clientPhone ? isValidPhone(clientPhone) : !requirePhone
   const canSubmitBooking = !!clientName.trim() && isValidEmail(clientEmail) && phoneReadyForBooking
@@ -954,7 +967,50 @@ export default function PublicBookingPage() {
             </div>
           )}
 
-          {/* Services listed in booking flow after Book Now — not here */}
+          {/* Business details */}
+          {hasBusinessDetails && (
+            <div style={{ marginBottom: 40, padding: '20px 24px', borderRadius: 16, border: `1px solid ${t.cardBorder}`, background: t.card, backdropFilter: isLightTheme ? 'none' : 'blur(12px)' }}>
+              <div className="bp-section-title" style={{ fontSize: 12, color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Business details</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
+                {publicAddress && (
+                  <div>
+                    <div style={{ fontSize: 11, color: textDim, letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 6 }}>Location</div>
+                    <div style={{ fontSize: 14, color: textMuted, lineHeight: 1.6 }}>{publicAddress}</div>
+                  </div>
+                )}
+                {publicPhone && (
+                  <div>
+                    <div style={{ fontSize: 11, color: textDim, letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 6 }}>Phone</div>
+                    <a href={phoneHref(publicPhone)} style={{ fontSize: 14, color: textMain, textDecoration: 'none' }}>{publicPhone}</a>
+                  </div>
+                )}
+                {publicEmail && (
+                  <div>
+                    <div style={{ fontSize: 11, color: textDim, letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 6 }}>Email</div>
+                    <a href={`mailto:${publicEmail}`} style={{ fontSize: 14, color: textMain, textDecoration: 'none', wordBreak: 'break-word' }}>{publicEmail}</a>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Services preview */}
+          {featuredServices.length > 0 && (
+            <div style={{ marginBottom: 40 }}>
+              <div className="bp-section-title" style={{ fontSize: 12, color: isLightTheme ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.35)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Services</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+                {featuredServices.map(s => (
+                  <div key={s.id} style={{ padding: '14px 16px', borderRadius: 14, border: `1px solid ${t.cardBorder}`, background: t.card }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: textMain }}>{s.name}</div>
+                      {showPublicPrices && s.price_cents > 0 && <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(130,220,170,.75)' }}>{fmtPrice(s.price_cents)}</div>}
+                    </div>
+                    <div style={{ fontSize: 12, color: textMuted, marginTop: 5 }}>{s.duration_minutes} min</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Team */}
           {barbers.length > 1 && (
