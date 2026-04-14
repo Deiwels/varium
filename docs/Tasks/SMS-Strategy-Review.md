@@ -103,7 +103,7 @@ Until then:
   - `Not enabled`
   - `Provisioning`
   - `Pending`
-  - `Active`
+  - `Configured` (mapped from backend `active`)
   - `Failed`
 - The old SP / EIN-heavy flow is hidden behind manual / advanced fallback copy
 - Grandfathered workspaces still see the manual business-registration UI

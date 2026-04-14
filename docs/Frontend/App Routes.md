@@ -30,9 +30,11 @@
 ## Auth Pages
 | Route | Purpose |
 |-------|---------|
-| `/signin` | Sign in |
-| `/signup` | Sign up — collects business name, business type, timezone (required), email, password. Sends `business_type`, `shop_name`, `timezone` to backend. |
-| `/reset-password` | Password reset |
+| `/signin` | Sign in — PIN, password, Apple/Google OAuth, biometrics on iOS |
+| `/signup` | Sign up — business name, type, timezone (required), email, password |
+| `/reset-password` | Password reset with token |
+| `/api/auth/apple-callback` | Apple OAuth callback |
+| `/api/auth/google-callback` | Google OAuth callback |
 
 ## Dashboard Pages (Authenticated)
 | Route | Purpose |

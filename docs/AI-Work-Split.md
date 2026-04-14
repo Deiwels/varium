@@ -12,6 +12,9 @@ Two AI agents work on this project simultaneously. To avoid conflicts (duplicate
 
 ### Owns
 - `backend/index.js` — server, all API endpoints, payroll, audit, payments
+- `backend/routes/` — route modules (після рефакторингу Phase 5.5)
+- `backend/lib/` — shared helpers: telnyx, square, email, push, crypto (після рефакторингу Phase 5.5)
+- `backend/jobs/` — background jobs (після рефакторингу Phase 5.5)
 - `backend/package.json`, `backend/Dockerfile`
 - `app/payroll/page.tsx` — payroll page
 - `app/cash/page.tsx` — cash register
@@ -35,9 +38,11 @@ Two AI agents work on this project simultaneously. To avoid conflicts (duplicate
 
 ### Owns
 - `app/settings/page.tsx` — settings page UI
+- `app/settings/tabs/` — settings tab components (після рефакторингу Phase 5.2)
 - `app/dashboard/page.tsx` — dashboard, widgets, onboarding
 - `app/book/` — public booking pages
 - `app/signin/page.tsx` — auth pages
+- `app/signup/page.tsx` — signup flow (Stripe Elements, Apple IAP, step flow)
 - `app/landing/`, `app/pricing/` — marketing pages
 - `components/Shell.tsx` — navigation, layout, bottom nav
 - `components/OnboardingWizard.tsx` — onboarding wizard

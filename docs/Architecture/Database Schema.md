@@ -17,6 +17,7 @@
 | `vurium_emails` | Internal email records |
 | `vurium_dev_logins` | Developer login tracking |
 | `vurium_diagnostics` | AI diagnostic scans |
+| `webhook_logs` | Global webhook event log (source, event_type, data) |
 
 ## Workspace Sub-Collections
 
@@ -37,6 +38,15 @@ Path: `workspaces/{wsId}/...`
 | `applications` | Job applications |
 | `analytics` | Workspace-specific analytics |
 | `security_log` | Workspace-specific security log |
+| `webhook_logs` | Workspace webhook event log |
+| `sms_reminders` | Scheduled SMS reminders (24h, 2h, satisfaction) |
+| `memberships` | Recurring membership plans |
+| `reviews` | Client reviews with moderation |
+| `waitlist` | Waitlist entries |
+| `cash_reports` | Daily cash register reports |
+| `expenses` | Business expenses |
+| `expense_categories` | Expense categories |
+| `requests` | Staff schedule/profile change requests |
 
 ## Multi-Tenancy Model
 
@@ -50,9 +60,20 @@ workspaces/{wsId}
 ├── settings/
 ├── audit_logs/
 ├── device_tokens/
+├── crm_push_tokens/
+├── phone_verify/
 ├── applications/
 ├── analytics/
-└── security_log/
+├── security_log/
+├── webhook_logs/
+├── sms_reminders/
+├── memberships/
+├── reviews/
+├── waitlist/
+├── cash_reports/
+├── expenses/
+├── expense_categories/
+└── requests/
 ```
 
 All workspace data is scoped under `workspaces/{wsId}/` for complete tenant isolation.

@@ -106,10 +106,15 @@ This is the real pre-sale checklist. Each item should be verified live and then 
 
 ### SMS verification and setup
 
-**Settings SMS wizard**
+**Toll-free default SMS setup**
 - Owner: AI 2
-- Success criteria: The wizard is understandable on mobile and can resume pending verification state
-- Verify scenario: Open `Settings -> SMS Notifications`, walk through the steps, refresh mid-flow, and confirm resume state stays coherent
+- Success criteria: New workspaces see a toll-free-first card, can enable reminders without EIN-first friction, and clearly understand email fallback while SMS is unavailable
+- Verify scenario: Open `Settings -> SMS Notifications` on a fresh workspace, enable SMS, then confirm the UI moves cleanly through `not enabled -> provisioning/pending -> configured` without exposing the manual 10DLC path by default
+
+**Grandfathered manual SMS path**
+- Owners: AI 1 + AI 2
+- Success criteria: Existing / pending 10DLC workspaces still keep the manual business-registration flow and are not auto-migrated
+- Verify scenario: Open a workspace that already has `telnyx_brand_id`, `telnyx_campaign_id`, or `pending_otp/pending_approval` state and confirm the SP / 10DLC UI still appears with resume state intact
 
 **Telnyx Verify OTP**
 - Owner: AI 1 + AI 2
@@ -122,7 +127,9 @@ These are not code redesign items. They are operational steps that must be finis
 
 - Create a Telnyx Verify Profile and obtain the real `TELNYX_VERIFY_PROFILE_ID`
 - Save `TELNYX_VERIFY_PROFILE_ID` as a GitHub secret so Cloud Run can use Telnyx Verify
-- Verify Vurium Inc. brand with Telnyx and finish required messaging compliance steps
+- Keep Element / existing manual 10DLC approvals moving without changing their sender strategy mid-review
+- Get written Telnyx confirmation, or complete a successful internal pilot, that Vurium-managed toll-free reminder traffic is acceptable for end-business appointment messaging
+- Verify Vurium Inc. brand with Telnyx and finish required messaging compliance steps for grandfathered manual path
 - Confirm remaining runtime secrets are present and correct in GitHub / Cloud Run
 - Confirm the production frontend revision on Vercel and backend revision on Cloud Run are the intended launch revisions
 - Confirm Apple sandbox/live billing coverage is sufficient for the current subscription paths
@@ -131,7 +138,7 @@ These are not code redesign items. They are operational steps that must be finis
 
 These items are valid next steps, but they are not launch blockers.
 
-- Toll-free auto-provisioning research
+- Legacy 10DLC migration policy after launch
 - ISV single-sender / partner retry path
 - Gmail API work for the developer panel
 - Secondary UI cleanup and visual consistency passes

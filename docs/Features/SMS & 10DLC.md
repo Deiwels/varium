@@ -394,6 +394,7 @@ For SMS upgrade (in Settings):
 | Inbound STOP/HELP handler | ✅ Working | `backend/index.js:1562-1622` |
 | SMS consent checkbox on booking page | ✅ Working (AI 2: update CTA text) | `app/book/[id]/page.tsx:1584-1597` |
 | SMS registration UI in Settings | ✅ Working (AI 2: update for SP wizard) | `app/settings/page.tsx:115-200` |
+| SMS settings auth path | ✅ Working | `app/settings/page.tsx` now uses shared `apiRequest()` / `apiFetch()` instead of raw `fetch(window.__API...)` |
 | Phone verification OTP for bookings | ✅ Working | `backend/index.js:8603-8669` |
 | Reminder scheduling (24h + 2h) | ✅ Compliant format | `backend/index.js:636-659` — business name prefix + STOP |
 | SMS logging to `sms_logs` | ✅ Working | `backend/index.js:444-452` |
@@ -485,6 +486,9 @@ Already uses `{shopName}: ` prefix + STOP/HELP language in all SMS.
 - `app/settings/page.tsx` now shows toll-free-first UI for new workspaces
 - New workspace copy no longer frames EIN / Sole Proprietor registration as the default way to enable reminders
 - Appointment messaging no longer falls back to the platform global sender when workspace SMS is not active; the safe product fallback is email-only
+- Launch-note: backend currently writes `sms_registration_status: 'active'` immediately after toll-free provisioning, so AI 1 still needs to confirm that this matches real delivery readiness or tighten the status lifecycle before final SMS sign-off
+- UX note: the Settings UI intentionally uses softer wording like `Configured — dedicated toll-free number assigned` so the product does not over-promise reminder delivery before Telnyx / pilot sign-off is complete
+- Mapping note: current UI label `Configured` is intentionally the softer user-facing rendering of backend status `active`
 
 ### Grandfathered manual path
 

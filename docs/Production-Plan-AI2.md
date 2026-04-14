@@ -130,3 +130,45 @@
 3. Premium-feel gap — native `alert()` / `confirm()`, inconsistent states, and mobile roughness make the product feel less ready than it really is
 
 **Production readiness estimate:** Fix Phase 1 + high-priority items in Phase 2 = ready to sell and demo confidently. Finish Phase 3 + 4 = much stronger retention and lower support burden.
+
+---
+
+## Phase 5 — Code Quality & Auth
+
+### 5.1 Прибрати дублювання auth: тільки httpOnly cookie — P1
+- **Файл**: `lib/api.ts`
+- Зараз `apiRequest()` читає токен з `localStorage.getItem('VURIUMBOOK_TOKEN')` І передає через `credentials: 'include'` (cookie) одночасно — це дублювання
+- Backend вже встановлює `vuriumbook_token` як httpOnly cookie — XSS не може його вкрасти
+- `localStorage` токен — вразливий до XSS
+- **Що зробити**: прибрати рядок `localStorage.getItem('VURIUMBOOK_TOKEN')` з `apiRequest()`, залишити тільки `credentials: 'include'`
+- Також прибрати `localStorage.removeItem('VURIUMBOOK_TOKEN')` з 401-handler — замінити на виклик `POST /auth/logout` (або просто redirect)
+- **Перевірити**: всі місця де `localStorage.setItem('VURIUMBOOK_TOKEN', ...)` — їх теж прибрати після переходу на cookie-only
+
+### 5.2 Розбити `app/settings/page.tsx` (2 559 рядків) — P2
+- Винести кожен таб в окремий компонент без зміни логіки:
+```
+app/settings/
+  tabs/ShopTab.tsx           — бізнес інфо, години, timezone
+  tabs/BookingTab.tsx        — booking, waitlist, cancellation
+  tabs/FeesTab.tsx           — taxes & fees, custom charges
+  tabs/PayrollTab.tsx        — payroll defaults
+  tabs/UsersTab.tsx          — team accounts
+  tabs/PermissionsTab.tsx    — roles & permissions grid
+  tabs/SmsRegistrationForm.tsx — toll-free + 10DLC реєстрація
+  tabs/BillingSection.tsx    — subscription, billing
+  tabs/SiteTab.tsx           — public site config
+  page.tsx                   — тільки layout + tab routing + shared styles
+```
+- Shared style-константи (`inp`, `card`, `lbl` тощо) винести в `app/settings/styles.ts`
+- Кожен таб отримує props від page.tsx, не робить власних API calls напряму
+
+### 5.3 Прибрати inline style-об'єкти на рівні модуля — P3
+- **Файл**: `app/settings/page.tsx`
+- Константи `inp`, `inpSm`, `lbl`, `card`, `cardHead`, `headLbl` визначені як `React.CSSProperties` об'єкти на рівні модуля
+- Замінити на Tailwind className рядки або перенести в `app/settings/styles.ts` як іменовані константи
+- Це блокує tree-shaking і не підтримує dark mode / theming через CSS variables
+
+### 5.4 Додати `app/signup/page.tsx` в AI-Work-Split — P0 (docs)
+- **Файл**: `docs/AI-Work-Split.md`
+- `app/signup/page.tsx` (803 рядки) активно редагується але не призначений жодному AI
+- Призначити Codex (AI 2) — файл містить виключно frontend логіку (Stripe Elements, StoreKit IAP, step flow UI)

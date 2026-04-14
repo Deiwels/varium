@@ -4,7 +4,7 @@ const API_KEY = ''
 
 export { API, API_KEY }
 
-export async function apiFetch(path: string, opts?: RequestInit) {
+export async function apiRequest(path: string, opts?: RequestInit) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('VURIUMBOOK_TOKEN') || '' : ''
   const res = await fetch(API + path, {
     credentials: 'include',
@@ -26,7 +26,17 @@ export async function apiFetch(path: string, opts?: RequestInit) {
       }
     }
   }
-  const data = await res.json()
+  let data: any = null
+  try {
+    data = await res.json()
+  } catch {
+    data = null
+  }
+  return { res, data }
+}
+
+export async function apiFetch(path: string, opts?: RequestInit) {
+  const { res, data } = await apiRequest(path, opts)
   if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status)
   return data
 }

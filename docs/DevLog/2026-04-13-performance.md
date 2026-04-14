@@ -1,6 +1,6 @@
 # 2026-04-13 — Performance Optimization
 
-> [[Home]] > DevLog | Related: [[Architecture]], [[Tech Stack]]
+> [[Home]] > DevLog | Related: [[ARCHITECTURE]], [[Tech Stack]]
 
 ## Problem
 Site was very slow in Chrome — heavy jank on scroll, high CPU usage, laggy interactions especially on calendar and landing pages.

@@ -7,14 +7,9 @@
 
 ## CRITICAL — Must review before deploy
 
-### BUG 1: Shell.tsx redirect loop risk (AI 2 scope)
-- **File**: `components/Shell.tsx` lines ~618-627
-- **Severity**: HIGH
-- **What**: If `/api/auth/me` fails repeatedly (backend down), auth status flips noauth → redirect → clear token → retry → noauth → redirect...
-- **Impact**: Users stuck in infinite redirect loop to /signin
-- **Fix**: Add guard to prevent re-checking auth after initial redirect. Only redirect once.
-- **Owner**: AI 2
-- **Note**: AI 2 is actively working on Shell.tsx — may already be handling this
+### ~~BUG 1: Shell.tsx redirect loop risk (AI 2 scope)~~ — **FIXED** local AI 2 patch 2026-04-14
+- Added a one-way auth redirect guard in `components/Shell.tsx`
+- Repeated session checks now bail once redirect is already in flight instead of re-triggering `/signin`
 
 ### ~~BUG 2: Group booking missing rate limit recording~~ — **FIXED** commit `fb3fa7a`
 - Added `recordBookingRateHit()` to group booking handler
@@ -29,12 +24,9 @@
 ### ~~BUG 4: Square webhook empty merchant_id → full workspace scan~~ — **FIXED** commit `fb3fa7a`
 - Fallback scan now limited to 20 most recent workspaces (was unlimited)
 
-### BUG 5: PIN overlay navigation trap
-- **File**: `components/Shell.tsx` ~line 742
-- **Severity**: MEDIUM
-- **What**: PIN overlay uses `position: fixed; zIndex: 99999` — users may think they're locked
-- **Impact**: Confusing UX, not data loss
-- **Owner**: AI 2
+### ~~BUG 5: PIN overlay navigation trap~~ — **FIXED** local AI 2 patch 2026-04-14
+- `components/Shell.tsx` PIN overlay now has a visible `Use password instead` fallback button
+- Added supporting copy so users understand the PIN only unlocks the current device session
 
 ---
 

@@ -3,7 +3,7 @@ import Shell from '@/components/Shell'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useDialog } from '@/components/StyledDialog'
 
-import { apiFetch } from '@/lib/api'
+import { apiFetch, apiRequest } from '@/lib/api'
 import { getTimezoneList } from '@/lib/timezones'
 import { getStaffLabel } from '@/lib/terminology'
 import { usePlan } from '@/components/PlanProvider'
@@ -93,12 +93,9 @@ function TollFreeEnableButton({ settings, onDone }: { settings: any; onDone: (da
   async function handleEnable() {
     setLoading(true); setError('')
     try {
-      const res = await fetch(`${(window as any).__API || 'https://vuriumbook-api-431945333485.us-central1.run.app'}/api/sms/enable-tollfree`, {
+      const { res, data } = await apiRequest('/api/sms/enable-tollfree', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
       })
-      const data = await res.json()
       if (res.status === 409 && data?.status) {
         onDone({
           sms_registration_status: data.status,
@@ -126,7 +123,7 @@ function TollFreeEnableButton({ settings, onDone }: { settings: any; onDone: (da
       <div style={{ fontSize: 32 }}>&#128172;</div>
       <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.6)' }}>Turn on SMS reminders</div>
       <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.5, maxWidth: 360 }}>
-        We&apos;ll assign a dedicated toll-free number to this workspace for confirmations, reminders, reschedules, and cancellations. Until SMS is fully live, email reminders stay on.
+        We&apos;ll assign a dedicated toll-free number to this workspace for confirmations, reminders, reschedules, and cancellations. Email reminders stay on while SMS setup or delivery approval is still in progress.
       </p>
       {error && <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(220,80,80,.1)', border: '1px solid rgba(220,80,80,.2)', color: 'rgba(255,160,160,.9)', fontSize: 12, width: '100%' }}>{error}</div>}
       <button onClick={handleEnable} disabled={loading} style={{
@@ -195,14 +192,11 @@ function SmsRegistrationForm({ wsId, settings, onDone }: { wsId: string; setting
   async function handleRegister() {
     setLoading(true); setError('')
     try {
-      const res = await fetch(`${(window as any).__API || 'https://vuriumbook-api-431945333485.us-central1.run.app'}/api/sms/register`, {
+      const { res, data } = await apiRequest('/api/sms/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(form),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Registration failed')
+      if (!res.ok) throw new Error(data?.error || 'Registration failed')
       if (data.step === 'otp_sent') {
         // Sole proprietor — need OTP verification
         setOtpStep(true)
@@ -228,14 +222,10 @@ function SmsRegistrationForm({ wsId, settings, onDone }: { wsId: string; setting
   async function handleVerifyOtp() {
     setLoading(true); setError('')
     try {
-      const res = await fetch(`${(window as any).__API || 'https://vuriumbook-api-431945333485.us-central1.run.app'}/api/sms/verify-otp`, {
+      const data = await apiFetch('/api/sms/verify-otp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ pin: otpPin }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Verification failed')
       onDone({
         sms_registration_status: data.status || 'active',
         telnyx_brand_id: data.brand_id,
@@ -1141,6 +1131,7 @@ function PermissionsTab({ compact = false }: { compact?: boolean }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [expandedMobilePerms, setExpandedMobilePerms] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     apiFetch('/api/settings/permissions')
@@ -1203,6 +1194,11 @@ function PermissionsTab({ compact = false }: { compact?: boolean }) {
       .finally(() => setSaving(false))
   }
 
+  function toggleMobilePerm(sectionCategory: PermCategory, key: string) {
+    const id = `${sectionCategory}:${key}`
+    setExpandedMobilePerms(prev => ({ ...prev, [id]: !prev[id] }))
+  }
+
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,.3)' }}>Loading role permissions…</div>
 
   return (
@@ -1232,33 +1228,81 @@ function PermissionsTab({ compact = false }: { compact?: boolean }) {
             <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.5)' }}>{section.label}</span>
           </div>
           {section.items.map((item, idx) => compact ? (
-            <div key={item.key} style={{ padding: '12px 14px', borderBottom: idx < section.items.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.72)', marginBottom: 10 }}>{item.label}</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {ROLES.map(r => {
-                  const checked = !!perms[r.id]?.[section.category]?.[item.key]
-                  return (
-                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.025)' }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: r.color }}>{r.label}</span>
-                      <button onClick={() => toggle(r.id, section.category, item.key)}
-                        style={{
-                          width: 38, height: 22, borderRadius: 999, border: 'none',
-                          background: checked ? 'rgba(130,150,220,.35)' : 'rgba(255,255,255,.08)',
-                          cursor: 'pointer', position: 'relative', transition: 'background .2s', flexShrink: 0,
-                        }}>
-                        <div style={{
-                          width: 16, height: 16, borderRadius: '50%',
-                          background: checked ? '#fff' : 'rgba(255,255,255,.25)',
-                          position: 'absolute', top: 3,
-                          left: checked ? 19 : 3,
-                          transition: 'left .2s, background .2s',
-                        }} />
-                      </button>
+            (() => {
+              const accordionId = `${section.category}:${item.key}`
+              const isOpen = !!expandedMobilePerms[accordionId]
+              const enabledCount = ROLES.filter(r => !!perms[r.id]?.[section.category]?.[item.key]).length
+              return (
+                <div key={item.key} style={{ padding: '12px 14px', borderBottom: idx < section.items.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none' }}>
+                  <button
+                    onClick={() => toggleMobilePerm(section.category, item.key)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      padding: '12px 14px',
+                      borderRadius: 14,
+                      border: '1px solid rgba(255,255,255,.06)',
+                      background: isOpen ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.025)',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    <div style={{ textAlign: 'left', minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.78)' }}>{item.label}</div>
+                      <div style={{ fontSize: 10, letterSpacing: '.05em', textTransform: 'uppercase', color: 'rgba(255,255,255,.32)', marginTop: 4 }}>
+                        {enabledCount} of {ROLES.length} roles enabled
+                      </div>
                     </div>
-                  )
-                })}
-              </div>
-            </div>
+                    <div style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 999,
+                      border: '1px solid rgba(255,255,255,.08)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'rgba(255,255,255,.55)',
+                      flexShrink: 0,
+                      transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform .2s ease',
+                    }}>
+                      <span style={{ fontSize: 12 }}>⌄</span>
+                    </div>
+                  </button>
+
+                  {isOpen && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+                      {ROLES.map(r => {
+                        const checked = !!perms[r.id]?.[section.category]?.[item.key]
+                        return (
+                          <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.05)', background: 'rgba(255,255,255,.025)' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: r.color }}>{r.label}</span>
+                            <button onClick={() => toggle(r.id, section.category, item.key)}
+                              style={{
+                                width: 38, height: 22, borderRadius: 999, border: 'none',
+                                background: checked ? 'rgba(130,150,220,.35)' : 'rgba(255,255,255,.08)',
+                                cursor: 'pointer', position: 'relative', transition: 'background .2s', flexShrink: 0,
+                              }}>
+                              <div style={{
+                                width: 16, height: 16, borderRadius: '50%',
+                                background: checked ? '#fff' : 'rgba(255,255,255,.25)',
+                                position: 'absolute', top: 3,
+                                left: checked ? 19 : 3,
+                                transition: 'left .2s, background .2s',
+                              }} />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })()
           ) : (
             <div key={item.key} style={{ display: 'grid', gridTemplateColumns: '1fr repeat(3, 80px)', gap: 8, alignItems: 'center', padding: '8px 16px', borderBottom: idx < section.items.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none' }}>
               <span style={{ fontSize: 12, color: 'rgba(255,255,255,.6)' }}>{item.label}</span>
@@ -2055,13 +2099,13 @@ export default function SettingsPage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(130,220,170,.8)' }} />
-                            <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(130,220,170,.8)' }}>Active — dedicated toll-free number live</span>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(130,220,170,.8)' }}>Configured — dedicated toll-free number assigned</span>
                           </div>
                           <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)' }}>
                             Your number: <span style={{ color: 'rgba(255,255,255,.5)', fontFamily: 'monospace' }}>{settings.sms_from_number}</span>
                           </div>
                           <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>
-                            This workspace is on the new default reminder path. Appointment confirmations and reminders now send from your dedicated toll-free number.
+                            This workspace is on the new default reminder path. Appointment confirmations and reminders use this dedicated toll-free number when SMS delivery is active for the workspace.
                           </p>
                         </div>
                       )
@@ -2078,8 +2122,8 @@ export default function SettingsPage() {
                           </div>
                           <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>
                             {tollFreeState === 'provisioning'
-                              ? 'We are setting up a dedicated toll-free number for this workspace now. Email confirmations stay available while SMS finishes setup.'
-                              : 'Your toll-free reminder path is not fully active yet. The workspace stays on email-only reminders until SMS is confirmed live.'}
+                              ? 'We are setting up a dedicated toll-free number for this workspace now. Email confirmations stay available while SMS setup finishes.'
+                              : 'Your toll-free reminder path is not fully active yet. The workspace stays on email-only reminders until SMS delivery is confirmed for this workspace.'}
                           </p>
                           <div style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(255,180,80,.12)', background: 'rgba(255,180,80,.04)', fontSize: 11, color: 'rgba(255,190,120,.72)', lineHeight: 1.55 }}>
                             No EIN is required for this default path. If support specifically asked you to stay on the older 10DLC path, use the manual fallback below instead.

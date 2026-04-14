@@ -433,6 +433,9 @@ async function getWorkspaceSmsConfig(wsId, opts = {}) {
   } catch { return { fromNumber: fallbackFrom, brandName: '', status: 'none', numberType: '', canSend: !!fallbackFrom }; }
 }
 
+const DEFAULT_SMS_CONSENT_TEXT =
+  'I agree to receive appointment notifications via SMS (confirmations, reminders, reschedules, and cancellations). Message frequency may vary (up to 5 per booking). Standard message and data rates may apply. Reply STOP to opt out. Reply HELP for help. Consent is not a condition of purchase.';
+
 async function sendSms(to, body, fromOverride, wsId) {
   // By default, send from the workspace sender when one is active.
   // Some OTP flows still pass a global fallback sender explicitly while Verify is being rolled out.
@@ -8180,7 +8183,7 @@ app.post('/public/bookings/:workspace_id', (req, res, next) => {
       sms_consent_ip: smsConsent ? getClientIp(req) : null,
       sms_consent_ua: smsConsent ? safeStr(req.headers['user-agent'] || '').slice(0, 500) : null,
       sms_consent_at: smsConsent ? toIso(new Date()) : null,
-      sms_consent_text: smsConsent ? safeStr(booking.sms_consent_text || 'By providing your phone number, you agree to receive SMS appointment confirmations, reminders, and changes. Message frequency may vary, up to 5 msgs per booking. Msg & data rates may apply. Reply STOP to opt out. Reply HELP for help.').slice(0, 1000) : null,
+      sms_consent_text: smsConsent ? safeStr(booking.sms_consent_text || DEFAULT_SMS_CONSENT_TEXT).slice(0, 1000) : null,
       workspace_id: wsId,
       client_token: crypto.randomBytes(24).toString('hex'),
       idempotency_key: idempotencyKey || null,
@@ -8395,7 +8398,7 @@ app.post('/public/bookings-group/:workspace_id', async (req, res) => {
         sms_consent_ip: smsConsent ? getClientIp(req) : null,
         sms_consent_ua: smsConsent ? safeStr(req.headers['user-agent'] || '').slice(0, 500) : null,
         sms_consent_at: smsConsent ? toIso(new Date()) : null,
-        sms_consent_text: smsConsent ? safeStr(body.sms_consent_text || 'By providing your phone number, you agree to receive SMS appointment confirmations, reminders, and changes. Message frequency may vary, up to 5 msgs per booking. Msg & data rates may apply. Reply STOP to opt out. Reply HELP for help.').slice(0, 1000) : null,
+        sms_consent_text: smsConsent ? safeStr(body.sms_consent_text || DEFAULT_SMS_CONSENT_TEXT).slice(0, 1000) : null,
         workspace_id: wsId,
         client_token: clientToken,
         group_booking: true,

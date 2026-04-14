@@ -694,7 +694,7 @@ export default function SignupPage() {
                 <div style={{ padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.08)', textAlign: 'left' }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.72)', marginBottom: 6 }}>What happens next</div>
                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', lineHeight: 1.6 }}>
-                    We&apos;ll assign a dedicated toll-free number to this workspace when you turn on SMS reminders. If SMS is not live yet, booking emails still work and nothing blocks your launch.
+                    We&apos;ll assign a dedicated toll-free number to this workspace when you turn on SMS reminders. If SMS setup or delivery approval is still pending, booking emails still work and nothing blocks your launch.
                   </div>
                 </div>
 

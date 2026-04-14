@@ -106,3 +106,60 @@
 3. Square reconciliation bug (`spAmountCents`) — silently records wrong amounts. Hard to detect until payroll is wrong.
 
 **Production readiness estimate:** Fix Phase 1 + 2 = ready to sell. Phase 3 + 4 = ready to scale.
+
+---
+
+## Phase 5 — Code Quality & Security
+
+### 5.1 Видалити Twilio recovery code — P0
+- **Файл**: `docs/Telnyx/twilio_2FA_recovery_code.txt`
+- Анулювати код `RFXT548Z41JF65BU1AD1V8AL` в Twilio console
+- Видалити файл з git history: `git filter-repo --path docs/Telnyx/twilio_2FA_recovery_code.txt --invert-paths`
+- **Ризик**: активний recovery code в репозиторії — повний доступ до Twilio акаунту
+
+### 5.2 Видалити demo credentials з docs — P0
+- **Файл**: `docs/APPLE_REVIEW_CHECKLIST.md`
+- Перенести `applereview@vurium.com / ReviewTest2026!` в 1Password або GitHub Secrets
+- Замінити в doc на `Email: [в 1Password → Apple Review] / Password: [в 1Password → Apple Review]`
+- **Ризик**: якщо репо коли-небудь стане public — credentials відразу скомпрометовані
+
+### 5.3 Захист background jobs від дублювання — P1
+- **Файл**: `backend/index.js` (секція background jobs, ~лінії 8960–9521)
+- При горизонтальному масштабуванні Cloud Run кожен інстанс запускає `setInterval` jobs паралельно
+- **Варіант A (простіший)**: Distributed lock через Firestore — документ `jobs/lock/{jobName}` з полем `locked_until`. Job стартує тільки якщо lock відсутній або прострочений
+- **Варіант B (правильніший)**: Перенести jobs на Cloud Scheduler → окремий ендпоінт `POST /internal/jobs/:name`, захищений `X-Internal-Secret` header
+- Рекомендується Варіант A для швидкого старту, Варіант B — після стабілізації
+
+### 5.4 HMAC blind index для `phone_norm` — P2
+- **Файл**: `backend/index.js` (функції `encryptPhone`, запис клієнтів)
+- Зараз `phone_norm` зберігається plaintext для Firestore query — будь-який злив бази дає всі телефони
+- Замінити на `HMAC-SHA256(normalizedPhone, PHONE_INDEX_SECRET)` де `PHONE_INDEX_SECRET` — env змінна
+- Написати одноразовий migration script: читає всі `clients` колекції, перераховує `phone_norm`, записує назад
+- Зберегти зворотну сумісність: запустити міграцію до деплою нового коду
+
+### 5.5 Розбити `backend/index.js` (10 351 рядок) — P2
+- Мінімальне розбиття без зміни логіки — тільки переміщення коду:
+```
+backend/
+  routes/auth.js         — /auth/*
+  routes/bookings.js     — /api/bookings, /public/bookings
+  routes/sms.js          — /api/sms/*
+  routes/billing.js      — /api/billing/*, /api/webhooks/*
+  routes/settings.js     — /api/settings
+  routes/public.js       — /public/*
+  lib/telnyx.js          — sendSms, telnyxApi
+  lib/square.js          — Square OAuth, terminal
+  lib/email.js           — sendEmail, templates
+  lib/push.js            — APNs
+  lib/crypto.js          — encrypt/decrypt helpers
+  jobs/reminders.js      — background jobs (setInterval)
+  index.js               — тільки app setup + route mounting
+```
+- Після рефакторингу всі нові файли в `backend/routes/` і `backend/lib/` належать AI 1
+- **Ризик при рефакторингу**: запустити `node backend/index.js` і перевірити всі ендпоінти після розбиття
+
+### 5.6 Migrate legacy SMS statuses — P3
+- **Файл**: `backend/index.js` (константа `LEGACY_SMS_STATUSES`)
+- Прибрати `Set(['pending_vetting', 'pending_otp', 'brand_created', 'pending_campaign', 'pending_number', 'pending_approval', 'verified'])`
+- Написати одноразовий Firestore script: знайти всі workspaces де `sms_registration_status` є в legacy set → конвертувати до нової схеми
+- Після міграції legacy код можна видалити безпечно

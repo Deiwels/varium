@@ -127,6 +127,7 @@ Type error: Cannot find name 'showConfirm'.
 - [ ] P0.14 Mobile usability on key pages
   - `/billing` now stacks plan cards and management actions more cleanly on small screens instead of relying on desktop-like horizontal spacing
   - `Settings -> Roles & Permissions` now switches from a desktop permission matrix to stacked mobile cards, so owners can actually review and toggle role access on phone screens
+  - `Settings -> Roles & Permissions` mobile cards now expand/collapse per page (`Dashboard`, `Calendar`, `History`, `Clients`, etc.) instead of rendering one extra-long always-open list
   - `Settings -> Team Accounts` now hooks into the existing mobile CSS too, so the create-member form, member header row, and action buttons stop behaving like fixed desktop rows on phones
   - The session PIN overlay in `components/Shell.tsx` now has a clear `Use password instead` escape hatch and supporting copy, so phone users no longer look visually trapped in a full-screen lock state
   - `Settings -> Taxes & Fees` and `Custom charges` now collapse into stacked/two-column mobile cards, keeping label, payment-method, and remove controls reachable on narrow screens instead of squeezing desktop grids
@@ -230,7 +231,8 @@ See also: [[Tasks/SMS Finalization Plan|SMS Finalization Plan]]
 #### AI 2 — frontend / UX / reviewer-facing validation
 - [ ] Verify new workspace `Settings -> SMS Notifications` shows the toll-free-first card by default
 - [ ] Verify new workspace does **not** surface EIN / SP registration as the primary setup path
-- [ ] Verify toll-free states render correctly: `not enabled -> provisioning -> pending/active/failed`
+- [ ] Verify toll-free states render correctly: `not enabled -> provisioning -> pending/configured/failed`
+  - User-facing `Configured` currently maps from backend `sms_registration_status: 'active'`
 - [ ] Verify booking + waitlist consent copy uses `{shopName} Appointment Notifications`
 - [ ] Verify email-only fallback copy is clear whenever workspace SMS is not active
 - [ ] Verify the legal pages still match the live SMS consent text after deploy
@@ -243,6 +245,9 @@ See also: [[Tasks/SMS Finalization Plan|SMS Finalization Plan]]
   - With secret: Telnyx Verify API. Both have rate limiting.
 - [x] Confirm toll-free does not fall back to global sender — **CODE VERIFIED**
   - All reminder callers use `allowGlobalFallback: false`. No own number = email-only.
+- [ ] Confirm toll-free status semantics match reality
+  - `POST /api/sms/enable-tollfree` currently writes `sms_registration_status: 'active'` immediately after provisioning
+  - AI 1 must confirm this matches real Telnyx delivery readiness; if not, change the status lifecycle before launch
 - [x] Confirm Element Barbershop untouched — **CODE VERIFIED**
   - `enable-tollfree` blocks if status is not `none`/`rejected`. Element safe.
 - [ ] Get written Telnyx confirmation or internal pilot sign-off — **OWNER TASK** (call with Jonathan)
@@ -277,7 +282,8 @@ See also: [[Tasks/SMS Finalization Plan|SMS Finalization Plan]]
 ### Frontend (AI 2) — IN PROGRESS
 - [x] 2.1 Settings — toll-free-first SMS card for new workspaces
   - `Settings -> SMS Notifications` now treats toll-free as the default path
-  - States are framed around enable/provisioning/pending/active/failed instead of EIN-first setup
+  - States are framed around enable/provisioning/pending/configured/failed instead of EIN-first setup
+  - User-facing `Configured` currently maps to backend `sms_registration_status: 'active'`
 - [x] 2.7 Legal copy alignment for reviewer-facing pages
   - `app/privacy/page.tsx` and `app/terms/page.tsx` now match the current booking consent text and the dual-path SMS architecture
   - Appointment SMS is described as `[Business Name] Appointment Notifications`, with toll-free default for new workspaces and grandfathered dedicated senders for manual paths
@@ -291,6 +297,11 @@ See also: [[Tasks/SMS Finalization Plan|SMS Finalization Plan]]
   - Terms and Privacy links stay clickable directly inside the opt-in label
 - [x] 2.5 Consent metadata
   - Booking, pay-online, group booking, and waitlist submissions send both `sms_consent_text` and `sms_consent_text_version`
+- [x] 2.8 Toll-free copy softened
+  - `Settings` and `signup` SMS copy now avoids over-promising that toll-free reminders are already fully live before the remaining Telnyx / pilot sign-off is complete
+- [x] 2.9 SMS settings auth path hardened
+  - `Settings -> SMS Notifications` now uses the shared auth-aware API helper instead of raw `fetch(window.__API...)`
+  - Toll-free enable, manual registration, and OTP verification now follow the same Bearer-token / session handling as the rest of Settings
 - [ ] 2.6 Live verification
   - Pending browser pass for toll-free-first settings UX, grandfathered manual resume state, and email-only fallback behavior
 
@@ -300,6 +311,28 @@ See also: [[Tasks/SMS Finalization Plan|SMS Finalization Plan]]
 - [ ] Written Telnyx confirmation or internal pilot sign-off for Vurium-managed toll-free appointment reminders
 - [ ] Confirm Element / existing manual 10DLC workspaces remain untouched after the pivot
   - `Element Barbershop` is the explicit protected pending-review case; do not migrate or rewrite its SMS path while approval is in progress
+
+## Code Quality & Security (2026-04-13)
+
+> Виявлено в результаті повного аудиту codebase. Деталі: [[Production-Plan-AI1]] Phase 5, [[Production-Plan-AI2]] Phase 5.
+
+### AI 1 — Claude (Backend)
+
+- [ ] **5.1 P0** — Анулювати Twilio recovery code в консолі → видалити `docs/Telnyx/twilio_2FA_recovery_code.txt` з git history (`git filter-repo`)
+- [ ] **5.2 P0** — Видалити demo credentials (`applereview@vurium.com / ReviewTest2026!`) з `docs/APPLE_REVIEW_CHECKLIST.md` → перенести в 1Password
+- [ ] **5.3 P1** — Додати distributed lock для background jobs (Firestore TTL lock) щоб запобігти дублюванню при горизонтальному масштабуванні Cloud Run
+- [ ] **5.4 P2** — Замінити plaintext `phone_norm` на HMAC-SHA256 blind index + написати migration script для існуючих clients
+- [ ] **5.5 P2** — Розбити `backend/index.js` (10 351 рядок) на `routes/`, `lib/`, `jobs/` модулі без зміни логіки
+- [ ] **5.6 P3** — Migrate legacy SMS statuses → видалити `LEGACY_SMS_STATUSES` Set після конвертації Firestore записів
+
+### AI 2 — Codex (Frontend)
+
+- [ ] **5.1 P1** — Прибрати дублювання auth в `lib/api.ts`: видалити `localStorage.getItem('VURIUMBOOK_TOKEN')`, залишити тільки `credentials: 'include'` (httpOnly cookie)
+- [ ] **5.2 P2** — Розбити `app/settings/page.tsx` (2 559 рядків) на окремі таби в `app/settings/tabs/`
+- [ ] **5.3 P3** — Замінити inline style-константи (`inp`, `card`, `lbl` тощо) в `settings/page.tsx` на Tailwind className або `styles.ts`
+- [ ] **5.4 P0** *(docs — вже виконано)* — `app/signup/page.tsx` додано до ownership AI 2 в `AI-Work-Split.md`
+
+---
 
 ## Other Active Tasks
 
