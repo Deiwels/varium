@@ -108,8 +108,8 @@ This is the real pre-sale checklist. Each item should be verified live and then 
 
 **Toll-free default SMS setup**
 - Owner: AI 2
-- Success criteria: New workspaces see a toll-free-first card, can enable reminders without EIN-first friction, and clearly understand email fallback while SMS is unavailable
-- Verify scenario: Open `Settings -> SMS Notifications` on a fresh workspace, enable SMS, then confirm the UI moves cleanly through `not enabled -> provisioning/pending -> configured` without exposing the manual 10DLC path by default
+- Success criteria: New workspaces see a toll-free-first card, understand that setup starts automatically after activation, and clearly understand email fallback while SMS is unavailable
+- Verify scenario: Open `Settings -> SMS Notifications` on a fresh workspace after trial / plan activation, confirm the UI reflects automatic setup and moves cleanly through `provisioning/pending -> configured` without exposing the manual 10DLC path by default
 
 **Grandfathered manual SMS path**
 - Owners: AI 1 + AI 2

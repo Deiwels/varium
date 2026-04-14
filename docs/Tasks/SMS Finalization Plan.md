@@ -54,16 +54,17 @@ Locked product rules:
 - Open a fresh workspace in `Settings -> SMS Notifications`
 - Confirm the default card is toll-free-first
 - Confirm EIN / Sole Proprietor registration is not shown as the main path
+- Confirm the card explains that setup starts automatically after trial / paid-plan activation
 - Confirm state copy is understandable:
-  - `not enabled`
   - `provisioning`
   - `pending`
   - `configured` (mapped from backend `active`)
   - `failed`
-- Confirm the SMS actions still work through the normal authenticated app session
-  - `enable toll-free`
-  - manual registration fallback
+- Confirm the new-workspace path no longer depends on a primary manual enable button
+- Confirm the remaining SMS actions still work through the normal authenticated app session where relevant:
+  - legacy/manual registration fallback
   - OTP verification
+  - status viewing inside `Settings`
   - These now use the shared auth-aware API helpers instead of raw `fetch(window.__API...)`
 
 ### 2. Verify customer-facing consent text

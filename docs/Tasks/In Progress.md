@@ -384,7 +384,7 @@ Three-AI consensus (Claude / Codex / Verdent):
   - Booking, pay-online, group booking, and waitlist submissions send both `sms_consent_text` and `sms_consent_text_version`
 - [x] 2.8 Toll-free copy softened
 - [x] 2.9 SMS UI reframed around auto-activation
-  - `app/settings/page.tsx` now treats manual enable as a start/retry control, not the primary expected path
+  - `app/settings/page.tsx` now treats SMS as automatic-first for new workspaces instead of a manual-enable-first flow
   - `app/signup/page.tsx` now frames dedicated toll-free SMS as something that normally starts automatically after trial or paid-plan activation
 - [x] 2.10 Manual SMS CTA removed from new-workspace flow
   - `Settings -> SMS Notifications` now shows automatic activation / automatic retry messaging instead of a primary manual enable button
