@@ -11,6 +11,7 @@ export interface Workspace {
   staff: number
   sms_number: string | null
   sms_status: string
+  sms_number_type?: 'toll-free' | '10dlc' | string | null
   created_at: string | null
 }
 

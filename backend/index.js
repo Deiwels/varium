@@ -1793,6 +1793,164 @@ function requireSuperadmin(req, res, next) {
   } catch { return res.status(401).json({ error: 'Invalid or expired token' }); }
 }
 
+const LEGACY_SMS_STATUSES = new Set([
+  'pending_otp',
+  'verified',
+  'brand_created',
+  'pending_campaign',
+  'pending_number',
+  'pending_approval',
+  'pending_vetting',
+]);
+
+function isProtectedLegacyWorkspace(workspace, settings) {
+  const slug = safeStr(workspace?.slug || '').toLowerCase();
+  const name = safeStr(settings?.sms_brand_name || settings?.shop_name || workspace?.name || '').toLowerCase();
+  return slug === 'elementbarbershop' || name === 'element barbershop';
+}
+
+function isLegacyManualSmsPath(workspace, settings) {
+  const status = safeStr(settings?.sms_registration_status || '');
+  const numberType = safeStr(settings?.sms_number_type || '');
+  return numberType === '10dlc'
+    || !!settings?.telnyx_brand_id
+    || !!settings?.telnyx_campaign_id
+    || LEGACY_SMS_STATUSES.has(status)
+    || isProtectedLegacyWorkspace(workspace, settings);
+}
+
+async function provisionTollFreeSmsForWorkspace(workspace, opts = {}) {
+  const wsId = safeStr(workspace?.id || '');
+  if (!wsId) {
+    const err = new Error('Missing workspace id');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const settingsRef = db.collection('workspaces').doc(wsId).collection('settings').doc('config');
+  const settingsDoc = await settingsRef.get();
+  const data = settingsDoc.exists ? settingsDoc.data() : {};
+  const currentStatus = safeStr(data.sms_registration_status || 'none');
+
+  if (isLegacyManualSmsPath(workspace, data)) {
+    const err = new Error('This workspace is on the grandfathered manual / 10DLC path');
+    err.statusCode = 409;
+    throw err;
+  }
+
+  if (data.sms_from_number && currentStatus === 'active') {
+    return {
+      ok: true,
+      already_active: true,
+      status: currentStatus,
+      phone_number: data.sms_from_number,
+      number_type: safeStr(data.sms_number_type || 'toll-free'),
+      messaging_profile_id: data.sms_messaging_profile_id || '',
+    };
+  }
+
+  if (currentStatus && !['none', 'rejected', 'failed'].includes(currentStatus)) {
+    const err = new Error('SMS setup already in progress');
+    err.statusCode = 409;
+    err.meta = { status: currentStatus };
+    throw err;
+  }
+
+  await settingsRef.set({
+    sms_registration_status: 'provisioning',
+    sms_status_updated_at: toIso(new Date()),
+    updated_at: toIso(new Date()),
+  }, { merge: true });
+
+  const shopName = safeStr(data.sms_brand_name || data.shop_name || workspace?.name || 'Business');
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app';
+
+  let phoneNumber = '';
+  let profileId = '';
+
+  try {
+    const searchResult = await telnyxApi('GET', '/v2/available_phone_numbers?filter[country_code]=US&filter[number_type]=toll-free&filter[features]=sms&filter[limit]=1');
+    const availableNumber = searchResult?.data?.[0]?.phone_number;
+    if (!availableNumber) throw new Error('No toll-free numbers available');
+    await telnyxApi('POST', '/v2/number_orders', { phone_numbers: [{ phone_number: availableNumber }] });
+    phoneNumber = availableNumber;
+
+    try {
+      const profileResult = await telnyxApi('POST', '/v2/messaging_profiles', {
+        name: `VuriumBook TF - ${shopName}`,
+        webhook_url: `${apiBaseUrl}/api/webhooks/telnyx`,
+        enabled: true,
+      });
+      profileId = profileResult?.data?.id || '';
+
+      if (profileId) {
+        await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
+          response_type: 'STOP',
+          response_text: `${shopName}: You have been unsubscribed and will receive no further messages. Reply HELP for help or START to re-subscribe.`,
+        }).catch(() => {});
+        await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
+          response_type: 'HELP',
+          response_text: `${shopName}: For help, contact support@vurium.com. Visit https://vurium.com/privacy for Privacy Policy. Reply STOP to opt out.`,
+        }).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('TF messaging profile creation failed:', e?.message || e);
+    }
+
+    if (profileId && phoneNumber) {
+      try {
+        const numId = phoneNumber.replace('+', '');
+        await telnyxApi('PATCH', `/v2/phone_numbers/${numId}`, { messaging_profile_id: profileId });
+      } catch (e) {
+        console.warn('TF number→profile association failed:', e?.message || e);
+        try {
+          await telnyxApi('PATCH', `/v2/phone_numbers/${encodeURIComponent(phoneNumber)}`, { messaging_profile_id: profileId });
+        } catch { /* non-critical */ }
+      }
+    }
+
+    await settingsRef.set({
+      sms_from_number: phoneNumber,
+      sms_number_type: 'toll-free',
+      sms_messaging_profile_id: profileId,
+      sms_brand_name: shopName,
+      sms_registration_status: 'active',
+      sms_registered_at: toIso(new Date()),
+      sms_status_updated_at: toIso(new Date()),
+      updated_at: toIso(new Date()),
+    }, { merge: true });
+
+    const actor = safeStr(opts.actor_name || 'system');
+    writeAuditLog(wsId, {
+      action: 'sms.enable_tollfree',
+      data: { phone_number: phoneNumber, profile_id: profileId, actor, source: safeStr(opts.source || 'workspace') },
+      req: {
+        headers: {},
+        ip: safeStr(opts.actor_ip || 'system'),
+        user: { uid: safeStr(opts.actor_uid || 'system'), name: actor, username: actor, role: safeStr(opts.actor_role || 'system') },
+      },
+    }).catch(() => {});
+
+    return {
+      ok: true,
+      status: 'active',
+      phone_number: phoneNumber,
+      number_type: 'toll-free',
+      messaging_profile_id: profileId,
+      already_active: false,
+    };
+  } catch (e) {
+    await settingsRef.set({
+      sms_registration_status: 'failed',
+      sms_status_updated_at: toIso(new Date()),
+      updated_at: toIso(new Date()),
+    }, { merge: true }).catch(() => {});
+    const err = new Error(e?.message || 'Failed to enable SMS');
+    err.statusCode = e?.statusCode || 400;
+    throw err;
+  }
+}
+
 // Magic link: rate limiter (3 requests per 15 min per IP)
 const magicLinkLimiter = {};
 // Used magic tokens (one-time use)
@@ -1965,6 +2123,7 @@ app.get('/api/vurium-dev/platform', requireSuperadmin, async (req, res) => {
           staff: staffCount,
           sms_status: settings.sms_registration_status || 'none',
           sms_number: settings.sms_from_number || '',
+          sms_number_type: settings.sms_number_type || '',
         });
       } catch { /* skip broken workspace */ }
     }
@@ -1992,6 +2151,46 @@ app.get('/api/vurium-dev/platform', requireSuperadmin, async (req, res) => {
   } catch (e) {
     console.error('Platform metrics error:', e);
     res.status(500).json({ error: 'Failed to fetch platform metrics' });
+  }
+});
+
+app.get('/api/vurium-dev/sms/status', requireSuperadmin, async (req, res) => {
+  try {
+    res.json({
+      default_path: 'toll-free',
+      manual_path_enabled: true,
+      verify_profile_configured: !!process.env.TELNYX_VERIFY_PROFILE_ID,
+      rollout_gate: 'pilot_or_telnyx_confirmation',
+      protected_legacy_workspace: {
+        slug: 'elementbarbershop',
+        name: 'Element Barbershop',
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || 'Failed to fetch SMS admin status' });
+  }
+});
+
+app.post('/api/vurium-dev/sms/provision', requireSuperadmin, express.json(), async (req, res) => {
+  try {
+    const workspaceId = safeStr(req.body?.workspace_id || '');
+    if (!workspaceId) return res.status(400).json({ error: 'Missing workspace_id' });
+
+    const wsDoc = await db.collection('workspaces').doc(workspaceId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+
+    const workspace = { id: wsDoc.id, ...wsDoc.data() };
+    const result = await provisionTollFreeSmsForWorkspace(workspace, {
+      source: 'developer',
+      actor_uid: req.adminUser?.email || 'superadmin',
+      actor_name: req.adminUser?.email || 'superadmin',
+      actor_role: 'superadmin',
+      actor_ip: getClientIp(req),
+    });
+
+    res.json(result);
+  } catch (e) {
+    res.status(e?.statusCode || 500).json({ error: e?.message || 'Failed to provision toll-free number', ...(e?.meta || {}) });
   }
 });
 
@@ -6083,98 +6282,20 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook
 // Toll-free SMS setup — default reminder path for new workspaces.
 app.post('/api/sms/enable-tollfree', requireRole('owner'), async (req, res) => {
   try {
-    const settingsRef = req.ws('settings').doc('config');
-    const doc = await settingsRef.get();
-    const data = doc.exists ? doc.data() : {};
-
-    // Check if already has a number or is in progress
-    if (data.sms_from_number && data.sms_registration_status === 'active') {
-      return res.json({ ok: true, already_active: true, phone_number: data.sms_from_number });
-    }
-    // Prevent double-click: if status is anything other than 'none' or 'rejected', block
-    if (data.sms_registration_status && data.sms_registration_status !== 'none' && data.sms_registration_status !== 'rejected') {
-      return res.status(409).json({ error: 'SMS setup already in progress', status: data.sms_registration_status });
-    }
-    // Mark as in-progress immediately to prevent race conditions
-    await settingsRef.update({ sms_registration_status: 'provisioning', updated_at: toIso(new Date()) });
-
-    const shopName = safeStr(data.sms_brand_name || data.shop_name || req.user?.name || 'Business');
-
-    // Step 1: Search and buy a toll-free number
-    let phoneNumber = '';
-    try {
-      const searchResult = await telnyxApi('GET', '/v2/available_phone_numbers?filter[country_code]=US&filter[number_type]=toll-free&filter[features]=sms&filter[limit]=1');
-      const availNum = searchResult?.data?.[0]?.phone_number;
-      if (!availNum) throw new Error('No toll-free numbers available');
-      await telnyxApi('POST', '/v2/number_orders', { phone_numbers: [{ phone_number: availNum }] });
-      phoneNumber = availNum;
-    } catch (e) {
-      return res.status(400).json({ error: 'Could not purchase toll-free number: ' + e.message });
-    }
-
-    // Step 2: Create messaging profile for this workspace
-    let profileId = '';
-    try {
-      const profileResult = await telnyxApi('POST', '/v2/messaging_profiles', {
-        name: `VuriumBook TF - ${shopName}`,
-        webhook_url: `${API_BASE_URL}/api/webhooks/telnyx`,
-        enabled: true,
-      });
-      profileId = profileResult?.data?.id || '';
-
-      // Custom STOP/HELP auto-responses
-      if (profileId) {
-        await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
-          response_type: 'STOP',
-          response_text: `${shopName}: You have been unsubscribed and will receive no further messages. Reply HELP for help or START to re-subscribe.`,
-        }).catch(() => {});
-        await telnyxApi('POST', `/v2/messaging_profiles/${profileId}/autoresp_configs`, {
-          response_type: 'HELP',
-          response_text: `${shopName}: For help, contact support@vurium.com. Visit https://vurium.com/privacy for Privacy Policy. Reply STOP to opt out.`,
-        }).catch(() => {});
-      }
-    } catch (e) {
-      console.warn('TF messaging profile creation failed:', e.message);
-    }
-
-    // Step 2b: Associate TFN with messaging profile
-    if (profileId && phoneNumber) {
-      try {
-        // Telnyx requires explicit number→profile link for inbound routing
-        const numId = phoneNumber.replace('+', '');
-        await telnyxApi('PATCH', `/v2/phone_numbers/${numId}`, { messaging_profile_id: profileId });
-      } catch (e) {
-        console.warn('TF number→profile association failed:', e.message);
-        // Try alternative endpoint format
-        try {
-          await telnyxApi('PATCH', `/v2/phone_numbers/${encodeURIComponent(phoneNumber)}`, { messaging_profile_id: profileId });
-        } catch { /* non-critical — inbound may still work via default profile */ }
-      }
-    }
-
-    // Step 3: Save to workspace settings
-    await settingsRef.update({
-      sms_from_number: phoneNumber,
-      sms_number_type: 'toll-free',
-      sms_messaging_profile_id: profileId,
-      sms_brand_name: shopName,
-      sms_registration_status: 'active',
-      sms_registered_at: toIso(new Date()),
-      updated_at: toIso(new Date()),
+    const wsDoc = await db.collection('workspaces').doc(req.wsId).get();
+    const workspace = { id: req.wsId, ...(wsDoc.exists ? wsDoc.data() : {}) };
+    const result = await provisionTollFreeSmsForWorkspace(workspace, {
+      source: 'workspace',
+      actor_uid: req.user?.uid || 'unknown',
+      actor_name: req.user?.name || req.user?.username || 'unknown',
+      actor_role: req.user?.role || 'unknown',
+      actor_ip: getClientIp(req),
     });
 
-    writeAuditLog(req.wsId, { action: 'sms.enable_tollfree', data: { phone_number: phoneNumber, profile_id: profileId }, req }).catch(() => {});
-
-    res.json({
-      ok: true,
-      status: 'active',
-      phone_number: phoneNumber,
-      number_type: 'toll-free',
-      messaging_profile_id: profileId,
-    });
+    res.json(result);
   } catch (e) {
     console.error('TF SMS enable error:', e);
-    res.status(500).json({ error: e?.message || 'Failed to enable SMS' });
+    res.status(e?.statusCode || 500).json({ error: e?.message || 'Failed to enable SMS', ...(e?.meta || {}) });
   }
 });
 

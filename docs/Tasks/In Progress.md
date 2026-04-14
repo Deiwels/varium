@@ -2,6 +2,22 @@
 
 > [[Home]] > Tasks | See also: [[Tasks/Backlog|Backlog]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]]
 
+## DEVELOPER PANEL — SMS OPERATIONS SYNC — DONE
+
+- Re-read `docs/Features/Developer Panel.md`, `docs/Features/Developer Panel — Improvement Plan.md`, and current `app/developer/*` code after AI Verdent's developer-panel work
+- Confirmed the main gap was the SMS page still reflecting an older platform-level model
+- Fixed:
+  - `GET /api/vurium-dev/platform` now returns `sms_number_type`
+  - added `GET /api/vurium-dev/sms/status`
+  - added `POST /api/vurium-dev/sms/provision`
+  - `app/developer/_lib/dev-fetch.ts` now throws on non-2xx responses, so developer toasts and actions respect real backend failures
+  - rewrote `app/developer/sms/page.tsx` to match the real launch SMS architecture:
+    - toll-free-first for new workspaces
+    - email-only fallback when sender is missing
+    - grandfathered manual / 10DLC visibility
+    - explicit `Element Barbershop` protection
+- Synced developer docs so Gmail is no longer marked as merely planned and developer SMS is no longer documented as frontend-only
+
 ## PERMISSIONS FIX — PERM-003 Backend (AI 1) — DONE
 
 ### Commits

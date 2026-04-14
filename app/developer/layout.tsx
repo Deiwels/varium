@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { devFetch } from './_lib/dev-fetch'
+import { devFetch, devHeaders } from './_lib/dev-fetch'
 import { ToastProvider } from './_components/Toast'
 
 function IconOverview() {
@@ -36,17 +36,6 @@ const NAV = [
   { href: '/developer/sms', label: 'SMS', Icon: IconSMS },
   { href: '/developer/ai', label: 'AI Diagnostics', Icon: IconAI },
 ]
-
-function getDevToken(): string {
-  try { return localStorage.getItem('vurium_dev_token') || '' } catch { return '' }
-}
-
-function devHeaders(): HeadersInit {
-  const token = getDevToken()
-  const h: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (token) h['Authorization'] = `Bearer ${token}`
-  return h
-}
 
 export default function DeveloperLayout({ children }: { children: React.ReactNode }) {
   const [ok, setOk] = useState(false)
