@@ -1297,12 +1297,20 @@ function requireCustomPerm(permKey) {
     const role = req.user.role;
     if (role === 'owner' || role === 'admin') return next();
     // Check custom role_permissions from workspace settings
+    // permKey format: 'category.action' e.g. 'financial.access_terminal' or 'pages.payments'
     try {
       const wsId = req.user.workspace_id;
       if (!wsId) return res.status(403).json({ error: 'Forbidden' });
       const doc = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
       const perms = doc.exists ? doc.data()?.role_permissions : null;
-      if (perms?.[role]?.[permKey]) return next();
+      const rolePerms = perms?.[role];
+      if (rolePerms) {
+        // Support dot notation: 'financial.access_terminal' → rolePerms.financial.access_terminal
+        const parts = permKey.split('.');
+        let val = rolePerms;
+        for (const p of parts) { val = val?.[p]; }
+        if (val) return next();
+      }
     } catch {}
     return res.status(403).json({ error: 'Forbidden' });
   };
