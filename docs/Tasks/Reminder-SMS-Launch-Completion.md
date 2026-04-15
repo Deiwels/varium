@@ -56,6 +56,21 @@ AI 5 has now answered the external-facts question in [[Tasks/AI5-Research-Brief-
 
 The repo does **not** currently submit TFV as part of `provisionTollFreeSmsForWorkspace()`, so the reminder blocker is now understood as a **real external readiness gap**, not a vague suspicion.
 
+### 2A. Live TFV rejection received
+
+Owner received a real Telnyx TFV rejection:
+
+- Request ID: `e23146a2-30d3-5ed4-a7be-c832da06ad4f`
+- Business: `Vurium Inc`
+- Status: `Rejected`
+- Reason: `Business Registration Number Is Missing or Invalid`
+
+This confirms the current blocker is specifically:
+
+- missing or invalid BRN data in TFV
+- not a missing reminder engine
+- not proof that toll-free is impossible
+
 ### 3. We still need one live pilot pass
 
 Until one real fresh workspace receives:
@@ -105,6 +120,12 @@ Claude has the browser lane. He should verify in Telnyx portal:
 5. The profile exists and has STOP / HELP autoresponses
 6. There is no visible "not verified / blocked / pending review" state that contradicts our `active` backend status
 7. If TFV has not been submitted yet, Claude should prepare the smallest correct submission path (portal or API-backed ops path) with Owner approval
+8. If TFV is already rejected, capture the exact fields needed for resubmission:
+   - exact legal business name
+   - exact BRN / EIN value
+   - matching BRN type
+   - `US` country
+   - any portal/API mismatch that could trigger the same rejection again
 
 ### Step 3 — Owner live verification
 
@@ -165,5 +186,6 @@ The reminder path is **code-complete but not launch-complete**.
 What is missing now is:
 
 1. real TFV state for one fresh reminder sender
-2. one confirmed live pilot
-3. a final AI 3 plan for truthful status semantics and any required follow-up implementation
+2. corrected BRN / TFV resubmission for the rejected Vurium Inc request
+3. one confirmed live pilot
+4. a final AI 3 plan for truthful status semantics and any required follow-up implementation

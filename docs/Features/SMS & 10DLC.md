@@ -36,7 +36,7 @@ We initially tried a platform-as-sender model (one VuriumBook brand + one CUSTOM
 │  → Dedicated toll-free number per workspace     │
 │  → Owner enables it in Settings                 │
 │  → Email-only fallback while SMS is unavailable │
-│  → No EIN required for the default path         │
+│  → TFV / BRN verification required before live  │
 └─────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────┐
@@ -63,6 +63,23 @@ We initially tried a platform-as-sender model (one VuriumBook brand + one CUSTOM
 - **Operational gate**: broad toll-free rollout is considered fully safe after written Telnyx confirmation or a successful internal pilot
 - **Fallback rule**: if toll-free is not active, the product stays on **email-only** appointment messaging instead of forcing EIN friction
 - **Protected review case**: `Element Barbershop` stays on its current failed-review manual / 10DLC remediation path and must not be auto-migrated during the toll-free pivot
+
+### Reminder-launch blocker update (2026-04-15)
+
+The default toll-free reminder path is still **not launch-ready** for real customer delivery.
+
+Confirmed blocker:
+
+- Telnyx toll-free verification request `e23146a2-30d3-5ed4-a7be-c832da06ad4f`
+- Business: `Vurium Inc`
+- Status: `Rejected`
+- Reason: `Business Registration Number Is Missing or Invalid`
+
+What this means:
+
+- buying the toll-free number and attaching a messaging profile is **not enough**
+- the sender still needs a valid TFV submission with correct BRN / legal-business identity
+- reminder SMS should still be treated as **email-only fallback** until TFV is corrected and one fresh sender is verified/live-tested
 
 ### Temporary reminder fallback position
 

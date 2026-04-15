@@ -24,6 +24,15 @@
 
 AI 5 research is complete ([[Tasks/AI5-Research-Brief-Reminder-SMS]]). Key finding: **TFV (Toll-Free Verification) IS REQUIRED** before outbound SMS. Our backend currently sets `active` immediately after purchase — це хибно-оптимістичний статус.
 
+**New live evidence from Owner:**
+
+- TFV request ID: `e23146a2-30d3-5ed4-a7be-c832da06ad4f`
+- Business: `Vurium Inc`
+- Status: `Rejected`
+- Reason: `Business Registration Number Is Missing or Invalid`
+
+This confirms the reminder blocker is now a **real TFV/BRN failure**, not a hypothetical research risk.
+
 **Plan created:** [[Tasks/Reminder-SMS-TFV-Implementation-Plan]]
 
 **Що план передбачає:**
@@ -37,7 +46,7 @@ AI 5 research is complete ([[Tasks/AI5-Research-Brief-Reminder-SMS]]). Key findi
 - **AI 1**: Review backend risk у плані, записати notes в [[Tasks/Reminder-SMS-TFV-Implementation-Plan#AI 1 (Claude) review]]
 - **AI 2**: Review frontend/UX alignment, записати notes там же
 - **AI 4**: Review emergency/rollback risk, записати notes там же
-- **Owner**: Approve план + відповісти на Jonathan gate question (Крок 5.1 у плані)
+- **Owner**: Approve план + provide the exact legal BRN/EIN needed to fix the rejected TFV request + відповісти на Jonathan gate question (Крок 5.1 у плані)
 
 **Поки всі 4 чекбокси в плані не зелені — код не пишемо.**
 
