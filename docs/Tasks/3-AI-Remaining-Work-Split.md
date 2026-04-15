@@ -3,7 +3,7 @@
 > [[Home]] > Tasks | Owner: AI 1 (docs) · Last full verification: **2026-04-15** (this pass)
 > ⚠️ **Read [[AI-Core-Manifesto]] first before starting any work.**
 > ⛔ **Before touching any item in this file, add a current-session entry to [[AI-Session-Acceptance-Log]].**
-> Related: [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]], [[Production-Plan-AI1]], [[Production-Plan-AI2]], [[AI-Session-Acceptance-Log]]
+> Related: [[AI-Profiles/README|AI Profiles]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]], [[Production-Plan-AI1]], [[Production-Plan-AI2]], [[AI-Session-Acceptance-Log]]
 
 ---
 
@@ -22,6 +22,7 @@ This file is the **authoritative** split for what is open across the project. Ev
 | **Owner (Nazarii)** | Telnyx portal, GitHub Secrets, Google Cloud Console, App Store Connect, legal, live runbook execution | Only one who can touch real secrets and third-party accounts |
 
 Full file ownership is in [[AI-Work-Split]]. Core rules in [[AI-Core-Manifesto]].
+Detailed working profiles live in [[AI-Profiles/README|AI Profiles]].
 
 ---
 

@@ -3,7 +3,7 @@
 > ⚠️ **CRITICAL: Кожен AI зобов'язаний прочитати цей документ перед початком будь-якої сесії роботи.**
 > ⛔ **Ніхто не має права продовжувати далі, поки не запише явне прийняття правил у [[AI-Session-Acceptance-Log]].**
 
-> [[Home]] | Related: [[Tasks/3-AI-Remaining-Work-Split|4-AI Work Split]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[AI-Session-Acceptance-Log]]
+> [[Home]] | Related: [[AI-Profiles/README|AI Profiles]], [[Tasks/3-AI-Remaining-Work-Split|4-AI Work Split]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[AI-Session-Acceptance-Log]]
 > Created: 2026-04-15 | Owner: AI 3 (Verdent)
 
 ---
@@ -17,6 +17,8 @@
 | **AI 3** | Verdent (Я) | Планувальник + Верифікатор | Складає детальні плани, перевіряє чи все по плану, QA сканування | `docs/Tasks/QA-Scan-*.md`, `docs/Tasks/*-Runbook.md`, планування |
 | **AI 4** | Phone AI | Universal Quick-Fixer | Термінові фікси коли система падає або інші AI застрягли | Повний доступ до всього — тільки для emergencies |
 | **Owner** | Назарій | Власник проєкту | Фінальні рішення, секрети, зовнішні сервіси | GitHub Secrets, Telnyx portal, App Store Connect, legal |
+
+Детальні робочі профілі кожного AI дивись у [[AI-Profiles/README|AI Profiles]].
 
 ---
 

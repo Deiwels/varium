@@ -17,6 +17,7 @@
 | **Current focus** | P0 tasks in [[Tasks/Launch Readiness Plan\|Launch Readiness Plan]] |
 | **Active work** | [[Tasks/In Progress\|In Progress]] |
 | **Who's working** | 4 AI + Owner — see [[Tasks/3-AI-Remaining-Work-Split\|4-AI Work Split]] + [[AI-Session-Acceptance-Log]] |
+| **AI profiles** | [[AI-Profiles/README\|AI Profiles]] |
 
 ---
 
