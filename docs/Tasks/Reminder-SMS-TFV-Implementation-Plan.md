@@ -1,6 +1,6 @@
 ---
 type: plan
-status: active
+status: archived
 priority: p0
 owner: AI 3
 created: 2026-04-15
@@ -8,7 +8,11 @@ created: 2026-04-15
 
 # Reminder SMS TFV Implementation Plan
 
-> [[Home]] > Tasks | Related: [[Tasks/Reminder-SMS-Launch-Completion|Reminder SMS Launch Completion]], [[Tasks/AI5-Research-Brief-Reminder-SMS|AI 5 Research Brief — Reminder SMS]], [[Features/SMS & 10DLC]], [[Tasks/Telnyx-Integration-Plan|Telnyx Integration Plan]], [[Tasks/Live-SMS-Verification-Checklist|Live SMS Verification Checklist]], [[Tasks/TFV-Inspection-and-Submission-Runbook|TFV Inspection & Submission Runbook]]
+> ⛔ **ARCHIVED — Superseded by [[Tasks/Reminder-SMS-TFV-Implementation-Plan-v2|v2]].**
+> v1 had 3 hard blockers identified by AI 1 review. See [[Tasks/Reminder-SMS-TFV-Plan-AI1-Review]] for details.
+> All AI should use v2 as the authoritative plan going forward.
+
+> [[Home]] > Tasks | Related: [[Tasks/Reminder-SMS-TFV-Implementation-Plan-v2|v2 (current)]], [[Tasks/Reminder-SMS-TFV-Plan-AI1-Review|AI 1 Review]], [[Tasks/AI5-Research-Brief-Reminder-SMS|AI 5 Research Brief]]
 > Created: 2026-04-15 | Plan by: AI 3 (Verdent) | Based on: AI 5 research findings
 
 ---

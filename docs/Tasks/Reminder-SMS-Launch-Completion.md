@@ -99,15 +99,16 @@ Completed in:
 
 The research phase is now complete enough for AI 3 to plan and for AI 1 to validate one real sender.
 
-### Step 2A — AI 3 implementation plan (completed)
+### Step 2A — AI 3 implementation plan (v2 published)
 
-AI 3 has published the implementation plan based on AI 5 findings:
+AI 3 has published the **v2** implementation plan incorporating AI 1 and AI 2 reviews:
 
-- [[Tasks/Reminder-SMS-TFV-Implementation-Plan]]
+- [[Tasks/Reminder-SMS-TFV-Implementation-Plan-v2]] (current)
+- [[Tasks/Reminder-SMS-TFV-Implementation-Plan]] (v1 — archived)
 
-Plan covers: status lifecycle change, TFV API integration, frontend alignment, Element protection, rollback, and live pilot.
+v2 resolves: BRN field gap (Pattern B Sole Proprietor), onboarding timing gate, webhook TFV events, 30-min polling, retry strategy, atomic writes, frontend state machine update, developer SMS page scope.
 
-**Status:** awaiting 4-AI Review Gate (AI 1, AI 2, AI 4, Owner must review and approve before implementation starts).
+**Status:** awaiting 4-AI Review Gate v2.
 
 ### Step 2B — AI 1 / Claude browser + portal check
 

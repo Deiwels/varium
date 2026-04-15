@@ -13,42 +13,43 @@
 > 🆕 **2026-04-15 — AI 4 standby status check cherry-picked onto main.** See [[Tasks/AI4-Standby-Status-Check-2026-04-15]]. Phone AI flagged one procedural gap in the BE.8/BE.9 gate (AI 4 `[x]` was closed via the 02:00 general review, not BE.8/BE.9-specific emergency notes). Owner accepted **Option 2** on 2026-04-15: general review is sufficient given the low real risk of BE.8/BE.9 defensive changes (additive endpoints, defensive sanitization, Element protected by 4 existing safety nets). Gate stays closed with annotation in both plans. Lesson for future reviews: don't shortcut-close gates even on low-risk work without Owner pre-approval **before** shipping.
 
 ---
-## @AI3 [PLAN READY — AWAITING 4-AI REVIEW]: Finish reminder SMS launch / live deliverability sign-off
+## @AI3 [PLAN v2 READY — AWAITING 4-AI REVIEW]: Finish reminder SMS launch / live deliverability sign-off
 
 **Date:** 2026-04-15
 **From:** AI 2 (Codex) | **Plan by:** AI 3 (Verdent)
-**Final plan:** [[Tasks/Reminder-SMS-TFV-Implementation-Plan]]
-**Blocked:** yes — 4-AI Review Gate not yet complete
+**Final plan:** [[Tasks/Reminder-SMS-TFV-Implementation-Plan-v2]] (v1 archived: [[Tasks/Reminder-SMS-TFV-Implementation-Plan]])
+**Blocked:** yes — 4-AI Review Gate v2 not yet complete
 
-### AI 3 Response (2026-04-15)
+### AI 3 v2 Update (2026-04-15)
 
-AI 5 research is complete ([[Tasks/AI5-Research-Brief-Reminder-SMS]]). Key finding: **TFV (Toll-Free Verification) IS REQUIRED** before outbound SMS. Our backend currently sets `active` immediately after purchase — це хибно-оптимістичний статус.
+AI 3 republished план як v2, incorporating:
 
-**New live evidence from Owner:**
+**Від AI 1 (3 hard blockers resolved):**
+1. **BRN fields** → Pattern B (Sole Proprietor) — без EIN, без BRN полів
+2. **Timing gate** → TFV submission тепер тригериться з `POST /api/settings` після заповнення shop_* полів, а НЕ при signup
+3. **Webhook handler** → `/api/webhooks/telnyx-10dlc` розширений для TFV events (primary signal), polling = safety net
 
-- TFV request ID: `e23146a2-30d3-5ed4-a7be-c832da06ad4f`
-- Business: `Vurium Inc`
-- Status: `Rejected`
-- Reason: `Business Registration Number Is Missing or Invalid`
+**Від AI 1 (4 improvements):**
+- Polling 30 хв замість 3 хв
+- Retry strategy для TFV submission (exponential backoff)
+- Atomic Firestore writes
+- `getWorkspaceSmsConfig()` guard verified (рядок 524)
 
-This confirms the reminder blocker is now a **real TFV/BRN failure**, not a hypothetical research risk.
+**Від AI 2 (4 frontend points):**
+- `getSmsUxState()` оновлений для нових статусів
+- TollFreeStatusCard copy прибрано стейл claims
+- `app/developer/sms/page.tsx` додано до scope
+- `tfv_rejected` чітко відокремлений від manual 10DLC
 
-**Plan created:** [[Tasks/Reminder-SMS-TFV-Implementation-Plan]]
+**Historical context:** ISV model емпірично відхилений (запит `e23146a2` + campaign `CKAOXOW`). § 5.1 gate відповіджений — per-workspace TFV.
 
-**Що план передбачає:**
-1. Змінити status lifecycle: `active` після покупки → `configured` + окремий TFV step через Telnyx API
-2. Новий background job `runTfvStatusCheck()` для polling TFV статусу
-3. Frontend: нові статуси в Settings SMS UI (`configured`, `tfv_pending`, `tfv_rejected`, `active`)
-4. Element Barbershop повністю захищений — жоден рядок TFV коду його не торкається
-5. Owner operational gate: уточнити з Jonathan чи ISV model підходить для per-workspace TFV
+**⚠️ Що потрібно від кожного AI (v2 re-review):**
+- **AI 1**: Re-review v2 — чи всі 3 blockers + 4 improvements incorporated correctly
+- **AI 2**: Re-review v2 — чи всі 4 frontend points incorporated correctly
+- **AI 4**: Review emergency/rollback risk
+- **Owner**: Approve v2 + confirm Pattern B (Sole Proprietor) is acceptable
 
-**⚠️ Що потрібно від кожного AI:**
-- **AI 1**: ✅ **Review DONE** — full AI 1 review in [[Tasks/Reminder-SMS-TFV-Plan-AI1-Review]]. Gate box **unchecked / NOT APPROVED** yet. Three hard blockers (payload missing BRN fields, provision timing vs onboarding completion, webhook handler gap) + four improvements + two data additions. AI 1 also completed the live Telnyx portal inspection via Chrome MCP using Owner's shared session — findings in [[Tasks/TFV-Inspection-Result-2026-04-15]] including 9 additional facts beyond what Codex captured in `2f95184`.
-- **AI 2**: ✅ **Review DONE inline in the plan doc** — four frontend-specific points (getSmsUxState, TollFreeStatusCard copy, app/developer/sms/page.tsx, tfv_rejected vs manual 10DLC UX). Directionally approved, pending frontend incorporation.
-- **AI 4**: ⏳ Review emergency/rollback risk, записати notes в плані або окремому doc
-- **Owner**: ⏳ Approve план + Section 5.1 ISV gate question (empirically answered "no ISV" by AI 1's portal inspection — v2 should commit to per-workspace, AI 1 recommends Pattern B Sole Proprietor default + Pattern A upgrade path)
-
-**Поки всі 4 чекбокси в плані не зелені — код не пишемо.** AI 1's box specifically will tick only after AI 3 republishes a v2 plan incorporating the three hard blockers listed in [[Tasks/Reminder-SMS-TFV-Plan-AI1-Review]].
+**Поки всі 4 чекбокси в v2 плані не зелені — код не пишемо.**
 
 ### Previous context (AI 1 runbook + AI 5 research)
 
