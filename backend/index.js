@@ -2515,6 +2515,204 @@ app.post('/api/vurium-dev/sms/provision', requireSuperadmin, express.json(), asy
   }
 });
 
+// ============================================================
+// BE.8 — LEGACY SMS STATUS MIGRATION (plan: BE.8-Legacy-SMS-Migration-Plan-v2)
+// ============================================================
+// Owner-approved 4-AI-gated plan (2026-04-15). Purpose: migrate workspaces
+// carrying old manual-10DLC status values (pending_otp / verified / brand_created /
+// pending_campaign / pending_number / pending_approval / pending_vetting) onto the
+// new pipeline (none / provisioning / pending / active / failed*). Element
+// Barbershop is skipped via isProtectedLegacyWorkspace() — protected legacy.
+//
+// Sequence (Owner runs):
+//   Pre-Step 0: Firestore export (Cloud Console → workspaces → Export to gs://)
+//   1. GET  /api/vurium-dev/sms/legacy-audit                           — list affected workspaces
+//   2. POST /api/vurium-dev/sms/migrate-legacy-statuses?dryRun=true    — preview transitions
+//   3. POST /api/vurium-dev/sms/migrate-legacy-statuses?dryRun=false   — real migration (atomic batch)
+//   4. GET  /api/vurium-dev/sms/legacy-audit                           — must return total: 0
+//   5. POST /api/vurium-dev/sms/restore-legacy-status/:wsId            — manual rollback if needed
+//
+// After Owner verifies total: 0, a separate commit removes LEGACY_SMS_STATUSES.
+// ============================================================
+
+function mapLegacyStatusToNew(oldStatus, settings) {
+  const hasBrand = !!settings?.telnyx_brand_id;
+  switch (oldStatus) {
+    case 'pending_otp':
+    case 'verified':
+      return hasBrand ? 'pending' : 'none';
+    case 'brand_created':
+    case 'pending_campaign':
+    case 'pending_number':
+      return 'pending';
+    case 'pending_approval':
+    case 'pending_vetting':
+      return 'pending';
+    default:
+      return null; // not a legacy status
+  }
+}
+
+async function collectLegacyWorkspaces() {
+  const transitions = [];
+  let elementSkipped = false;
+  const wsSnap = await db.collection('workspaces').limit(500).get();
+  for (const ws of wsSnap.docs) {
+    const cfgDoc = await db.collection('workspaces').doc(ws.id).collection('settings').doc('config').get();
+    if (!cfgDoc.exists) continue;
+    const settings = cfgDoc.data() || {};
+    const oldStatus = safeStr(settings.sms_registration_status || '');
+    if (!LEGACY_SMS_STATUSES.has(oldStatus)) continue;
+
+    const workspace = { id: ws.id, ...ws.data() };
+    if (isProtectedLegacyWorkspace(workspace, settings)) {
+      elementSkipped = true;
+      continue;
+    }
+
+    const newStatus = mapLegacyStatusToNew(oldStatus, settings);
+    if (!newStatus) continue;
+
+    transitions.push({
+      workspace_id: ws.id,
+      slug: safeStr(workspace.slug || ''),
+      name: safeStr(workspace.name || settings.shop_name || ''),
+      old_status: oldStatus,
+      new_status: newStatus,
+      number_type: safeStr(settings.sms_number_type || ''),
+      has_brand: !!settings.telnyx_brand_id,
+      has_campaign: !!settings.telnyx_campaign_id,
+    });
+  }
+  return { transitions, elementSkipped };
+}
+
+// Step 1 — Audit (read-only)
+app.get('/api/vurium-dev/sms/legacy-audit', requireSuperadmin, async (req, res) => {
+  try {
+    const { transitions, elementSkipped } = await collectLegacyWorkspaces();
+    res.json({
+      total: transitions.length,
+      elementSkipped,
+      workspaces: transitions.map(t => ({
+        id: t.workspace_id,
+        slug: t.slug,
+        name: t.name,
+        status: t.old_status,
+        number_type: t.number_type,
+      })),
+    });
+  } catch (e) {
+    console.warn('[BE.8] legacy-audit error:', e?.message);
+    res.status(500).json({ error: e?.message || 'Failed to run legacy audit' });
+  }
+});
+
+// Step 2 — Migration (dry-run or real, atomic batch)
+app.post('/api/vurium-dev/sms/migrate-legacy-statuses', requireSuperadmin, express.json(), async (req, res) => {
+  try {
+    const dryRun = safeStr(req.query?.dryRun || '').toLowerCase() !== 'false';
+    const { transitions, elementSkipped } = await collectLegacyWorkspaces();
+
+    if (transitions.length === 0) {
+      return res.json({
+        dryRun,
+        total: 0,
+        transitions: [],
+        elementSkipped,
+        batches: 0,
+        message: 'No legacy workspaces to migrate. LEGACY_SMS_STATUSES Set can be safely removed in next commit.',
+      });
+    }
+
+    // Firestore batches are capped at 500 operations. We only write 1 op per workspace,
+    // so up to 500 transitions fit in a single batch. Anything above needs splitting.
+    const BATCH_LIMIT = 500;
+    const batchCount = Math.ceil(transitions.length / BATCH_LIMIT);
+
+    for (const t of transitions) {
+      console.log(`[BE.8] ${dryRun ? 'DRY' : 'MIGRATE'} ws=${t.workspace_id} slug=${t.slug} ${t.old_status} → ${t.new_status}`);
+    }
+
+    if (!dryRun) {
+      const now = toIso(new Date());
+      for (let b = 0; b < batchCount; b++) {
+        const batch = db.batch();
+        const slice = transitions.slice(b * BATCH_LIMIT, (b + 1) * BATCH_LIMIT);
+        for (const t of slice) {
+          const ref = db.collection('workspaces').doc(t.workspace_id).collection('settings').doc('config');
+          batch.update(ref, {
+            sms_registration_status: t.new_status,
+            sms_registration_status_legacy: t.old_status,
+            sms_status_updated_at: now,
+            sms_migration_source: 'BE.8-legacy-statuses',
+          });
+        }
+        await batch.commit();
+        console.log(`[BE.8] Batch ${b + 1}/${batchCount} committed (${slice.length} ops)`);
+      }
+    }
+
+    res.json({
+      dryRun,
+      total: transitions.length,
+      transitions,
+      elementSkipped,
+      batches: batchCount,
+      note: dryRun ? 'No writes performed. Re-run with ?dryRun=false to apply.' : 'Migration applied. Run GET /api/vurium-dev/sms/legacy-audit to verify total: 0.',
+    });
+  } catch (e) {
+    console.warn('[BE.8] migrate-legacy-statuses error:', e?.message);
+    res.status(500).json({ error: e?.message || 'Failed to run legacy status migration' });
+  }
+});
+
+// Step 5 — Restore (manual rollback using the snapshot we wrote in step 2)
+// Reads sms_registration_status_legacy that BE.8 migration wrote as a breadcrumb
+// and writes it back as the active status. Owner can also fall back to the full
+// Firestore export from Pre-Step 0 via Cloud Console if this endpoint is unavailable.
+app.post('/api/vurium-dev/sms/restore-legacy-status/:wsId', requireSuperadmin, express.json(), async (req, res) => {
+  try {
+    const wsId = safeStr(req.params.wsId || '');
+    if (!wsId) return res.status(400).json({ error: 'Missing wsId' });
+
+    const wsDoc = await db.collection('workspaces').doc(wsId).get();
+    if (!wsDoc.exists) return res.status(404).json({ error: 'Workspace not found' });
+    const workspace = { id: wsId, ...wsDoc.data() };
+
+    const cfgRef = db.collection('workspaces').doc(wsId).collection('settings').doc('config');
+    const cfgDoc = await cfgRef.get();
+    if (!cfgDoc.exists) return res.status(404).json({ error: 'Workspace settings/config not found' });
+    const settings = cfgDoc.data() || {};
+
+    if (isProtectedLegacyWorkspace(workspace, settings)) {
+      return res.status(409).json({ error: 'Refusing to restore protected legacy workspace (Element)' });
+    }
+
+    const override = safeStr(req.body?.status || '');
+    const legacy = safeStr(settings.sms_registration_status_legacy || '');
+    const target = override || legacy;
+    if (!target) {
+      return res.status(400).json({
+        error: 'No legacy status to restore. Pass { "status": "pending_otp" } in body to force a specific value.',
+        current: safeStr(settings.sms_registration_status || ''),
+      });
+    }
+
+    await cfgRef.update({
+      sms_registration_status: target,
+      sms_status_updated_at: toIso(new Date()),
+      sms_migration_source: `BE.8-restore-${override ? 'override' : 'snapshot'}`,
+    });
+    console.log(`[BE.8] RESTORE ws=${wsId} → ${target} (from ${override ? 'override' : 'snapshot'})`);
+
+    res.json({ ok: true, workspace_id: wsId, restored_status: target, source: override ? 'override' : 'snapshot' });
+  } catch (e) {
+    console.warn('[BE.8] restore-legacy-status error:', e?.message);
+    res.status(500).json({ error: e?.message || 'Failed to restore legacy status' });
+  }
+});
+
 // ── Analytics tracker ingest (unauthenticated, rate-limited) ──
 const trackerLimiter = {};
 app.post('/t', express.json({ limit: '1kb' }), (req, res) => {
