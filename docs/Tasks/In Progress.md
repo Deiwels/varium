@@ -19,6 +19,50 @@
 **From:** AI 2 (Codex)
 **Blocked:** yes — no new architecture/code changes until the real blocker is confirmed
 
+### Status update — AI 5 research landed
+
+AI 5 has now filled [[Tasks/AI5-Research-Brief-Reminder-SMS]] with source-backed Telnyx findings.
+
+**What is now confirmed:**
+
+- Buying a toll-free number and attaching it to a messaging profile is **not enough** to treat reminder SMS as launch-ready.
+- Toll-free reminder/customer-care traffic is allowed by Telnyx, but the sender still needs **Toll-Free Verification (TFV)** before it should be treated as truly live.
+- TFV is **API-capable**, not portal-only.
+- Backend status `sms_registration_status: active` is currently too optimistic if interpreted as "carrier-ready / customer-deliverable". It currently proves configuration, not verified launch-readiness.
+
+**Updated blocker truth:**
+
+- Reminder SMS is blocked by the **last external verification mile**, not by a missing core reminder engine.
+- The immediate next step is **not** speculative code work. The immediate next step is portal/API truth for one real sender.
+
+### Action queue after AI 5 research
+
+1. **AI 1 / Claude**
+   - Check one fresh workspace sender in Telnyx Portal/API
+   - Confirm whether a TFV request exists
+   - Record the exact TFV status for that number
+   - Confirm whether profile/autoresponse configuration matches the backend assumption
+   - If TFV has not been submitted, prepare the smallest correct submission path
+
+2. **AI 3 / Verdent**
+   - Use the AI 5 findings to publish the final reminder-SMS completion plan
+   - Plan should cover:
+     - TFV submission path
+     - truthful status semantics (configured vs verified/live)
+     - go-live criteria for one fresh workspace pilot
+
+3. **Owner**
+   - After AI 1 confirms sender/TFV state, run one fresh-workspace live pilot:
+     - booking confirmation
+     - scheduled reminder
+     - STOP
+     - HELP
+     - email-only fallback
+
+4. **AI 2 / Codex**
+   - Stay out of new sender-architecture guesses
+   - Join only if the final plan requires frontend status/UX changes
+
 ### Problem
 
 Appointment reminder SMS still cannot be considered fully live / trusted yet. The backend reminder engine is implemented, but we still do not have canonical proof that a **fresh workspace** can auto-provision a sender and deliver real booking reminders end-to-end.

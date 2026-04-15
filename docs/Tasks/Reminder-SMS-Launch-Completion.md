@@ -43,16 +43,18 @@ That means the blocker is no longer "missing core code". The blocker is the **la
 
 The code marks the workspace `active` immediately after TFN purchase + messaging profile setup. That may be correct — or it may be optimistic. We still need a live proof.
 
-### 2. Toll-free verification / carrier readiness may still matter
+### 2. Toll-free verification / carrier readiness is now confirmed as the main blocker
 
-The repo does **not** currently submit a TFV request as part of `provisionTollFreeSmsForWorkspace()`.
+AI 5 has now answered the external-facts question in [[Tasks/AI5-Research-Brief-Reminder-SMS]].
 
-So before we trust reminder SMS at launch scale, we need an exact answer:
+**Confirmed from official Telnyx sources:**
 
-- Is the current per-workspace TFN path already enough to deliver appointment reminders?
-- Or does each reminder sender need an additional TFV / carrier verification step outside the code path?
+- buying a toll-free number + attaching a messaging profile is **not enough** to call the sender launch-ready
+- reminder / customer-care toll-free traffic is allowed, but it still requires **Toll-Free Verification (TFV)**
+- `Verified` is the only clearly positive state that should be treated as ready
+- our current backend `sms_registration_status: active` is too optimistic if read as "customer-deliverable"
 
-This is precisely the kind of question AI 5 should answer before we design any bigger follow-up patch.
+The repo does **not** currently submit TFV as part of `provisionTollFreeSmsForWorkspace()`, so the reminder blocker is now understood as a **real external readiness gap**, not a vague suspicion.
 
 ### 3. We still need one live pilot pass
 
@@ -68,24 +70,19 @@ the reminder system is **not fully signed off**, even if the code looks ready.
 
 ## Execution order
 
-### Step 1 — AI 5 research (first, before bigger changes)
+### Step 1 — AI 5 research (completed)
 
-Use the shared packet:
+Completed in:
 
 - [[Tasks/AI5-Research-Brief-Reminder-SMS]]
 
-**Question for AI 5:**
+**Operational conclusion from AI 5:**
 
-For Telnyx US reminder traffic using a **dedicated toll-free number per workspace**, what is required for real deliverability?
+- Treat each dedicated reminder sender as needing TFV coverage before it is considered truly live
+- Treat `Verified` as the only clear ready state
+- Do not treat purchased+attached+`active` as sufficient proof of deliverability
 
-Need exact answers to:
-
-1. Does each per-workspace toll-free number require its own TFV submission before appointment reminders can be sent reliably in the US?
-2. If yes, can that verification be automated through Telnyx API or is it portal/manual only?
-3. Does attaching a number to a messaging profile make it operationally send-ready, or only portal-configured?
-4. What is the exact official Telnyx position for customer-care / appointment reminders over toll-free numbers for end-business traffic?
-
-**Expected output:** a short research memo with official sources and a recommendation we can act on.
+The research phase is now complete enough for AI 3 to plan and for AI 1 to validate one real sender.
 
 ### Step 2 — AI 1 / Claude browser + portal check
 
@@ -93,9 +90,11 @@ Claude has the browser lane. He should verify in Telnyx portal:
 
 1. A fresh workspace actually received a toll-free number
 2. The number is attached to the expected messaging profile
-3. The profile exists and has STOP / HELP autoresponses
-4. There is no visible "not verified / blocked / pending review" state that contradicts our `active` backend status
-5. If a TFV form exists and AI 5 confirms it is required, Claude can prepare/fill the portal data with Owner approval
+3. Whether that specific number has a TFV request at all
+4. The exact TFV status for that number
+5. The profile exists and has STOP / HELP autoresponses
+6. There is no visible "not verified / blocked / pending review" state that contradicts our `active` backend status
+7. If TFV has not been submitted yet, Claude should prepare the smallest correct submission path (portal or API-backed ops path) with Owner approval
 
 ### Step 3 — Owner live verification
 
@@ -109,6 +108,8 @@ Run the smallest high-value subset from [[Tasks/Live-SMS-Verification-Checklist]
 And from [[Tasks/Launch-Verification-Runbook]]:
 
 - Section 5.1 — Appointment reminder
+
+**Important:** do this only after AI 1 confirms the sender's real TFV/configuration state. Without that, a failed pilot does not tell us enough.
 
 ### Step 4 — Only if live test fails
 
@@ -137,9 +138,22 @@ If the fresh workspace still does **not** receive reminder SMS:
 Reminder SMS is considered **truly launch-ready** only when all are true:
 
 - one fresh workspace auto-provisions its reminder sender,
+- that sender has real TFV/verification truth confirming it is launch-ready,
 - a booking confirmation SMS is received,
 - a scheduled reminder SMS is received,
 - STOP works,
 - HELP works,
 - email-only fallback works when SMS is unavailable,
 - docs are updated to say this is verified, not assumed.
+
+---
+
+## Current practical verdict
+
+The reminder path is **code-complete but not launch-complete**.
+
+What is missing now is:
+
+1. real TFV state for one fresh reminder sender
+2. one confirmed live pilot
+3. a final AI 3 plan for truthful status semantics and any required follow-up implementation
