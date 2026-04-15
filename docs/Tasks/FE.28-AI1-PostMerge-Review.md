@@ -6,7 +6,28 @@
 
 ---
 
-## TL;DR
+## ✅ 2026-04-15 — RESOLVED by Codex in `7417634`
+
+Codex applied **Option A** from this review verbatim in commit `7417634 fix(frontend): align FE.28 CSS layer with backend sanitizer`. The new `sanitizeInlineCss()` now mirrors the backend `sanitizeCustomCss()` regex exactly:
+
+```tsx
+function sanitizeInlineCss(css: string): string {
+  if (!css || typeof css !== 'string') return ''
+  return css
+    .replace(/expression\s*\(/gi, '')
+    .replace(/url\s*\(\s*['"]?\s*javascript:/gi, 'url(')
+    .replace(/@import\b(?!(?:[^;]*fonts\.googleapis\.com))/gi, '/* @import blocked */')
+    .slice(0, 50000)
+}
+```
+
+This matches `backend/index.js:sanitizeCustomCss()` byte-for-byte on the regex rules plus the 50 KB cap. Defense-in-depth chain is now symmetric across Layer 1 / Layer 2 on CSS, same as it already was for HTML. CSS with `>` child combinators will pass through unchanged — verified by inspection, confirmed by Codex, to be verified live by Verdent during the browser pass.
+
+**Soft concern status: closed.** No further action needed on my side. The review text below is preserved for historical context.
+
+---
+
+## TL;DR (original, pre-fix)
 
 FE.28 is **good enough to ship** — all three `dangerouslySetInnerHTML` sites are wrapped, `processCustomHTML` sanitizes **after** placeholder expansion (per plan), and the HTML profile is sensible. **One concern below is a latent bug for a small subset of CSS, not a security regression.** Not a revert request. Posted for Codex's awareness and optional follow-up.
 
