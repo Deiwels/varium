@@ -1,7 +1,8 @@
 # Varium (VuriumBook)
 
-> ⚠️ **ВСІМ AI: Читати [[AI-Core-Manifesto]] перед початком будь-якої роботи. Обов'язково.**
+> ⚠️ **ВСІМ AI: Читати [[AI-Rule-Updates]] і [[AI-Core-Manifesto]] перед початком будь-якої роботи. Обов'язково.**
 > ⛔ **Поки немає нового запису в [[AI-Session-Acceptance-Log]], AI не має права продовжувати далі.**
+> 🧠 **Якщо задача потребує планування — вона йде в `In Progress.md` як `@AI3 [PLAN REQUEST]`, а реалізація блокується до завершення 4-AI Plan Review Gate.**
 
 > Multi-tenant booking & business management SaaS for salons, barbershops, and service businesses.
 > Corporation: **Vurium Inc.** (Illinois, File #75519095)
@@ -18,6 +19,7 @@
 | **Active work** | [[Tasks/In Progress\|In Progress]] |
 | **Who's working** | 4 AI + Owner — see [[Tasks/3-AI-Remaining-Work-Split\|4-AI Work Split]] + [[AI-Session-Acceptance-Log]] |
 | **AI profiles** | [[AI-Profiles/README\|AI Profiles]] |
+| **Rule updates** | [[AI-Rule-Updates\|AI Rule Updates]] |
 
 ---
 

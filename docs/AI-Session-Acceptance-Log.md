@@ -6,6 +6,7 @@
 ## How to use this log
 
 - Before any planning, coding, verification, or commits, the AI must read [[AI-Core-Manifesto]] and the required startup docs.
+- If [[AI-Rule-Updates]] changed since the AI's last session, old acceptance entries are stale and a fresh entry is required.
 - Then it must append a new line here for the current session.
 - **No entry = no permission to proceed.**
 
@@ -22,3 +23,4 @@
 - 2026-04-14 19:44 — AI 2 / Codex — scope: frontend — I have read and accept [[AI-Core-Manifesto]] and will follow it before doing any work.
 - 2026-04-14 19:49 — AI 2 / Codex — scope: emergency — I have read and accept [[AI-Core-Manifesto]] and will follow it before doing any work.
 - 2026-04-14 20:00 — AI 2 / Codex — scope: emergency — I have read and accept [[AI-Core-Manifesto]] and will follow it before doing any work.
+- 2026-04-14 20:24 — AI 2 / Codex — scope: frontend — I have read and accept [[AI-Core-Manifesto]] and will follow it before doing any work.

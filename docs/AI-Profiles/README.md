@@ -1,9 +1,9 @@
 # AI Profiles
 
-> [[Home]] | Related: [[AI-Core-Manifesto]], [[AI-Work-Split]], [[AI-Session-Acceptance-Log]], [[Tasks/3-AI-Remaining-Work-Split|4-AI Work Split]]
+> [[Home]] | Related: [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Work-Split]], [[AI-Session-Acceptance-Log]], [[Tasks/3-AI-Remaining-Work-Split|4-AI Work Split]]
 > Purpose: one page per AI + Owner with role, scope, strengths, known history, coordination rules.
 
-Before starting a session, every AI reads **its own profile** and confirms that its behaviour matches. If a profile is out of date, the first action of the session is to update the profile — not code.
+Before starting a session, every AI reads **[[AI-Rule-Updates]] first**, then **its own profile**, and confirms that its behaviour matches. If a profile is out of date, the first action of the session is to update the profile — not code.
 
 ## Index
 
