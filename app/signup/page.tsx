@@ -213,7 +213,7 @@ export default function SignupPage() {
       setError('Please enter a valid email address.'); return
     }
     if (!smsConsent) {
-      setError('Please agree to receive the SMS verification code to continue.'); return
+      setError('Please agree to receive one-time verification codes by SMS to continue.'); return
     }
     if (!termsConsent) {
       setError('Please confirm you are at least 16 and agree to the Terms of Service and Privacy Policy.'); return
@@ -478,7 +478,7 @@ export default function SignupPage() {
                       style={{ marginTop: 3, width: 16, height: 16, accentColor: 'rgba(130,220,170,.7)', cursor: 'pointer', flexShrink: 0 }}
                     />
                     <span style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>
-                      I authorize VuriumBook&trade; to send appointment-related text messages to my clients on my behalf when enabled in my booking settings. I am responsible for using SMS features lawfully and only where my clients have provided consent.
+                      By entering your phone number, you agree to receive one-time verification codes from VuriumBook via SMS. Message frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out. Reply HELP for help. Consent is not a condition of purchase. <a href="/privacy" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Privacy Policy</a> <span style={{ color: 'rgba(255,255,255,.25)' }}>&amp;</span> <a href="/terms" target="_blank" rel="noopener" style={{ color: 'rgba(130,150,220,.6)', textDecoration: 'none' }}>Terms</a>
                     </span>
                   </label>
                 </div>
