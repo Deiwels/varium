@@ -128,6 +128,7 @@ export default function SignupPage() {
   const [verifySending, setVerifySending] = useState(false)
   const [verifyError, setVerifyError] = useState('')
   const [verifyResent, setVerifyResent] = useState(false)
+  const [verifyCodeSent, setVerifyCodeSent] = useState(false)
   const [smsConsent, setSmsConsent] = useState(false)
   const [termsConsent, setTermsConsent] = useState(false)
 
@@ -259,7 +260,27 @@ export default function SignupPage() {
       }))
       setAuthCookie('owner:' + data.user_id)
       setWsId(data.workspace_id)
-      setStep(1) // Go directly to plan selection — SMS should auto-start after trial/plan activation
+      setVerifyCode('')
+      setVerifyResent(false)
+      try {
+        const verifyRes = await fetch(`${API}/public/verify/send/${data.workspace_id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phone.replace(/\D/g, '') }),
+        })
+        const verifyData = await verifyRes.json().catch(() => ({}))
+        if (!verifyRes.ok) {
+          setVerifyCodeSent(false)
+          setVerifyError(verifyData.error || 'We could not send a verification code yet. Tap Resend code to try again.')
+        } else {
+          setVerifyCodeSent(true)
+          setVerifyError('')
+        }
+      } catch {
+        setVerifyCodeSent(false)
+        setVerifyError('We could not send a verification code yet. Tap Resend code to try again.')
+      }
+      setStep(0.5 as any)
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
     } finally {
@@ -506,7 +527,9 @@ export default function SignupPage() {
               <div style={{ fontSize: 40, marginBottom: 16 }}>&#128241;</div>
               <h2 style={{ fontSize: 22, fontWeight: 700, color: '#e8e8ed', marginBottom: 8 }}>Verify your phone</h2>
               <p style={{ fontSize: 14, color: 'rgba(255,255,255,.35)', marginBottom: 24, lineHeight: 1.5 }}>
-                We sent a 6-digit code to <strong style={{ color: 'rgba(255,255,255,.6)' }}>{phone}</strong>. Enter it below to continue.
+                {verifyCodeSent
+                  ? <>We sent a 6-digit code to <strong style={{ color: 'rgba(255,255,255,.6)' }}>{phone}</strong>. Enter it below to continue.</>
+                  : <>Tap <strong style={{ color: 'rgba(255,255,255,.6)' }}>Resend code</strong> to send a 6-digit verification code to <strong style={{ color: 'rgba(255,255,255,.6)' }}>{phone}</strong>.</>}
               </p>
               {verifyError && (
                 <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(220,80,80,.1)', border: '1px solid rgba(220,80,80,.2)', color: 'rgba(255,160,160,.9)', fontSize: 13, marginBottom: 16 }}>
@@ -560,6 +583,8 @@ export default function SignupPage() {
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ phone: phone.replace(/\D/g, '') }),
                     })
+                    setVerifyCodeSent(true)
+                    setVerifyError('')
                     setVerifyResent(true)
                     setTimeout(() => setVerifyResent(false), 30000)
                   } catch {}
