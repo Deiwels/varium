@@ -98,7 +98,11 @@ API prefetch: `/api/bookings/today`, `/api/dashboard/stats`
 - Native: UserDefaults `vurium_auth_token`
 - Web: localStorage `VURIUMBOOK_TOKEN`
 - Bidirectional sync on every page load
-- Cookie: `vuriumbook_token` + `vuriumbook_auth` (secure, 7-day, domain: vurium.com)
+- **Canonical web role cookie**: `VURIUMBOOK_TOKEN` (`role:uid`) for `middleware.ts`
+- **Legacy/native aliases still seen in the iOS wrapper**:
+  - `vuriumbook_auth` (`role:uid`)
+  - `vuriumbook_token` (actual bearer token)
+- Web now accepts the legacy role alias for backward compatibility, but the long-term contract should converge on `VURIUMBOOK_TOKEN` for route gating
 
 ## In-App Purchases (StoreKit 2)
 

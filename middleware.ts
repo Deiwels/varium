@@ -1,11 +1,15 @@
 // middleware.ts — Next.js Edge Middleware
-// Reads VURIUMBOOK_TOKEN cookie for route protection.
-// Does NOT verify JWT signature — only checks exp claim.
+// Reads the canonical VURIUMBOOK_TOKEN role cookie for route protection.
+// Also accepts legacy/native vuriumbook_auth for backward compatibility with
+// the iOS WKWebView wrapper until native cookie names are fully aligned.
+// Does NOT verify JWT signature.
 // Real auth happens on the backend on every API request.
 
 import { NextRequest, NextResponse } from 'next/server'
 
 const COOKIE_NAME = 'VURIUMBOOK_TOKEN'
+const LEGACY_COOKIE_NAME = 'vuriumbook_auth'
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 
 // Routes that don't need auth
 const PUBLIC_PATHS = ['/', '/signin', '/signup', '/vuriumbook', '/booking', '/book', '/public', '/privacy', '/terms', '/cookies', '/dpa', '/accessibility', '/support', '/manage-booking', '/reset-password', '/waitlist']
@@ -56,9 +60,13 @@ export function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  const cookieValue = req.cookies.get(COOKIE_NAME)?.value
-    ? decodeURIComponent(req.cookies.get(COOKIE_NAME)!.value)
-    : null
+  const canonicalCookie = req.cookies.get(COOKIE_NAME)?.value
+  const legacyCookie = req.cookies.get(LEGACY_COOKIE_NAME)?.value
+  const cookieValue = canonicalCookie
+    ? decodeURIComponent(canonicalCookie)
+    : legacyCookie
+      ? decodeURIComponent(legacyCookie)
+      : null
 
   // ── Developer panel: /developer/* ──
   // Auth is handled by HttpOnly cookie (vurium_admin_token) verified by the backend.
@@ -84,6 +92,7 @@ export function middleware(req: NextRequest) {
     url.pathname = '/signin'
     const res = NextResponse.redirect(url)
     res.cookies.set(COOKIE_NAME, '', { path: '/', maxAge: 0 })
+    res.cookies.set(LEGACY_COOKIE_NAME, '', { path: '/', maxAge: 0 })
     return res
   }
 
@@ -120,6 +129,14 @@ export function middleware(req: NextRequest) {
   // All good — pass through + add role header for server components
   const res = NextResponse.next()
   if (role) res.headers.set('x-user-role', role)
+  if (!canonicalCookie && legacyCookie) {
+    res.cookies.set(COOKIE_NAME, cookieValue!, {
+      path: '/',
+      maxAge: COOKIE_MAX_AGE,
+      sameSite: 'lax',
+      secure: req.nextUrl.protocol === 'https:',
+    })
+  }
   return res
 }
 

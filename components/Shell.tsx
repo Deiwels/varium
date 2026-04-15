@@ -397,7 +397,7 @@ function ProfileModal({ user, onClose, onUpdated, canChangePassword }: {
               localStorage.removeItem('VURIUMBOOK_TOKEN')
               localStorage.removeItem('VURIUMBOOK_USER')
               localStorage.removeItem('VURIUMBOOK_PIN_HASH')
-              document.cookie = 'VURIUMBOOK_TOKEN=; path=/; max-age=0; SameSite=Lax'
+              clearAuthCookie()
               // Clear native stored token
               if ((window as any).__VURIUM_IS_NATIVE) {
                 try { (window as any).webkit?.messageHandlers?.logout?.postMessage('logout') } catch {}
@@ -436,6 +436,14 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
   const [keyboardOpen, setKeyboardOpen] = useState(false)
   const pathname = usePathname()
   const authRedirectingRef = useRef(false)
+
+  const readCookie = useCallback((name: string) => {
+    if (typeof document === 'undefined') return ''
+    const prefix = `${name}=`
+    const entry = document.cookie.split('; ').find(part => part.startsWith(prefix))
+    if (!entry) return ''
+    return decodeURIComponent(entry.slice(prefix.length))
+  }, [])
 
   const redirectToSignIn = useCallback(() => {
     if (authRedirectingRef.current) return
@@ -597,7 +605,14 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
   useEffect(() => {
     // Load user from localStorage immediately to prevent flash
     try { const stored = JSON.parse(localStorage.getItem('VURIUMBOOK_USER') || 'null'); if (stored) setUser(stored) } catch {}
-    const token = localStorage.getItem('VURIUMBOOK_TOKEN')
+    let token = localStorage.getItem('VURIUMBOOK_TOKEN')
+    if (!token) {
+      const legacyToken = readCookie('vuriumbook_token')
+      if (legacyToken) {
+        localStorage.setItem('VURIUMBOOK_TOKEN', legacyToken)
+        token = legacyToken
+      }
+    }
     if (!token) { setStatus('noauth'); return }
     authRedirectingRef.current = false
     setStatus('ok') // optimistic — will revert to noauth if /me fails
@@ -646,7 +661,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
         }
       })
       .catch(() => {})
-  }, [redirectToSignIn])
+  }, [readCookie, redirectToSignIn])
 
   // Periodically check session validity — show PIN overlay if expired
   const checkSession = useCallback(() => {

@@ -27,6 +27,70 @@
   - Jonathan / Telnyx follow-up
   - Verify Profile account issues
 
+## 🔴 iOS app incident — black screen for logged-in users / endless loading on sign-in
+
+**Status:** web hotfix prepared in repo; verify after deploy in the native app
+
+### Symptoms reported by owner
+
+- Already logged-in iOS users see a black screen
+- Fresh sign-in inside the native app can hang forever on loading
+- The iOS app is the live website inside `WKWebView`, so this behaves like an auth bootstrap regression, not an isolated native screen bug
+
+### Root cause
+
+AI 2 traced the failure to a contract mismatch between the website and the native `WKWebView` wrapper:
+
+- Web `middleware.ts` only trusted the canonical role cookie `VURIUMBOOK_TOKEN`
+- Native `VuriumWebView.swift` still cold-started sessions with legacy cookies:
+  - `vuriumbook_auth` = `role:uid`
+  - `vuriumbook_token` = bearer token
+- `components/Shell.tsx` assumed `localStorage.VURIUMBOOK_TOKEN` exists immediately on first paint; if missing, it set `status = noauth` and redirected to `/signin`
+
+That creates the exact iOS loop we saw:
+
+1. Native opens `/dashboard`
+2. Middleware ignores `vuriumbook_auth` and redirects to `/signin`
+3. Native/user-script restore races with the web bootstrap
+4. `Shell.tsx` still sees no `localStorage` token and marks the session `noauth`
+5. Result: black screen / endless loading loop inside `WKWebView`
+
+### AI 2 web-side compatibility fix
+
+- `middleware.ts`
+  - accepts legacy `vuriumbook_auth` as a fallback role cookie
+  - mirrors it into canonical `VURIUMBOOK_TOKEN` so the session self-heals
+- `components/Shell.tsx`
+  - restores `localStorage.VURIUMBOOK_TOKEN` from legacy `vuriumbook_token` before declaring `noauth`
+- `lib/auth-cookie.ts`
+  - writes both `VURIUMBOOK_TOKEN` and `vuriumbook_auth`
+  - clears `VURIUMBOOK_TOKEN`, `vuriumbook_auth`, and `vuriumbook_token` on logout so stale iOS sessions do not resurrect themselves
+
+### Native follow-up for Claude / AI 1
+
+Native source investigated during this incident:
+
+- `/Users/nazarii/Desktop/untitled folder/VuriumBook/VuriumBook/VuriumWebView.swift`
+
+Relevant native areas:
+
+- cold-start cookie bootstrap in `makeUIView(...)`
+- token restore in `webView(_:didFinish:)`
+- logout handler in `userContentController(_:didReceive:)`
+
+Recommended cleanup after the web fix is verified:
+
+- set canonical `VURIUMBOOK_TOKEN` during cold start
+- stop depending on `vuriumbook_auth` as the primary route-gating cookie
+- keep `vuriumbook_token` only if native still truly needs a bearer-cookie bootstrap path
+
+### Verification after deploy
+
+- [ ] iOS app, already logged-in user: opens directly into app content, no black screen
+- [ ] iOS app, fresh sign-in: login completes and lands on `/dashboard` or `/calendar`
+- [ ] Sign out in native app: session does **not** silently restore on reopen
+- [ ] Safari / normal browser web app remains unchanged
+
 ## BE.1 — Distributed lock for background jobs (plan + implementation, 2026-04-15)
 
 > AI 1 (Claude) · Status: **implementation in progress** · Owner greenlit + Codex confirmed parallel to FE.Element-Verify · AI 3 (Verdent) post-commit review requested
