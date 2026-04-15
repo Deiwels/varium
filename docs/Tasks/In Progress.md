@@ -78,6 +78,7 @@ Applied follow-up fix:
 
 - `lib/api.ts` now calls `clearAuthCookie()` on any non-login `401`
 - `lib/auth-cookie.ts` now deletes cookies with the `Secure` attribute when on HTTPS so Safari / WKWebView actually apply the delete
+- `lib/api.ts` and `components/Shell.tsx` now also call the native `logout` bridge on forced auth teardown so `VuriumWebView.swift` clears `UserDefaults.vurium_auth_token` and stops re-injecting an expired token on every `/signin` load
 
 This is the specific hotfix intended to stop the visible `/signin ⇄ dashboard` flicker loop.
 

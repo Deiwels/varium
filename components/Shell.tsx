@@ -455,6 +455,7 @@ export default function Shell({ children, page }: { children: React.ReactNode; p
     localStorage.removeItem('VURIUMBOOK_TOKEN')
     localStorage.removeItem('VURIUMBOOK_USER')
     clearAuthCookie()
+    try { (window as any).webkit?.messageHandlers?.logout?.postMessage('logout') } catch {}
     if (typeof window !== 'undefined' && window.location.pathname !== '/signin') {
       window.location.replace('/signin')
     }

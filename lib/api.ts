@@ -21,6 +21,7 @@ export async function apiRequest(path: string, opts?: RequestInit) {
     if (typeof window !== 'undefined' && !path.includes('/auth/login')) {
       localStorage.removeItem('VURIUMBOOK_TOKEN')
       clearAuthCookie()
+      try { (window as any).webkit?.messageHandlers?.logout?.postMessage('logout') } catch {}
       if (localStorage.getItem('VURIUMBOOK_PIN_HASH')) {
         window.dispatchEvent(new CustomEvent('vuriumbook-pin-required'))
       } else {
