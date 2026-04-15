@@ -30,6 +30,17 @@
 
 **→ Owner approval is now recorded.** AI 1 may begin implementation per the 5-step sequence in [[Tasks/BE.8-Legacy-SMS-Migration-Plan-v2]], with Element Barbershop remaining protected during its live review window.
 
+**AI 2 prep status (2026-04-15):**
+
+- Frontend touch points re-audited and confirmed before implementation:
+  - [app/settings/page.tsx](/Users/nazarii/Downloads/varium/app/settings/page.tsx) — `LEGACY_SMS_STATUSES`, `getSmsUxState()`, `resumeOtpStep`, `manualNeedsOtp`, `manualInReview`, `isManualVerified`
+  - [app/developer/sms/page.tsx](/Users/nazarii/Downloads/varium/app/developer/sms/page.tsx) — `LEGACY_MANUAL_STATUSES`, `formatSmsStatus()`, legacy/manual workspace grouping
+- AI 2 will not ship the cleanup before AI 1 merges the backend migration, because the approved plan explicitly keeps frontend cleanup paired to the new backend status model.
+- As soon as AI 1 lands BE.8, AI 2 patch scope is already narrowed to:
+  - remove legacy status sets from frontend
+  - collapse UI to the approved `pending` / `none` simplification
+  - keep Element protected and visually unaffected
+
 **Problem**
 
 `backend/index.js` still carries a `LEGACY_SMS_STATUSES` Set defined around line 1964 and consumed by `isLegacyManualSmsPath()` at line 1986. The status values in that Set are from the old manual 10DLC path and pre-date the dual-path model recorded in [[Architecture/Decision-Log]] DECISION-001. They cause two observable problems:
@@ -89,6 +100,19 @@
 - [x] **Owner approved final plan** — approved in chat on 2026-04-15
 
 **→ Owner approval is now recorded.** AI 1 may implement the backend half first per [[Tasks/BE.9-DOMPurify-Custom-HTML-Plan-v2]] Part 1, then merge, then AI 2 implements the frontend half per Part 2.
+
+**AI 2 prep status (2026-04-15):**
+
+- Frontend touch points re-audited and confirmed before implementation:
+  - [app/book/[id]/page.tsx](/Users/nazarii/Downloads/varium/app/book/%5Bid%5D/page.tsx:161) — `processCustomHTML()`
+  - [app/book/[id]/page.tsx](/Users/nazarii/Downloads/varium/app/book/%5Bid%5D/page.tsx:937) — AI CSS `<style dangerouslySetInnerHTML>`
+  - [app/book/[id]/page.tsx](/Users/nazarii/Downloads/varium/app/book/%5Bid%5D/page.tsx:1082) — custom CSS `<style dangerouslySetInnerHTML>`
+  - [app/book/[id]/page.tsx](/Users/nazarii/Downloads/varium/app/book/%5Bid%5D/page.tsx:1087) — custom HTML `dangerouslySetInnerHTML`
+- AI 2 will follow the approved sequence and wait for AI 1’s backend sanitizer + dependency merge before landing the render-layer DOMPurify pass.
+- As soon as AI 1 lands BE.9 backend, AI 2 patch scope is already narrowed to:
+  - add frontend DOMPurify at the 3 render sites
+  - sanitize after placeholder expansion in `processCustomHTML()`
+  - leave non-booking admin/email renderers out of scope, per plan
 
 **Problem**
 
