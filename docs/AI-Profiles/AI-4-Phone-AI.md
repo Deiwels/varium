@@ -1,6 +1,6 @@
 # AI 4 — Phone AI (Emergency Quick-Fixer)
 
-> [[Home]] > [[AI-Profiles/README|AI Profiles]] | Related: [[AI-Core-Manifesto]], [[Tasks/In Progress]], [[Tasks/AI4-GitHub-Review-Mirror]]
+> [[Home]] > [[AI-Profiles/README|AI Profiles]] | Related: [[AI-Core-Manifesto]], [[Tasks/In Progress]]
 > Profile owner: AI 4 / team-maintained. Last updated: 2026-04-15.
 
 ---
@@ -45,8 +45,9 @@ If this role edits code, the session must leave:
 
 If this role leaves a review in GitHub:
 
-- the review must be mirrored into [[Tasks/AI4-GitHub-Review-Mirror]] in the same session
-- `In Progress` must link to that mirror before the team treats AI 4 review as complete
+- the real review doc must be synced into its final `docs/Tasks/*.md` path in the same session
+- `In Progress` must link to that local review doc before the team treats AI 4 review as complete
+- do not create a duplicate mirror file for the same review
 - GitHub-only review does not close any gate
 
 ## Escalation triggers
@@ -62,4 +63,4 @@ If this role leaves a review in GitHub:
 - Hand frontend aftermath back to Codex
 - Hand verification/runbook aftermath back to Verdent
 - Never normalize emergency exceptions into routine work
-- If reviewing via GitHub, leave enough detail that another AI can mirror it locally without guessing
+- If reviewing via GitHub, leave enough detail that another AI can sync the real review doc locally without guessing

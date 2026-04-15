@@ -3,7 +3,7 @@
 > ⚠️ **ВСІМ AI: Читати [[AI-Rule-Updates]] і [[AI-Core-Manifesto]] перед початком будь-якої роботи. Обов'язково.**
 > ⛔ **Поки немає нового запису в [[AI-Session-Acceptance-Log]], AI не має права продовжувати далі.**
 > 🧠 **Якщо задача потребує планування — вона йде в `In Progress.md` як `@AI3 [PLAN REQUEST]`, а реалізація блокується до завершення 4-AI Plan Review Gate.**
-> 📥 **Якщо AI 4 залишив review у GitHub — він не рахується видимим, поки його не віддзеркалили локально в [[Tasks/AI4-GitHub-Review-Mirror]].**
+> 📥 **Якщо AI 4 залишив review у GitHub — він не рахується видимим, поки сам review-doc не буде синхронізований локально в `docs/Tasks/`.**
 
 > Multi-tenant booking & business management SaaS for salons, barbershops, and service businesses.
 > Corporation: **Vurium Inc.** (Illinois, File #75519095)
@@ -93,7 +93,7 @@
 
 - [[Tasks/In Progress\|In Progress]] — Current sprint (P0 items + active tasks)
 - [[Tasks/3-AI-Remaining-Work-Split|3-AI Remaining Work Split]] — **current sprint plan** — every open item categorized by AI (Claude / Codex / Verdent / Owner) with priorities and effort
-- [[Tasks/AI4-GitHub-Review-Mirror|AI 4 GitHub Review Mirror]] — local mirror of AI 4 reviews that were first posted in GitHub
+- [[Tasks/AI4-Emergency-Readiness-Review-2026-04-15|AI 4 Emergency Readiness Review]] — current AI 4 sign-off and emergency-readiness asks
 - [[Tasks/Backlog\|Backlog]] — Feature ideas & bugs
 - [[Tasks/Launch Readiness Plan\|Launch Readiness Plan]] — Unified P0/P1/P2 plan (both AIs agreed)
 - [[Tasks/Telnyx-Integration-Plan|Telnyx Integration Plan]] — Hardening + P0 fixes (Verify profile, webhook sig, auto-provision on plan activation)

@@ -10,15 +10,13 @@
 
 ## Current active updates
 
-### 2026-04-15 — AI 4 GitHub reviews must be mirrored locally
+### 2026-04-15 — AI 4 GitHub-side docs reviews must be synced into their final local doc path
 
-- AI 4 may leave reviews, findings, or approval notes in GitHub first.
-- Those GitHub-side reviews do **not** count as visible team knowledge until they are mirrored into the local repo at [[Tasks/AI4-GitHub-Review-Mirror]].
-- If any AI or the Owner notices a new AI 4 review on GitHub, the first follow-up action is to copy its substance into the mirror doc in the same session.
-- The 4-AI Plan Review Gate treats `AI 4 reviewed emergency / rollback / incident risk` as **incomplete** until there is:
-  1. a local mirror entry in [[Tasks/AI4-GitHub-Review-Mirror]], and
-  2. a link from [[Tasks/In Progress|In Progress]] to that mirrored entry.
-- If the review exists only on GitHub, the gate stays blocked.
+- AI 4 may write a review in GitHub first by committing a markdown doc on a feature branch.
+- That review does **not** count as visible team knowledge until the actual review doc is present locally in its final `docs/Tasks/*.md` path on this machine.
+- Do **not** create a second “mirror” doc for the same review. A duplicate copy becomes stale immediately.
+- If any AI or the Owner notices a new AI 4 review in GitHub, the first follow-up action is to sync that real doc into the local repo and link it from [[Tasks/In Progress|In Progress]].
+- If the review exists only on GitHub and is not yet present locally at its final path, the gate stays blocked.
 
 ### 2026-04-15 — Rule 6: One Brain Rule / PLAN REQUEST
 
