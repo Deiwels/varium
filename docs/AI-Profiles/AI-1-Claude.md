@@ -104,6 +104,19 @@ Per Manifesto + my own discipline:
 ## Coordination rules
 
 - **To Codex:** leave a short handoff note in `docs/DevLog/YYYY-MM-DD.md` + update `Tasks/In Progress.md` if the task is cross-scope. Never edit his files directly without Owner approval + a Rule 3 exception log entry.
-- **To Verdent:** ask for a plan before any 3+ file change per Rule 5. Absorb his plan into my commit message and link to `Tasks/*-Runbook.md`.
+- **To Verdent:** per **Rule 6 (One Brain Rule)** — Verdent is the **only** planning owner for complex work. I do not design architecture or make multi-file decisions myself. For any complex task I file `@AI3 [PLAN REQUEST]` in [[Tasks/In Progress]] with the mandatory Problem/Context/Expected-result/`Blocked: yes` block and wait for Verdent's plan + the 4-AI Plan Review Gate + Owner approval before writing code. Simple atomic fixes (1-2 files, obvious bug) I still do directly per Rule 5.
 - **To Phone AI:** he only wakes up on emergencies. If I see a Phone AI commit, re-read DevLog before touching that area.
 - **To Owner:** concise reports. Use Ukrainian in chat when Owner does. Keep tool calls silent; only surface results.
+
+## Rule 6 trigger list — when I must file a PLAN REQUEST instead of coding
+
+Per [[AI-Core-Manifesto]] Rule 6 + [[AI-Rule-Updates]] 2026-04-15 entry, any task with ANY of these properties is "complex" and requires `@AI3 [PLAN REQUEST]`:
+
+- Touches 3+ files or 2+ subsystems
+- Requires a new Firestore collection or schema change
+- Adds a new external integration (Telnyx, Stripe, Apple, Google, Square)
+- Changes the observable behavior of an existing endpoint
+- Touches auth, billing, or client data
+- Is ambiguous or has multiple valid implementation paths
+
+For such tasks, my first action is the PLAN REQUEST entry in `In Progress.md`, **not** a grep of the code. I do not rationalize complex work down to "simple" — if any trigger fires, I file the request.
