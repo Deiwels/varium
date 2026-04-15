@@ -66,6 +66,15 @@ Grep source: `backend/index.js`. Count: **19 routes gated by `requireSuperadmin`
 |---|---|---|---|
 | 2478 | `GET` | `/api/vurium-dev/sms/status` | Telnyx brand/campaign status across all workspaces |
 | 2495 | `POST` | `/api/vurium-dev/sms/provision` | Force-provision a toll-free SMS number for a given workspace |
+| ~2600 | `GET` | `/api/vurium-dev/sms/legacy-audit` | BE.8 — list workspaces still carrying legacy SMS status values (Element skipped) |
+| ~2615 | `POST` | `/api/vurium-dev/sms/migrate-legacy-statuses?dryRun=true\|false` | BE.8 — migrate legacy statuses to new pipeline (atomic batch, dry-run by default) |
+| ~2790 | `POST` | `/api/vurium-dev/sms/restore-legacy-status/:wsId` | BE.8 — per-workspace rollback using snapshot written by migration |
+
+### Custom content sanitization
+
+| Line | Method | Route | Purpose |
+|---|---|---|---|
+| ~2700 | `POST` | `/api/vurium-dev/sanitize-existing-custom-content?dryRun=true\|false` | BE.9 — one-shot re-sanitization of existing `custom_html` / `custom_css` / `ai_css` across all workspaces (defense-in-depth backfill for pre-BE.9 stored values) |
 
 ### Analytics
 
@@ -101,16 +110,9 @@ Grep source: `backend/index.js`. Count: **19 routes gated by `requireSuperadmin`
 | 3351 | `POST` | `/api/vurium-dev/ai/scan` | Trigger a new AI scan across a workspace or the whole platform |
 | 3366 | `GET` | `/api/vurium-dev/ai/scans/:id` | Read one scan result |
 
-### Planned but not yet deployed (waiting on 4-AI Plan Review Gate)
+### Planned but not yet deployed
 
-| Route | Plan | Status |
-|---|---|---|
-| `GET /api/vurium-dev/sms/legacy-audit` | [[Tasks/BE.8-Legacy-SMS-Migration-Plan-v2]] | Awaits Owner approval |
-| `POST /api/vurium-dev/sms/migrate-legacy-statuses?dryRun=bool` | [[Tasks/BE.8-Legacy-SMS-Migration-Plan-v2]] | Awaits Owner approval |
-| `POST /api/vurium-dev/sms/restore-legacy-status/:wsId` | [[Tasks/BE.8-Legacy-SMS-Migration-Plan-v2]] | Awaits Owner approval |
-| `POST /api/vurium-dev/sanitize-existing-custom-content` | [[Tasks/BE.9-DOMPurify-Custom-HTML-Plan-v2]] | Awaits Owner approval |
-
-When any of these lands, this file must be updated in the **same commit**.
+None currently. BE.8 (audit/migrate/restore) shipped in `d40b5fa`. BE.9 (sanitize-existing-custom-content) shipped alongside the BE.9 backend helpers commit. When a new `requireSuperadmin` route is added, this file must be updated in the **same commit**.
 
 ---
 

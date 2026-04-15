@@ -14,6 +14,18 @@ const { z } = require('zod');
 const { Firestore } = require('@google-cloud/firestore');
 const { google } = require('googleapis');
 const Anthropic = require('@anthropic-ai/sdk');
+// BE.9 — server-side DOMPurify via linkedom for custom HTML sanitization.
+// linkedom is ~500 KB vs ~20 MB for jsdom → faster Cloud Run cold start.
+// Lazy-initialized on first use so cold-start cost is deferred until a
+// write site actually needs it.
+const { Window: LinkedomWindow } = require('linkedom');
+const createDOMPurify = require('dompurify');
+let _domPurifyInstance = null;
+function getDomPurify() {
+  if (_domPurifyInstance) return _domPurifyInstance;
+  _domPurifyInstance = createDOMPurify(new LinkedomWindow());
+  return _domPurifyInstance;
+}
 
 const app = express();
 app.set('trust proxy', true);
@@ -135,6 +147,68 @@ function normPhone(x) { const digits = String(x || '').replace(/[^\d]/g, ''); if
 function sanitizeHtml(str) {
   if (str == null) return str;
   return String(str).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+}
+
+// ============================================================
+// BE.9 — Custom HTML / CSS sanitization (plan: BE.9-DOMPurify-Custom-HTML-Plan-v2)
+// ============================================================
+// Defense-in-depth Layer 1 (backend-primary). Called at every site_config
+// write site before the value lands in Firestore. The frontend booking page
+// applies Layer 2 (DOMPurify at render) as a safety net.
+//
+// Scope: public booking page only — custom_html / custom_css / ai_css.
+// Not in scope: developer/email templates, email HTML signatures
+// (still use sanitizeHtml() entity escaping above).
+//
+// CSS sanitizer is intentionally regex-based per Option A in the plan — the
+// three dangerous CSS patterns (expression, url(javascript:), @import) are
+// well-defined and the regex approach keeps us off a css-tree dependency.
+// Google Fonts imports are explicitly allowed because the AI Style generator
+// and real user CSS both legitimately reference them.
+// ============================================================
+
+const CUSTOM_CSS_MAX_LEN = 50000; // 50 KB hard cap per plan — DoS prevention
+
+function sanitizeCustomCss(css) {
+  if (!css || typeof css !== 'string') return '';
+  let out = css;
+  // Strip CSS `expression(...)` — IE-era XSS vector still recognized by some engines
+  out = out.replace(/expression\s*\(/gi, '');
+  // Rewrite any `javascript:` URL inside url(...) to a safe no-op
+  out = out.replace(/url\s*\(\s*['"]?\s*javascript:/gi, 'url(');
+  // Block @import except Google Fonts (legitimate for AI-generated styles)
+  out = out.replace(/@import\b(?!(?:[^;]*fonts\.googleapis\.com))/gi, '/* @import blocked */');
+  // Hard cap length
+  if (out.length > CUSTOM_CSS_MAX_LEN) out = out.slice(0, CUSTOM_CSS_MAX_LEN);
+  return out;
+}
+
+function sanitizeCustomHtml(html) {
+  if (!html || typeof html !== 'string') return '';
+  try {
+    const dom = getDomPurify();
+    return dom.sanitize(html, {
+      ALLOWED_TAGS: [
+        'p', 'br', 'b', 'i', 'strong', 'em', 'u',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'ul', 'ol', 'li',
+        'a', 'img',
+        'div', 'span', 'section', 'article', 'header', 'footer',
+        'hr',
+        'table', 'thead', 'tbody', 'tr', 'th', 'td',
+        'blockquote', 'pre', 'code',
+      ],
+      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'id', 'style', 'target', 'rel'],
+      ALLOW_DATA_ATTR: false,
+      FORBID_TAGS: ['script', 'object', 'embed', 'form', 'input', 'iframe', 'style', 'link', 'meta'],
+      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onchange', 'onsubmit'],
+    });
+  } catch (e) {
+    console.warn('[BE.9] sanitizeCustomHtml threw, falling back to entity-escape:', e?.message);
+    // Defense-in-depth: if DOMPurify crashes on a weird input we still return
+    // SOMETHING escaped rather than letting the raw string through.
+    return sanitizeHtml(html);
+  }
 }
 
 function hashPassword(plain) {
@@ -2664,6 +2738,100 @@ app.post('/api/vurium-dev/sms/migrate-legacy-statuses', requireSuperadmin, expre
   } catch (e) {
     console.warn('[BE.8] migrate-legacy-statuses error:', e?.message);
     res.status(500).json({ error: e?.message || 'Failed to run legacy status migration' });
+  }
+});
+
+// ============================================================
+// BE.9 — One-shot re-sanitization of existing site_config (custom_html / custom_css / ai_css)
+// ============================================================
+// Scope: ALL workspaces. Reads each workspace doc, runs the three fields through
+// the BE.9 sanitizers, writes back only if anything actually changed. Uses
+// db.batch() with 500-op limit like BE.8 migration. Supports ?dryRun=true.
+// Needed because backend sanitization only protects NEW writes — existing
+// stored values written before BE.9 landed would otherwise stay un-sanitized
+// until someone saves them again.
+
+app.post('/api/vurium-dev/sanitize-existing-custom-content', requireSuperadmin, express.json(), async (req, res) => {
+  try {
+    const dryRun = safeStr(req.query?.dryRun || '').toLowerCase() !== 'false';
+    const wsSnap = await db.collection('workspaces').limit(500).get();
+    const changes = [];
+
+    for (const ws of wsSnap.docs) {
+      const data = ws.data() || {};
+      const sc = data.site_config || null;
+      if (!sc || typeof sc !== 'object') continue;
+
+      const before = {
+        custom_html: sc.custom_html || '',
+        custom_css: sc.custom_css || '',
+        ai_css: sc.ai_css || '',
+      };
+      const after = {
+        custom_html: sanitizeCustomHtml(before.custom_html),
+        custom_css: sanitizeCustomCss(before.custom_css),
+        ai_css: sanitizeCustomCss(before.ai_css),
+      };
+
+      const diffs = [];
+      if (after.custom_html !== before.custom_html) diffs.push('custom_html');
+      if (after.custom_css !== before.custom_css) diffs.push('custom_css');
+      if (after.ai_css !== before.ai_css) diffs.push('ai_css');
+      if (diffs.length === 0) continue;
+
+      changes.push({
+        workspace_id: ws.id,
+        slug: safeStr(data.slug || ''),
+        name: safeStr(data.name || ''),
+        fields_changed: diffs,
+        before_len: {
+          custom_html: before.custom_html.length,
+          custom_css: before.custom_css.length,
+          ai_css: before.ai_css.length,
+        },
+        after_len: {
+          custom_html: after.custom_html.length,
+          custom_css: after.custom_css.length,
+          ai_css: after.ai_css.length,
+        },
+      });
+
+      console.log(`[BE.9] ${dryRun ? 'DRY' : 'SANITIZE'} ws=${ws.id} fields=${diffs.join(',')}`);
+    }
+
+    if (!dryRun && changes.length > 0) {
+      const BATCH_LIMIT = 500;
+      const batchCount = Math.ceil(changes.length / BATCH_LIMIT);
+      const now = toIso(new Date());
+      for (let b = 0; b < batchCount; b++) {
+        const batch = db.batch();
+        const slice = changes.slice(b * BATCH_LIMIT, (b + 1) * BATCH_LIMIT);
+        for (const c of slice) {
+          const wsRef = db.collection('workspaces').doc(c.workspace_id);
+          const wsDocNow = await wsRef.get();
+          const scNow = (wsDocNow.exists ? wsDocNow.data()?.site_config : null) || {};
+          const patch = { ...scNow };
+          if (c.fields_changed.includes('custom_html')) patch.custom_html = sanitizeCustomHtml(scNow.custom_html || '');
+          if (c.fields_changed.includes('custom_css')) patch.custom_css = sanitizeCustomCss(scNow.custom_css || '');
+          if (c.fields_changed.includes('ai_css')) patch.ai_css = sanitizeCustomCss(scNow.ai_css || '');
+          batch.update(wsRef, { site_config: patch, updated_at: now });
+        }
+        await batch.commit();
+        console.log(`[BE.9] Batch ${b + 1}/${batchCount} committed (${slice.length} ops)`);
+      }
+    }
+
+    res.json({
+      dryRun,
+      total: changes.length,
+      changes,
+      note: dryRun
+        ? 'No writes performed. Re-run with ?dryRun=false to apply.'
+        : 'Re-sanitization applied. Affected workspaces had their custom_html / custom_css / ai_css replaced with sanitized versions.',
+    });
+  } catch (e) {
+    console.warn('[BE.9] sanitize-existing-custom-content error:', e?.message);
+    res.status(500).json({ error: e?.message || 'Failed to re-sanitize existing custom content' });
   }
 });
 
@@ -7390,29 +7558,18 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
     if (b.charges !== undefined && Array.isArray(b.charges)) patch.charges = b.charges;
     if (b.booking !== undefined && typeof b.booking === 'object') patch.booking = b.booking;
     if (b.display !== undefined && typeof b.display === 'object') patch.display = b.display;
-    // Site config — stored on workspace doc for custom plan
+    // Site config — stored on workspace doc for custom plan.
+    // BE.9: all custom_html / custom_css / ai_css fields routed through
+    // sanitizeCustomHtml() + sanitizeCustomCss() helpers (DOMPurify + regex).
     if (b.site_config !== undefined && typeof b.site_config === 'object') {
-      // Sanitize custom HTML — strip <script>, <iframe>, event handlers, javascript: urls
-      if (b.site_config.custom_html) {
-        b.site_config.custom_html = b.site_config.custom_html
-          .replace(/<script[\s\S]*?<\/script>/gi, '')
-          .replace(/<script[^>]*>/gi, '')
-          .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
-          .replace(/<iframe[^>]*>/gi, '')
-          .replace(/<object[\s\S]*?<\/object>/gi, '')
-          .replace(/<embed[^>]*>/gi, '')
-          .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '')
-          .replace(/\bon\w+\s*=\s*\S+/gi, '')
-          .replace(/javascript\s*:/gi, '')
-          .replace(/data\s*:\s*text\/html/gi, '');
+      if (b.site_config.custom_html !== undefined) {
+        b.site_config.custom_html = sanitizeCustomHtml(b.site_config.custom_html);
       }
-      // Sanitize custom CSS — strip expressions and imports
-      if (b.site_config.custom_css) {
-        b.site_config.custom_css = b.site_config.custom_css
-          .replace(/@import\b[^;]*/gi, '')
-          .replace(/expression\s*\(/gi, '')
-          .replace(/javascript\s*:/gi, '')
-          .replace(/url\s*\(\s*["']?\s*javascript:/gi, 'url(');
+      if (b.site_config.custom_css !== undefined) {
+        b.site_config.custom_css = sanitizeCustomCss(b.site_config.custom_css);
+      }
+      if (b.site_config.ai_css !== undefined) {
+        b.site_config.ai_css = sanitizeCustomCss(b.site_config.ai_css);
       }
       await req.wsDoc().update({ site_config: b.site_config, updated_at: toIso(new Date()) });
     }
@@ -7494,8 +7651,9 @@ app.post('/api/ai/generate-style', requireRole('owner', 'admin'), async (req, re
     let css = response.content[0]?.text || '';
     // Strip markdown code fences if present
     css = css.replace(/```css\n?/gi, '').replace(/```\n?/gi, '').trim();
-    // Sanitize CSS
-    css = css.replace(/@import\b(?!.*fonts\.googleapis)/gi, '/* blocked */').replace(/expression\s*\(/gi, '').replace(/javascript\s*:/gi, '');
+    // BE.9: sanitize AI-generated CSS through the shared helper
+    // (same rules as user-written custom_css; Google Fonts @import allowed)
+    css = sanitizeCustomCss(css);
 
     // Save to workspace
     const wsDoc = await req.wsDoc().get();
