@@ -489,6 +489,10 @@ function telnyxCredentials() {
   };
 }
 
+function telnyxVerifyFallbackFrom() {
+  return safeStr(process.env.TELNYX_VERIFY_FROM || process.env.TELNYX_FROM);
+}
+
 function formatPhone(phone) {
   if (!phone) return null;
   const digits = String(phone).replace(/\D/g, '');
@@ -9700,11 +9704,12 @@ app.post('/public/verify/send/:workspace_id', async (req, res) => {
       created_at: toIso(new Date()),
       provider: 'legacy_local',
     });
-    const verifySettings = await db.collection('workspaces').doc(wsId).collection('settings').doc('config').get();
-    const verifyShopName = verifySettings.exists ? safeStr(verifySettings.data()?.shop_name || '') : '';
-    const verifyPrefix = verifyShopName || 'VuriumBook';
-    const verifySmsConf = await getWorkspaceSmsConfig(wsId, { allowGlobalFallback: true });
-    sendSms(formatted, `${verifyPrefix}: Your verification code is ${code}. Do not share this code. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, verifySmsConf.fromNumber, wsId).catch(e => console.warn('verify SMS error:', e?.message));
+    const verifyFrom = telnyxVerifyFallbackFrom();
+    if (!verifyFrom) {
+      return res.status(502).json({ error: 'Verification service is temporarily unavailable. Please try again.' });
+    }
+    const verifyPrefix = 'VuriumBook';
+    sendSms(formatted, `${verifyPrefix}: Your verification code is ${code}. Do not share this code. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`, verifyFrom, wsId).catch(e => console.warn('verify SMS error:', e?.message));
     return res.json({ ok: true, sent: true, provider: 'legacy_local' });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
