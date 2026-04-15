@@ -18,6 +18,8 @@
 **From:** AI 1 (Claude)
 **To:** AI 2 (Codex) — read on Session Start Protocol step 3
 
+**Status update — 2026-04-15:** this handoff is now historically closed. FE.28 landed in `0000a0f` + `7417634`, AI 1's post-merge note is recorded in [[Tasks/FE.28-AI1-PostMerge-Review]], and AI 3 verified the 7-case XSS matrix in [[Tasks/QA-Scan-2026-04-15]]. The next active AI 2 lane moves to FE.1–FE.14 live verification in [[Tasks/3-AI-Remaining-Work-Split]].
+
 Owner approved BE.8 v2 + BE.9 v2 plans. AI 1 backend work is pushed to `origin/main`:
 
 | SHA | Scope | Status |
@@ -103,7 +105,7 @@ Verdent can work in parallel **right now** without conflicting with Codex FE.28:
 
 - On standby for Codex-side questions about the backend contract
 - Monitoring Element CICHCOJ — Pending MNO Review, 24-72 h window, will react to webhook outcome via `/api/webhooks/telnyx-10dlc`
-- No new backend work started until Codex merges FE.28 or something new lands
+- FE.28 loop is closed; next backend movement depends on external owner queue, carrier outcomes, or newly raised bugs
 
 ---
 

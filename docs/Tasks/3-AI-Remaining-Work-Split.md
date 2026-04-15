@@ -70,6 +70,7 @@ Detailed working profiles live in [[AI-Profiles/README|AI Profiles]].
 - ✅ `getWorkspaceBookingUrl()` helper in `backend/index.js`; `/api/sms/register` and `/api/sms/verify-otp` `messageFlow` now use the exact per-workspace URL, not generic `/book/`
 - ✅ `/public/config/:wsId` allowlist exposes `shop_address`, `shop_phone`, `shop_email` for the public booking page rendering
 - ✅ `docs/Tasks/Element-10DLC-Resubmission-Checklist.md` runbook for owner
+- ✅ Campaign `CICHCOJ` resubmitted successfully; current state is `Telnyx Approved` -> `Pending MNO Review`
 
 **PERM-003 (commits `a80d9da`, `f0de2e0`, `97be886`):**
 - ✅ `requireCustomPerm(permKey)` middleware reads `role_permissions` from Firestore settings; wired on `/api/payments`, `/api/square/oauth/status`, `/api/stripe-connect/status`
@@ -89,6 +90,7 @@ Detailed working profiles live in [[AI-Profiles/README|AI Profiles]].
 - ✅ `Services` preview grid above booking flow
 - ✅ SMS consent copy + Terms/Privacy links rendered on first paint (not deferred until phone input)
 - ✅ Multiple Vercel build hotfixes for this line of work
+- ✅ Live Element verification pass completed before resubmission; branded business proof and booking CTA survived hydration and mobile checks
 
 **Launch readiness P0 frontend already in place:**
 - ✅ P0.9 Settings mobile drill-down (code local; live browser verification still pending)
@@ -102,6 +104,7 @@ Detailed working profiles live in [[AI-Profiles/README|AI Profiles]].
 - ✅ Dashboard timezone, launch checklist, setup banner
 - ✅ Clients/Payments sort controls + bulk delete
 - ✅ SMS UX reframed around auto-activation (Settings + signup) — no manual CTA as primary action for new workspaces
+- ✅ FE.28 — client-side DOMPurify Layer 2 landed and passed AI 3's 7-case XSS matrix without Element visual regression
 
 ### Owner external — done
 
@@ -161,7 +164,6 @@ Detailed working profiles live in [[AI-Profiles/README|AI Profiles]].
 | **FE.6** | P0.15 Timezone indicator on booking page | Live verify |
 | **FE.7** | P0.16 Booking form data persistence on back-navigation | Live verify |
 | **FE.8** | P0.17 Calendar mobile layout on iPhone width | Live verify |
-| **FE-Element** | Element-specific: `https://vurium.com/book/elementbarbershop` must render Business details + Services preview from saved Element Settings values. Blocked on owner filling Element Settings (OW-Element.1) | Visual + Firestore verify |
 
 ### P1 — polish verification + code quality
 
@@ -182,7 +184,6 @@ Detailed working profiles live in [[AI-Profiles/README|AI Profiles]].
 | **FE.25** | 5.2 Split `app/settings/page.tsx` (2,583 lines) into `app/settings/tabs/*` | **NOT DONE** — `app/settings/tabs/` directory does not exist; file is still 2,583 lines |
 | **FE.26** | 5.3 Replace inline style constants (`inp`, `card`, `lbl`) in settings with className or `app/settings/styles.ts` | NOT DONE (same page) |
 | **FE.27** | BUG-011 — `api()` helper in `app/book/[id]/page.tsx` silently swallows HTTP errors | Pending |
-| **FE.28** | BUG-016/017 — DOMPurify frontend adoption (pairs with AI 1 BE.9) | Pending |
 
 ### P1 — improvement plans — NEW FINDING, WERE NOT IN PRIOR OPEN LIST
 
@@ -248,7 +249,7 @@ Detailed working profiles live in [[AI-Profiles/README|AI Profiles]].
 |----|------|-----------------|
 | **OW-Tel.1** | Send draft Jonathan inquiry letter from `docs/Tasks/Platform-Sender-Pivot-Decision.md` to `10dlcquestions@telnyx.com` or Jonathan directly | 10 min |
 | **OW-Tel.2** | Resolve `whitelisted_destinations` account-level blocker on Telnyx Voice Profile during the next Jonathan call → unblocks OPS.1 | Call-dependent |
-| **OW-Tel.3** | Fill Element Barbershop Settings in product: exact DBA name, full address, phone, email, 3–5 services. Then run `docs/Tasks/Element-10DLC-Resubmission-Checklist.md` top to bottom. Then resubmit CICHCOJ in Telnyx portal | 30 min |
+| **OW-Tel.3** | Monitor campaign `CICHCOJ` while it is `Pending MNO Review`. If Telnyx / webhook returns approval or rejection, update docs and route the outcome back to AI 1 / AI 2 / AI 3 before any new submit action | External |
 | **OW-Tel.4** | Verify Vurium Inc. brand with Telnyx (send CP-575A + Articles of Incorporation to `10dlcquestions@telnyx.com`) | 15 min |
 | **OW-Tel.5** | Wait for TFN +1-877-590-2138 verification | External |
 | **OW-Tel.6** | Create CUSTOMER_CARE campaign after Vurium Inc. brand verified | 10 min |
@@ -304,11 +305,11 @@ Three improvement plans are documented but have not started implementation and m
 
 ## 🧮 Recommended sprint order after this audit
 
-### Sprint 2a — zero external dependencies, AI 1 can start any time
+### Sprint 2a — completed on 2026-04-15
 
-1. **BE.1** Distributed lock for 7 background jobs (~100 lines) — real value if we ever scale Cloud Run
-2. **BE.8** LEGACY_SMS_STATUSES migration script + Set removal
-3. **BE.9** DOMPurify custom HTML sanitization (backend half)
+1. **BE.1** Distributed lock for 7 background jobs — landed and post-commit reviewed
+2. **BE.8** LEGACY_SMS_STATUSES cleanup — landed with owner decision to keep the audit tool as a future manual utility
+3. **BE.9 / FE.28** defense-in-depth sanitization — landed on backend + frontend and verified by AI 3
 
 ### Sprint 2b — owner unblocks required
 
@@ -342,11 +343,11 @@ Three improvement plans are documented but have not started implementation and m
 | 4 | Element 10DLC remediation pack live | ✅ |
 | 5 | Waitlist regression fixed | ✅ (commit `a3c885f`) |
 | 6 | Live browser verification (OW-Verify.1/2/3) | ⏳ owner |
-| 7 | Element Settings filled + Resubmission Checklist run | ⏳ owner |
+| 7 | Element CICHCOJ submitted and awaiting MNO verdict | ⏳ external |
 | 8 | Twilio recovery code purged (CQ.1) + Apple demo creds migrated (CQ.2) | ⏳ blocked on owner |
 | 9 | Gmail API operationally connected (OW-Gmail.1/2/3) | ⏳ owner |
 | 10 | Jonathan inquiry letter sent (OW-Tel.1) | ⏳ owner |
 | 11 | PERM-001/002/004 + BUG-004/007 browser verification | ⏳ Codex |
 | 12 | TELNYX_VERIFY_PROFILE_ID created (OPS.1) | 🔴 blocked on Telnyx account |
 
-Launch green = items 1–7 done. Items 8–10 finish within the week if owner runs the external queue. Items 11–12 don't block launch.
+Launch green = items 1–6 done. Item 7 is now an external carrier-review wait state for Element, not an engineering blocker. Items 8–10 finish within the week if owner runs the external queue. Items 11–12 don't block launch.
