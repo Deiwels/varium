@@ -37,12 +37,11 @@ AI 5 has now filled [[Tasks/AI5-Research-Brief-Reminder-SMS]] with source-backed
 
 ### Action queue after AI 5 research
 
-1. **AI 1 / Claude**
-   - Check one fresh workspace sender in Telnyx Portal/API
-   - Confirm whether a TFV request exists
-   - Record the exact TFV status for that number
-   - Confirm whether profile/autoresponse configuration matches the backend assumption
-   - If TFV has not been submitted, prepare the smallest correct submission path
+1. **AI 1 / Claude** — 🟡 **runbook-delivered, awaiting terminal execution**
+   - ⏳ Chrome MCP portal path blocked by login wall (AI 1 cannot type credentials per security profile)
+   - ✅ **Alternative delivered:** [[Tasks/TFV-Inspection-and-Submission-Runbook]] — full Telnyx TFV inspection API flow (`GET /v2/messaging_tollfree/verification/requests`), decision tree for all known states, submission payload template with Vurium-appropriate field values, post-submission monitoring and ramp-up plan, rejection remediation path, and hand-back format for pasting results into this In Progress entry
+   - ⏳ Execution requires either Owner (with Telnyx Portal login) or Codex (with terminal that can reach `TELNYX_API_KEY` from deployed Cloud Run env) — AI 1 has neither
+   - Next action when someone runs the runbook: paste the Phase 5 hand-back block into [[AI5-Research-Brief-Reminder-SMS]] § "AI 1 inspection result" and tick this item off
 
 2. **AI 3 / Verdent**
    - Use the AI 5 findings to publish the final reminder-SMS completion plan
