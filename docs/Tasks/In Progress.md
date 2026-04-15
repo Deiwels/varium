@@ -43,12 +43,12 @@ This confirms the reminder blocker is now a **real TFV/BRN failure**, not a hypo
 5. Owner operational gate: уточнити з Jonathan чи ISV model підходить для per-workspace TFV
 
 **⚠️ Що потрібно від кожного AI:**
-- **AI 1**: Review backend risk у плані, записати notes в [[Tasks/Reminder-SMS-TFV-Implementation-Plan#AI 1 (Claude) review]]
-- **AI 2**: Review frontend/UX alignment, записати notes там же
-- **AI 4**: Review emergency/rollback risk, записати notes там же
-- **Owner**: Approve план + provide the exact legal BRN/EIN needed to fix the rejected TFV request + відповісти на Jonathan gate question (Крок 5.1 у плані)
+- **AI 1**: ✅ **Review DONE** — full AI 1 review in [[Tasks/Reminder-SMS-TFV-Plan-AI1-Review]]. Gate box **unchecked / NOT APPROVED** yet. Three hard blockers (payload missing BRN fields, provision timing vs onboarding completion, webhook handler gap) + four improvements + two data additions. AI 1 also completed the live Telnyx portal inspection via Chrome MCP using Owner's shared session — findings in [[Tasks/TFV-Inspection-Result-2026-04-15]] including 9 additional facts beyond what Codex captured in `2f95184`.
+- **AI 2**: ✅ **Review DONE inline in the plan doc** — four frontend-specific points (getSmsUxState, TollFreeStatusCard copy, app/developer/sms/page.tsx, tfv_rejected vs manual 10DLC UX). Directionally approved, pending frontend incorporation.
+- **AI 4**: ⏳ Review emergency/rollback risk, записати notes в плані або окремому doc
+- **Owner**: ⏳ Approve план + Section 5.1 ISV gate question (empirically answered "no ISV" by AI 1's portal inspection — v2 should commit to per-workspace, AI 1 recommends Pattern B Sole Proprietor default + Pattern A upgrade path)
 
-**Поки всі 4 чекбокси в плані не зелені — код не пишемо.**
+**Поки всі 4 чекбокси в плані не зелені — код не пишемо.** AI 1's box specifically will tick only after AI 3 republishes a v2 plan incorporating the three hard blockers listed in [[Tasks/Reminder-SMS-TFV-Plan-AI1-Review]].
 
 ### Previous context (AI 1 runbook + AI 5 research)
 

@@ -138,6 +138,8 @@
 - [[Tasks/AI5-Research-Brief-Reminder-SMS|AI 5 Research Brief — Reminder SMS]]
 - [[Tasks/AI5-Research-Brief-Template|AI 5 Research Brief — Template]]
 - [[Tasks/TFV-Inspection-and-Submission-Runbook|TFV Inspection & Submission Runbook]]
+- [[Tasks/TFV-Inspection-Result-2026-04-15|TFV Inspection Result — 2026-04-15]] — AI 1 live portal inspection; confirms rejected Vurium Inc TFV + 9 additional facts beyond commit `2f95184`
+- [[Tasks/Reminder-SMS-TFV-Plan-AI1-Review|Reminder SMS TFV Plan — AI 1 Review]] — **4-AI Review Gate input**; NOT APPROVED yet, 3 hard blockers flagged
 
 ### Improvement Plans
 - [[Registration-Improvement-AI1]] — Signup page UX plan (AI 1)

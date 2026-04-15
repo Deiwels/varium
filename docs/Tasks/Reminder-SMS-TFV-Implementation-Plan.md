@@ -17,7 +17,7 @@ created: 2026-04-15
 
 > ⚠️ **Перед початком імплементації цей план має бути reviewed і approved.**
 
-- [ ] AI 1 (Claude) — review backend/data/infra risk → запишіть ваші notes нижче або створіть окремий review doc
+- [ ] AI 1 (Claude) — review backend/data/infra risk → **full review in [[Reminder-SMS-TFV-Plan-AI1-Review]]**. Status: **NOT APPROVED yet**. Three hard blockers (payload missing BRN fields, provision timing vs onboarding completion, webhook handler gap) + four improvements + two data additions from live portal inspection in [[TFV-Inspection-Result-2026-04-15]]. Box stays unchecked until AI 3 republishes v2 incorporating those points.
 - [x] AI 2 (Codex) — review frontend/UX alignment → notes recorded below
 - [ ] AI 4 (Phone AI) — review emergency/rollback risk → запишіть ваші notes нижче
 - [ ] Owner — approve final plan + clarify Jonathan/TFV business identity question (Крок 5.1)
@@ -264,7 +264,21 @@ Polling job кожні 3 хвилини (обгорнутий у `withJobLock('r
 > Інші AI: запишіть свої review notes тут або створіть окремий review doc з лінком сюди.
 
 ### AI 1 (Claude) review
-*(pending)*
+
+Full review at [[Reminder-SMS-TFV-Plan-AI1-Review]] — separate doc because the review is substantial (3 hard blockers + 4 improvements + 2 data additions). Key findings:
+
+- **Empirical gate answer**: § 5.1 Jonathan/ISV question is already answered by the rejected TFV request `e23146a2` — ISV/platform model does not pass Telnyx compliance. Plan v2 should commit to per-workspace model explicitly.
+- **Hard Blocker 1**: § 2.2 payload mapping omits `businessRegistrationNumber` / `Type` / `IssuingCountry` fields. These are the fields Telnyx rejected on. Plan must pick Pattern A (per-workspace EIN), Pattern B (Sole Proprietor TFV path, AI 1 recommended default), or Pattern C (Vurium ISV — not viable). Without this, any auto-submit fails.
+- **Hard Blocker 2**: `provisionTollFreeSmsForWorkspace()` runs from 3 activation paths (signup / Stripe / Apple) at a moment when workspace `shop_*` fields may not be populated yet. Submitting TFV with empty business data produces the same rejection class. TFV submission must be gated on `shop_name && shop_address && shop_phone && shop_email` being present, with a new trigger path from `POST /api/settings` when onboarding completes.
+- **Hard Blocker 3**: `/api/webhooks/telnyx-10dlc` handler at `backend/index.js:1873` has zero TFV event mapping (grep-verified). Plan § 2.3 polling is OK as a safety net but webhook must be the primary signal. v2 must include updating the webhook handler.
+- **Improvement 1**: polling frequency 3 min → 30 min (TFV reviews take days, 3 min pressures `withJobLock` contention with 6 other jobs).
+- **Improvement 2**: retry strategy for TFV submission failures must match existing `autoProvisionSmsOnActivation` pattern.
+- **Improvement 3**: Firestore writes of `sms_registration_status + sms_tfv_request_id + sms_tfv_submitted_at` must be atomic.
+- **Improvement 4**: verify `getWorkspaceSmsConfig()` really gates on `status === 'active'` (not just `!!sms_from_number`) before ticking § 2.4 as "no code change needed".
+- **Data Addition 1**: plan v2 should reference [[TFV-Inspection-Result-2026-04-15]] as historical context so a future AI 3 planning session doesn't accidentally try to "fix and resubmit" the rejected `e23146a2` as a shortcut.
+- **Data Addition 2**: rectify the `846 → 847` contact phone typo observed in the rejected TFV form — when per-workspace TFV submissions go through, any platform fallback phone must be the correct `(847) 630-1884`.
+
+AI 1 verdict: **direction ✅, NOT APPROVED yet** pending v2 incorporation of the three hard blockers.
 
 ### AI 2 (Codex) review
 
