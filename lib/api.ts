@@ -1,3 +1,5 @@
+import { clearAuthCookie } from '@/lib/auth-cookie'
+
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
 
 const API_KEY = ''
@@ -18,6 +20,7 @@ export async function apiRequest(path: string, opts?: RequestInit) {
   if (res.status === 401) {
     if (typeof window !== 'undefined' && !path.includes('/auth/login')) {
       localStorage.removeItem('VURIUMBOOK_TOKEN')
+      clearAuthCookie()
       if (localStorage.getItem('VURIUMBOOK_PIN_HASH')) {
         window.dispatchEvent(new CustomEvent('vuriumbook-pin-required'))
       } else {

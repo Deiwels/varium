@@ -25,7 +25,14 @@ export function setAuthCookie(value: string): void {
 
 export function clearAuthCookie(): void {
   if (typeof document === 'undefined') return
+  const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:'
   for (const name of [COOKIE_NAME, LEGACY_ROLE_COOKIE_NAME, LEGACY_TOKEN_COOKIE_NAME]) {
-    document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`
+    document.cookie = [
+      `${name}=`,
+      'path=/',
+      'max-age=0',
+      'SameSite=Lax',
+      isSecure ? 'Secure' : '',
+    ].filter(Boolean).join('; ')
   }
 }

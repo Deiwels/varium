@@ -66,6 +66,21 @@ That creates the exact iOS loop we saw:
   - writes both `VURIUMBOOK_TOKEN` and `vuriumbook_auth`
   - clears `VURIUMBOOK_TOKEN`, `vuriumbook_auth`, and `vuriumbook_token` on logout so stale iOS sessions do not resurrect themselves
 
+### Follow-up auth-loop fix from Claude review branch
+
+The first compatibility hotfix was not enough on its own. Claude identified the second half of the loop:
+
+- when an expired JWT triggered a `401`, `lib/api.ts` cleared `localStorage` but left the JS role cookie alive
+- Edge middleware then saw the surviving role cookie and bounced `/signin` right back to `/dashboard`
+- on iOS, `WKWebView` + native UserDefaults kept replaying this flow, so the user saw the dashboard flash for a split second and then the app became unusable
+
+Applied follow-up fix:
+
+- `lib/api.ts` now calls `clearAuthCookie()` on any non-login `401`
+- `lib/auth-cookie.ts` now deletes cookies with the `Secure` attribute when on HTTPS so Safari / WKWebView actually apply the delete
+
+This is the specific hotfix intended to stop the visible `/signin ⇄ dashboard` flicker loop.
+
 ### Native follow-up for Claude / AI 1
 
 Native source investigated during this incident:
