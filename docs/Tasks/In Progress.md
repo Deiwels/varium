@@ -85,11 +85,11 @@ Once FE.28 is merged, the sprint 2a SMS/security cleanup is closed. Codex (or AI
 
 Verdent can work in parallel **right now** without conflicting with Codex FE.28:
 
-1. Re-verify AI 1 backend landing (`56cf4c6`, `d952785`) and record the post-merge state in [[Tasks/QA-Scan-2026-04-15]]
-2. Update stale QA/docs language where BE.8 still appears as an unlanded backend task; note the owner decision that the migration endpoints remain as future tools and are not being run on current test-only workspaces
-3. Prepare the BE.9 7-case XSS verification pass so it is ready the moment Codex lands FE.28
-4. After Codex merges FE.28, run the browser/QA validation on `/book/[id]` and write the results back to [[Tasks/QA-Scan-2026-04-15]] + DevLog
-5. Explicitly verify AI 1's soft post-merge concern from [[Tasks/FE.28-AI1-PostMerge-Review]]:
+✅ 1. Re-verify AI 1 backend landing (`56cf4c6`, `d952785`) and record the post-merge state in [[Tasks/QA-Scan-2026-04-15]]
+✅ 2. Update stale QA/docs language where BE.8 still appears as an unlanded backend task; note the owner decision that the migration endpoints remain as future tools and are not being run on current test-only workspaces
+✅ 3. Prepare the BE.9 7-case XSS verification pass so it is ready the moment Codex lands FE.28
+✅ 4. After Codex merges FE.28, run the browser/QA validation on `/book/[id]` and write the results back to [[Tasks/QA-Scan-2026-04-15]] + DevLog
+✅ 5. Explicitly verify AI 1's soft post-merge concern from [[Tasks/FE.28-AI1-PostMerge-Review]]:
    - CSS child combinators like `body > header`
    - pseudo-content strings that contain `<` or `>`
    - no visual regression on `https://vurium.com/book/elementbarbershop`
