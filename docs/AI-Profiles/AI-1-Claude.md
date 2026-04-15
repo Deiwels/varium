@@ -59,6 +59,23 @@ Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
 - `scope`: `backend | sms | auth | billing | docs | element | ci`
 - Rule: one atomic change per commit. Don't mix backend + frontend in one commit (frontend isn't mine anyway).
 
+### Payment/auth/SMS critical commit policy (AI4-REQ.2, 2026-04-15)
+
+Per [[Tasks/AI4-Emergency-Readiness-Review-2026-04-15]] `AI4-REQ.2`: for every commit that touches payment, auth, SMS, or webhook-signature code paths, include a **`Last-known-good SHA: <SHA>`** trailer in the commit message. Example:
+
+```
+fix(backend): stripe webhook signature rotation
+
+<body>
+
+Last-known-good SHA: 849e998
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+```
+
+Why: if AI 4 is called for an emergency revert of that change, they need the previous known-working SHA immediately without `git log`-archaeology. This is a zero-cost policy for me (one extra trailer line) and saves real incident minutes for AI 4.
+
+Scope of this policy: any commit touching `backend/index.js` around `requireAuth`, `requireSuperadmin`, `verifyTelnyxWebhookSignature`, `stripe webhook`, `apple iap`, `square webhook`, `jwt`, cookie logic, or `/api/webhooks/*` routes.
+
 ## Known position on architectural decisions
 
 - [[Decision-Log]] **DECISION-001** SMS dual-path (per-workspace TFN + legacy 10DLC) — agreed

@@ -10,23 +10,24 @@
 
 ---
 
-## @AI3 [PLAN DRAFT — 4-AI GATE IN PROGRESS]: BE.8 — Migrate legacy SMS statuses
+## @AI3 [PLAN FINAL — AWAITING OWNER APPROVAL]: BE.8 — Migrate legacy SMS statuses
 
-**Date:** 2026-04-14 | **Plan drafted:** 2026-04-15
+**Date:** 2026-04-14 | **Plan drafted:** 2026-04-15 | **Plan finalized:** 2026-04-15 (`c5bc72b`)
 **From:** AI 1 (Claude) | **Plan by:** AI 3 (Verdent)
+**Final plan:** [[Tasks/BE.8-Legacy-SMS-Migration-Plan-v2]]
 **Priority:** Sprint 2a
-**Blocked:** ⏸ YES — 4-AI Plan Review Gate still in progress
+**Blocked:** ⏸ YES — awaiting Owner approval (last gate)
 
 ### 4-AI Plan Review Gate state
 
 - [x] AI 3 (Verdent) published draft plan → [[Tasks/BE.8-Legacy-SMS-Migration-Plan]] (`8b03b8a`)
-- [x] AI 1 (Claude) reviewed backend / data / infra / integration risk → [[Tasks/BE.8-BE.9-AI1-Review]] — **3 issues to incorporate** (dry-run mode, batch writes, rollback/pre-export step)
-- [x] AI 2 (Codex) reviewed frontend / UX / FE alignment → [[Tasks/BE.8-BE.9-AI2-Review]] — **3 issues to incorporate** (frontend status dependencies, settings/dev-SMS drift, `pending_otp` UX consequence)
-- [ ] AI 3 incorporates AI 1 + AI 2 feedback and republishes as `PLAN FINAL`
-- [x] AI 4 (Phone AI) reviewed emergency / rollback / incident risk → [[Tasks/AI4-Emergency-Readiness-Review-2026-04-15]] · **5 follow-up asks recorded (`AI4-REQ.1`–`AI4-REQ.5`)**
-- [ ] Owner approved final plan
+- [x] AI 1 (Claude) reviewed backend / data / infra / integration risk → [[Tasks/BE.8-BE.9-AI1-Review]] — **3 issues** (dry-run mode, batch writes, rollback/pre-export step)
+- [x] AI 2 (Codex) reviewed frontend / UX / FE alignment → [[Tasks/BE.8-BE.9-AI2-Review]] — **3 issues** (frontend status dependencies, settings/dev-SMS drift, `pending_otp` UX consequence)
+- [x] **AI 3 incorporated all feedback and republished as `PLAN FINAL v2`** → [[Tasks/BE.8-Legacy-SMS-Migration-Plan-v2]] (`c5bc72b`) — verified by AI 1: Pre-Step 0 Firestore export added, `?dryRun=true` flag added to migration endpoint, `db.batch()` with 500-op limit added, Rollback endpoint `POST /api/vurium-dev/sms/restore-legacy-status/:wsId` added, Frontend Impact Analysis section added with explicit product decision to collapse legacy statuses and paired frontend cleanup for AI 2. All 6 review issues addressed.
+- [x] AI 4 (Phone AI) reviewed emergency / rollback / incident risk → [[Tasks/AI4-Emergency-Readiness-Review-2026-04-15]] · **5 follow-up asks recorded (`AI4-REQ.1`–`AI4-REQ.5`)** · launch readiness: 🟢 green
+- [ ] **Owner approved final plan** ⬅ only remaining gate
 
-**→ AI 1 will NOT start implementation until all six boxes are ticked.** Previous `РОЗБЛОКОВАНО починай` was a Rule 6 gate skip; reverted here.
+**→ AI 1 will NOT start implementation until Owner explicitly approves `PLAN FINAL v2`.** Once Owner ticks the last box, AI 1 implements per the 5-step sequence in [[Tasks/BE.8-Legacy-SMS-Migration-Plan-v2]].
 
 **Problem**
 
@@ -69,23 +70,24 @@
 
 ---
 
-## @AI3 [PLAN DRAFT — 4-AI GATE IN PROGRESS]: BE.9 — DOMPurify для Custom HTML/CSS
+## @AI3 [PLAN FINAL — AWAITING OWNER APPROVAL]: BE.9 — DOMPurify для Custom HTML/CSS
 
-**Date:** 2026-04-14 | **Plan drafted:** 2026-04-15
+**Date:** 2026-04-14 | **Plan drafted:** 2026-04-15 | **Plan finalized:** 2026-04-15 (`c5bc72b`)
 **From:** AI 1 (Claude) | **Plan by:** AI 3 (Verdent)
+**Final plan:** [[Tasks/BE.9-DOMPurify-Custom-HTML-Plan-v2]]
 **Priority:** Sprint 2a
-**Blocked:** ⏸ YES — 4-AI Plan Review Gate still in progress
+**Blocked:** ⏸ YES — awaiting Owner approval (last gate)
 
 ### 4-AI Plan Review Gate state
 
 - [x] AI 3 (Verdent) published draft plan → [[Tasks/BE.9-DOMPurify-Custom-HTML-Plan]] (`8b03b8a`)
-- [x] AI 1 (Claude) reviewed backend / data / infra / integration risk → [[Tasks/BE.8-BE.9-AI1-Review]] — **6 issues raised**, 1 is material (Issue 1: `sanitizeCustomCss` still regex-based, contradicts the stated goal of BE.9; proposes `css-tree` parser as Option B)
-- [x] AI 2 (Codex) reviewed frontend / UX → [[Tasks/BE.8-BE.9-AI2-Review]] — **4 issues raised**, 1 is material (`DOMPurify.sanitize(rawCss)` is not a real CSS sanitization strategy; final plan must split HTML and CSS handling cleanly)
-- [ ] AI 3 incorporates all feedback and republishes as `PLAN FINAL`
-- [x] AI 4 (Phone AI) reviewed emergency / rollback / incident risk → [[Tasks/AI4-Emergency-Readiness-Review-2026-04-15]] · **5 follow-up asks recorded (`AI4-REQ.1`–`AI4-REQ.5`)**
-- [ ] Owner approved final plan
+- [x] AI 1 (Claude) reviewed backend / data / infra / integration risk → [[Tasks/BE.8-BE.9-AI1-Review]] — **6 issues**, 1 material (Issue 1: CSS parser decision)
+- [x] AI 2 (Codex) reviewed frontend / UX → [[Tasks/BE.8-BE.9-AI2-Review]] — **4 issues**, 1 material (HTML vs CSS separation)
+- [x] **AI 3 incorporated all feedback and republished as `PLAN FINAL v2`** → [[Tasks/BE.9-DOMPurify-Custom-HTML-Plan-v2]] (`c5bc72b`) — verified by AI 1: Defense-in-depth architecture diagram added, CSS: Option A (regex) accepted with explicit justification paragraph, jsdom → linkedom (~500 KB vs ~20 MB for Cloud Run cold start), one-shot re-sanitization endpoint `POST /api/vurium-dev/sanitize-existing-custom-content` added, `processCustomHTML` ordering clarified (sanitize AFTER placeholder expansion per AI 2), all 4 backend write sites listed, 7-case XSS test matrix added to DoD, scope boundary section added (public booking page only; developer/email out of scope). All 10 review issues addressed.
+- [x] AI 4 (Phone AI) reviewed emergency / rollback / incident risk → [[Tasks/AI4-Emergency-Readiness-Review-2026-04-15]] · **5 follow-up asks recorded (`AI4-REQ.1`–`AI4-REQ.5`)** · launch readiness: 🟢 green
+- [ ] **Owner approved final plan** ⬅ only remaining gate
 
-**→ Neither AI 1 nor AI 2 starts implementation until all six boxes are ticked.** Previous `РОЗБЛОКОВАНО Backend частина` was a Rule 6 gate skip; reverted here.
+**→ Neither AI 1 nor AI 2 starts implementation until Owner explicitly approves `PLAN FINAL v2`.** Once approved, AI 1 implements backend half first per [[Tasks/BE.9-DOMPurify-Custom-HTML-Plan-v2]] Part 1, then merges, then AI 2 implements frontend half per Part 2.
 
 **Problem**
 
