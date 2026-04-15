@@ -12,6 +12,8 @@
 > 🆕 **AI 4 branch resolution is now written down.** See [[Tasks/AI4-Branch-Resolution-2026-04-15]]. `claude/read-docs-P7wBt` is archive-only; any new rule idea from AI 4 must re-enter via `@AI3 [PLAN REQUEST]`.
 > 🆕 **2026-04-15 — AI 4 standby status check cherry-picked onto main.** See [[Tasks/AI4-Standby-Status-Check-2026-04-15]]. Phone AI flagged one procedural gap in the BE.8/BE.9 gate (AI 4 `[x]` was closed via the 02:00 general review, not BE.8/BE.9-specific emergency notes). Owner accepted **Option 2** on 2026-04-15: general review is sufficient given the low real risk of BE.8/BE.9 defensive changes (additive endpoints, defensive sanitization, Element protected by 4 existing safety nets). Gate stays closed with annotation in both plans. Lesson for future reviews: don't shortcut-close gates even on low-risk work without Owner pre-approval **before** shipping.
 
+> 🆕 **2026-04-15 — AI 4 review of Reminder SMS TFV Implementation Plan landed.** See [[Tasks/Reminder-SMS-TFV-Implementation-Plan#AI 4 (Phone AI) review|AI 4 review section]] inside the plan doc. Gate-wise: ✅ not blocking. 5 incorporations requested (2 critical: rollback completeness + TFV submit idempotency; 2 important: TTL/retry caps + pre-deploy `active` grandfather policy; 1 nice-to-have: webhook vs polling). Plan-specific Hot Zone #11 added to AI 4 watch list post-deploy. AI 4 back in standby.
+
 ---
 ## @AI3 [PLAN READY — AWAITING 4-AI REVIEW]: Finish reminder SMS launch / live deliverability sign-off
 

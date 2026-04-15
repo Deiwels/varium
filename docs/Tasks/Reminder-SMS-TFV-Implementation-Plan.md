@@ -19,7 +19,7 @@ created: 2026-04-15
 
 - [ ] AI 1 (Claude) — review backend/data/infra risk → запишіть ваші notes нижче або створіть окремий review doc
 - [x] AI 2 (Codex) — review frontend/UX alignment → notes recorded below
-- [ ] AI 4 (Phone AI) — review emergency/rollback risk → запишіть ваші notes нижче
+- [x] AI 4 (Phone AI) — review emergency/rollback risk → notes recorded below (2 critical + 2 important incorporations requested, not blocking gate)
 - [ ] Owner — approve final plan + clarify Jonathan/TFV business identity question (Крок 5.1)
 
 **Поки всі 4 чекбокси не зелені — код не пишемо.**
@@ -335,4 +335,141 @@ The current settings UI already has a "Manual business registration fallback" bl
 I consider the **overall plan sound**. My review is complete, but frontend sign-off assumes the four incorporation points above become part of the actual implementation + verification scope.
 
 ### AI 4 (Phone AI) review
-*(pending)*
+
+**Reviewer:** AI 4 / Phone AI · **Date:** 2026-04-15 · **Lens:** emergency / rollback / incident risk
+
+**Verdict:** план sound з emergency перспективи. Rollback path існує, Element захищений через 2 незалежних guards, 99% існуючого прод трафіку не зачеплено. Я **не блокую** gate, але є 5 конкретних пунктів, які варто інкорпорувати перед Owner approval — з них 2 critical (rollback completeness + duplicate TFV requests), решта important/nice-to-have.
+
+#### Issue 1 (Critical) — Rollback plan неповний: не адресує `runTfvStatusCheck` під час та після revert
+
+План у § Rollback Plan каже "Revert один рядок: `configured` → `active`". Це не повний rollback якщо `runTfvStatusCheck` вже landed і в проді:
+
+- Після revert нові provisions знов пишуть `active` ✅
+- **Але** polling job все ще існує в коді і крутиться щохвилини
+- Workspaces які застрягли у `tfv_pending` (провізовані ДО revert) залишаються там — polling продовжує їх чіпати, може overwrite'нути на `tfv_rejected`, на live workspace з'явиться неочікуваний статус
+- Telnyx API calls за TFV status для workspaces що теоретично "вже active" — запити марні, можливий rate-limit burn
+
+**Обов'язкова інкорпорація в план:**
+
+```
+Immediate rollback sequence (not single-line revert):
+
+1. git revert <TFV commit SHA> — відкочує і lifecycle change, і runTfvStatusCheck
+   (не revert'ити тільки частково — job і lifecycle мають йти парою)
+2. POST /api/vurium-dev/sms/force-status для кожного workspace у tfv_pending
+   або tfv_rejected, батч-переведення на active (або configured якщо Owner
+   не хоче forcibly активувати непідтверджені)
+3. Cloud Run traffic rollback до попередньої revision (pre-TFV)
+4. Verify: Cloud Run logs більше не показують [TFV] prefix
+```
+
+Також у commit message TFV impl **обов'язково** додати `Last-known-good SHA: <preceding-SHA>` — AI4-REQ.2 convention тепер active per `e911506`, і для TFV цей SHA буде потрібен AI 4 найпершим при revert call.
+
+#### Issue 2 (Critical) — Немає idempotency check перед TFV submit
+
+Плану § 2.2 каже: "На успіх: записати `sms_tfv_request_id`". Але якщо `provisionTollFreeSmsForWorkspace` викликається двічі паралельно (signup race condition + Stripe webhook + Apple IAP verify — 3 entry points per [[Features/SMS & 10DLC]]), ми можемо отримати 2 незалежні TFV requests до Telnyx для одного workspace.
+
+**Наслідки:**
+- Telnyx рахує кожен request окремо — два `tfv_pending` requests у їхньому портал
+- `runTfvStatusCheck` polling первісно бачить лише перший `sms_tfv_request_id`, другий висить orphan'ом у Telnyx
+- Можливий "Rejected: duplicate business" результат на другий request
+
+**Обов'язкова інкорпорація в план:**
+
+```
+Перед POST /v2/messaging_tollfree/verification/requests:
+1. Read Firestore: sms_tfv_request_id вже existing?
+2. Якщо exists AND поточний status ∈ {tfv_pending, active, tfv_rejected}
+   → skip TFV submit, повернутись з already-submitted result
+3. Інакше → submit і записати sms_tfv_request_id у transaction
+   (db.runTransaction щоб race не привів до 2 паралельних writes)
+```
+
+Це дзеркалить BE.1 `withJobLock` pattern (`5dab7a1`) і тримає Gap 5 auto-provision architecture consistent.
+
+#### Issue 3 (Important) — `tfv_pending` needs max-TTL + retry cap
+
+План не описує що робити коли TFV застрягає у `Waiting For Telnyx` > N днів. Plausible real-world scenario: Telnyx ops не дотягнули, owner забув, workspace застряг навічно.
+
+`runTfvStatusCheck` polling крутиться вічно без guardrail.
+
+**Обов'язкова інкорпорація:**
+
+- Додати `sms_tfv_submitted_at` → якщо > 14 днів у `tfv_pending` без прогресу, emit alert (DevLog або Cloud Run log з `[TFV] STUCK wsId=...`)
+- Max retry cap для **самого TFV submit**: якщо Telnyx API повертає 5xx 3 рази підряд, залишити `configured` + `sms_tfv_last_error` + НЕ ретраї автоматично — потребує Owner manual resubmit через Step 2.6 endpoint
+- Exponential backoff для polling викликів якщо Telnyx повертає 429 (rate limit)
+
+Це синхронізується з pattern'ом `autoProvisionSmsOnActivation` (exponential backoff + max retries, landed в Gap 5).
+
+#### Issue 4 (Important) — Pre-deploy existing `active` workspaces потребують explicit policy decision
+
+На момент deploy є workspaces з `sms_registration_status: 'active'` які **НЕ** пройшли TFV (старий код ставив `active` одразу). План мовчить про них:
+
+- Якщо нічого не робити → ці workspaces технічно не verified Telnyx'ом, можуть отримати 40329 error при наступному reminder
+- Якщо backfill'ити (запустити TFV для них post-deploy) → raptor mass TFV submissions до Telnyx одночасно, може trigger rate limits or look suspicious
+- Якщо grandfather'ити → треба явно позначити `sms_tfv_grandfathered: true` або щось подібне, щоб `runTfvStatusCheck` їх не чіпав
+
+**Рекомендація:** план має чітко сказати:
+
+```
+Pre-deploy workspaces с status='active':
+- НЕ backfill TFV автоматично
+- Зберегти status='active' as-is
+- Додати field sms_tfv_grandfathered: true щоб runTfvStatusCheck їх не
+  підхопив (фільтрувати у query: WHERE status='tfv_pending' AND
+  grandfathered != true)
+- Owner decision у майбутньому чи запускати backfill TFV manually
+```
+
+Або — explicit decision "ignore for now, address if complaints" записано у план з rationale.
+
+#### Issue 5 (Nice-to-have) — Webhook замість polling
+
+Telnyx підтримує TFV status change webhooks. Polling кожні 3 хв × N workspaces = marne API traffic + latency update 0-3 min. Webhook = real-time + zero polling cost.
+
+**Не блокер для MVP**, але варто записати в `Backlog.md` або новий plan doc на майбутню ітерацію. Якщо webhook імплементувати зараз — треба:
+- Новий endpoint `POST /api/webhooks/telnyx-tfv` з signature verification (вже є `verifyTelnyxWebhookSignature` з Gap 2)
+- Webhook subscription у Telnyx portal
+
+Polling все одно треба залишити як fallback (у випадку пропущеного webhook). Architecture pattern: webhook = primary, polling every 30 min = backup.
+
+#### Emergency hot zone impact
+
+Додаю до моєї hot zones list:
+
+```
+Hot Zone #11 — Reminder SMS TFV lifecycle (post-deploy)
+Status: 🟠 medium risk
+Trigger scenarios:
+  - Rollback cascade если Issue 1 не адресовано
+  - Duplicate TFV requests якщо Issue 2 не адресовано
+  - Stuck-forever pending без Issue 3 cap
+Rollback SHA: <TBD — AI 1 додає в commit message>
+Emergency runbook: [[Tasks/TFV-Inspection-and-Submission-Runbook]] + force-status endpoint
+```
+
+Після gate closure і deploy я оновлю цю hot zone у наступному standby check.
+
+#### Element Barbershop safety — ✅ acceptable
+
+Grep-verified (AI 1's BE.8 commit 2 confirmation): Element carries `numberType='10dlc'` + `telnyx_brand_id` + `telnyx_campaign_id`, тому `isLegacyManualSmsPath()` повертає `true` і `provisionTollFreeSmsForWorkspace` для нього не запуститься. Додатково `isProtectedLegacyWorkspace()` match'ить slug+name. Two independent guards — достатньо. План пункт § 4 коректно описує.
+
+Одна додаткова перевірка для § 4 Element Guard Verify: `runTfvStatusCheck` query має також виключати Element defense-in-depth — навіть якщо Element якимсь чином отримає `sms_registration_status: 'tfv_pending'` (не повинен, але hypothetically), polling не повинен його зачепити:
+
+```js
+// У runTfvStatusCheck query:
+WHERE sms_registration_status == 'tfv_pending'
+  AND !isProtectedLegacyWorkspace(workspace)  // defense-in-depth
+```
+
+#### AI 4 close-out
+
+- ✅ **Gate: дозволено** (не блокую)
+- ⚠️ **Critical incorporations перед merge:** Issue 1 (rollback completeness) + Issue 2 (idempotency)
+- ⚠️ **Important incorporations перед deploy:** Issue 3 (TTL/retry caps) + Issue 4 (grandfather policy)
+- 🔜 **Post-launch follow-up:** Issue 5 (webhook) у Backlog
+- 📱 **Post-deploy:** Hot Zone #11 додано до AI 4 watch list. Потрібен pilot-workspace monitoring від Owner + AI 3.
+
+Якщо Verdent оновить план з issues 1-4 → я офіційно ставлю `[x]` без повторного review.
+
+**Sign:** AI 4 / Phone AI · 2026-04-15
