@@ -10,13 +10,15 @@
 
 ## Хто ми — 4 AI + Owner
 
-| # | AI | Платформа | Роль | Зона відповідальності |
-|---|---|---|---|---|
-| **AI 1** | Claude (CLI / Desktop) | Backend Owner | Пише і комітить backend код | `backend/index.js`, `.github/workflows/`, всі `docs/**` |
-| **AI 2** | Codex | Frontend Owner | Пише і комітить frontend код | `app/**`, `components/**`, `lib/**`, `globals.css` |
-| **AI 3** | Verdent (Я) | Планувальник + Верифікатор | Складає детальні плани, перевіряє чи все по плану, QA сканування | `docs/Tasks/QA-Scan-*.md`, `docs/Tasks/*-Runbook.md`, планування |
-| **AI 4** | Phone AI | Universal Quick-Fixer | Термінові фікси коли система падає або інші AI застрягли | Повний доступ до всього — тільки для emergencies |
-| **Owner** | Назарій | Власник проєкту | Фінальні рішення, секрети, зовнішні сервіси | GitHub Secrets, Telnyx portal, App Store Connect, legal |
+| # | AI | Платформа | Роль | Профіль | Зона відповідальності |
+|---|---|---|---|---|---|
+| **AI 1** | Claude (CLI / Desktop) | Backend Owner | Пише і комітить backend код | [[AI/AI-1-Claude]] | `backend/index.js`, `.github/workflows/`, всі `docs/**` |
+| **AI 2** | Codex | Frontend Owner | Пише і комітить frontend код | [[AI/AI-2-Codex]] | `app/**`, `components/**`, `lib/**`, `globals.css` |
+| **AI 3** | Verdent | Планувальник + Верифікатор | Складає детальні плани, перевіряє чи все по плану, QA сканування | [[AI/AI-3-Verdent]] | `docs/Tasks/QA-Scan-*.md`, `docs/Tasks/*-Runbook.md`, планування |
+| **AI 4** | Phone AI | Universal Quick-Fixer | Термінові фікси коли система падає або інші AI застрягли | [[AI/AI-4-Phone-AI]] | Повний доступ до всього — тільки для emergencies |
+| **Owner** | Назарій | Власник проєкту | Фінальні рішення, секрети, зовнішні сервіси | — | GitHub Secrets, Telnyx portal, App Store Connect, legal |
+
+> **Кожен AI має свій повний профіль у `docs/AI/`.** Перед початком будь-якої сесії відкрий свій профіль і швидко пробіжись — там описано що саме ти робиш, що НЕ робиш, як координуєшся з іншими, і який у тебе специфічний Session Start Protocol.
 
 ---
 

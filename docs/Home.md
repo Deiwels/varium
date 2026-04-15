@@ -16,7 +16,7 @@
 | **Goal** | Sell-ready: new business can sign up, onboard, book, and pay without manual rescue |
 | **Current focus** | P0 tasks in [[Tasks/Launch Readiness Plan\|Launch Readiness Plan]] |
 | **Active work** | [[Tasks/In Progress\|In Progress]] |
-| **Who's working** | 4 AI + Owner — see [[Tasks/3-AI-Remaining-Work-Split\|4-AI Work Split]] + [[AI-Session-Acceptance-Log]] |
+| **Who's working** | 4 AI + Owner — see [[Tasks/3-AI-Remaining-Work-Split\|4-AI Work Split]] + [[AI-Session-Acceptance-Log]] + profiles: [[AI/AI-1-Claude\|AI 1 Claude]] · [[AI/AI-2-Codex\|AI 2 Codex]] · [[AI/AI-3-Verdent\|AI 3 Verdent]] · [[AI/AI-4-Phone-AI\|AI 4 Phone AI]] |
 
 ---
 
@@ -82,6 +82,19 @@
 | iOS App | WKWebView hybrid, StoreKit IAP, biometrics, push | [[iOS App]] |
 | Public Site | Marketing pages, blog, careers, legal pages | [[Public Website]] |
 | Dev Panel | Platform admin: magic link auth, analytics, email, SMS ops | [[Developer Panel]] |
+
+---
+
+## AI Profiles
+
+> Each AI has a self-profile — read yours before every session:
+
+- [[AI/AI-1-Claude]] — Backend & Docs Owner (Claude Code CLI / Desktop)
+- [[AI/AI-2-Codex]] — Frontend & UI Owner (Codex)
+- [[AI/AI-3-Verdent]] — Planner + Verifier + QA (Verdent)
+- [[AI/AI-4-Phone-AI]] — Universal Emergency Quick-Fixer (Phone AI)
+
+Governance docs: [[AI-Core-Manifesto]] · [[AI-Work-Split]] · [[AI-Session-Acceptance-Log]] · [[Tasks/3-AI-Remaining-Work-Split|4-AI Work Split]]
 
 ---
 
