@@ -89,6 +89,10 @@ Verdent can work in parallel **right now** without conflicting with Codex FE.28:
 2. Update stale QA/docs language where BE.8 still appears as an unlanded backend task; note the owner decision that the migration endpoints remain as future tools and are not being run on current test-only workspaces
 3. Prepare the BE.9 7-case XSS verification pass so it is ready the moment Codex lands FE.28
 4. After Codex merges FE.28, run the browser/QA validation on `/book/[id]` and write the results back to [[Tasks/QA-Scan-2026-04-15]] + DevLog
+5. Explicitly verify AI 1's soft post-merge concern from [[Tasks/FE.28-AI1-PostMerge-Review]]:
+   - CSS child combinators like `body > header`
+   - pseudo-content strings that contain `<` or `>`
+   - no visual regression on `https://vurium.com/book/elementbarbershop`
 
 **Guardrail:** AI 3 stays out of `app/book/[id]/page.tsx` implementation and only handles verification / QA / docs on this track.
 

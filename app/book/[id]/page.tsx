@@ -164,8 +164,14 @@ function sanitizeCustomMarkup(html: string): string {
 }
 
 function sanitizeInlineCss(css: string): string {
-  // Backend is the primary CSS sanitizer. Frontend strips any accidental HTML.
-  return DOMPurify.sanitize(css, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] })
+  if (!css || typeof css !== 'string') return ''
+  // Keep frontend CSS Layer 2 in parity with backend Option A so `>` selectors
+  // and other valid CSS text are not mangled by an HTML sanitizer.
+  return css
+    .replace(/expression\s*\(/gi, '')
+    .replace(/url\s*\(\s*['"]?\s*javascript:/gi, 'url(')
+    .replace(/@import\b(?!(?:[^;]*fonts\.googleapis\.com))/gi, '/* @import blocked */')
+    .slice(0, 50000)
 }
 
 function processCustomHTML(html: string, data: { shopName: string; barbers: Barber[]; reviews: any[] }): string {
