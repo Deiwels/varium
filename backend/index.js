@@ -490,6 +490,9 @@ function telnyxCredentials() {
 }
 
 function telnyxVerifyFallbackFrom() {
+  // Keep OTP/verification traffic isolated from reminder senders when a dedicated
+  // platform 2FA number is configured. Falls back only if the OTP-specific env var
+  // has not been provisioned yet.
   return safeStr(process.env.TELNYX_VERIFY_FROM || process.env.TELNYX_FROM);
 }
 
