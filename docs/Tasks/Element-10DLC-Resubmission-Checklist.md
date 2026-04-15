@@ -9,7 +9,62 @@
 
 ---
 
-## 🟢 Live verification — 2026-04-15 — VERIFIED READY
+## 📨 2026-04-14 20:30 local — SUBMITTED — AWAITING MNO REVIEW
+
+> **Status: `Pending Telnyx Review` → MNO Review queue.** Owner clicked Save on the Edit Campaign form after AI 1 (Claude) filled every field in the Telnyx portal via Chrome MCP automation. `$15` carrier review fee charged on submit. Campaign ID: `CICHCOJ` (internal uuid `4b30019d-826e-61b2-0eb0-915fdcaf1749`).
+
+### Final form state submitted to Telnyx
+
+| Field | Value |
+|---|---|
+| Campaign Description | "Transactional appointment-related SMS sent by Element Barbershop to clients who opt in during online booking on https://vurium.com/book/elementbarbershop. Messages include booking confirmations, 24-hour and 2-hour reminders, reschedule notices, and cancellation notices. Messages are triggered by booking events only. Frequency: up to 5 messages per booking." |
+| Opt In Workflow / Message Flow | Full rewrite matching live checkbox render: business info (address `1142 W Lake Cook Rd, Buffalo Grove, IL 60089`, phone `(224) 584-5072`, email `contacts@element-barbershop.com`, team, services) + **exact checkbox quote**: `"I agree to receive Element Barbershop Appointment Notifications via SMS (confirmations, reminders, reschedules, and cancellations). Message frequency may vary (up to 5 per booking). Standard message and data rates may apply. Reply STOP to opt out. Reply HELP for help. Consent is not a condition of purchase. View our Terms and Privacy Policy."` |
+| Opt in keywords | `START,YES` |
+| Opt out keywords | `STOP,UNSUBSCRIBE,CANCEL,END,QUIT` (matches `backend/index.js:1834` inbound handler) |
+| Help keywords | `HELP,INFO` |
+| Opt in auto-response | `Element Barbershop: You're subscribed to appointment SMS. Msg frequency varies, up to 5 msgs per booking. Msg & data rates may apply. Reply HELP for help, STOP to opt out. Privacy Policy: https://vurium.com/privacy` |
+| Opt out auto-response | `Element Barbershop: You have been unsubscribed and will receive no further messages. Reply HELP for help or START to re-subscribe.` |
+| Help auto-response | `Element Barbershop: For help, contact support@vurium.com or call (847) 630-1884. Visit https://vurium.com/privacy for our Privacy Policy. Reply STOP to opt out.` |
+| Sample Message 1 | `Element Barbershop: Your appointment is confirmed for Mon Apr 7 at 2:00 PM with John. Msg freq varies, up to 5 msgs/booking. Msg & data rates may apply. Reply STOP to opt out, HELP for help. https://vurium.com/privacy` |
+| Sample Message 2 | `Element Barbershop: Reminder: Your appointment with John is tomorrow Mon Apr 7 at 2:00 PM. Reply STOP to opt out, HELP for help.` |
+| Privacy policy (compliance link) | `https://vurium.com/privacy#sms` |
+| Terms and conditions (compliance link) | `https://vurium.com/terms#sms` |
+| Embedded link (sample URL) | `https://vurium.com/book/elementbarbershop` |
+| Embedded Link | **Yes** |
+| Embedded Phone Number | **Yes** (HELP auto-response contains `(847) 630-1884`) |
+| Number Pooling | No |
+| Age-Gated Content | No |
+| Direct Lending or Loan Arrangement | No |
+| Webhook URL (primary) | `https://vuriumbook-api-431945333485.us-central1.run.app/api/webhooks/telnyx-10dlc` |
+| Webhook Failover URL | same URL (single Cloud Run endpoint, Telnyx accepts duplicate) |
+
+### What we are monitoring
+
+- `POST /api/webhooks/telnyx-10dlc` in `backend/index.js:1873` → writes `sms_registration_status` document per workspace
+- Status transitions to watch:
+  - `TCR_PENDING` / `MNO_PENDING` → `pending_approval` (normal first stage)
+  - `TCR_ACCEPTED` / `MNO_ACCEPTED` → `approved` (goal state, flip Element to Active in `docs/Features/SMS & 10DLC.md` campaign table)
+  - `TCR_REJECTED` / `MNO_REJECTED` → `rejected` (need to re-read rejection reason + repeat remediation cycle)
+- Expected MNO review window: 24-72 hours per Telnyx docs, though can be faster if clean
+
+### If Telnyx returns approved
+
+1. Update `docs/Features/SMS & 10DLC.md` Element campaign table → `Active`
+2. Update `docs/Tasks/In Progress.md` → close ELEMENT 10DLC RESUBMIT section
+3. DevLog entry with approval timestamp + SHA if any code changes needed
+4. Notify Owner — Element can now actually send SMS to clients in production through CICHCOJ
+
+### If Telnyx returns rejected
+
+1. **Do NOT immediately resubmit** — the `$15` review fee applies again on every resubmit. Stop and analyze the rejection reason first.
+2. Owner forwards rejection text to Claude
+3. Re-read the rejection reasons against the submitted form state in this doc
+4. Remediate the specific gap (code or form)
+5. Owner resubmits only after Claude + Codex + Verdent all agree remediation matches the rejection reason
+
+---
+
+## 🟢 Live verification — 2026-04-15 — VERIFIED READY (pre-submit state)
 
 > Status flipped from 🔴 BLOCKED to 🟢 READY after owner fixed both typos (`Bufalo Grove` → `Buffalo Grove, IL 60089`; `element-barbersho.com` → `element-barbershop.com`), Codex ran FE.Element-Verify.1–5 live and all 5 passed, and AI 1 re-verified backend state via `/public/config/` against production. All four pre-resubmit gates are green. Owner's remaining task is a one-second CTA-URL check in the Telnyx portal before clicking Resubmit.
 >
