@@ -11,6 +11,76 @@
 
 ---
 
+## 🟡 AI 1 → AI 2 HANDOFF — Sprint 2a BE.8 + BE.9 ready for Codex action
+
+**Date:** 2026-04-15
+**From:** AI 1 (Claude)
+**To:** AI 2 (Codex) — read on Session Start Protocol step 3
+
+Owner approved BE.8 v2 + BE.9 v2 plans. AI 1 backend work is pushed to `origin/main`:
+
+| SHA | Scope | Status |
+|---|---|---|
+| `d40b5fa` | BE.8 commit 1 — audit/migrate/restore endpoints (future tool) | Pushed |
+| `56cf4c6` | BE.9 Layer 1 — `dompurify` + `linkedom` helpers + `/api/settings` + `/api/ai/generate-style` routed through them + `/api/vurium-dev/sanitize-existing-custom-content` backfill | Pushed |
+| `30232d3` | DevLog entries for BE.8 + BE.9 landing | Pushed |
+| `d952785` | BE.8 commit 2 — removed `LEGACY_SMS_STATUSES` Set + guard from main flow (Owner decision: test-only data, no migration needed) | Pushed |
+
+**Owner decision recorded:** all workspaces except Element are test-only, so the BE.8 audit/migrate/restore sequence is NOT being run. The endpoints stay in code as a future manual tool but nobody is running them. No BE.8 frontend cleanup is needed either — test workspaces with stale legacy status strings can stay as-is until they're deleted.
+
+### Ask 1 — BE.9 FE.28 (Codex's core task)
+
+Implement Layer 2 (frontend DOMPurify) per [[Tasks/BE.9-DOMPurify-Custom-HTML-Plan-v2]] Part 2:
+
+1. `cd` to repo root, run `npm install dompurify` and `npm install --save-dev @types/dompurify`
+2. `app/book/[id]/page.tsx` — import `DOMPurify from 'dompurify'`
+3. Wrap the three `dangerouslySetInnerHTML` call sites (AI 1 verified line numbers against current file; they are accurate):
+   - Line **937** — `siteConfig.ai_css` inside `<style>`
+   - Line **1082** — `siteConfig.custom_css` inside `<style>`
+   - Line **1087** — `processedCustomHTML` inside `<div>`
+4. **Important per AI 2 + AI 1 review:** update `processCustomHTML` at line **161**. The sanitize ordering is: `escapeHtml()` on each placeholder value → template expansion (existing code) → `DOMPurify.sanitize()` on the **final expanded output**. Do NOT sanitize before expansion — AI 1 review Issue 4 explicitly clarified this.
+5. Verify the backend contract hasn't drifted: backend already sanitizes at write time via `sanitizeCustomHtml()` / `sanitizeCustomCss()` in `backend/index.js` (commit `56cf4c6`), so Layer 2 is defense-in-depth, not primary. Test that existing booking pages still render after the change (Element Barbershop especially — it is live-pending MNO review and must not regress).
+6. Commit as `feat(frontend): BE.9 FE.28 — client-side DOMPurify for custom HTML/CSS (Layer 2)`
+7. DevLog entry obligatory before/with commit.
+
+### Ask 2 — Deploy verification (Codex can run from terminal)
+
+Owner asked AI 1 to delegate the smoke-test to Codex since Codex has a built-in terminal with `gh` / `curl` / `gcloud`. Not a blocker for FE.28 — backend and frontend merges are independent.
+
+```bash
+# 1. Check GitHub Actions deploy status
+gh run list --workflow=deploy-backend.yml --limit 5
+# Latest run should correspond to commits d40b5fa..d952785. If still running:
+gh run watch
+
+# 2. Smoke test the Cloud Run revision (after deploy goes READY)
+curl -s https://vuriumbook-api-431945333485.us-central1.run.app/api/health
+# Expected: 200 OK, JSON response. If you see "Cannot find module 'dompurify'" or
+# "Cannot find module 'linkedom'" in Cloud Run logs → BE.9 deps not installed, blocker.
+
+# 3. XSS smoke test against /api/settings (optional — needs an auth cookie for a test workspace)
+# Verifies sanitizeCustomHtml actually strips <script>:
+curl -X POST https://vuriumbook-api-431945333485.us-central1.run.app/api/settings \
+  -H "Cookie: <test-workspace-owner-session-cookie>" \
+  -H "Content-Type: application/json" \
+  -d '{"site_config":{"custom_html":"<script>alert(1)</script><p>Hello</p>"}}'
+# Then GET /public/config/<wsId> and verify custom_html renders as "<p>Hello</p>" with no script tag.
+```
+
+If deploy fails → ping AI 1 with the Cloud Run error so AI 1 can fix the backend side. If it passes → update DevLog with the deploy confirmation and close BE.9 backend verification loop.
+
+### Ask 3 — Status flip in [[Features/SMS & 10DLC]] after Codex's frontend lands
+
+Once FE.28 is merged, the sprint 2a SMS/security cleanup is closed. Codex (or AI 3 via Verdent's verification pass) updates [[Features/SMS & 10DLC]] with "LEGACY_SMS_STATUSES removed from `isLegacyManualSmsPath` — 2026-04-15" in the revision history and notes that the new status pipeline (`none` / `provisioning` / `pending` / `active` / `failed*`) is the single source of truth going forward.
+
+### What AI 1 is doing now
+
+- On standby for Codex-side questions about the backend contract
+- Monitoring Element CICHCOJ — Pending MNO Review, 24-72 h window, will react to webhook outcome via `/api/webhooks/telnyx-10dlc`
+- No new backend work started until Codex merges FE.28 or something new lands
+
+---
+
 ## @AI3 [PLAN APPROVED ✅ — READY FOR IMPLEMENTATION]: BE.8 — Migrate legacy SMS statuses
 
 **Date:** 2026-04-14 | **Plan drafted:** 2026-04-15 | **Plan finalized:** 2026-04-15 (`c5bc72b`)
