@@ -27,9 +27,13 @@
   - Jonathan / Telnyx follow-up
   - Verify Profile account issues
 
-## 🔴 iOS app incident — black screen for logged-in users / endless loading on sign-in
+## ✅ iOS app incident — black screen + endless loading loop — RESOLVED 2026-04-14 20:10
 
-**Status:** web hotfix prepared in repo; verify after deploy in the native app
+**Status:** ✅ **CONFIRMED WORKING** — owner live-tested on device after Vercel deployed `c97e184`. All three hotfixes together (`95d40fc` + `59fdd7b` + `c97e184`) closed the loop. Full post-mortem in [[DevLog/2026-04-15]]. Permanent reference doc created: [[Web-Native-Auth-Contract]]. Architectural decision recorded as DECISION-006 in [[Decision-Log]].
+
+**Protection for future sessions:** Before touching `middleware.ts`, `lib/auth-cookie.ts`, `lib/api.ts`, `components/Shell.tsx`, or `backend/index.js` `getTokenFromReq` — read [[Web-Native-Auth-Contract]]. It lists the load-bearing invariants and the full auth chain for cold start + expired token scenarios. The legacy `vuriumbook_auth` cookie fallback is **load-bearing** until the native iOS bundle is rebuilt with the canonical name.
+
+### Historical record — original symptoms and root cause kept for reference
 
 ### Symptoms reported by owner
 

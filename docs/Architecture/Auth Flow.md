@@ -1,6 +1,6 @@
 # Authentication Flow
 
-> Part of [[Home]] > Architecture | See also: [[Tech Stack]], [[API Routes]], [[App Routes]]
+> Part of [[Home]] > Architecture | See also: [[Tech Stack]], [[API Routes]], [[App Routes]], **⚠️ [[Web-Native-Auth-Contract]]** (load-bearing web ↔ iOS cookie contract — read before touching middleware / auth-cookie / Shell)
 
 ## Methods
 1. **Email/Password** — `/auth/signup`, `/auth/login-email`

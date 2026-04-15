@@ -43,6 +43,7 @@
 - [[Tech Stack]] — Full stack details, integrations, security
 - [[Database Schema]] — Firestore multi-tenant model (23 collections)
 - [[Auth Flow]] — JWT cookies, Apple/Google OAuth, MFA, PIN, roles
+- [[Web-Native-Auth-Contract]] — ⚠️ **LOAD-BEARING** web ↔ iOS cookie contract (reference before touching `middleware.ts` / `lib/auth-cookie.ts` / `lib/api.ts` / `components/Shell.tsx`)
 - [[API Routes]] — 193 endpoints across 15+ domains
 - [[Firestore Collections]] — Collection reference
 - [[App Routes]] — 43 pages (Next.js App Router)
