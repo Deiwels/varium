@@ -7,6 +7,7 @@
 > 📥 **AI 4 review from GitHub counts only after the real review doc is synced locally into `docs/Tasks/` and linked here.**
 
 > 🆕 **2026-04-15 02:00 CDT — AI 4 emergency readiness review landed.** See [[Tasks/AI4-Emergency-Readiness-Review-2026-04-15]]. 5 open asks (`AI4-REQ.1`–`AI4-REQ.5`) are directed to AI 1 and AI 3. Owner-requested sign-off: 🟢 launch readiness green from the emergency-response lens, with 3 gaps flagged before a larger launch push.
+> 🆕 **AI 4 branch resolution is now written down.** See [[Tasks/AI4-Branch-Resolution-2026-04-15]]. `claude/read-docs-P7wBt` is archive-only; any new rule idea from AI 4 must re-enter via `@AI3 [PLAN REQUEST]`.
 
 ---
 

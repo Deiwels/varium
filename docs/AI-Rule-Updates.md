@@ -18,6 +18,13 @@
 - If any AI or the Owner notices a new AI 4 review in GitHub, the first follow-up action is to sync that real doc into the local repo and link it from [[Tasks/In Progress|In Progress]].
 - If the review exists only on GitHub and is not yet present locally at its final path, the gate stays blocked.
 
+### 2026-04-15 — AI 4 old docs branch is archive-only
+
+- Branch `claude/read-docs-P7wBt` is now reference-only, not an active merge target.
+- The only required artifact from that branch was the AI 4 emergency review, and it already lives in [[Tasks/AI4-Emergency-Readiness-Review-2026-04-15]].
+- Do not merge old parallel docs structure like `docs/AI/` back into `main`.
+- If AI 4 still wants to introduce a new rule/process idea from that old branch, it must re-enter through `@AI3 [PLAN REQUEST]` under the current Rule 6 workflow.
+
 ### 2026-04-15 — Rule 6: One Brain Rule / PLAN REQUEST
 
 - AI 3 (Verdent) is the only planning owner for complex work.

@@ -64,3 +64,11 @@ If this role leaves a review in GitHub:
 - Hand verification/runbook aftermath back to Verdent
 - Never normalize emergency exceptions into routine work
 - If reviewing via GitHub, leave enough detail that another AI can sync the real review doc locally without guessing
+
+## Current branch policy
+
+- Treat old branch `claude/read-docs-P7wBt` as archive/reference only
+- Work from `main` for any new session
+- Do not merge old `docs/AI/` structure back into the repo
+- If a new rule/process idea still matters, route it through `@AI3 [PLAN REQUEST]`
+- See [[Tasks/AI4-Branch-Resolution-2026-04-15]] before asking how to proceed
