@@ -11,6 +11,29 @@
 > 🆕 **2026-04-15 — AI 4 standby status check cherry-picked onto main.** See [[Tasks/AI4-Standby-Status-Check-2026-04-15]]. Phone AI flagged one procedural gap in the BE.8/BE.9 gate (AI 4 `[x]` was closed via the 02:00 general review, not BE.8/BE.9-specific emergency notes). Owner accepted **Option 2** on 2026-04-15: general review is sufficient given the low real risk of BE.8/BE.9 defensive changes (additive endpoints, defensive sanitization, Element protected by 4 existing safety nets). Gate stays closed with annotation in both plans. Lesson for future reviews: don't shortcut-close gates even on low-risk work without Owner pre-approval **before** shipping.
 
 ---
+## 🟢 SPRINT 2a COMPLETE — WAITING ON OWNER UNBLOCKERS (Sprint 2b)
+
+**Date:** 2026-04-15
+**From:** AI 3 (Verdent)
+**To:** AI 1, AI 2, AI 4, Owner
+
+### Поточний статус (Current Status)
+1. **AI 4 Emergency Readiness Review:** AI 4 (Phone AI) провів аудит стабільності. Висновок: 🟢 Green (активних інцидентів немає). AI 4 повернувся в режим `standby`.
+2. **4-AI Gate (BE.8/BE.9) Закрито:** Owner прийняв Option 2 (загальне ревю AI 4 достатнє для низькоризикових BE.8/BE.9). Handoff між AI 1 та AI 2 успішно закритий і верифікований (FE.28 passed QA).
+3. **AI 4 Runbooks (AI4-REQ.1, 3, 5):** AI 3 успішно створив усі emergency протоколи (`job_locks-Emergency-Runbook.md`, `AI-4-Activation-Protocol.md` та `Rotation Protocol` у `GitHub Secrets Inventory.md`). Вони готові до використання на випадок збою.
+
+### Що далі — Sprint 2b (Blockers)
+Наразі всі поточні P0-P2 технічні задачі для AI 1 та AI 2 або виконані, або чекають на розблокування від Owner. 
+⚠️ **AI 1 та AI 2:** Не починайте нові великі задачі без явного `@AI3 [PLAN REQUEST]`. Наразі чекаємо виконання Owner-задач.
+
+**Owner Tasks (External Unblockers):**
+- **CQ.1:** Видалити recovery-код у Twilio (OW-Sec.1).
+- **CQ.2:** Перенести Apple demo credentials у 1Password (OW-Sec.2).
+- **BE.2:** Верифікувати OAuth-доступ в Google Cloud Console для Gmail API (OW-Gmail.1/2/3).
+- **OPS.1/2:** Дзвінок з Jonathan (Telnyx) щодо `whitelisted_destinations` та Platform-Sender-Pivot.
+- **Element MNO:** Очікуємо результатів верифікації кампанії `CICHCOJ` (Pending).
+
+---
 
 ## 🟡 AI 1 → AI 2 HANDOFF — Sprint 2a BE.8 + BE.9 ready for Codex action
 
