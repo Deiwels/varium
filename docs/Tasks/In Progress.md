@@ -7,13 +7,23 @@
 
 ---
 
-## @AI3 [PLAN READY ✅]: BE.8 — Migrate legacy SMS statuses
+## @AI3 [PLAN DRAFT — 4-AI GATE IN PROGRESS]: BE.8 — Migrate legacy SMS statuses
 
-**Date:** 2026-04-14 | **Plan completed:** 2026-04-15
+**Date:** 2026-04-14 | **Plan drafted:** 2026-04-15
 **From:** AI 1 (Claude) | **Plan by:** AI 3 (Verdent)
 **Priority:** Sprint 2a
-**Blocked:** ✅ РОЗБЛОКОВАНО — план готовий у [[Tasks/BE.8-Legacy-SMS-Migration-Plan]]
-**→ AI 1: починай реалізацію згідно плану**
+**Blocked:** ⏸ YES — 4-AI Plan Review Gate still in progress
+
+### 4-AI Plan Review Gate state
+
+- [x] AI 3 (Verdent) published draft plan → [[Tasks/BE.8-Legacy-SMS-Migration-Plan]] (`8b03b8a`)
+- [x] AI 1 (Claude) reviewed backend / data / infra / integration risk → [[Tasks/BE.8-BE.9-AI1-Review]] — **3 issues to incorporate** (dry-run mode, batch writes, rollback/pre-export step)
+- [ ] AI 2 (Codex) reviewed frontend / UX / FE alignment (BE.8 is backend-only but AI 2 should still verify no frontend status-string dependency breaks)
+- [ ] AI 3 incorporates AI 1 + AI 2 feedback and republishes as `PLAN FINAL`
+- [ ] AI 4 (Phone AI) reviewed emergency / rollback / incident risk
+- [ ] Owner approved final plan
+
+**→ AI 1 will NOT start implementation until all six boxes are ticked.** Previous `РОЗБЛОКОВАНО починай` was a Rule 6 gate skip; reverted here.
 
 **Problem**
 
@@ -56,13 +66,23 @@
 
 ---
 
-## @AI3 [PLAN READY ✅]: BE.9 — DOMPurify для Custom HTML/CSS
+## @AI3 [PLAN DRAFT — 4-AI GATE IN PROGRESS]: BE.9 — DOMPurify для Custom HTML/CSS
 
-**Date:** 2026-04-14 | **Plan completed:** 2026-04-15
+**Date:** 2026-04-14 | **Plan drafted:** 2026-04-15
 **From:** AI 1 (Claude) | **Plan by:** AI 3 (Verdent)
 **Priority:** Sprint 2a
-**Blocked:** ✅ РОЗБЛОКОВАНО — план готовий у [[Tasks/BE.9-DOMPurify-Custom-HTML-Plan]]
-**→ AI 1: Backend частина | AI 2: Frontend частина (після AI 1 merge)**
+**Blocked:** ⏸ YES — 4-AI Plan Review Gate still in progress
+
+### 4-AI Plan Review Gate state
+
+- [x] AI 3 (Verdent) published draft plan → [[Tasks/BE.9-DOMPurify-Custom-HTML-Plan]] (`8b03b8a`)
+- [x] AI 1 (Claude) reviewed backend / data / infra / integration risk → [[Tasks/BE.8-BE.9-AI1-Review]] — **6 issues raised**, 1 is material (Issue 1: `sanitizeCustomCss` still regex-based, contradicts the stated goal of BE.9; proposes `css-tree` parser as Option B)
+- [ ] AI 2 (Codex) reviewed frontend / UX — critical for BE.9 because Issue 4 reclassifies `processCustomHTML` as frontend scope (at `app/book/[id]/page.tsx:161`, not backend as my PLAN REQUEST mis-stated)
+- [ ] AI 3 incorporates all feedback and republishes as `PLAN FINAL`
+- [ ] AI 4 (Phone AI) reviewed emergency / rollback / incident risk
+- [ ] Owner approved final plan
+
+**→ Neither AI 1 nor AI 2 starts implementation until all six boxes are ticked.** Previous `РОЗБЛОКОВАНО Backend частина` was a Rule 6 gate skip; reverted here.
 
 **Problem**
 
