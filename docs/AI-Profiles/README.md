@@ -1,6 +1,6 @@
 # AI Profiles
 
-> [[Home]] | Related: [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Work-Split]], [[AI-Session-Acceptance-Log]], [[Tasks/3-AI-Remaining-Work-Split|4-AI Work Split]]
+> [[Home]] | Related: [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Work-Split]], [[AI-Session-Acceptance-Log]], [[Tasks/3-AI-Remaining-Work-Split|5-AI Work Split]]
 > Purpose: one page per AI + Owner with role, scope, strengths, known history, coordination rules.
 
 Before starting a session, every AI reads **[[AI-Rule-Updates]] first**, then **its own profile**, and confirms that its behaviour matches. If a profile is out of date, the first action of the session is to update the profile — not code.
@@ -13,6 +13,7 @@ Before starting a session, every AI reads **[[AI-Rule-Updates]] first**, then **
 | **AI 2** | [[AI-2-Codex]] | Codex CLI | `app/**`, `components/**`, `lib/**`, `globals.css`, frontend docs |
 | **AI 3** | [[AI-3-Verdent]] | Verdent | Planner + verifier: `docs/Tasks/QA-Scan-*.md`, `docs/Tasks/*-Runbook.md`, planning docs |
 | **AI 4** | [[AI-4-Phone-AI]] | Phone AI (mobile Claude) | Universal quick-fixer — any file, emergencies only |
+| **AI 5** | [[AI-5-GPT-Chat-Deep-Research]] | GPT Chat Deep Research | Exact external research: vendor/policy/compliance/market facts before major work |
 | **Owner** | [[Owner-Nazarii]] | Human | Final decisions, secrets, external services, legal |
 
 ## How to use these profiles

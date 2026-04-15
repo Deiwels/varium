@@ -1,6 +1,6 @@
 # AI Rule Updates
 
-> [[Home]] | Related: [[AI-Core-Manifesto]], [[AI-Session-Acceptance-Log]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|4-AI Work Split]]
+> [[Home]] | Related: [[AI-Core-Manifesto]], [[AI-Session-Acceptance-Log]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|5-AI Work Split]]
 > Purpose: one short file that announces every new cross-AI rule so no AI can miss it during startup.
 
 > ⚠️ **If this file has an update newer than your last acceptance entry, your old acceptance is stale.**
@@ -9,6 +9,14 @@
 ---
 
 ## Current active updates
+
+### 2026-04-15 — AI 5 added as the mandatory deep-research lane for large external / vendor-dependent work
+
+- We now have **5 AI + Owner**.
+- **AI 5 = GPT Chat Deep Research**.
+- Before any large task that depends on exact external facts, vendor docs, compliance wording, carrier rules, marketplace rules, or policy interpretation, the working AI must consult AI 5 first or explicitly record why AI 5 is not needed.
+- AI 5 is **research support**, not the planner and not an implementation approver.
+- AI 3 still owns plans. AI 5 feeds facts into planning; AI 1 / AI 2 still own code in their scopes.
 
 ### 2026-04-15 — AI 4 GitHub-side docs reviews must be synced into their final local doc path
 

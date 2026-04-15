@@ -1,6 +1,6 @@
 # AI Session Acceptance Log
 
-> [[Home]] | Related: [[AI-Core-Manifesto]], [[Tasks/4-AI-Remaining-Work-Split|4-AI Work Split]], [[Tasks/In Progress|In Progress]]
+> [[Home]] | Related: [[AI-Core-Manifesto]], [[Tasks/3-AI-Remaining-Work-Split|5-AI Work Split]], [[Tasks/In Progress|In Progress]]
 > Purpose: every AI session must explicitly accept the rules here before doing any real work.
 
 ## How to use this log
@@ -31,3 +31,4 @@
 - 2026-04-15 02:42 — AI 2 / Codex — scope: docs/process — I have read and accept [[AI-Core-Manifesto]] and will follow it before doing any work.
 - 2026-04-15 04:20 — AI 2 / Codex — scope: frontend — I have read and accept [[AI-Core-Manifesto]] and will follow it before doing any work.
 - 2026-04-15 09:02 — AI 2 / Codex — scope: docs/process — I have read and accept [[AI-Core-Manifesto]] and will follow it before doing any work.
+- 2026-04-15 10:12 — AI 2 / Codex — scope: docs/process — I have re-read [[AI-Rule-Updates]] and accept the updated [[AI-Core-Manifesto]], including the new AI 5 research-first rule for major external/vendor-dependent work, and will follow it before doing any further work in this session.

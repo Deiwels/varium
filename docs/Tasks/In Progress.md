@@ -5,10 +5,46 @@
 > **2026-04-15**: [[Tasks/3-AI-Remaining-Work-Split]] is now the authoritative split for all open work (not just SMS). This file remains the day-to-day activity tracker.
 > ⚠️ **If a task needs planning, add it here as `@AI3 [PLAN REQUEST]` and do not start implementation until the 4-AI Plan Review Gate is fully approved.**
 > 📥 **AI 4 review from GitHub counts only after the real review doc is synced locally into `docs/Tasks/` and linked here.**
+> 🔎 **AI 5 (GPT Chat Deep Research) is now the external-facts lane. Before major work that depends on vendor/compliance/policy truth, consult AI 5 first or document why AI 5 is not needed.**
 
 > 🆕 **2026-04-15 02:00 CDT — AI 4 emergency readiness review landed.** See [[Tasks/AI4-Emergency-Readiness-Review-2026-04-15]]. 5 open asks (`AI4-REQ.1`–`AI4-REQ.5`) are directed to AI 1 and AI 3. Owner-requested sign-off: 🟢 launch readiness green from the emergency-response lens, with 3 gaps flagged before a larger launch push.
 > 🆕 **AI 4 branch resolution is now written down.** See [[Tasks/AI4-Branch-Resolution-2026-04-15]]. `claude/read-docs-P7wBt` is archive-only; any new rule idea from AI 4 must re-enter via `@AI3 [PLAN REQUEST]`.
 > 🆕 **2026-04-15 — AI 4 standby status check cherry-picked onto main.** See [[Tasks/AI4-Standby-Status-Check-2026-04-15]]. Phone AI flagged one procedural gap in the BE.8/BE.9 gate (AI 4 `[x]` was closed via the 02:00 general review, not BE.8/BE.9-specific emergency notes). Owner accepted **Option 2** on 2026-04-15: general review is sufficient given the low real risk of BE.8/BE.9 defensive changes (additive endpoints, defensive sanitization, Element protected by 4 existing safety nets). Gate stays closed with annotation in both plans. Lesson for future reviews: don't shortcut-close gates even on low-risk work without Owner pre-approval **before** shipping.
+
+---
+## @AI3 [PLAN REQUEST]: Finish reminder SMS launch / live deliverability sign-off
+
+**Date:** 2026-04-15
+**From:** AI 2 (Codex)
+**Blocked:** yes — no new architecture/code changes until the real blocker is confirmed
+
+### Problem
+
+Appointment reminder SMS still cannot be considered fully live / trusted yet. The backend reminder engine is implemented, but we still do not have canonical proof that a **fresh workspace** can auto-provision a sender and deliver real booking reminders end-to-end.
+
+### Context
+
+- `backend/index.js` already provisions per-workspace toll-free senders via `provisionTollFreeSmsForWorkspace()`
+- bookings schedule `sms_reminders`
+- `runAutoReminders()` sends only through `getWorkspaceSmsConfig(..., { allowGlobalFallback: false })`
+- fallback when SMS is unavailable is intentionally **email-only**
+- what is still unclear is the **last operational mile**:
+  - whether the current Telnyx TFN path is truly delivery-ready
+  - whether TFV / another carrier-side step is still required
+  - whether backend status `active` currently matches real deliverability
+
+### Expected result
+
+AI 3 should produce the final completion plan for reminder SMS launch that coordinates:
+
+1. **AI 5 research** on exact Telnyx toll-free / TFV requirements for per-workspace appointment reminders
+2. **AI 1 / Claude browser lane** for Telnyx portal verification and any required portal data-entry
+3. **Owner live verification** on one fresh workspace using [[Tasks/Live-SMS-Verification-Checklist]] and [[Tasks/Launch-Verification-Runbook]]
+4. **Code changes only if the live test or research proves a real code gap**
+
+### Working memo
+
+See [[Tasks/Reminder-SMS-Launch-Completion]] for the currently verified code facts and the proposed owner / AI 1 / AI 5 execution order.
 
 ---
 ## 🟢 SPRINT 2a COMPLETE — WAITING ON OWNER UNBLOCKERS (Sprint 2b)

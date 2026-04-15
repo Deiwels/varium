@@ -1,10 +1,11 @@
-# 4-AI Remaining Work Split
+# 5-AI Remaining Work Split
 
 > [[Home]] > Tasks | Owner: AI 1 (docs) · Last full verification: **2026-04-15** (this pass)
 > ⚠️ **Read [[AI-Rule-Updates]] and [[AI-Core-Manifesto]] first before starting any work.**
 > ⛔ **Before touching any item in this file, add a current-session entry to [[AI-Session-Acceptance-Log]].**
 > 🧠 **If a task needs planning, it must enter `In Progress.md` as `@AI3 [PLAN REQUEST]` and stay blocked until the 4-AI Plan Review Gate is complete.**
 > 📥 **AI 4 reviews that live only in GitHub do not count until the real review doc is synced locally into `docs/Tasks/`.**
+> 🔎 **AI 5 (GPT Chat Deep Research) is the external-facts lane. Use it before large work that depends on vendor/compliance/policy truth.**
 > Related: [[AI-Profiles/README|AI Profiles]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]], [[Production-Plan-AI1]], [[Production-Plan-AI2]], [[AI-Session-Acceptance-Log]]
 
 ---
@@ -13,7 +14,7 @@
 
 This file is the **authoritative** split for what is open across the project. Every item was verified directly against the live `main` tree on 2026-04-15 — grep, read, or endpoint hit — not just copied from older plans. If something here conflicts with `In Progress.md`, `Production-Plan-AI1.md`, `Production-Plan-AI2.md`, or any of the improvement plans, this file wins.
 
-## Roles (updated — 4 AI system)
+## Roles (updated — 5 AI system)
 
 | Role | Primary scope | Ownership rules |
 |------|---------------|-----------------|
@@ -21,6 +22,7 @@ This file is the **authoritative** split for what is open across the project. Ev
 | **Codex / AI 2** | Frontend (`app/**`, `components/**`, `lib/**`, `app/globals.css`) | Live browser verification; mobile testing; no backend edits |
 | **Verdent / AI 3** | Planner + Verifier + QA | Складає детальні плани, перевіряє виконання, веде QA Scans та Runbooks. Не пише продуктовий код без погодженого плану. |
 | **Phone AI / AI 4** | Universal Quick-Fixer | Повний доступ до всього коду — тільки для термінових emergency фіксів коли система падає або інші AI застрягли. GitHub-side reviews count only after the real review doc is synced locally. |
+| **GPT Chat Deep Research / AI 5** | External research lane | Дає точну зовнішню інформацію: vendor docs, telecom/compliance constraints, policy interpretation, market comparisons. Не планує і не комітить код — підживлює AI 3 / AI 1 / AI 2 фактами. |
 | **Owner (Nazarii)** | Telnyx portal, GitHub Secrets, Google Cloud Console, App Store Connect, legal, live runbook execution | Only one who can touch real secrets and third-party accounts |
 
 Full file ownership is in [[AI-Work-Split]]. Core rules in [[AI-Core-Manifesto]].
