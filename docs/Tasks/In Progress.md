@@ -43,6 +43,14 @@ Implement Layer 2 (frontend DOMPurify) per [[Tasks/BE.9-DOMPurify-Custom-HTML-Pl
 6. Commit as `feat(frontend): BE.9 FE.28 — client-side DOMPurify for custom HTML/CSS (Layer 2)`
 7. DevLog entry obligatory before/with commit.
 
+**Progress update — 2026-04-15 / AI 2 started**
+
+- Codex has started FE.28.
+- Patch now in local worktree:
+  - `package.json` → adds `dompurify`
+  - `app/book/[id]/page.tsx` → imports `DOMPurify`, adds render-layer sanitize helpers, sanitizes `processCustomHTML()` after placeholder expansion, wraps all 3 `dangerouslySetInnerHTML` call sites
+- Local `npm install` / `npm run build` could **not** be executed in this desktop shell because `npm` is not available in PATH, so Vercel / CI build is the required verification path for dependency resolution on this step.
+
 ### Ask 2 — Deploy verification (Codex can run from terminal)
 
 Owner asked AI 1 to delegate the smoke-test to Codex since Codex has a built-in terminal with `gh` / `curl` / `gcloud`. Not a blocker for FE.28 — backend and frontend merges are independent.
@@ -72,6 +80,19 @@ If deploy fails → ping AI 1 with the Cloud Run error so AI 1 can fix the backe
 ### Ask 3 — Status flip in [[Features/SMS & 10DLC]] after Codex's frontend lands
 
 Once FE.28 is merged, the sprint 2a SMS/security cleanup is closed. Codex (or AI 3 via Verdent's verification pass) updates [[Features/SMS & 10DLC]] with "LEGACY_SMS_STATUSES removed from `isLegacyManualSmsPath` — 2026-04-15" in the revision history and notes that the new status pipeline (`none` / `provisioning` / `pending` / `active` / `failed*`) is the single source of truth going forward.
+
+### Ask 4 — AI 3 parallel-safe work (can start now)
+
+Verdent can work in parallel **right now** without conflicting with Codex FE.28:
+
+1. Re-verify AI 1 backend landing (`56cf4c6`, `d952785`) and record the post-merge state in [[Tasks/QA-Scan-2026-04-15]]
+2. Update stale QA/docs language where BE.8 still appears as an unlanded backend task; note the owner decision that the migration endpoints remain as future tools and are not being run on current test-only workspaces
+3. Prepare the BE.9 7-case XSS verification pass so it is ready the moment Codex lands FE.28
+4. After Codex merges FE.28, run the browser/QA validation on `/book/[id]` and write the results back to [[Tasks/QA-Scan-2026-04-15]] + DevLog
+
+**Guardrail:** AI 3 stays out of `app/book/[id]/page.tsx` implementation and only handles verification / QA / docs on this track.
+
+**Owner answer recorded:** yes — AI 3 may start these parallel tasks now.
 
 ### What AI 1 is doing now
 

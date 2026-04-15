@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { loadStripe, Appearance } from '@stripe/stripe-js'
+import DOMPurify from 'dompurify'
 import { getStaffLabel } from '@/lib/terminology'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 
@@ -158,6 +159,15 @@ function hashIdempotencyValue(input: string): string {
   return (hash >>> 0).toString(36)
 }
 
+function sanitizeCustomMarkup(html: string): string {
+  return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } })
+}
+
+function sanitizeInlineCss(css: string): string {
+  // Backend is the primary CSS sanitizer. Frontend strips any accidental HTML.
+  return DOMPurify.sanitize(css, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] })
+}
+
 function processCustomHTML(html: string, data: { shopName: string; barbers: Barber[]; reviews: any[] }): string {
   let result = html
   // Simple variables
@@ -189,7 +199,7 @@ function processCustomHTML(html: string, data: { shopName: string; barbers: Barb
     }).join('')
   })
 
-  return result
+  return sanitizeCustomMarkup(result)
 }
 
 function phoneHref(raw?: string): string {
@@ -934,7 +944,7 @@ export default function PublicBookingPage() {
     <div className="booking-page" style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter, -apple-system, sans-serif', color: t.text, position: 'relative' }}>
 
       {/* AI-generated CSS */}
-      {activeTemplate === 'ai' && siteConfig?.ai_css && <style dangerouslySetInnerHTML={{ __html: siteConfig.ai_css }} />}
+      {activeTemplate === 'ai' && siteConfig?.ai_css && <style dangerouslySetInnerHTML={{ __html: sanitizeInlineCss(siteConfig.ai_css) }} />}
 
       {/* Space background — bold & dark-luxury get their own stars; Vurium uses global cosmos from layout; AI template = clean canvas */}
       {!isLightTheme && activeTemplate !== 'modern' && activeTemplate !== 'ai' && (
@@ -1079,12 +1089,12 @@ export default function PublicBookingPage() {
           {/* Custom HTML/CSS — custom plan only, with template variables & interactive data-actions */}
           {effectivePlan === 'custom' && processedCustomHTML && (
             <>
-              {siteConfig.custom_css && <style dangerouslySetInnerHTML={{ __html: siteConfig.custom_css }} />}
+              {siteConfig.custom_css && <style dangerouslySetInnerHTML={{ __html: sanitizeInlineCss(siteConfig.custom_css) }} />}
               <div
                 className="custom-site-block"
                 style={{ marginBottom: 40, position: 'relative', zIndex: 1 }}
                 onClick={handleCustomBlockClick}
-                dangerouslySetInnerHTML={{ __html: processedCustomHTML }}
+                dangerouslySetInnerHTML={{ __html: sanitizeCustomMarkup(processedCustomHTML) }}
               />
               {showCustomBusinessProof && (
                 <section style={{ marginBottom: 40, padding: '22px 24px', borderRadius: 18, border: `1px solid ${t.cardBorder}`, background: t.card, backdropFilter: isLightTheme ? 'none' : 'blur(12px)' }}>
