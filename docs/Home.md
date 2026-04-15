@@ -102,6 +102,7 @@
 - [[Tasks/Launch Readiness Plan\|Launch Readiness Plan]] — Unified P0/P1/P2 plan (both AIs agreed)
 - [[Tasks/Telnyx-Integration-Plan|Telnyx Integration Plan]] — Hardening + P0 fixes (Verify profile, webhook sig, auto-provision on plan activation)
 - [[Tasks/Element-10DLC-Resubmission-Checklist|Element 10DLC Resubmission Checklist]] — Evidence + monitoring log for campaign CICHCOJ (now Pending MNO Review)
+- [[Tasks/Element-CICHCOJ-Pre-MNO-DoubleCheck-2026-04-15|Element CICHCOJ Pre-MNO Double Check]] — AI 4 verification that production code matches campaign submission description (2026-04-15)
 - [[Tasks/Live-SMS-Verification-Checklist|Live SMS Verification Checklist]] — One-shot deep runbook for Gap 2–5 after deploy (AI 1, BE.3)
 - [[Tasks/Launch-Verification-Runbook|Launch Verification Runbook]] — Generic post-deploy flow verification (Verdent, VR.4)
 - [[Tasks/Deploy-Smoke-Test|Deploy Smoke Test]] — 5-minute post-push sanity check (Verdent, VR.5)
