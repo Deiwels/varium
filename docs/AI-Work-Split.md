@@ -86,7 +86,7 @@ We use Obsidian as the shared project brain. Every AI must write docs so both Ob
   - `docs/Tasks/In Progress.md` for active work
   - feature docs under `docs/Features/` for product behavior
   - plan docs under `docs/Tasks/` for decisions, rollouts, and execution plans
-- Use Obsidian wiki links `[[Like This]]` for internal references whenever the target doc already exists
+- Use Obsidian wiki link syntax (double square brackets around the target doc name) for internal references whenever the target doc already exists
 - If you create a new important doc, add a link from `docs/Home.md` or the nearest parent doc so it does not become orphaned
 - Do not create duplicate docs for the same topic if an existing doc can be updated instead
 - Write concrete status, ownership, and dates; avoid vague notes like "fixed stuff" or "updated SMS"

@@ -1,5 +1,7 @@
 # AI5 Research Brief — Template
 
+> [[Home]] > Tasks | Template | See also: [[AI-Work-Split]], [[Vault Rules]]
+
 > Use this file shape for any large task that needs AI 5 before planning.
 
 ## Why this research exists

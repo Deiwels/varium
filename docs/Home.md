@@ -1,5 +1,6 @@
 # Varium (VuriumBook)
 
+> 📌 **ВСІМ AI: перед створенням/редагуванням будь-якого .md файлу — обов'язково прочитати [[Vault Rules]]** (де класти, як називати, як лінкувати, як додавати в Home).
 > ⚠️ **ВСІМ AI: Читати [[AI-Rule-Updates]] і [[AI-Core-Manifesto]] перед початком будь-якої роботи. Обов'язково.**
 > ⛔ **Поки немає нового запису в [[AI-Session-Acceptance-Log]], AI не має права продовжувати далі.**
 > 🧠 **Якщо задача потребує планування — вона йде в `In Progress.md` як `@AI3 [PLAN REQUEST]`, а реалізація блокується до завершення 4-AI Plan Review Gate.**
@@ -54,6 +55,9 @@
 - [[Components]] — 11 reusable components (Shell, OnboardingWizard, ImageCropper, dialogs, gates)
 - [[Lib Utilities]] — 7 shared utils (API client, PIN crypto, terminology, timezones)
 - [[Infrastructure]] — CI/CD (GitHub Actions → Cloud Run), env vars, security headers, Docker
+- [[GitHub Secrets Inventory]] — Owner-confirmed list of repo secrets
+- [[Decision-Log]] — Architecture decision register (owner: AI 3 Verdent)
+- [[Superadmin-Endpoints]] — Platform admin endpoints reference
 - [[Background Jobs]] — 6 auto jobs (reminders, memberships, audits, cleanup)
 - [[Security & Audit]] — Rate limiting, audit logs, GDPR export
 
@@ -111,6 +115,28 @@
 - [[Production-Plan-AI2]] — AI 2 detailed scan (frontend & UX)
 - [[AI-Work-Split]] — File ownership rules to prevent merge conflicts
 
+### BE.1 / BE.8 / BE.9 / FE.28 — Sprint Reviews & Plans
+- [[Tasks/BE.1-Post-Commit-Review|BE.1 Post-Commit Review]]
+- [[Tasks/job_locks-Emergency-Runbook|job_locks Emergency Runbook]]
+- [[Tasks/BE.8-BE.9-AI1-Review|BE.8/BE.9 AI 1 Review]]
+- [[Tasks/BE.8-BE.9-AI2-Review|BE.8/BE.9 AI 2 Review]]
+- [[Tasks/BE.8-Legacy-SMS-Migration-Plan|BE.8 Legacy SMS Migration Plan]]
+- [[Tasks/BE.8-Legacy-SMS-Migration-Plan-v2|BE.8 Legacy SMS Migration Plan v2]]
+- [[Tasks/BE.9-DOMPurify-Custom-HTML-Plan|BE.9 DOMPurify Custom HTML Plan]]
+- [[Tasks/BE.9-DOMPurify-Custom-HTML-Plan-v2|BE.9 DOMPurify Custom HTML Plan v2]]
+- [[Tasks/FE.28-AI1-PostMerge-Review|FE.28 AI 1 Post-Merge Review]]
+
+### AI 4 Coordination
+- [[Tasks/AI4-Branch-Resolution-2026-04-15|AI 4 Branch Resolution]]
+- [[Tasks/AI4-Standby-Status-Check-2026-04-15|AI 4 Standby Status Check]]
+
+### Standalone Notes
+- [[Tasks/Temporary-Reminder-Delivery-Options|Temporary Reminder Delivery Options]]
+- [[Tasks/US-A2P-CTA-Brand-Verification-Notes|US A2P CTA Brand Verification Notes]]
+- [[Tasks/Reminder-SMS-Launch-Completion|Reminder SMS Launch Completion]]
+- [[Tasks/AI5-Research-Brief-Reminder-SMS|AI 5 Research Brief — Reminder SMS]]
+- [[Tasks/AI5-Research-Brief-Template|AI 5 Research Brief — Template]]
+
 ### Improvement Plans
 - [[Registration-Improvement-AI1]] — Signup page UX plan (AI 1)
 - [[Registration-Improvement-AI2]] — Signup page UX plan (AI 2)
@@ -157,6 +183,18 @@ Latest first:
 - [[Tasks/Launch-Verification-Runbook|Launch Verification Runbook]] — Full pre-launch checklist (VR.4)
 - [[Tasks/Deploy-Smoke-Test|Deploy Smoke Test]] — 5-min post-deploy sanity check (VR.5)
 - [[Permissions]] — Role permission matrix reference
+
+---
+
+## AI Profiles
+
+- [[Owner-Nazarii]] — Owner profile, expectations, escalation rules
+- [[AI-1-Claude]] — Claude Code CLI (backend, infra)
+- [[AI-2-Codex]] — Codex / Claude Web (frontend, UX)
+- [[AI-3-Verdent]] — Verdent (architecture decisions, QA)
+- [[AI-4-Phone-AI]] — Phone AI profile
+- [[AI-4-Activation-Protocol]] — AI 4 activation protocol
+- [[AI-5-GPT-Chat-Deep-Research]] — GPT Chat Deep Research (external truth / research specialist)
 
 ---
 
