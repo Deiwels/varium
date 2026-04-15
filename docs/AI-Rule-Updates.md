@@ -10,6 +10,15 @@
 
 ## Current active updates
 
+### 2026-04-15 — Correct documentation recording is now a hard rule
+
+- `[[Vault Rules]]` is no longer just reference guidance. It is now a **mandatory rule set** for every AI that creates or edits any `.md` file.
+- **Home-first navigation rule:** when orienting in `docs/`, start from `[[Home]]` and follow the existing hub links instead of jumping randomly into deep files without context.
+- Before creating or editing any markdown file, the AI must read `[[Vault Rules]]` and then write information into the **correct canonical file**, not just the nearest convenient file.
+- Any docs update must preserve correct status, ownership, links, and placement inside the vault structure.
+- New markdown files must follow vault rules: correct folder, `H1 = filename`, breadcrumb with `[[Home]]`, proper related links, and inclusion in `[[Home]]`.
+- If information exists only in chat, in the wrong file, or in an orphan doc that is not linked correctly, it does **not** count as shared team knowledge.
+
 ### 2026-04-15 — AI 5 added as the mandatory deep-research lane for large external / vendor-dependent work
 
 - We now have **5 AI + Owner**.

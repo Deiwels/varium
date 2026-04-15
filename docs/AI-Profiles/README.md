@@ -5,6 +5,8 @@
 
 Before starting a session, every AI reads **[[AI-Rule-Updates]] first**, then **its own profile**, and confirms that its behaviour matches. If a profile is out of date, the first action of the session is to update the profile — not code.
 
+If the session touches `docs/`, the AI also follows the new **Home-first + Vault Rules** rule: start from `[[Home]]`, read `[[Vault Rules]]`, and write information only into the correct canonical file path.
+
 ## Index
 
 | # | Profile | Platform | Primary scope |
