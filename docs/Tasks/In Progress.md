@@ -18,7 +18,7 @@
 
 - [x] AI 3 (Verdent) published draft plan → [[Tasks/BE.8-Legacy-SMS-Migration-Plan]] (`8b03b8a`)
 - [x] AI 1 (Claude) reviewed backend / data / infra / integration risk → [[Tasks/BE.8-BE.9-AI1-Review]] — **3 issues to incorporate** (dry-run mode, batch writes, rollback/pre-export step)
-- [ ] AI 2 (Codex) reviewed frontend / UX / FE alignment (BE.8 is backend-only but AI 2 should still verify no frontend status-string dependency breaks)
+- [x] AI 2 (Codex) reviewed frontend / UX / FE alignment → [[Tasks/BE.8-BE.9-AI2-Review]] — **3 issues to incorporate** (frontend status dependencies, settings/dev-SMS drift, `pending_otp` UX consequence)
 - [ ] AI 3 incorporates AI 1 + AI 2 feedback and republishes as `PLAN FINAL`
 - [ ] AI 4 (Phone AI) reviewed emergency / rollback / incident risk
 - [ ] Owner approved final plan
@@ -77,7 +77,7 @@
 
 - [x] AI 3 (Verdent) published draft plan → [[Tasks/BE.9-DOMPurify-Custom-HTML-Plan]] (`8b03b8a`)
 - [x] AI 1 (Claude) reviewed backend / data / infra / integration risk → [[Tasks/BE.8-BE.9-AI1-Review]] — **6 issues raised**, 1 is material (Issue 1: `sanitizeCustomCss` still regex-based, contradicts the stated goal of BE.9; proposes `css-tree` parser as Option B)
-- [ ] AI 2 (Codex) reviewed frontend / UX — critical for BE.9 because Issue 4 reclassifies `processCustomHTML` as frontend scope (at `app/book/[id]/page.tsx:161`, not backend as my PLAN REQUEST mis-stated)
+- [x] AI 2 (Codex) reviewed frontend / UX → [[Tasks/BE.8-BE.9-AI2-Review]] — **4 issues raised**, 1 is material (`DOMPurify.sanitize(rawCss)` is not a real CSS sanitization strategy; final plan must split HTML and CSS handling cleanly)
 - [ ] AI 3 incorporates all feedback and republishes as `PLAN FINAL`
 - [ ] AI 4 (Phone AI) reviewed emergency / rollback / incident risk
 - [ ] Owner approved final plan
