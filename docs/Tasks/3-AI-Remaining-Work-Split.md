@@ -4,6 +4,7 @@
 > ⚠️ **Read [[AI-Rule-Updates]] and [[AI-Core-Manifesto]] first before starting any work.**
 > ⛔ **Before touching any item in this file, add a current-session entry to [[AI-Session-Acceptance-Log]].**
 > 🧠 **If a task needs planning, it must enter `In Progress.md` as `@AI3 [PLAN REQUEST]` and stay blocked until the 4-AI Plan Review Gate is complete.**
+> 📥 **AI 4 reviews that live only in GitHub do not count until mirrored into [[Tasks/AI4-GitHub-Review-Mirror]].**
 > Related: [[AI-Profiles/README|AI Profiles]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]], [[Production-Plan-AI1]], [[Production-Plan-AI2]], [[AI-Session-Acceptance-Log]]
 
 ---
@@ -19,7 +20,7 @@ This file is the **authoritative** split for what is open across the project. Ev
 | **Claude / AI 1** | Backend (`backend/index.js`), CI/CD workflows, all docs under `docs/` | Final code review + commit on backend work; owns docs updates; no frontend edits |
 | **Codex / AI 2** | Frontend (`app/**`, `components/**`, `lib/**`, `app/globals.css`) | Live browser verification; mobile testing; no backend edits |
 | **Verdent / AI 3** | Planner + Verifier + QA | Складає детальні плани, перевіряє виконання, веде QA Scans та Runbooks. Не пише продуктовий код без погодженого плану. |
-| **Phone AI / AI 4** | Universal Quick-Fixer | Повний доступ до всього коду — тільки для термінових emergency фіксів коли система падає або інші AI застрягли. |
+| **Phone AI / AI 4** | Universal Quick-Fixer | Повний доступ до всього коду — тільки для термінових emergency фіксів коли система падає або інші AI застрягли. GitHub reviews must be mirrored locally before they count. |
 | **Owner (Nazarii)** | Telnyx portal, GitHub Secrets, Google Cloud Console, App Store Connect, legal, live runbook execution | Only one who can touch real secrets and third-party accounts |
 
 Full file ownership is in [[AI-Work-Split]]. Core rules in [[AI-Core-Manifesto]].

@@ -10,6 +10,16 @@
 
 ## Current active updates
 
+### 2026-04-15 — AI 4 GitHub reviews must be mirrored locally
+
+- AI 4 may leave reviews, findings, or approval notes in GitHub first.
+- Those GitHub-side reviews do **not** count as visible team knowledge until they are mirrored into the local repo at [[Tasks/AI4-GitHub-Review-Mirror]].
+- If any AI or the Owner notices a new AI 4 review on GitHub, the first follow-up action is to copy its substance into the mirror doc in the same session.
+- The 4-AI Plan Review Gate treats `AI 4 reviewed emergency / rollback / incident risk` as **incomplete** until there is:
+  1. a local mirror entry in [[Tasks/AI4-GitHub-Review-Mirror]], and
+  2. a link from [[Tasks/In Progress|In Progress]] to that mirrored entry.
+- If the review exists only on GitHub, the gate stays blocked.
+
 ### 2026-04-15 — Rule 6: One Brain Rule / PLAN REQUEST
 
 - AI 3 (Verdent) is the only planning owner for complex work.

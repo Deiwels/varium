@@ -1,6 +1,6 @@
 # AI Profiles
 
-> [[Home]] | Related: [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Work-Split]], [[AI-Session-Acceptance-Log]], [[Tasks/3-AI-Remaining-Work-Split|4-AI Work Split]]
+> [[Home]] | Related: [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Work-Split]], [[AI-Session-Acceptance-Log]], [[Tasks/3-AI-Remaining-Work-Split|4-AI Work Split]], [[Tasks/AI4-GitHub-Review-Mirror]]
 > Purpose: one page per AI + Owner with role, scope, strengths, known history, coordination rules.
 
 Before starting a session, every AI reads **[[AI-Rule-Updates]] first**, then **its own profile**, and confirms that its behaviour matches. If a profile is out of date, the first action of the session is to update the profile — not code.
@@ -21,6 +21,7 @@ Before starting a session, every AI reads **[[AI-Rule-Updates]] first**, then **
 2. **Before coordinating with another AI** — read their profile. Do not duplicate work, do not cross scope, do not re-argue decisions already in their "known positions" section.
 3. **When something about you changes** — update your profile in the same commit that changes your behaviour. Profiles drift silently if nobody owns them.
 4. **When a cross-AI rule changes** — update `AI-Core-Manifesto.md` first, then mirror into the affected profiles.
+5. **When AI 4 reviews through GitHub first** — mirror the review into [[Tasks/AI4-GitHub-Review-Mirror]] before treating it as visible team knowledge.
 
 ## Related single source of truth
 

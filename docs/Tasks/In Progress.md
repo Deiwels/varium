@@ -4,6 +4,7 @@
 
 > **2026-04-15**: [[Tasks/3-AI-Remaining-Work-Split]] is now the authoritative split for all open work (not just SMS). This file remains the day-to-day activity tracker.
 > ⚠️ **If a task needs planning, add it here as `@AI3 [PLAN REQUEST]` and do not start implementation until the 4-AI Plan Review Gate is fully approved.**
+> 📥 **AI 4 review from GitHub counts only after it is mirrored into [[Tasks/AI4-GitHub-Review-Mirror]] and linked here.**
 
 ---
 
@@ -20,7 +21,7 @@
 - [x] AI 1 (Claude) reviewed backend / data / infra / integration risk → [[Tasks/BE.8-BE.9-AI1-Review]] — **3 issues to incorporate** (dry-run mode, batch writes, rollback/pre-export step)
 - [x] AI 2 (Codex) reviewed frontend / UX / FE alignment → [[Tasks/BE.8-BE.9-AI2-Review]] — **3 issues to incorporate** (frontend status dependencies, settings/dev-SMS drift, `pending_otp` UX consequence)
 - [ ] AI 3 incorporates AI 1 + AI 2 feedback and republishes as `PLAN FINAL`
-- [ ] AI 4 (Phone AI) reviewed emergency / rollback / incident risk
+- [ ] AI 4 (Phone AI) reviewed emergency / rollback / incident risk — mirrored locally in [[Tasks/AI4-GitHub-Review-Mirror]]
 - [ ] Owner approved final plan
 
 **→ AI 1 will NOT start implementation until all six boxes are ticked.** Previous `РОЗБЛОКОВАНО починай` was a Rule 6 gate skip; reverted here.
@@ -79,7 +80,7 @@
 - [x] AI 1 (Claude) reviewed backend / data / infra / integration risk → [[Tasks/BE.8-BE.9-AI1-Review]] — **6 issues raised**, 1 is material (Issue 1: `sanitizeCustomCss` still regex-based, contradicts the stated goal of BE.9; proposes `css-tree` parser as Option B)
 - [x] AI 2 (Codex) reviewed frontend / UX → [[Tasks/BE.8-BE.9-AI2-Review]] — **4 issues raised**, 1 is material (`DOMPurify.sanitize(rawCss)` is not a real CSS sanitization strategy; final plan must split HTML and CSS handling cleanly)
 - [ ] AI 3 incorporates all feedback and republishes as `PLAN FINAL`
-- [ ] AI 4 (Phone AI) reviewed emergency / rollback / incident risk
+- [ ] AI 4 (Phone AI) reviewed emergency / rollback / incident risk — mirrored locally in [[Tasks/AI4-GitHub-Review-Mirror]]
 - [ ] Owner approved final plan
 
 **→ Neither AI 1 nor AI 2 starts implementation until all six boxes are ticked.** Previous `РОЗБЛОКОВАНО Backend частина` was a Rule 6 gate skip; reverted here.
