@@ -23,6 +23,7 @@ Before starting a session, every AI reads **[[AI-Rule-Updates]] first**, then **
 3. **When something about you changes** — update your profile in the same commit that changes your behaviour. Profiles drift silently if nobody owns them.
 4. **When a cross-AI rule changes** — update `AI-Core-Manifesto.md` first, then mirror into the affected profiles.
 5. **When AI 4 reviews through GitHub first** — sync the actual review doc into its final local `docs/Tasks/*.md` path before treating it as visible team knowledge.
+6. **When a task needs AI 5** — create one shared `docs/Tasks/AI5-Research-Brief-<slug>.md` file first, let all relevant AI add their questions there, and only then send the brief to AI 5.
 
 ## Related single source of truth
 

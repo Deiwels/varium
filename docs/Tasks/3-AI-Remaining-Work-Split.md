@@ -6,6 +6,7 @@
 > 🧠 **If a task needs planning, it must enter `In Progress.md` as `@AI3 [PLAN REQUEST]` and stay blocked until the 4-AI Plan Review Gate is complete.**
 > 📥 **AI 4 reviews that live only in GitHub do not count until the real review doc is synced locally into `docs/Tasks/`.**
 > 🔎 **AI 5 (GPT Chat Deep Research) is the external-facts lane. Use it before large work that depends on vendor/compliance/policy truth.**
+> 📝 **When AI 5 is needed, create one shared `docs/Tasks/AI5-Research-Brief-<slug>.md` file, let all relevant AI add questions there, then let AI 5 answer in that same file before AI 3 plans.**
 > Related: [[AI-Profiles/README|AI Profiles]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]], [[Production-Plan-AI1]], [[Production-Plan-AI2]], [[AI-Session-Acceptance-Log]]
 
 ---

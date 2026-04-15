@@ -1,6 +1,6 @@
 # Reminder SMS — Launch Completion Path
 
-> [[Home]] > Tasks | Related: [[Features/SMS & 10DLC]], [[Tasks/Live-SMS-Verification-Checklist]], [[Tasks/Launch-Verification-Runbook]], [[Tasks/Telnyx-Integration-Plan]], [[Tasks/3-AI-Remaining-Work-Split|5-AI Work Split]]
+> [[Home]] > Tasks | Related: [[Features/SMS & 10DLC]], [[Tasks/Live-SMS-Verification-Checklist]], [[Tasks/Launch-Verification-Runbook]], [[Tasks/Telnyx-Integration-Plan]], [[Tasks/3-AI-Remaining-Work-Split|5-AI Work Split]], [[Tasks/AI5-Research-Brief-Reminder-SMS]]
 > Created: 2026-04-15
 
 ---
@@ -69,6 +69,10 @@ the reminder system is **not fully signed off**, even if the code looks ready.
 ## Execution order
 
 ### Step 1 — AI 5 research (first, before bigger changes)
+
+Use the shared packet:
+
+- [[Tasks/AI5-Research-Brief-Reminder-SMS]]
 
 **Question for AI 5:**
 
@@ -139,4 +143,3 @@ Reminder SMS is considered **truly launch-ready** only when all are true:
 - HELP works,
 - email-only fallback works when SMS is unavailable,
 - docs are updated to say this is verified, not assumed.
-

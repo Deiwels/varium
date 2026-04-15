@@ -17,6 +17,10 @@
 - Before any large task that depends on exact external facts, vendor docs, compliance wording, carrier rules, marketplace rules, or policy interpretation, the working AI must consult AI 5 first or explicitly record why AI 5 is not needed.
 - AI 5 is **research support**, not the planner and not an implementation approver.
 - AI 3 still owns plans. AI 5 feeds facts into planning; AI 1 / AI 2 still own code in their scopes.
+- New required artifact: **one shared `AI5 Research Brief` file per large task**.
+- AI 1 / AI 2 / AI 3 / AI 4 write the questions they need answered into that one file.
+- AI 5 writes findings back into the same file.
+- Only after that does AI 3 produce the implementation plan.
 
 ### 2026-04-15 — AI 4 GitHub-side docs reviews must be synced into their final local doc path
 

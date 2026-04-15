@@ -189,6 +189,44 @@ What AI 5 does **not** do:
 
 **Default rule:** if the task is internal-only and fully discoverable from repo code + docs, AI 5 is optional. If the task depends on external truth, AI 5 is the first escalation lane before major implementation starts.
 
+### Rule 6D: One Shared AI 5 Research Brief Per Big Task
+> *One brief in, one research packet out*
+
+For any large task that depends on external facts, the team must create **one shared AI 5 research brief** before planning starts.
+
+**Required flow:**
+
+1. Owner or any AI writes the initial task idea in `[[Tasks/In Progress|In Progress]]`
+2. The team creates **one shared file** at:
+   - `docs/Tasks/AI5-Research-Brief-<slug>.md`
+3. AI 1 / AI 2 / AI 3 / AI 4 all add the exact facts, constraints, and questions they need answered into that **same file**
+4. AI 5 performs the research and writes findings back into that file
+5. Only after the AI 5 brief is filled, **AI 3 builds the implementation plan**
+6. After that, the normal 4-AI review gate + Owner approval process continues as usual
+
+**Hard rule:**
+
+- For major external/vendor/compliance-sensitive work, AI 3 should not publish the final implementation plan until the shared AI 5 research brief exists and has an AI 5 findings section.
+- Do not scatter AI 5 asks across chat messages or multiple ad-hoc files.
+- One task = one shared AI 5 brief.
+
+**Minimum structure of the AI 5 brief:**
+
+```md
+# AI5 Research Brief — <task>
+
+## Why this research exists
+## Decision(s) blocked on external facts
+## Questions from AI 1
+## Questions from AI 2
+## Questions from AI 3
+## Questions from AI 4
+## Owner context / constraints
+## AI 5 findings
+## Sources
+## Hand-off to AI 3 planner
+```
+
 ---
 
 ## Hard Gate — Явне Прийняття Правил

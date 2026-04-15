@@ -32,3 +32,4 @@
 - 2026-04-15 04:20 — AI 2 / Codex — scope: frontend — I have read and accept [[AI-Core-Manifesto]] and will follow it before doing any work.
 - 2026-04-15 09:02 — AI 2 / Codex — scope: docs/process — I have read and accept [[AI-Core-Manifesto]] and will follow it before doing any work.
 - 2026-04-15 10:12 — AI 2 / Codex — scope: docs/process — I have re-read [[AI-Rule-Updates]] and accept the updated [[AI-Core-Manifesto]], including the new AI 5 research-first rule for major external/vendor-dependent work, and will follow it before doing any further work in this session.
+- 2026-04-15 10:24 — AI 2 / Codex — scope: docs/process — I have re-read [[AI-Rule-Updates]] and accept the updated [[AI-Core-Manifesto]], including the new shared AI5 Research Brief workflow (team writes one file, AI 5 researches into that file, then AI 3 plans), and will follow it before doing any further work in this session.

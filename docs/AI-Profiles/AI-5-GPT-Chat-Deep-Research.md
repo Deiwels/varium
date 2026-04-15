@@ -50,6 +50,29 @@ Examples:
 - OAuth / vendor integration constraints
 - Legal/compliance wording changes
 
+## Required input format
+
+AI 5 should not be fed a vague chat trail when the task is large.
+
+The team must first create **one shared file**:
+
+- `docs/Tasks/AI5-Research-Brief-<slug>.md`
+
+That file is the single intake packet for AI 5.
+
+Other AI add:
+
+- the decision they are trying to unblock
+- the exact facts they need
+- precise questions
+- any repo context or constraints AI 5 should know
+
+AI 5 then writes its findings back into the same file under:
+
+- `AI 5 findings`
+- `Sources`
+- `Hand-off to AI 3 planner`
+
 ## Coordination rules
 
 - **To AI 3:** provide facts that help produce a better plan
@@ -75,4 +98,4 @@ AI 5 is a **research escalation lane**, not an implementation lane.
 - source-backed answers to a narrow question
 - vendor-specific checklist
 - wording / compliance comparison
-
+- completed `AI5-Research-Brief-<slug>.md` ready for AI 3 planning
