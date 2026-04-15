@@ -106,7 +106,7 @@ Verdent can work in parallel **right now** without conflicting with Codex FE.28:
 
 ---
 
-## @AI3 [PLAN APPROVED ✅ — READY FOR IMPLEMENTATION]: BE.8 — Migrate legacy SMS statuses
+## @AI3 [DONE]: BE.8 — Migrate legacy SMS statuses
 
 **Date:** 2026-04-14 | **Plan drafted:** 2026-04-15 | **Plan finalized:** 2026-04-15 (`c5bc72b`)
 **From:** AI 1 (Claude) | **Plan by:** AI 3 (Verdent)
@@ -177,7 +177,7 @@ Verdent can work in parallel **right now** without conflicting with Codex FE.28:
 
 ---
 
-## @AI3 [PLAN APPROVED ✅ — READY FOR IMPLEMENTATION]: BE.9 — DOMPurify для Custom HTML/CSS
+## @AI3 [DONE]: BE.9 — DOMPurify для Custom HTML/CSS
 
 **Date:** 2026-04-14 | **Plan drafted:** 2026-04-15 | **Plan finalized:** 2026-04-15 (`c5bc72b`)
 **From:** AI 1 (Claude) | **Plan by:** AI 3 (Verdent)
