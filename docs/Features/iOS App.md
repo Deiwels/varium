@@ -1,6 +1,6 @@
 # iOS App
 
-> Part of [[Home]] > Features | See also: [[Push Notifications]], [[Billing & Subscriptions]], [[Auth Flow]]
+> Part of [[Home]] > Features | See also: [[Push Notifications]], [[Billing & Subscriptions]], [[Auth Flow]], [[Web-Native-Auth-Contract]]
 
 ## Overview
 Native iOS hybrid app wrapping the Next.js frontend in WKWebView. Adds push notifications, Apple IAP, biometric login, and performance optimizations.
@@ -103,6 +103,9 @@ API prefetch: `/api/bookings/today`, `/api/dashboard/stats`
   - `vuriumbook_auth` (`role:uid`)
   - `vuriumbook_token` (actual bearer token)
 - Web now accepts the legacy role alias for backward compatibility, but the long-term contract should converge on `VURIUMBOOK_TOKEN` for route gating
+- Forced sign-out must also call the native `logout` bridge so Swift clears `UserDefaults` and stops re-injecting stale auth on the next page load
+
+This is a load-bearing contract. See [[Web-Native-Auth-Contract]] before changing auth bootstrap, cookie names, or sign-out behavior.
 
 ## In-App Purchases (StoreKit 2)
 
@@ -160,6 +163,23 @@ API prefetch: `/api/bookings/today`, `/api/dashboard/stats`
 - Other non-vurium links → external Safari on user click
 - Internal vurium.com URLs → WKWebView
 - `target="_blank"` → same webview
+
+## Release guardrails after the 2026-04-14 auth incident
+
+- Treat web auth changes as iOS changes too if they touch:
+  - `middleware.ts`
+  - `lib/auth-cookie.ts`
+  - `lib/api.ts`
+  - `components/Shell.tsx`
+  - `/signin`
+- Do not remove legacy auth aliases (`vuriumbook_auth`, `vuriumbook_token`) until the shipped Swift bundle is aligned and verified
+- Any `401` cleanup must also trigger the native `logout` bridge
+- Before calling an auth fix "done", verify:
+  - already signed-in iOS user
+  - fresh iOS sign-in
+  - iOS sign-out + reopen
+  - normal desktop web sign-in/sign-out
+- If the fix is web-only, no App Store re-upload is needed, but the Vercel deploy must be `READY` before testing
 
 ## Entitlements & Privacy
 - APS Environment: `development`

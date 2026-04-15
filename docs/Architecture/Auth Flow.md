@@ -8,10 +8,16 @@
 3. **Google Sign-In** — `/auth/google-signin` + OAuth callback
 
 ## Token Management
-- JWT tokens stored in HTTP-only cookies
-- Cookie format: `role:uid` (see `lib/auth-cookie.ts`)
+- Canonical web role cookie: `VURIUMBOOK_TOKEN` (`role:uid`) for route gating in `middleware.ts`
+- Web bearer token is also mirrored in `localStorage.VURIUMBOOK_TOKEN` because the shipped iOS `WKWebView` wrapper still restores sessions through localStorage/bootstrap code
+- Native iOS persists auth in `UserDefaults.vurium_auth_token` and `UserDefaults.vurium_user_json`
+- Legacy/native cookie aliases still accepted for backward compatibility:
+  - `vuriumbook_auth`
+  - `vuriumbook_token`
 - 7-day expiration
 - Secure + HttpOnly flags
+
+**Important:** do not treat production auth as cookie-only yet. The current system is hybrid until the native wrapper is aligned. See [[Web-Native-Auth-Contract]].
 
 ## MFA (Multi-Factor Authentication)
 - Setup: `POST /api/auth/mfa/setup`

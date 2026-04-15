@@ -170,7 +170,7 @@ Full file ownership is in [[AI-Work-Split]]. Core rules in [[AI-Core-Manifesto]]
 | **FE.12** | P1.8 Booking UX polish — empty states, helper text | Code done, visual pass |
 | **FE.13** | P1.9 Billing messaging — Apple vs web paths | Code done, visual pass |
 | **FE.14** | P1.10 Empty / loading states sweep | Code done, visual pass |
-| **FE.20** | 5.1 Remove `localStorage.getItem('VURIUMBOOK_TOKEN')` from `lib/api.ts` line 8; keep only `credentials: 'include'` httpOnly cookie flow | **NOT DONE** — `lib/api.ts` still reads and removes `VURIUMBOOK_TOKEN` from localStorage. XSS vector. Coordinate with AI 1 first — any server endpoint that relies on Bearer header instead of cookie will break |
+| **FE.20** | 5.1 Remove `localStorage.getItem('VURIUMBOOK_TOKEN')` from `lib/api.ts` line 8; keep only `credentials: 'include'` httpOnly cookie flow | **NOT DONE / EXPLICITLY GATED** — after the 2026-04-14 iOS auth incident, this refactor is blocked until Swift `WKWebView` auth bootstrap is aligned with [[Web-Native-Auth-Contract]]. Do not ship as a cleanup commit; it requires coordinated web + native verification |
 
 ### P2 — polish / refactor
 
