@@ -2040,7 +2040,21 @@ function requireSuperadmin(req, res, next) {
   } catch { return res.status(401).json({ error: 'Invalid or expired token' }); }
 }
 
-const LEGACY_SMS_STATUSES = new Set([
+// BE.8 commit 2 (2026-04-15): removed the top-level LEGACY_SMS_STATUSES Set.
+// Rationale: Owner confirmed all workspaces except Element are test-only, so
+// there is no real data to migrate. Element is still caught by the
+// `isProtectedLegacyWorkspace` / `telnyx_brand_id` / `telnyx_campaign_id`
+// checks in `isLegacyManualSmsPath()` below, which remain intact. The status-
+// string check was a false-positive guard that made any workspace in a
+// transitional legacy status look "legacy" even if it was just a test
+// workspace. For historical reference + the unused /api/vurium-dev/sms/*
+// audit tool, the status list now lives inside LEGACY_SMS_STATUS_VALUES below.
+
+// Legacy SMS status values — kept as a self-contained constant ONLY for the
+// /api/vurium-dev/sms/legacy-audit tool. Not referenced by isLegacyManualSmsPath
+// or any production flow. If the audit endpoints are deleted in the future,
+// this constant can be deleted with them.
+const LEGACY_SMS_STATUS_VALUES = Object.freeze([
   'pending_otp',
   'verified',
   'brand_created',
@@ -2057,12 +2071,10 @@ function isProtectedLegacyWorkspace(workspace, settings) {
 }
 
 function isLegacyManualSmsPath(workspace, settings) {
-  const status = safeStr(settings?.sms_registration_status || '');
   const numberType = safeStr(settings?.sms_number_type || '');
   return numberType === '10dlc'
     || !!settings?.telnyx_brand_id
     || !!settings?.telnyx_campaign_id
-    || LEGACY_SMS_STATUSES.has(status)
     || isProtectedLegacyWorkspace(workspace, settings);
 }
 
@@ -2630,13 +2642,14 @@ function mapLegacyStatusToNew(oldStatus, settings) {
 async function collectLegacyWorkspaces() {
   const transitions = [];
   let elementSkipped = false;
+  const legacySet = new Set(LEGACY_SMS_STATUS_VALUES);
   const wsSnap = await db.collection('workspaces').limit(500).get();
   for (const ws of wsSnap.docs) {
     const cfgDoc = await db.collection('workspaces').doc(ws.id).collection('settings').doc('config').get();
     if (!cfgDoc.exists) continue;
     const settings = cfgDoc.data() || {};
     const oldStatus = safeStr(settings.sms_registration_status || '');
-    if (!LEGACY_SMS_STATUSES.has(oldStatus)) continue;
+    if (!legacySet.has(oldStatus)) continue;
 
     const workspace = { id: ws.id, ...ws.data() };
     if (isProtectedLegacyWorkspace(workspace, settings)) {
