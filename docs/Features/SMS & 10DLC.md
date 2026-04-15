@@ -118,13 +118,100 @@ POST /v2/verifications/by_phone_number/{phone}/actions/verify → Verify code
 
 ## 10DLC Campaigns
 
-### Platform-level 2FA campaign (deprecated)
+### Platform-level 2FA campaign — **`CADKC00` ✅ ACTIVE** (confirmed 2026-04-15)
 
 | Field | Value |
 |---|---|
-| Use case | 2FA |
-| Status | Submitted, pending review — **will be abandoned** in favor of Telnyx Verify |
+| Brand UUID | `4b30019d-824f-170e-e36f-4dcef49247c7` |
+| TCR Campaign ID | **`CADKC00`** |
+| Brand | Vurium (platform-level, owned by Vurium Inc.) |
+| Use case | **2FA** |
+| Status | **Active** |
+| Date registered | 2026-04-12 |
 | Sender in messages | `VuriumBook:` |
+| Purpose | One-time SMS verification codes for signup phone verification, login verification, and password resets on https://vurium.com |
+
+**This supersedes the earlier "deprecated / will be abandoned in favor of Telnyx Verify" note** that appeared in this doc before. The platform-level 2FA campaign was resubmitted and **approved**, so Vurium now has a real 10DLC path for OTP traffic that does not depend on Telnyx Verify API.
+
+Both mechanisms can coexist:
+
+- **`CADKC00` 10DLC** — our platform-level sender, our code generates the 6-digit code, stored in Firestore, sent via `sendSms()` through the Vurium platform sender number attached to the `CADKC00` brand. Used when `TELNYX_VERIFY_PROFILE_ID` env var is empty (fallback path in `backend/index.js:9695–9709`).
+- **Telnyx Verify API** — gated by `TELNYX_VERIFY_PROFILE_ID` env var. Telnyx-managed code lifecycle, uses Telnyx Verify-approved sender pool. Used when the env var is set (primary path in `backend/index.js:9681–9692`).
+
+The backend code already branches between the two paths at `/public/verify/send/:workspace_id` and `/public/verify/check/:workspace_id`. Owner picks which path is primary by setting or clearing `TELNYX_VERIFY_PROFILE_ID` in GitHub Secrets + redeploying.
+
+#### `CADKC00` campaign content as registered with TCR
+
+**Description:**
+
+> VuriumBook is a SaaS booking and business management platform for barbershops, salons, and service businesses in the US, operated by Vurium Inc. This campaign sends one-time SMS verification codes to business owners for account signup phone verification, login verification, and password resets. Messages contain only authentication/security codes. No marketing, no appointment notifications. Users trigger a code by entering their phone number and clicking Send code or Verify within the VuriumBook platform.
+
+**Message flow (as registered):**
+
+> Business owners opt in to receive one-time verification codes by initiating verification within VuriumBook. During signup, login, or password reset on the VuriumBook platform at https://vurium.com, the user enters their mobile number and clicks "Send code" or "Verify." The page displays: "By entering your phone number, you agree to receive one-time verification codes from VuriumBook via SMS. Message frequency varies. Msg & data rates may apply. Reply STOP to opt out. Reply HELP for help. Consent is not a condition of purchase." Only users who explicitly request a code receive SMS. Opt-out requests via STOP are honored immediately. Privacy Policy: https://vurium.com/privacy Terms: https://vurium.com/terms
+
+**Keywords (match backend `/api/webhooks/telnyx` inbound handler at `backend/index.js:1834`):**
+
+| Type | Values |
+|---|---|
+| Opt-in | `START,YES` |
+| Opt-out | `STOP,CANCEL,UNSUBSCRIBE,END,QUIT` |
+| Help | `HELP,INFO` |
+
+**Auto-responses:**
+
+| Trigger | Response text |
+|---|---|
+| Opt-in (START/YES) | `VuriumBook: You're opted in to receive one-time verification codes by SMS for account security. Msg frequency varies. Msg & data rates may apply. Reply HELP for help. Reply STOP to opt out.` |
+| Opt-out (STOP/...) | `VuriumBook: You are unsubscribed and will receive no further SMS verification codes. You may need an alternate verification method to access your account.` |
+| Help (HELP/INFO) | `VuriumBook: Account verification codes. For help, contact support@vurium.com or call (847) 630-1884. Reply STOP to opt out.` |
+
+**Sample messages (as registered — reviewer matched these against a real send):**
+
+1. `VuriumBook: Your verification code is 482193. Expires in 10 minutes. If you didn't request this, ignore this message. Reply STOP to opt out.`
+2. `VuriumBook: Your login code is 937104. Don't share this code with anyone. Reply STOP to opt out.`
+3. `VuriumBook: Security code 615029. Enter this code to reset your password. Expires in 5 minutes. Reply STOP to opt out.`
+
+**Compliance links (as registered — NOTE: no `#sms` fragment, no business-context query):**
+
+- Privacy Policy: `https://vurium.com/privacy`
+- Terms and conditions: `https://vurium.com/terms`
+
+**Campaign attributes:**
+
+| Attribute | Value |
+|---|---|
+| Subscriber opt-in | Yes |
+| Subscriber opt-out | Yes |
+| Subscriber help | Yes |
+| Number pooling | No |
+| Direct lending or loan arrangement | No |
+| Embedded link | No |
+| Embedded phone number | No |
+| Age-gated content | No |
+
+**Webhooks (as registered):** primary and failover URLs empty in the portal snapshot Owner shared. If the campaign needs provisioning-status webhook events, they should be filled with `https://vuriumbook-api-431945333485.us-central1.run.app/api/webhooks/telnyx-10dlc` same as CICHCOJ. Not blocking for SMS send functionality — only affects status update notifications for the campaign.
+
+#### Backend alignment with `CADKC00`
+
+What our code does today that matches the registered campaign content:
+
+- **Sample message template 1** — `backend/index.js:9707` in the `legacy_local` fallback path: `${verifyPrefix}: Your verification code is ${code}. Do not share this code. Msg & data rates may apply. Reply STOP to opt out, HELP for help.` — ✅ compliant wording and prefix format, but **does NOT use the exact registered `VuriumBook:` prefix** — it uses `verifyPrefix = verifyShopName || 'VuriumBook'` which becomes the workspace shop name if present. For Vurium platform-level signup (no workspace yet), the prefix defaults to `'VuriumBook'` which matches. For workspace-scoped phone verification (client-side), the prefix becomes the workspace shop name (e.g. `Element Barbershop`) which is **NOT** what `CADKC00` registered. That is fine because workspace-scoped client verification is not what the platform 2FA campaign is for — platform 2FA is for business-owner signup/login/password-reset at the root `vurium.com` level, not for individual booking-page phone verification.
+- **Keyword handling** — `backend/index.js:1834` handles `STOP / UNSUBSCRIBE / CANCEL / END / QUIT` on inbound. ✅ Exact match with registered opt-out list.
+- **HELP auto-response** — `backend/index.js:1860` sends `${matchedShopName}: For help, email support@vurium.com or visit https://vurium.com/privacy. Msg & data rates may apply. Reply STOP to opt out.` This is **close but not identical** to what `CADKC00` registered (which includes the `(847) 630-1884` support phone number and specific `Account verification codes.` lead). Not a compliance break — it's still a valid HELP response, but the reviewer matched the registered text. If we ever need strict parity for MNO audit, update the backend HELP responder to include the phone number for platform-level 2FA traffic.
+- **Opt-in (START/YES) auto-response** — currently not implemented as a distinct response in the inbound handler. Not a blocker — subscribers are opted in when they first request a code, START/YES is a belt-and-suspenders path. TCR does not require an auto-response for opt-in to exist, only for opt-out and help.
+
+**What to watch for regression:**
+
+- Any change to `backend/index.js:9707` verification SMS template wording must keep STOP/HELP/freq disclosure and the brand prefix so `CADKC00` remains compliant.
+- Any change to `backend/index.js:1834` STOP keyword handler must keep `STOP|UNSUBSCRIBE|CANCEL|END|QUIT` — dropping any one of those would violate the registered opt-out keyword list.
+- Any change to the public signup / login / password-reset pages on `vurium.com` must preserve the exact consent text that was registered with the campaign ("By entering your phone number, you agree to receive one-time verification codes from VuriumBook..."). If the frontend consent text drifts from what `CADKC00` registered, MNO could flag it on a future audit. FE owners: keep it in sync.
+
+---
+
+### Platform-level 2FA campaign (earlier deprecated note — historical)
+
+Before `CADKC00` landed, this doc said the platform-level 2FA campaign would be abandoned in favor of Telnyx Verify API. That path was correct as a fallback plan but became moot once the 10DLC campaign was approved. Kept this header as a history marker so earlier conversations in DevLog are not orphaned.
 
 ### Platform-level CUSTOMER_CARE campaign (rejected)
 

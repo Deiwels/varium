@@ -10,7 +10,7 @@
 
 | Gap | Status | Notes |
 |-----|--------|-------|
-| Gap 1 — `TELNYX_VERIFY_PROFILE_ID` wiring | 🔴 **BLOCKED** (external) | Telnyx account requires `whitelisted_destinations for call settings`; fallback path works; needs Jonathan call |
+| Gap 1 — `TELNYX_VERIFY_PROFILE_ID` wiring | 🟡 **OPTIONAL — no longer blocking** | 10DLC `CADKC00` platform 2FA campaign is **Active** (approved 2026-04-12, confirmed 2026-04-15). See [[Features/SMS & 10DLC]] § "Platform-level 2FA campaign — `CADKC00`". OTP now flows through the `legacy_local` path in `backend/index.js:9695–9709` via the `CADKC00`-attached platform sender, not through Telnyx Verify API. Setting `TELNYX_VERIFY_PROFILE_ID` becomes an optional alternative path (Telnyx-managed sender pool) rather than a prerequisite. Keep as optional — Owner picks which path is primary. |
 | Gap 2 — Webhook signature verification | 🟡 **CODE DONE** · secret confirmed | `verifyTelnyxWebhookSignature()` implemented in backend/index.js. Owner-confirmed GitHub secret `TELNYX_WEBHOOK_PUBLIC_KEY` now exists; remaining step is confirming production deploy / live webhook enforcement |
 | Gap 3 — `phone_number_index` + O(1) STOP lookup | ✅ **DONE** | Writes from both toll-free and 10DLC paths; reader uses single-doc lookup + `collectionGroup('clients')` for opt-out propagation |
 | Gap 4 — `runAutoReminders()` pagination | ✅ **DONE** | `startAfter` pagination loop; no workspace cap |
