@@ -5,6 +5,103 @@
 > **2026-04-15**: [[Tasks/3-AI-Remaining-Work-Split]] is now the authoritative split for all open work (not just SMS). This file remains the day-to-day activity tracker.
 > ⚠️ **If a task needs planning, add it here as `@AI3 [PLAN REQUEST]` and do not start implementation until the 4-AI Plan Review Gate is fully approved.**
 
+---
+
+## @AI3 [PLAN REQUEST]: BE.8 — Migrate legacy SMS statuses, remove `LEGACY_SMS_STATUSES` Set
+
+**Date:** 2026-04-14
+**From:** AI 1 (Claude)
+**Priority:** Sprint 2a (queued behind Element MNO review outcome)
+**Blocked:** yes — не починаю код до плану від AI 3 + 4-AI Plan Review Gate + Owner approval
+
+**Problem**
+
+`backend/index.js` still carries a `LEGACY_SMS_STATUSES` Set defined around line 1964 and consumed by `isLegacyManualSmsPath()` at line 1986. The status values in that Set are from the old manual 10DLC path and pre-date the dual-path model recorded in [[Architecture/Decision-Log]] DECISION-001. They cause two observable problems:
+
+1. **UI drift:** the frontend receives stale status strings (e.g. `pending_approval`, `approved` without the new `sms_registration_status` subdocument shape) and has to render them via hardcoded translations
+2. **Migration blocker:** as long as the Set exists, every new status must be added in two places (the Set + the `sms_registration_status` handler), which is error-prone and has already caused at least one mismatch in Element's own status flow
+
+**Context**
+
+- Canonical status definitions: `backend/index.js:1964` (the Set) and the `sms_registration_status` doc shape written by `POST /api/webhooks/telnyx-10dlc` at line 1873+
+- Affected workspaces: all workspaces created before the dual-path model landed, plus Element Barbershop (grandfathered 10DLC, CICHCOJ) which is currently in `Pending Telnyx Review` — this migration **must not touch Element during its review window**
+- Firestore collection: `workspaces/{wsId}/sms_registration_status` sub-doc (single doc pattern)
+- Current consumers of `isLegacyManualSmsPath()`: grep `backend/index.js` for the function name before touching
+- Frontend: AI 2 owns the UI rendering layer; any status-name change here requires a paired frontend adjustment
+
+**Why this needs a plan (Rule 6 triggers)**
+
+- Touches client data (`sms_registration_status` sub-docs across all workspaces)
+- Schema-adjacent change — moving values between two representations
+- Observable behavior change on an existing endpoint (`POST /api/webhooks/telnyx-10dlc` reply path)
+- Ambiguous path: forward-migrate legacy values into new shape vs. one-shot delete of the Set with a code-level shim; both are valid
+- Element is live-pending → any mistake risks corrupting CICHCOJ review data
+
+**Expected result from AI 3 plan**
+
+1. Clear decision: migrate legacy values forward into new shape, or keep both shapes and just remove dead code references
+2. Safe ordering: when migration runs relative to Element's MNO review window (must not run during it)
+3. Explicit safety net for Element (skip `wsId` = element until CICHCOJ reaches a terminal state)
+4. List of files to change in `backend/index.js` with line ranges
+5. Paired frontend work for Codex (AI 2) — which components render which legacy statuses and how they should map
+6. Rollback plan if migration corrupts a workspace's status doc
+7. QA checklist for Verdent (AI 3) to run post-commit
+
+**Related**
+
+- [[Tasks/3-AI-Remaining-Work-Split]] BE.8 row — canonical task source
+- [[Architecture/Decision-Log]] DECISION-001 (SMS dual-path)
+- [[Features/SMS & 10DLC]] — downstream doc that needs updating after migration
+
+---
+
+## @AI3 [PLAN REQUEST]: BE.9 — Replace regex-based `sanitizeHtml` / `processCustomHTML` with DOMPurify-equivalent parser
+
+**Date:** 2026-04-14
+**From:** AI 1 (Claude)
+**Priority:** Sprint 2a (queued with BE.8)
+**Blocked:** yes — не починаю код до плану від AI 3 + 4-AI Plan Review Gate + Owner approval
+
+**Problem**
+
+Custom HTML and CSS fields on booking pages (AI-generated Style, owner-written custom CSS, saved templates) are currently sanitized by a hand-rolled regex pass in `backend/index.js` (`sanitizeHtml` / `processCustomHTML`) and then injected into the live page via `dangerouslySetInnerHTML` in `app/book/[id]/page.tsx` at lines 920, 1063, 1068. Regex-based HTML sanitization is a known XSS vector — any attribute or tag pattern the regex doesn't anticipate slips through. This is flagged BUG-016 / BUG-017 in the QA scan.
+
+**Context**
+
+- Backend sanitizer: search for `sanitizeHtml` and `processCustomHTML` in `backend/index.js` — both are regex-based
+- Fields affected: `custom_html`, `custom_css`, AI Style output that becomes page CSS
+- Frontend consumers: `app/book/[id]/page.tsx:920, 1063, 1068` (three `dangerouslySetInnerHTML` call sites)
+- No `DOMPurify` import currently anywhere in the repo (verified via grep) — this would be a new dependency
+- Paired work: AI 2 owns [[Tasks/3-AI-Remaining-Work-Split]] FE.28 which is the frontend half of this migration
+- Runtime: backend runs on Cloud Run Node.js; DOMPurify requires a DOM implementation server-side (`jsdom` or `linkedom`) — this is a real dependency weight decision
+
+**Why this needs a plan (Rule 6 triggers)**
+
+- 3+ files touched (backend sanitizer + 3 frontend call sites, minimum)
+- New external dependency (`dompurify` + a DOM implementation)
+- Cross-scope: backend + frontend coordinated change
+- Multiple valid implementation paths: pure backend sanitization (one place, thick backend), pure frontend sanitization (trust backend to pass through, sanitize at render), or defense in depth (both)
+- Security-adjacent: a mistake here re-opens the XSS vector instead of closing it
+
+**Expected result from AI 3 plan**
+
+1. Library choice: `dompurify` + `jsdom`, `dompurify` + `linkedom` (lighter), or `sanitize-html` (different API but well-maintained)
+2. Sanitization layer placement: backend-only, frontend-only, or defense-in-depth (my recommendation would be defense-in-depth but not my decision to make)
+3. Allowlist spec: which tags and attributes survive sanitization (needs Owner input on what custom HTML features matter)
+4. Migration path for existing custom_html / custom_css values already stored in Firestore — do they need a one-shot re-sanitization?
+5. Backend file list with line ranges for AI 1
+6. Frontend FE.28 alignment with AI 2 — what Codex needs to know so both halves ship together
+7. Rollback plan if the new sanitizer rejects valid existing content
+8. QA checklist for Verdent including specific XSS payload tests
+
+**Related**
+
+- [[Tasks/3-AI-Remaining-Work-Split]] BE.9 row (backend) + FE.28 row (frontend) — canonical task sources
+- [[Tasks/QA-Scan-2026-04-15]] BUG-016 / BUG-017
+- [[Architecture/Decision-Log]] — may need a new DECISION-007 for "defense-in-depth vs single-layer sanitization"
+
+---
+
 ## SMS — 3-AI EXECUTION SPLIT
 
 - Before touching SMS again, all AI should re-read:
