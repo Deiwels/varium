@@ -18,7 +18,7 @@ created: 2026-04-15
 > ⚠️ **Перед початком імплементації цей план має бути reviewed і approved.**
 
 - [ ] AI 1 (Claude) — review backend/data/infra risk → запишіть ваші notes нижче або створіть окремий review doc
-- [ ] AI 2 (Codex) — review frontend/UX alignment → запишіть ваші notes нижче
+- [x] AI 2 (Codex) — review frontend/UX alignment → notes recorded below
 - [ ] AI 4 (Phone AI) — review emergency/rollback risk → запишіть ваші notes нижче
 - [ ] Owner — approve final plan + clarify Jonathan/TFV business identity question (Крок 5.1)
 
@@ -267,7 +267,72 @@ Polling job кожні 3 хвилини (обгорнутий у `withJobLock('r
 *(pending)*
 
 ### AI 2 (Codex) review
-*(pending)*
+
+**Verdict:** the plan direction is correct, but the frontend scope is currently **under-specified**. I do not see a blocker to the overall TFV approach, but the implementation should not be considered frontend-complete unless the points below are incorporated.
+
+#### 1. `app/settings/page.tsx` needs a real state-machine update, not only new labels
+
+Current frontend code still hardcodes the old toll-free lifecycle:
+
+- `getSmsUxState()` only knows `not_enabled | provisioning | pending | active | failed`
+- it does **not** understand `configured`, `tfv_pending`, or `tfv_rejected`
+- the `SMS Notifications` section branches on those old buckets
+
+If backend ships the new statuses without the planned FE patch, the owner will see incorrect UI:
+
+- `configured` can fall through to the default "automatic setup / not enabled" posture
+- `tfv_pending` can render as if nothing specific is happening
+- `tfv_rejected` can miss the intended warning/resubmission UX
+
+**Required incorporation:** Step 3 should explicitly require updates to `getSmsUxState()` and all `tollFreeState` branches in `app/settings/page.tsx`, not only the visible labels.
+
+#### 2. `TollFreeStatusCard` copy is now stale and must be explicitly included in scope
+
+Current owner-facing copy still includes wording like:
+
+- "SMS usually turns on automatically"
+- "No EIN is required for this default path"
+
+After the live TFV rejection for `Vurium Inc`, that wording is no longer safe.
+
+**Required incorporation:** Step 3 must explicitly include copy changes in:
+
+- `TollFreeStatusCard`
+- the toll-free active / provisioning / pending / failure descriptions inside `SMS Notifications`
+
+The UI now needs to distinguish clearly between:
+
+- number purchased / configured
+- TFV submitted / pending
+- TFV rejected / needs action
+- verified / actually live
+
+#### 3. `app/developer/sms/page.tsx` is a real frontend consumer and must be included
+
+The plan currently scopes frontend to `app/settings/page.tsx`, but the developer/admin SMS page also consumes these statuses and will drift immediately.
+
+Current problems there:
+
+- `summary.configured` is based on `!!workspace.sms_number`, so a workspace with a purchased number but `configured` or `tfv_pending` would still be shown under "Configured Senders"
+- `formatSmsStatus()` does not know `configured`, `tfv_pending`, or `tfv_rejected`
+- the grouping logic still assumes the older toll-free/manual split
+
+**Required incorporation:** add `app/developer/sms/page.tsx` to Step 3 and to the ownership table. Otherwise the admin view will continue to imply non-live senders are already configured/live.
+
+#### 4. `tfv_rejected` must read as "fix and resubmit TFV", not "switch to manual 10DLC"
+
+The current settings UI already has a "Manual business registration fallback" block. If `tfv_rejected` is not separated carefully, owners may assume they should switch sender architecture instead of correcting TFV.
+
+**Required incorporation:** the rejection state should explicitly say:
+
+- the toll-free sender exists
+- verification failed
+- this is a fix-and-resubmit flow
+- manual 10DLC remains a separate legacy path, not the default answer to TFV rejection
+
+#### AI 2 close-out
+
+I consider the **overall plan sound**. My review is complete, but frontend sign-off assumes the four incorporation points above become part of the actual implementation + verification scope.
 
 ### AI 4 (Phone AI) review
 *(pending)*
