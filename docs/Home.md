@@ -131,6 +131,7 @@
 - [[Tasks/AI4-Standby-Status-Check-2026-04-15|AI 4 Standby Status Check]]
 
 ### Standalone Notes
+- [[Tasks/Reminder-SMS-TFV-Implementation-Plan|Reminder SMS TFV Implementation Plan]] — **🆕 AI 3 plan** для інтеграції Toll-Free Verification у provisioning; чекає 4-AI Review Gate
 - [[Tasks/Temporary-Reminder-Delivery-Options|Temporary Reminder Delivery Options]]
 - [[Tasks/US-A2P-CTA-Brand-Verification-Notes|US A2P CTA Brand Verification Notes]]
 - [[Tasks/Reminder-SMS-Launch-Completion|Reminder SMS Launch Completion]]

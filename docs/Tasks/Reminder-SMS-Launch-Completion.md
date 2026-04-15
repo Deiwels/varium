@@ -84,7 +84,17 @@ Completed in:
 
 The research phase is now complete enough for AI 3 to plan and for AI 1 to validate one real sender.
 
-### Step 2 — AI 1 / Claude browser + portal check
+### Step 2A — AI 3 implementation plan (completed)
+
+AI 3 has published the implementation plan based on AI 5 findings:
+
+- [[Tasks/Reminder-SMS-TFV-Implementation-Plan]]
+
+Plan covers: status lifecycle change, TFV API integration, frontend alignment, Element protection, rollback, and live pilot.
+
+**Status:** awaiting 4-AI Review Gate (AI 1, AI 2, AI 4, Owner must review and approve before implementation starts).
+
+### Step 2B — AI 1 / Claude browser + portal check
 
 Claude has the browser lane. He should verify in Telnyx portal:
 

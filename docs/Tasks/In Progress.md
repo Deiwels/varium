@@ -13,82 +13,39 @@
 > 🆕 **2026-04-15 — AI 4 standby status check cherry-picked onto main.** See [[Tasks/AI4-Standby-Status-Check-2026-04-15]]. Phone AI flagged one procedural gap in the BE.8/BE.9 gate (AI 4 `[x]` was closed via the 02:00 general review, not BE.8/BE.9-specific emergency notes). Owner accepted **Option 2** on 2026-04-15: general review is sufficient given the low real risk of BE.8/BE.9 defensive changes (additive endpoints, defensive sanitization, Element protected by 4 existing safety nets). Gate stays closed with annotation in both plans. Lesson for future reviews: don't shortcut-close gates even on low-risk work without Owner pre-approval **before** shipping.
 
 ---
-## @AI3 [PLAN REQUEST]: Finish reminder SMS launch / live deliverability sign-off
+## @AI3 [PLAN READY — AWAITING 4-AI REVIEW]: Finish reminder SMS launch / live deliverability sign-off
 
 **Date:** 2026-04-15
-**From:** AI 2 (Codex)
-**Blocked:** yes — no new architecture/code changes until the real blocker is confirmed
+**From:** AI 2 (Codex) | **Plan by:** AI 3 (Verdent)
+**Final plan:** [[Tasks/Reminder-SMS-TFV-Implementation-Plan]]
+**Blocked:** yes — 4-AI Review Gate not yet complete
 
-### Status update — AI 5 research landed
+### AI 3 Response (2026-04-15)
 
-AI 5 has now filled [[Tasks/AI5-Research-Brief-Reminder-SMS]] with source-backed Telnyx findings.
+AI 5 research is complete ([[Tasks/AI5-Research-Brief-Reminder-SMS]]). Key finding: **TFV (Toll-Free Verification) IS REQUIRED** before outbound SMS. Our backend currently sets `active` immediately after purchase — це хибно-оптимістичний статус.
 
-**What is now confirmed:**
+**Plan created:** [[Tasks/Reminder-SMS-TFV-Implementation-Plan]]
 
-- Buying a toll-free number and attaching it to a messaging profile is **not enough** to treat reminder SMS as launch-ready.
-- Toll-free reminder/customer-care traffic is allowed by Telnyx, but the sender still needs **Toll-Free Verification (TFV)** before it should be treated as truly live.
-- TFV is **API-capable**, not portal-only.
-- Backend status `sms_registration_status: active` is currently too optimistic if interpreted as "carrier-ready / customer-deliverable". It currently proves configuration, not verified launch-readiness.
+**Що план передбачає:**
+1. Змінити status lifecycle: `active` після покупки → `configured` + окремий TFV step через Telnyx API
+2. Новий background job `runTfvStatusCheck()` для polling TFV статусу
+3. Frontend: нові статуси в Settings SMS UI (`configured`, `tfv_pending`, `tfv_rejected`, `active`)
+4. Element Barbershop повністю захищений — жоден рядок TFV коду його не торкається
+5. Owner operational gate: уточнити з Jonathan чи ISV model підходить для per-workspace TFV
 
-**Updated blocker truth:**
+**⚠️ Що потрібно від кожного AI:**
+- **AI 1**: Review backend risk у плані, записати notes в [[Tasks/Reminder-SMS-TFV-Implementation-Plan#AI 1 (Claude) review]]
+- **AI 2**: Review frontend/UX alignment, записати notes там же
+- **AI 4**: Review emergency/rollback risk, записати notes там же
+- **Owner**: Approve план + відповісти на Jonathan gate question (Крок 5.1 у плані)
 
-- Reminder SMS is blocked by the **last external verification mile**, not by a missing core reminder engine.
-- The immediate next step is **not** speculative code work. The immediate next step is portal/API truth for one real sender.
+**Поки всі 4 чекбокси в плані не зелені — код не пишемо.**
 
-### Action queue after AI 5 research
+### Previous context (AI 1 runbook + AI 5 research)
 
-1. **AI 1 / Claude** — 🟡 **runbook-delivered, awaiting terminal execution**
-   - ⏳ Chrome MCP portal path blocked by login wall (AI 1 cannot type credentials per security profile)
-   - ✅ **Alternative delivered:** [[Tasks/TFV-Inspection-and-Submission-Runbook]] — full Telnyx TFV inspection API flow (`GET /v2/messaging_tollfree/verification/requests`), decision tree for all known states, submission payload template with Vurium-appropriate field values, post-submission monitoring and ramp-up plan, rejection remediation path, and hand-back format for pasting results into this In Progress entry
-   - ⏳ Execution requires either Owner (with Telnyx Portal login) or Codex (with terminal that can reach `TELNYX_API_KEY` from deployed Cloud Run env) — AI 1 has neither
-   - Next action when someone runs the runbook: paste the Phase 5 hand-back block into [[AI5-Research-Brief-Reminder-SMS]] § "AI 1 inspection result" and tick this item off
-
-2. **AI 3 / Verdent**
-   - Use the AI 5 findings to publish the final reminder-SMS completion plan
-   - Plan should cover:
-     - TFV submission path
-     - truthful status semantics (configured vs verified/live)
-     - go-live criteria for one fresh workspace pilot
-
-3. **Owner**
-   - After AI 1 confirms sender/TFV state, run one fresh-workspace live pilot:
-     - booking confirmation
-     - scheduled reminder
-     - STOP
-     - HELP
-     - email-only fallback
-
-4. **AI 2 / Codex**
-   - Stay out of new sender-architecture guesses
-   - Join only if the final plan requires frontend status/UX changes
-
-### Problem
-
-Appointment reminder SMS still cannot be considered fully live / trusted yet. The backend reminder engine is implemented, but we still do not have canonical proof that a **fresh workspace** can auto-provision a sender and deliver real booking reminders end-to-end.
-
-### Context
-
-- `backend/index.js` already provisions per-workspace toll-free senders via `provisionTollFreeSmsForWorkspace()`
-- bookings schedule `sms_reminders`
-- `runAutoReminders()` sends only through `getWorkspaceSmsConfig(..., { allowGlobalFallback: false })`
-- fallback when SMS is unavailable is intentionally **email-only**
-- what is still unclear is the **last operational mile**:
-  - whether the current Telnyx TFN path is truly delivery-ready
-  - whether TFV / another carrier-side step is still required
-  - whether backend status `active` currently matches real deliverability
-
-### Expected result
-
-AI 3 should produce the final completion plan for reminder SMS launch that coordinates:
-
-1. **AI 5 research** on exact Telnyx toll-free / TFV requirements for per-workspace appointment reminders
-2. **AI 1 / Claude browser lane** for Telnyx portal verification and any required portal data-entry
-3. **Owner live verification** on one fresh workspace using [[Tasks/Live-SMS-Verification-Checklist]] and [[Tasks/Launch-Verification-Runbook]]
-4. **Code changes only if the live test or research proves a real code gap**
-
-### Working memo
-
-See [[Tasks/Reminder-SMS-Launch-Completion]] for the currently verified code facts and the proposed owner / AI 1 / AI 5 execution order.
+- AI 1 delivered [[Tasks/TFV-Inspection-and-Submission-Runbook]] — full Telnyx TFV inspection API flow
+- AI 5 filled [[Tasks/AI5-Research-Brief-Reminder-SMS]] with source-backed facts
+- Both confirmed: TFV is required, API-capable, and appointment traffic is a supported use case
 
 ---
 ## 🟢 SPRINT 2a COMPLETE — WAITING ON OWNER UNBLOCKERS (Sprint 2b)
