@@ -145,15 +145,15 @@ POST /v2/verifications/by_phone_number/{phone}/actions/verify → Verify code
 | TCR Campaign ID | CICHCOJ |
 | Brand | Element Barbershop |
 | Use case | Low Volume Mixed |
-| Status | **Failed MNO Review** (response received Apr 14, 2026) |
-| Failure reasons | "The brand website is lacking sufficient information about the company and its products." / "Call-to-action does not contain registered/DBA brand name." |
+| Status | **Pending MNO Review** (resubmitted after remediation; Telnyx approved, awaiting carrier decision) |
+| Previous failure reasons | "The brand website is lacking sufficient information about the company and its products." / "Call-to-action does not contain registered/DBA brand name." |
 | Sender in messages | `Element Barbershop:` |
 | Booking page | https://vurium.com/book/elementbarbershop |
 
-This is still the correct per-business architecture — each business gets its own brand + campaign. The new failure is **not** a repeat of platform-level 710 reseller rejection; it is now a **website / CTA verifiability** problem on the Element business submission.
+This is still the correct per-business architecture — each business gets its own brand + campaign. The earlier failure was **not** a repeat of platform-level 710 reseller rejection; it was a **website / CTA verifiability** problem on the Element business submission. That remediation has now been applied and the corrected campaign is back in carrier review.
 
 **Protected status during pivot:**
-- Element is intentionally being left on this path while its website / CTA remediation is in progress
+- Element is intentionally being left on this path while its corrected campaign is in carrier review
 - Do not convert Element to the toll-free-default path mid-review
 - Treat it as the live regression check for the legacy/manual flow while new workspaces move to toll-free-first
 

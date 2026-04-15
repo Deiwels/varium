@@ -9,9 +9,9 @@
 
 ---
 
-## 📨 2026-04-14 20:30 local — SUBMITTED — AWAITING MNO REVIEW
+## 📨 2026-04-14 20:30 local — TELNYX APPROVED — PENDING MNO REVIEW
 
-> **Status: `Pending Telnyx Review` → MNO Review queue.** Owner clicked Save on the Edit Campaign form after AI 1 (Claude) filled every field in the Telnyx portal via Chrome MCP automation. `$15` carrier review fee charged on submit. Campaign ID: `CICHCOJ` (internal uuid `4b30019d-826e-61b2-0eb0-915fdcaf1749`).
+> **Status: `Telnyx Approved` → `Pending MNO Review`.** Owner clicked Save on the Edit Campaign form after AI 1 (Claude) filled every field in the Telnyx portal via Chrome MCP automation. `$15` carrier review fee charged on submit. Later update from Owner: Telnyx approved the submission layer and the campaign is now waiting on the carrier / MNO decision. Campaign ID: `CICHCOJ` (internal uuid `4b30019d-826e-61b2-0eb0-915fdcaf1749`).
 
 ### Final form state submitted to Telnyx
 
@@ -47,14 +47,14 @@
   - `TCR_REJECTED` / `MNO_REJECTED` → `rejected` (need to re-read rejection reason + repeat remediation cycle)
 - Expected MNO review window: 24-72 hours per Telnyx docs, though can be faster if clean
 
-### If Telnyx returns approved
+### If MNO returns approved
 
 1. Update `docs/Features/SMS & 10DLC.md` Element campaign table → `Active`
 2. Update `docs/Tasks/In Progress.md` → close ELEMENT 10DLC RESUBMIT section
 3. DevLog entry with approval timestamp + SHA if any code changes needed
 4. Notify Owner — Element can now actually send SMS to clients in production through CICHCOJ
 
-### If Telnyx returns rejected
+### If MNO returns rejected
 
 1. **Do NOT immediately resubmit** — the `$15` review fee applies again on every resubmit. Stop and analyze the rejection reason first.
 2. Owner forwards rejection text to Claude
@@ -242,7 +242,7 @@ Only after Steps 1, 2, and 3 are all green:
 ### Step 5 — Post-resubmit monitoring
 
 - Record submission timestamp in a new DevLog entry
-- If MNO replies with approval: update `docs/Features/SMS & 10DLC.md` Element campaign table from `Failed MNO Review` to `Pending MNO Review` → then `Active` when Telnyx webhook arrives
+- If MNO replies with approval: update `docs/Features/SMS & 10DLC.md` Element campaign table from `Pending MNO Review` → `Active`, then close the live review loop in `In Progress` + DevLog
 - If MNO replies with second failure: capture the new failure reasons verbatim, open a new `QA-Scan-*.md` entry, treat as a separate analysis task (do not hot-patch without understanding the new failure)
 
 ---
