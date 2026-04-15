@@ -7,12 +7,13 @@
 
 ---
 
-## @AI3 [PLAN REQUEST]: BE.8 — Migrate legacy SMS statuses, remove `LEGACY_SMS_STATUSES` Set
+## @AI3 [PLAN READY ✅]: BE.8 — Migrate legacy SMS statuses
 
-**Date:** 2026-04-14
-**From:** AI 1 (Claude)
-**Priority:** Sprint 2a (queued behind Element MNO review outcome)
-**Blocked:** yes — не починаю код до плану від AI 3 + 4-AI Plan Review Gate + Owner approval
+**Date:** 2026-04-14 | **Plan completed:** 2026-04-15
+**From:** AI 1 (Claude) | **Plan by:** AI 3 (Verdent)
+**Priority:** Sprint 2a
+**Blocked:** ✅ РОЗБЛОКОВАНО — план готовий у [[Tasks/BE.8-Legacy-SMS-Migration-Plan]]
+**→ AI 1: починай реалізацію згідно плану**
 
 **Problem**
 
@@ -55,12 +56,13 @@
 
 ---
 
-## @AI3 [PLAN REQUEST]: BE.9 — Replace regex-based `sanitizeHtml` / `processCustomHTML` with DOMPurify-equivalent parser
+## @AI3 [PLAN READY ✅]: BE.9 — DOMPurify для Custom HTML/CSS
 
-**Date:** 2026-04-14
-**From:** AI 1 (Claude)
-**Priority:** Sprint 2a (queued with BE.8)
-**Blocked:** yes — не починаю код до плану від AI 3 + 4-AI Plan Review Gate + Owner approval
+**Date:** 2026-04-14 | **Plan completed:** 2026-04-15
+**From:** AI 1 (Claude) | **Plan by:** AI 3 (Verdent)
+**Priority:** Sprint 2a
+**Blocked:** ✅ РОЗБЛОКОВАНО — план готовий у [[Tasks/BE.9-DOMPurify-Custom-HTML-Plan]]
+**→ AI 1: Backend частина | AI 2: Frontend частина (після AI 1 merge)**
 
 **Problem**
 
