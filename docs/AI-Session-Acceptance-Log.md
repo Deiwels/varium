@@ -1,11 +1,11 @@
 # AI Session Acceptance Log
 
-> [[Home]] | Related: [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]], [[Tasks/In Progress|In Progress]]
+> [[Home]] | Related: [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]], [[Tasks/In Progress|In Progress]]
 > Purpose: every AI session must explicitly accept the rules here before doing any real work.
 
 ## How to use this log
 
-- Before any planning, coding, verification, or commits, the AI must read [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], and the required startup docs.
+- Before any planning, coding, verification, or commits, the AI must read [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], and the required startup docs.
 - If [[AI-Rule-Updates]] changed since the AI's last session, old acceptance entries are stale and a fresh entry is required.
 - Then it must append a new line here for the current session.
 - **No entry = no permission to proceed.**
@@ -13,7 +13,7 @@
 ## Required format
 
 ```md
-- YYYY-MM-DD HH:MM — AI <n> / <name> — scope: <backend|frontend|qa|emergency> — I have read and accept [[AI-Core-Manifesto]] and [[AI-Behavior-Protocol]] and will follow them before doing any work.
+- YYYY-MM-DD HH:MM — AI <n> / <name> — scope: <backend|frontend|qa|emergency> — I have read and accept [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], and [[AI-Session-Start-Protocol]] and will follow them before doing any work.
 ```
 
 ## Session Entries
@@ -51,3 +51,4 @@
 - 2026-04-15 23:59 — AI 2 / Codex — scope: docs/process — I have re-read [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[Home]], [[Vault Rules]], [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]], and the current work split docs. I accept the expanded **Owner + 11 AI** operating system, including the new business / ops / content execution layer: AI 9 (support/email), AI 10 (video), and AI 11 (creative). I accept that these roles are downstream specialists under AI 8 direction and inside AI 6 / AI 7 truth boundaries, and that I must keep frontend/UI ownership separate from marketing/support asset lanes while wiring the new docs structure cleanly into Home, indexes, and work-split canon.
 - 2026-04-15 23:59 — AI 2 / Codex — scope: docs/automation — I have re-read [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[Home]], [[Vault Rules]], and [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]. I accept the new canonical automation/workflow layer: trigger classification, queue visibility, handoff standards, and real-tool boundaries are now part of the operating system, but they do not bypass ownership, AI 5 / AI 7 truth lanes, AI 3 planning for non-trivial work, or Owner approval. My role in this session is to wire these workflow docs into the knowledge system without overriding lane truth or pulling hidden work into automation.
 - 2026-04-15 22:50 — AI 2 / Codex — scope: docs/process — I have re-read [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], [[Home]], and [[Vault Rules]]. I accept the new mandatory behavior/training layer for all AI: I will identify task type, ownership, and source of truth before acting; I will escalate instead of guessing; I will not act outside my lane; and I will keep outputs minimal, structured, and handoff-ready. My previous acceptance is stale because the behavior protocol is now a required startup document.
+- 2026-04-15 22:50 — AI 2 / Codex — scope: docs/process — I have re-read [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], [[Home]], and [[Vault Rules]]. I accept the new mandatory session-start layer for all AI: before any task I will confirm role, classify the task, identify source of truth, define exact scope, escalate instead of guessing, and only then proceed. My previous acceptance is stale because the session-start protocol is now a required startup document.

@@ -9,10 +9,10 @@ source_of_truth: true
 
 # AI Core Manifesto
 
-> [[Home]] | Related: [[AI-Rule-Updates]], [[AI-Behavior-Protocol]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[AI-Profiles/README|AI Profiles]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]], [[AI-Session-Acceptance-Log]]
+> [[Home]] | Related: [[AI-Rule-Updates]], [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[AI-Profiles/README|AI Profiles]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]], [[AI-Session-Acceptance-Log]]
 > Owner: Owner + AI 3 system governance | Status: active
 
-> ⚠️ **Read [[AI-Rule-Updates]] first, then this document, then [[AI-Behavior-Protocol]], before any session.**
+> ⚠️ **Read [[AI-Rule-Updates]] first, then this document, then [[AI-Behavior-Protocol]] and [[AI-Session-Start-Protocol]], before any session.**
 > ⛔ **No current-session entry in [[AI-Session-Acceptance-Log]] = no permission to proceed.**
 
 ---
@@ -113,11 +113,12 @@ Before planning, coding, verification, or committing:
 
 1. read [[AI-Rule-Updates]]
 2. read [[AI-Behavior-Protocol]]
-3. read [[Home]]
-4. read [[Vault Rules]] if the session touches docs
-5. read [[Tasks/In Progress|In Progress]]
-6. read [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]]
-7. add a fresh entry to [[AI-Session-Acceptance-Log]]
+3. read [[AI-Session-Start-Protocol]]
+4. read [[Home]]
+5. read [[Vault Rules]] if the session touches docs
+6. read [[Tasks/In Progress|In Progress]]
+7. read [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]]
+8. add a fresh entry to [[AI-Session-Acceptance-Log]]
 
 No acceptance entry = no valid session.
 
@@ -148,6 +149,14 @@ Every AI must follow [[AI-Behavior-Protocol]] before doing real work.
 - It is the mandatory behavior/training layer for role discipline, escalation, source-of-truth usage, and anti-hallucination behavior.
 - It does not replace ownership or planning rules; it reinforces them.
 - If an AI has not re-read the current protocol and logged acceptance, its session is not valid.
+
+### Rule L — Session Start Protocol Is Mandatory
+
+Every AI must execute [[AI-Session-Start-Protocol]] before beginning a task.
+
+- It is the mandatory operational startup prompt layer for role confirmation, task classification, source-of-truth check, scope control, escalation, and final validation.
+- It works together with [[AI-Behavior-Protocol]]: behavior protocol defines how to think; session start protocol defines how to initialize the session.
+- No AI should begin meaningful work without following it.
 
 ---
 
@@ -382,11 +391,13 @@ Blocked: yes — implementation does not start until all 5 items are green.
 ### Knowledge system
 
 - `docs/AI-Behavior-Protocol.md`
+- `docs/AI-Session-Start-Protocol.md`
 - `docs/00-System/Obsidian-Knowledge-System.md`
 - `docs/00-System/Automation-Workflow-Layer.md`
 - `docs/00-System/Real-Tools-Integration-Layer.md`
 - `docs/00-System/System-Index.md`
 - `docs/11-Reference/Note-Templates.md`
+- `docs/11-Reference/AI-Session-Template.md`
 
 ### AI profiles
 

@@ -13,6 +13,10 @@ source_of_truth: true
 
 Use these templates as the default starting point for important notes. Adapt them to the lane, but do not invent a random structure when a template already exists.
 
+## AI Session Start Template
+
+See [[11-Reference/AI-Session-Template|AI Session Template]] for the reusable startup prompt every AI can copy before a session.
+
 ## AI Profile Template
 
 ```md

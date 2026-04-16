@@ -9,7 +9,7 @@ source_of_truth: true
 
 # AI Behavior Protocol
 
-> Part of [[Home]] > System | See also: [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Profiles/README|AI Profiles]], [[AI-Session-Acceptance-Log]]
+> Part of [[Home]] > System | See also: [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Session-Start-Protocol]], [[AI-Profiles/README|AI Profiles]], [[AI-Session-Acceptance-Log]]
 
 ## Purpose
 
@@ -237,8 +237,9 @@ Before every session, every AI must:
 1. read [[AI-Rule-Updates]]
 2. read [[AI-Core-Manifesto]]
 3. read this file
-4. read any additional startup docs required by role/scope
-5. append a fresh entry to [[AI-Session-Acceptance-Log]]
+4. read [[AI-Session-Start-Protocol]]
+5. read any additional startup docs required by role/scope
+6. append a fresh entry to [[AI-Session-Acceptance-Log]]
 
 ## Final Rule
 

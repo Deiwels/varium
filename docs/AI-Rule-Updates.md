@@ -9,15 +9,33 @@ source_of_truth: true
 
 # AI Rule Updates
 
-> [[Home]] | Related: [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], [[AI-Profiles/README|AI Profiles]], [[AI-Session-Acceptance-Log]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]]
+> [[Home]] | Related: [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], [[AI-Profiles/README|AI Profiles]], [[AI-Session-Acceptance-Log]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]]
 > Purpose: short changelog for cross-AI behavior changes that every role must see before starting work.
 
 > ⚠️ **If this file changed after your last acceptance entry, your old acceptance is stale.**
-> ⛔ **Read this file first, then re-read [[AI-Core-Manifesto]] and [[AI-Behavior-Protocol]], then append a fresh line to [[AI-Session-Acceptance-Log]].**
+> ⛔ **Read this file first, then re-read [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], and [[AI-Session-Start-Protocol]], then append a fresh line to [[AI-Session-Acceptance-Log]].**
 
 ---
 
 ## Current active updates
+
+### 2026-04-15 — AI Session Start Protocol is now mandatory
+
+- [[AI-Session-Start-Protocol]] is now a required startup file for every AI before beginning a task.
+- It is the canonical operational prompt layer for:
+  - role confirmation
+  - task classification
+  - source-of-truth check
+  - scope control
+  - escalation-before-guessing
+  - final pre-output validation
+- [[11-Reference/AI-Session-Template|AI Session Template]] is now the reusable copy-paste template for starting a session correctly.
+- All AI must now read, follow, and acceptance-log against:
+  - [[AI-Rule-Updates]]
+  - [[AI-Core-Manifesto]]
+  - [[AI-Behavior-Protocol]]
+  - [[AI-Session-Start-Protocol]]
+- No task should begin without this startup protocol.
 
 ### 2026-04-15 — AI Behavior Protocol is now mandatory
 
@@ -169,8 +187,9 @@ Every new process rule must be updated in the same session across:
 1. [[AI-Rule-Updates]]
 2. [[AI-Core-Manifesto]]
 3. [[AI-Behavior-Protocol]]
-4. affected files under [[AI-Profiles/README|AI Profiles]]
-5. [[Home]]
-6. current-day DevLog
+4. [[AI-Session-Start-Protocol]]
+5. affected files under [[AI-Profiles/README|AI Profiles]]
+6. [[Home]]
+7. current-day DevLog
 
 If it is only in chat, it does not count.

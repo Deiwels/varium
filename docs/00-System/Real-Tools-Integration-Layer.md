@@ -144,7 +144,7 @@ The following remain Owner-controlled:
 
 ## Canonical Real-Tool Workflows
 
-- support inbox -> AI 9 first response
+- support inbox -> AI 9 first response (see [[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]])
 - lead form -> AI 9 follow-up plus AI 8 insight loop when needed
 - campaign request -> AI 8 brief -> AI 10 / AI 11 / AI 9 downstream execution
 - Owner feature request -> AI 6 / AI 5 / AI 7 / AI 3 / AI 1-2 path
@@ -156,6 +156,7 @@ The following remain Owner-controlled:
 
 - [[08-Runbooks/Support/Escalation-Matrix|Escalation Matrix]]
 - [[08-Runbooks/Support/Email-Reply-Workflow|Email Reply Workflow]]
+- [[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]]
 - [[08-Runbooks/Growth/Campaign-Workflow|Campaign Workflow]]
 - [[08-Runbooks/Product/Feature-Flow|Feature Flow]]
 - [[08-Runbooks/Incidents/Incident-Response-Workflow|Incident Response Workflow]]

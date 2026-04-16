@@ -2,7 +2,7 @@
 
 > 📌 **ВСІМ AI: перед створенням/редагуванням будь-якого .md файлу — обов'язково прочитати [[Vault Rules]]** (де класти, як називати, як лінкувати, як додавати в Home).
 > 🗂️ **Для note types, source-of-truth, lifecycle status, knowledge-layer папок і archive/superseded правил — обов'язково прочитати [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]].**
-> ⚠️ **ВСІМ AI: Читати [[AI-Rule-Updates]], [[AI-Core-Manifesto]] і [[AI-Behavior-Protocol]] перед початком будь-якої роботи. Обов'язково.**
+> ⚠️ **ВСІМ AI: Читати [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]] і [[AI-Session-Start-Protocol]] перед початком будь-якої роботи. Обов'язково.**
 > ⛔ **Поки немає нового запису в [[AI-Session-Acceptance-Log]], AI не має права продовжувати далі.**
 > 🧠 **Якщо задача потребує планування — вона йде в `In Progress.md` як `@AI3 [PLAN REQUEST]`, а реалізація блокується до завершення 4-AI Plan Review Gate.**
 > 📥 **Якщо AI 4 залишив review у GitHub — він не рахується видимим, поки сам review-doc не буде синхронізований локально в `docs/Tasks/`.**
@@ -30,6 +30,7 @@
 
 - [[00-System/System-Index|System Index]] — governance, startup rules, and vault-operating model
 - [[AI-Behavior-Protocol]] — mandatory behavior and training layer for every AI before each session
+- [[AI-Session-Start-Protocol]] — mandatory operational startup protocol every AI must execute before any task
 - [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]] — canonical rule for note types, source-of-truth hierarchy, staged migration, and archive discipline
 - [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]] — canonical routing, queue, trigger, and handoff behavior for automated work movement
 - [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]] — canonical boundary for real tools, triggers, and safe external-service integrations
@@ -45,6 +46,7 @@
 - [[10-Decisions/Decisions-Index|Decisions Index]] — permanent decision history MOC
 - [[11-Reference/Reference-Index|Reference Index]] — templates and stable reference material
 - [[11-Reference/Note-Templates|Note Templates]] — standard templates for AI profiles, briefs, plans, QA scans, runbooks, decisions, and incident notes
+- [[11-Reference/AI-Session-Template|AI Session Template]] — reusable copy-paste startup prompt for every AI session
 - [[12-Archive/Archive-Index|Archive Index]] — superseded and historical docs
 
 ---
@@ -215,6 +217,7 @@ Latest first:
 - [[Tasks/Launch-Verification-Runbook|Launch Verification Runbook]] — Full pre-launch checklist (VR.4)
 - [[Tasks/Deploy-Smoke-Test|Deploy Smoke Test]] — 5-min post-deploy sanity check (VR.5)
 - [[08-Runbooks/Support/README|Support Runbooks]] — customer communication and email-reply procedures
+- [[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]] — n8n-ready Gmail intake, AI 9 draft, escalation, and logging schema
 - [[08-Runbooks/Growth/README|Growth Runbooks]] — growth-execution and creative/video production procedures
 - [[08-Runbooks/Support/Escalation-Matrix|Escalation Matrix]] — who escalates to whom across support, growth, product, and incident flows
 - [[08-Runbooks/Growth/Campaign-Workflow|Campaign Workflow]] — growth brief -> support/video/creative execution path

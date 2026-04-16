@@ -9,11 +9,13 @@ source_of_truth: true
 
 # Email Reply Workflow
 
-> Part of [[Home]] > Runbooks | See also: [[Growth/Customer-Communication/Support-Policy|Support Policy]], [[Growth/Customer-Communication/Support-Tone-Guide|Support Tone Guide]], [[Growth/FAQ/Customer-FAQ|Customer FAQ]]
+> Part of [[Home]] > Runbooks | See also: [[Growth/Customer-Communication/Support-Policy|Support Policy]], [[Growth/Customer-Communication/Support-Tone-Guide|Support Tone Guide]], [[Growth/FAQ/Customer-FAQ|Customer FAQ]], [[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]]
 
 ## Purpose
 
 Define the safe step-by-step flow for support replies, lead follow-up, and routine customer communication.
+
+For the concrete Gmail + `n8n` automation path, use [[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]].
 
 ## Step-by-step Procedure
 
