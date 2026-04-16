@@ -1,8 +1,9 @@
 ---
 type: reference
 status: active
+doc_class: canonical
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 owner: AI 3
 source_of_truth: true
 ---
@@ -12,7 +13,7 @@ source_of_truth: true
 > [[Home]] | Related: [[AI-Rule-Updates]], [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/AI-Automation-Policy|AI Automation Policy]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[AI-Profiles/README|AI Profiles]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]], [[AI-Session-Acceptance-Log]]
 > Owner: Owner + AI 3 system governance | Status: active
 
-> ⚠️ **Read [[AI-Rule-Updates]] first, then this document, then [[AI-Behavior-Protocol]] and [[AI-Session-Start-Protocol]], before any session.**
+> ⚠️ **Read [[Home]], then [[AI-Rule-Updates]], then this document, then [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], and your own AI profile before any session.**
 > ⛔ **No current-session entry in [[AI-Session-Acceptance-Log]] = no permission to proceed.**
 
 ---
@@ -111,14 +112,19 @@ If work is not written in the correct canonical place, it does not count as shar
 
 Before planning, coding, verification, or committing:
 
-1. read [[AI-Rule-Updates]]
-2. read [[AI-Behavior-Protocol]]
-3. read [[AI-Session-Start-Protocol]]
-4. read [[Home]]
-5. read [[Vault Rules]] if the session touches docs
-6. read [[Tasks/In Progress|In Progress]]
-7. read [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]]
-8. add a fresh entry to [[AI-Session-Acceptance-Log]]
+1. read [[Home]]
+2. read [[AI-Rule-Updates]]
+3. read [[AI-Core-Manifesto]]
+4. read [[AI-Behavior-Protocol]]
+5. read [[AI-Session-Start-Protocol]]
+6. read your own AI profile
+7. add a fresh entry to [[AI-Session-Acceptance-Log]]
+
+All other reading is task-triggered only.
+
+- Read [[Vault Rules]] only if the session touches markdown creation/editing.
+- Read [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]] only if the session touches note semantics, source-of-truth, lifecycle status, archive/superseded handling, or structured writeback.
+- Read [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]] when risk, ambiguity, or blocked-state routing appears.
 
 No acceptance entry = no valid session.
 
@@ -140,7 +146,7 @@ Automation may route work, assemble context, prepare drafts, and maintain queue 
 - Automation must not bypass AI 5 / AI 7 where external truth or compliance translation is required.
 - Automation must not bypass AI 3 planning or review gates for non-trivial work.
 - Automation must not bypass Owner approval or real-world control points.
-- [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]] and [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]] are canonical for routing, trigger, queue, handoff, and tool-integration behavior.
+- Use [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]] and [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]] as the active reference docs for workflow movement and tool boundaries. They do not override this manifesto.
 
 ### Rule N — Automation Levels Are Role-Specific
 
@@ -152,7 +158,7 @@ Different AI roles must run at different automation levels.
 - some may auto-execute only safe low-risk work
 - AI 4 may auto-route only in emergency mode
 
-[[00-System/AI-Automation-Policy|AI Automation Policy]] is canonical for per-agent automation level, safe trigger design, and rollout order.
+Use [[00-System/AI-Automation-Policy|AI Automation Policy]] as the active reference for per-agent automation levels, safe trigger design, and rollout order.
 
 ### Rule K — Behavior Protocol Is Mandatory
 
@@ -176,7 +182,7 @@ Every AI must use a canonical template when one exists for the artifact being cr
 
 - `No template = no work`
 - free-form notes are not acceptable when a matching template already exists
-- [[11-Reference/Templates/README|Templates Library]] is the canonical per-template source
+- [[11-Reference/Templates/README|Templates Library]] is the approved reference catalog of templates
 - AI 3 is the template-discipline enforcer for structured work
 
 ---
@@ -402,28 +408,24 @@ Blocked: yes — implementation does not start until all 5 items are green.
 
 ## 9. Required System Artifacts
 
-### Core governance
+### Universal startup canon
 
+- `docs/Home.md`
 - `docs/AI-Core-Manifesto.md`
 - `docs/AI-Rule-Updates.md`
-- `docs/AI-Work-Split.md`
-- `docs/AI-Session-Acceptance-Log.md`
-
-### Knowledge system
-
 - `docs/AI-Behavior-Protocol.md`
 - `docs/AI-Session-Start-Protocol.md`
+- `docs/AI-Profiles/*.md`
+
+### Active canonical-on-demand docs
+
 - `docs/00-System/Obsidian-Knowledge-System.md`
-- `docs/00-System/Automation-Workflow-Layer.md`
-- `docs/00-System/Real-Tools-Integration-Layer.md`
-- `docs/00-System/Self-Improvement-Layer.md`
-- `docs/00-System/System-Index.md`
-- `docs/11-Reference/Note-Templates.md`
-- `docs/11-Reference/Templates/`
-- `docs/11-Reference/AI-Session-Template.md`
 - `docs/08-Runbooks/System/Escalation-Matrix.md`
-- `docs/08-Runbooks/System/KPI-Metrics-Layer.md`
-- `docs/10-Decisions/System-Changes/README.md`
+
+### Operational records and lane truth
+
+- `docs/AI-Work-Split.md`
+- `docs/AI-Session-Acceptance-Log.md`
 
 ### AI profiles
 
@@ -483,6 +485,22 @@ Blocked: yes — implementation does not start until all 5 items are green.
 - `docs/Tasks/*QA-Scan*.md`
 - `docs/Tasks/*-Runbook.md`
 - `docs/Architecture/Decision-Log.md`
+
+### Reference-only execution support
+
+- `docs/00-System/Automation-Workflow-Layer.md`
+- `docs/00-System/AI-Automation-Policy.md`
+- `docs/00-System/Real-Tools-Integration-Layer.md`
+- `docs/00-System/Self-Improvement-Layer.md`
+- `docs/00-System/System-Index.md`
+- `docs/11-Reference/Note-Templates.md`
+- `docs/11-Reference/Templates/`
+- `docs/11-Reference/AI-Session-Template.md`
+- `docs/11-Reference/Automation-Routing-Reference.md`
+- `docs/08-Runbooks/System/KPI-Metrics-Layer.md`
+- `docs/08-Runbooks/System/Operational-Pipelines-MVP.md`
+- `docs/08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11.md`
+- `docs/10-Decisions/System-Changes/README.md`
 
 ---
 

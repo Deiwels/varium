@@ -1,8 +1,9 @@
 ---
 type: reference
 status: active
+doc_class: reference-only
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 owner: AI 3
 source_of_truth: false
 ---
@@ -19,7 +20,7 @@ Repeatable operational procedures, launch checklists, manual portal procedures, 
 
 Technical runbooks still live mostly in `docs/Tasks/*-Runbook*.md`, but support and growth execution runbooks now also live in `docs/08-Runbooks/**`.
 
-## Canonical Notes
+## Active Runbooks
 
 - [[Tasks/Launch-Verification-Runbook|Launch Verification Runbook]]
 - [[Tasks/Deploy-Smoke-Test|Deploy Smoke Test]]

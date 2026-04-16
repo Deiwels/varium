@@ -1,10 +1,11 @@
 ---
 type: reference
 status: active
+doc_class: reference-only
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 owner: AI 3
-source_of_truth: true
+source_of_truth: false
 ---
 
 # AI Automation Policy
@@ -180,34 +181,9 @@ The AI may be auto-triggered immediately under incident conditions, but still op
 - launch approval
 - legal-sensitive commitments
 
-## Best Trigger Design by AI
+## Routing and Handoff Reference
 
-- **AI 1** -> backend-tagged queue item, post-plan assignment, incident-cleanup handoff, doc-drift detection
-- **AI 2** -> frontend-tagged queue item, approved UI workstream, responsive bug intake, screenshot/demo request
-- **AI 3** -> non-trivial intake, post-implementation, weekly schedule, KPI threshold breach, missing handoff/docs
-- **AI 4** -> critical alert, high/critical incident, direct Owner emergency activation
-- **AI 5** -> external-dependency tag, vendor/policy question, AI 6 or AI 7 request
-- **AI 6** -> feature idea, repeated product confusion, unclear scope, priority conflict
-- **AI 7** -> AI 5 completion, compliance-risk support/comms, ad/video claim review
-- **AI 8** -> campaign request, KPI drop, funnel issue, launch need, repeated lead objections
-- **AI 9** -> support email, lead form, onboarding question, follow-up reminder
-- **AI 10** -> approved campaign with video deliverable, launch promo request, product demo request
-- **AI 11** -> approved campaign with static creative deliverable, experiment-variant request, landing-page creative request
-
-## Handoff Automation Rule
-
-Automation must not just trigger work. It must hand off correctly.
-
-Every automated handoff must include:
-
-- what triggered the task
-- what is already known
-- source-of-truth links
-- current risk level
-- what the receiving AI must do
-- whether the action is safe, draft-only, approval-required, or queue-only
-
-Without this, automation creates confusion instead of leverage.
+Use [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]] for trigger-specific routing and use [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]] for handoff structure and queue movement.
 
 ## Safe Automation Matrix
 

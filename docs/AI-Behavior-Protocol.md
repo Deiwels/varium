@@ -1,8 +1,9 @@
 ---
 type: system-note
 status: active
+doc_class: canonical
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 owner: AI 3
 source_of_truth: true
 ---
@@ -130,7 +131,7 @@ If no template exists:
 
 If you detect a system problem:
 
-- propose improvement through [[00-System/Self-Improvement-Layer|Self-Improvement Layer]]
+- propose improvement through the review process documented in [[00-System/Self-Improvement-Layer|Self-Improvement Layer]]
 - do not silently change core rules, workflow, roles, escalation logic, or safety checks
 - log approved system changes in [[10-Decisions/System-Changes/README|System Changes Log]]
 

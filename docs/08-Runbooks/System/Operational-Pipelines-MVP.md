@@ -1,10 +1,11 @@
 ---
 type: runbook
 status: active
+doc_class: reference-only
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 owner: AI 3
-source_of_truth: true
+source_of_truth: false
 ---
 
 # Operational Pipelines MVP

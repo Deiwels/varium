@@ -1,10 +1,11 @@
 ---
 type: reference
 status: active
+doc_class: reference-only
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 owner: AI 3
-source_of_truth: true
+source_of_truth: false
 ---
 
 # Templates Library
@@ -13,19 +14,21 @@ source_of_truth: true
 
 ## Purpose
 
-Provide the canonical template library for structured work across the VuriumBook AI Operating System.
+Provide the approved template library for structured work across the VuriumBook AI Operating System.
 
-## Rule
+This file catalogs approved templates. The rule that templates must be used lives in the canonical governance docs.
 
-No AI should create a free-form note when a matching template already exists here.
+## Usage Summary
+
+When a matching template exists here, use it instead of inventing a free-form structure.
 
 Short version:
 
-- no template = no work
-- if a template exists, use it
+- governing rule lives in [[AI-Core-Manifesto]] and [[AI-Behavior-Protocol]]
+- this file tells you which approved template to use
 - AI 3 may reject or send back notes that ignore an available template
 
-## Canonical Templates
+## Approved Templates
 
 - [[11-Reference/Templates/Task-Workflow-Queue-Item-Template|Task / Workflow Queue Item Template]]
 - [[11-Reference/Templates/Handoff-Template|Handoff Template]]

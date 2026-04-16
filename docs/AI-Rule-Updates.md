@@ -1,8 +1,9 @@
 ---
 type: reference
 status: active
+doc_class: canonical
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 owner: AI 3
 source_of_truth: true
 ---
@@ -11,17 +12,36 @@ source_of_truth: true
 
 > [[Home]] | Related: [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], [[AI-Profiles/README|AI Profiles]], [[AI-Session-Acceptance-Log]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]]
 > Purpose: short changelog for cross-AI behavior changes that every role must see before starting work.
+> Authority note: current `canonical / reference-only / superseded / archived` status lives in [[Home]] and doc frontmatter. Older rollout entries below are historical and do not override current doc class.
 
 > ⚠️ **If this file changed after your last acceptance entry, your old acceptance is stale.**
-> ⛔ **Read this file first, then re-read [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], and [[AI-Session-Start-Protocol]], then append a fresh line to [[AI-Session-Acceptance-Log]].**
+> ⛔ **Read [[Home]], then this file, then re-read [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], and your own AI profile, then append a fresh line to [[AI-Session-Acceptance-Log]].**
 
 ---
 
 ## Current active updates
 
-### 2026-04-15 — n8n Implementation Pack for AI 3 / 5 / 8 / 10 / 11 is now canonical
+### 2026-04-16 — Approved optimization pass is now active
 
-- [[08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11|n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11]] is now the canonical implementation-contract doc for the first non-inbox automation wave.
+- Universal startup reading is now reduced to:
+  - [[Home]]
+  - [[AI-Rule-Updates]]
+  - [[AI-Core-Manifesto]]
+  - [[AI-Behavior-Protocol]]
+  - [[AI-Session-Start-Protocol]]
+  - the AI's own profile
+- All other system docs are now **task-triggered reading only**.
+- Current authority classes are now:
+  - **canonical:** Home, AI Rule Updates, AI Core Manifesto, AI Behavior Protocol, AI Session Start Protocol, AI Profiles, Obsidian Knowledge System, Escalation Matrix
+  - **reference-only:** Automation Workflow Layer, AI Automation Policy, Real Tools Integration Layer, Self-Improvement Layer, KPI & Metrics Layer, Operational Pipelines MVP, n8n Implementation Pack, Automation Routing Reference, Templates Library, AI Session Template, System/Runbooks/Reference indexes, Vault Rules
+  - **superseded:** legacy support-scoped escalation matrix and other explicitly replaced notes
+  - **archived:** historical docs routed through [[12-Archive/Archive-Index|Archive Index]] or clearly marked historical in place
+- Reference docs support execution, but they do **not** override canonical docs.
+- Framework growth is now frozen unless a new doc is required to unblock live execution safely.
+
+### 2026-04-15 — n8n Implementation Pack for AI 3 / 5 / 8 / 10 / 11 introduced
+
+- [[08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11|n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11]] introduced the implementation-contract pack for the first non-inbox automation wave.
 - Use it for:
   - trigger definitions
   - input payload shape
@@ -33,9 +53,9 @@ source_of_truth: true
 - Use [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]] for trigger routing.
 - Use this new runbook for concrete workflow-building contracts.
 
-### 2026-04-15 — Automation Routing Reference is now canonical
+### 2026-04-15 — Automation Routing Reference introduced
 
-- [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]] is now the canonical practical routing table for automation triggers.
+- [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]] introduced the practical routing table for automation triggers.
 - Use it when you need `trigger -> AI -> automation mode -> input -> output -> next step`.
 - It also now defines the first-wave automation pack for:
   - AI 3 planning intake / QA / weekly review
@@ -46,9 +66,9 @@ source_of_truth: true
 - Use [[00-System/AI-Automation-Policy|AI Automation Policy]] for rules and levels.
 - Use [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]] for practical implementation routing.
 
-### 2026-04-15 — AI Automation Policy is now canonical
+### 2026-04-15 — AI Automation Policy introduced
 
-- [[00-System/AI-Automation-Policy|AI Automation Policy]] is now the canonical per-agent automation-level document.
+- [[00-System/AI-Automation-Policy|AI Automation Policy]] introduced the per-agent automation-level reference.
 - Not every AI should be automated the same way.
 - The active model is now:
   - Level 0 -> manual only
@@ -66,9 +86,9 @@ source_of_truth: true
 - AI 1 / AI 2 remain queue/prep-first, not direct auto-change lanes.
 - Owner remains manual-only, and AI 4 remains emergency-only.
 
-### 2026-04-15 — Operational Pipelines MVP is now canonical
+### 2026-04-15 — Operational Pipelines MVP introduced
 
-- [[08-Runbooks/System/Operational-Pipelines-MVP|Operational Pipelines MVP]] is now the canonical starting set for real automation build-out.
+- [[08-Runbooks/System/Operational-Pipelines-MVP|Operational Pipelines MVP]] introduced the starting set for real automation build-out.
 - `n8n` is now the primary orchestrator recommendation for the first practical rollout; Zapier remains acceptable only for lighter follow-up steps.
 - The first build order is:
   - Gmail support inbox
@@ -80,18 +100,18 @@ source_of_truth: true
   - Stage 3 -> lead form intake + follow-up queue
   - Stage 4 -> incident webhook + AI 4 emergency routing
   - Stage 5 -> Stripe/Telnyx awareness only, no automatic financial or portal actions
-- Lead-form intake now has its own canonical implementation doc in [[08-Runbooks/Support/Lead-Form-Follow-Up-Workflow|Lead Form Follow-Up Workflow]].
+- Lead-form intake now has its own active implementation doc in [[08-Runbooks/Support/Lead-Form-Follow-Up-Workflow|Lead Form Follow-Up Workflow]].
 - Trigger taxonomy now explicitly includes `lead-form`, `monitoring-alert`, `stripe-event`, and `telnyx-event`.
 
-### 2026-04-15 — Self-Improvement Layer is now canonical
+### 2026-04-15 — Self-Improvement Layer introduced
 
-- [[00-System/Self-Improvement-Layer|Self-Improvement Layer]] is now the canonical controlled-evolution loop for the operating system.
+- [[00-System/Self-Improvement-Layer|Self-Improvement Layer]] introduced the controlled-evolution loop for the operating system.
 - AI 3 should use it with [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]] to turn recurring problems into structured, reviewable improvements.
 - System improvements must not be silent; approved changes should be logged in [[10-Decisions/System-Changes/README|System Changes Log]].
 
-### 2026-04-15 — KPI & Metrics Layer is now canonical
+### 2026-04-15 — KPI & Metrics Layer introduced
 
-- [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]] is now the canonical system-performance and weekly-review document.
+- [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]] introduced the system-performance and weekly-review reference.
 - AI 3 should use it to run weekly review, detect bottlenecks, and propose system improvements.
 - This layer measures role health, workflow health, escalation health, documentation health, and rework/incident trends.
 
@@ -102,9 +122,9 @@ source_of_truth: true
 - AI must use this document before making blocked-state, risk, or uncertainty escalation decisions.
 - The legacy support-scoped matrix remains only as a superseded pointer for old backlinks.
 
-### 2026-04-15 — Templates Library is now canonical
+### 2026-04-15 — Templates Library introduced
 
-- [[11-Reference/Templates/README|Templates Library]] is now the canonical per-template library for structured work.
+- [[11-Reference/Templates/README|Templates Library]] introduced the approved per-template library for structured work.
 - `No template = no work` is now an active system rule.
 - If a matching template exists, AI must use it instead of creating a free-form note.
 - AI 3 is now the template-discipline enforcer and may reject chaotic notes when a matching template exists.
@@ -155,10 +175,10 @@ source_of_truth: true
   - [[AI-Behavior-Protocol]]
 - If this protocol changes after an AI's last acceptance entry, that acceptance is stale.
 
-### 2026-04-15 — Automation / workflow layer is now canonical
+### 2026-04-15 — Automation / workflow layer introduced
 
-- [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]] is now the canonical routing and handoff layer for the system.
-- [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]] is now the canonical tools/integration layer for real events and safe tool usage.
+- [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]] introduced the routing and handoff reference for the system.
+- [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]] introduced the tools/integration boundary reference for real events and safe tool usage.
 - Automation may:
   - classify triggers
   - assemble context
@@ -215,7 +235,7 @@ source_of_truth: true
 - `[[11-Reference/Note-Templates|Note Templates]]` is the canonical template source for important note types.
 - Vault-librarian cleanup is allowed only as an explicit mode/task, not as a silent rewrite of other lanes' truth.
 
-### 2026-04-15 — Operating system expanded to Owner + 8 AI roles
+### 2026-04-15 — Operating system expanded to Owner + 11 AI roles
 
 - We are no longer modeling the team as only 5 AI + Owner.
 - New canonical roles are added:

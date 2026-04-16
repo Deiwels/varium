@@ -1,10 +1,11 @@
 ---
 type: reference
 status: active
+doc_class: reference-only
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 owner: AI 3
-source_of_truth: true
+source_of_truth: false
 ---
 
 # Real Tools Integration Layer
@@ -13,7 +14,7 @@ source_of_truth: true
 
 ## Purpose
 
-Define how the operating system connects to real tools and services without breaking governance.
+Define the reference boundary model for how the operating system connects to real tools and services without breaking governance.
 
 The goal is practical operation:
 
@@ -25,7 +26,7 @@ The goal is practical operation:
 
 ## Core Principle
 
-Tools extend the system. Tools do not replace governance.
+Tools extend the system. Tools do not replace governance and do not override [[AI-Core-Manifesto]].
 
 Tools may:
 

@@ -1,10 +1,11 @@
 ---
 type: system-note
 status: active
+doc_class: reference-only
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 owner: AI 3
-source_of_truth: true
+source_of_truth: false
 ---
 
 # Self-Improvement Layer
@@ -21,7 +22,7 @@ This layer enables the AI system to:
 - improve documentation
 - reduce errors over time
 
-The goal is to turn the AI system into a continuously improving organization.
+The goal is to turn the AI system into a continuously improving organization without creating silent governance drift.
 
 ## Core Principle
 

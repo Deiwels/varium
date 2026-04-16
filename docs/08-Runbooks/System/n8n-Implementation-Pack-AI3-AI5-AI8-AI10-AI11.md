@@ -1,10 +1,11 @@
 ---
 type: runbook
 status: active
+doc_class: reference-only
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 owner: AI 3
-source_of_truth: true
+source_of_truth: false
 ---
 
 # n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11
@@ -32,6 +33,8 @@ For each agent this pack defines:
 - writeback targets
 
 This file is intended for `n8n` implementation.
+
+It is an implementation reference. It does not define governance, policy, or authority on its own.
 
 ## Global Rules
 

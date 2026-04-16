@@ -1,8 +1,16 @@
+---
+type: system-note
+status: active
+doc_class: canonical
+updated: 2026-04-16
+owner: AI 3
+source_of_truth: true
+---
+
 # Varium (VuriumBook)
 
-> 📌 **ВСІМ AI: перед створенням/редагуванням будь-якого .md файлу — обов'язково прочитати [[Vault Rules]]** (де класти, як називати, як лінкувати, як додавати в Home).
-> 🗂️ **Для note types, source-of-truth, lifecycle status, knowledge-layer папок і archive/superseded правил — обов'язково прочитати [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]].**
-> ⚠️ **ВСІМ AI: Читати [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]] і [[AI-Session-Start-Protocol]] перед початком будь-якої роботи. Обов'язково.**
+> ⚠️ **Universal startup set for every AI:** [[Home]], [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], and the AI's own profile.
+> 📚 **Everything else is task-triggered reading only.** Read [[Vault Rules]] only when creating/editing markdown, and read [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]] only when note semantics, lifecycle status, source-of-truth, archive/superseded handling, or writeback structure are involved.
 > ⛔ **Поки немає нового запису в [[AI-Session-Acceptance-Log]], AI не має права продовжувати далі.**
 > 🧠 **Якщо задача потребує планування — вона йде в `In Progress.md` як `@AI3 [PLAN REQUEST]`, а реалізація блокується до завершення 4-AI Plan Review Gate.**
 > 📥 **Якщо AI 4 залишив review у GitHub — він не рахується видимим, поки сам review-doc не буде синхронізований локально в `docs/Tasks/`.**
@@ -26,16 +34,80 @@
 
 ---
 
+## Startup Path
+
+### Universal Startup Set
+
+Every AI must always load only:
+
+- [[Home]]
+- [[AI-Rule-Updates|AI Rule Updates]]
+- [[AI-Core-Manifesto]]
+- [[AI-Behavior-Protocol]]
+- [[AI-Session-Start-Protocol]]
+- the AI's own profile in [[AI-Profiles/README|AI Profiles]]
+
+### Task-Triggered Reading Only
+
+Load these only when the task actually needs them:
+
+- [[Vault Rules]] for markdown creation, rename, linking, and Home/index placement
+- [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]] for note semantics, lifecycle status, archive/superseded handling, or knowledge writeback
+- [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]] for risk, blocked-state, or handoff escalation decisions
+- [[11-Reference/Templates/README|Templates Library]] when creating a structured artifact that has a matching template
+- [[00-System/AI-Automation-Policy|AI Automation Policy]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]], and [[08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11|n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11]] only for automation design, trigger routing, or workflow implementation work
+- [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]] and [[00-System/Self-Improvement-Layer|Self-Improvement Layer]] only for AI 3 weekly review, system-drift cleanup, or approved improvement work
+
+## Document Authority
+
+### Canonical
+
+These docs may define startup behavior, authority, or truth for the operating system:
+
+- [[Home]]
+- [[AI-Rule-Updates|AI Rule Updates]]
+- [[AI-Core-Manifesto]]
+- [[AI-Behavior-Protocol]]
+- [[AI-Session-Start-Protocol]]
+- [[AI-Profiles/README|AI Profiles]] and the individual AI profile files
+- [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
+- [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
+
+### Reference-Only
+
+These docs support execution, automation, templates, or implementation. They do not override canonical docs:
+
+- [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]
+- [[00-System/AI-Automation-Policy|AI Automation Policy]]
+- [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
+- [[00-System/Self-Improvement-Layer|Self-Improvement Layer]]
+- [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]]
+- [[08-Runbooks/System/Operational-Pipelines-MVP|Operational Pipelines MVP]]
+- [[08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11|n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11]]
+- [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]]
+- [[11-Reference/Templates/README|Templates Library]]
+- [[11-Reference/AI-Session-Template|AI Session Template]]
+- [[00-System/System-Index|System Index]], [[08-Runbooks/Runbooks-Index|Runbooks Index]], [[11-Reference/Reference-Index|Reference Index]]
+- [[Vault Rules]]
+
+### Superseded and Archived
+
+- superseded docs stay only as pointers or historical context and must not define current behavior
+- archived docs live under [[12-Archive/Archive-Index|Archive Index]] or are explicitly marked historical in place
+- current example: [[08-Runbooks/Support/Escalation-Matrix|Support Escalation Matrix]] is superseded by the system-level matrix
+
+---
+
 ## Knowledge System
 
 - [[00-System/System-Index|System Index]] — governance, startup rules, and vault-operating model
 - [[AI-Behavior-Protocol]] — mandatory behavior and training layer for every AI before each session
 - [[AI-Session-Start-Protocol]] — mandatory operational startup protocol every AI must execute before any task
 - [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]] — canonical rule for note types, source-of-truth hierarchy, staged migration, and archive discipline
-- [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]] — canonical routing, queue, trigger, and handoff behavior for automated work movement
-- [[00-System/AI-Automation-Policy|AI Automation Policy]] — canonical per-agent automation levels, safe trigger design, and rollout order
-- [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]] — canonical boundary for real tools, triggers, and safe external-service integrations
-- [[00-System/Self-Improvement-Layer|Self-Improvement Layer]] — controlled system-evolution loop from KPI/problem detection to reviewed change
+- [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]] — reference-only workflow-routing model for queue, handoff, and task movement
+- [[00-System/AI-Automation-Policy|AI Automation Policy]] — reference-only automation-permissions guide for per-agent automation levels
+- [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]] — reference-only boundary guide for real tools, triggers, and Owner-only systems
+- [[00-System/Self-Improvement-Layer|Self-Improvement Layer]] — reference-only improvement-loop guide used by AI 3 after KPI/drift review
 - [[01-Team/Team-Index|Team Index]] — profiles, work split, and acceptance-log lane
 - [[02-Product/Product-Index|Product Index]] — product-lane MOC
 - [[03-Architecture/Architecture-Index|Architecture Index]] — architecture-lane MOC
@@ -44,15 +116,15 @@
 - [[06-Growth/Growth-Index|Growth Index]] — growth-lane MOC
 - [[07-Research/Research-Index|Research Index]] — external-facts and research-brief MOC
 - [[08-Runbooks/Runbooks-Index|Runbooks Index]] — operational procedures MOC
-- [[08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11|n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11]] — concrete trigger/payload/output contracts for the first non-inbox automation wave
+- [[08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11|n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11]] — reference-only trigger/payload/output contract pack for the first non-inbox automation wave
 - [[09-Incidents/Incidents-Index|Incidents Index]] — incidents, hotfixes, and postmortems MOC
 - [[10-Decisions/Decisions-Index|Decisions Index]] — permanent decision history MOC
 - [[10-Decisions/System-Changes/README|System Changes Log]] — approved operating-system changes and self-improvement decisions
 - [[11-Reference/Reference-Index|Reference Index]] — templates and stable reference material
 - [[11-Reference/Note-Templates|Note Templates]] — standard templates for AI profiles, briefs, plans, QA scans, runbooks, decisions, and incident notes
-- [[11-Reference/Templates/README|Templates Library]] — canonical per-template files for queue items, handoffs, briefs, runbooks, incidents, and decisions
-- [[11-Reference/AI-Session-Template|AI Session Template]] — reusable copy-paste startup prompt for every AI session
-- [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]] — practical `trigger -> AI -> mode -> output -> next step` table plus first-wave automation pack
+- [[11-Reference/Templates/README|Templates Library]] — reference-only approved template catalog for queue items, handoffs, briefs, runbooks, incidents, and decisions
+- [[11-Reference/AI-Session-Template|AI Session Template]] — reference-only reusable copy-paste startup helper
+- [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]] — reference-only `trigger -> AI -> mode -> output -> next step` table plus first-wave automation pack
 - [[12-Archive/Archive-Index|Archive Index]] — superseded and historical docs
 
 ---

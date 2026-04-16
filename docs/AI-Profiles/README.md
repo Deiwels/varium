@@ -1,8 +1,9 @@
 ---
 type: reference
 status: active
+doc_class: canonical
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 owner: AI 3
 source_of_truth: true
 ---
@@ -14,22 +15,23 @@ source_of_truth: true
 
 Before starting a session:
 
-1. read [[AI-Rule-Updates]]
-2. read [[AI-Core-Manifesto]]
-3. read [[AI-Behavior-Protocol]]
-4. read [[AI-Session-Start-Protocol]]
-5. read your own profile
-6. if the session touches docs, read [[Vault Rules]]
-7. read [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]] before making routing, blocked-state, risk, or uncertainty decisions
-8. if the session creates or updates a structured note or artifact, also read [[11-Reference/Templates/README|Templates Library]]
-9. if the session touches note structure, note status, source-of-truth, archive handling, or vault organization, also read [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
-10. if the session touches workflow routing, queue state, trigger labels, or handoff behavior, also read [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]
-11. if the session touches system performance, weekly review, or role effectiveness, also read [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]]
-12. if the session proposes or reviews system changes, also read [[00-System/Self-Improvement-Layer|Self-Improvement Layer]]
-13. if the session touches real tools, inboxes, forms, Stripe, Telnyx, alerts, or safe integration boundaries, also read [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
-14. if the session touches automation mode, triggers, queue-only vs draft-only behavior, or safe auto-execution boundaries, also read [[00-System/AI-Automation-Policy|AI Automation Policy]]
-15. if the session needs practical `trigger -> AI -> mode -> output` routing, also read [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]]
-16. add a fresh entry to [[AI-Session-Acceptance-Log]]
+1. read [[Home]]
+2. read [[AI-Rule-Updates]]
+3. read [[AI-Core-Manifesto]]
+4. read [[AI-Behavior-Protocol]]
+5. read [[AI-Session-Start-Protocol]]
+6. read your own profile
+7. load task-triggered docs only if the task actually needs them
+8. add a fresh entry to [[AI-Session-Acceptance-Log]]
+
+Task-triggered docs:
+
+- [[Vault Rules]] for markdown creation/editing
+- [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]] for note semantics, lifecycle status, archive/superseded handling, or writeback structure
+- [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]] for routing, blocked-state, risk, or uncertainty decisions
+- [[11-Reference/Templates/README|Templates Library]] when a structured artifact has a matching template
+- [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/AI-Automation-Policy|AI Automation Policy]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]], and [[08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11|n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11]] only for workflow/automation work
+- [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]] and [[00-System/Self-Improvement-Layer|Self-Improvement Layer]] only for weekly review, drift cleanup, or approved system-improvement work
 
 If a profile is outdated, update the profile before treating it as trustworthy.
 
@@ -107,19 +109,19 @@ This is intentional. The goal is that any AI can open any profile and orient ins
 
 ---
 
-## Related Sources of Truth
+## Task-Triggered Sources
 
 - **Global rules** → [[AI-Core-Manifesto]]
 - **What changed recently** → [[AI-Rule-Updates]]
 - **Behavior / training layer** → [[AI-Behavior-Protocol]]
 - **Session startup prompt layer** → [[AI-Session-Start-Protocol]]
-- **Canonical escalation routing** → [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
-- **Canonical templates** → [[11-Reference/Templates/README|Templates Library]]
-- **System performance / weekly review layer** → [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]]
-- **System self-improvement / controlled evolution layer** → [[00-System/Self-Improvement-Layer|Self-Improvement Layer]]
+- **Escalation routing** → [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
+- **Approved template catalog** → [[11-Reference/Templates/README|Templates Library]]
+- **System performance / weekly review reference** → [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]]
+- **System self-improvement reference** → [[00-System/Self-Improvement-Layer|Self-Improvement Layer]]
 - **Knowledge-system semantics** → [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
-- **Workflow routing / queue / handoff logic** → [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]
-- **Per-agent automation levels and safe trigger design** → [[00-System/AI-Automation-Policy|AI Automation Policy]]
+- **Workflow routing / queue / handoff reference** → [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]
+- **Per-agent automation-level reference** → [[00-System/AI-Automation-Policy|AI Automation Policy]]
 - **Practical automation trigger routing** → [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]]
 - **Real tools / trigger / integration boundaries** → [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
 - **File ownership** → [[AI-Work-Split]]

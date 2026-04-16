@@ -1,10 +1,11 @@
 ---
 type: reference
 status: active
+doc_class: reference-only
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 owner: AI 3
-source_of_truth: true
+source_of_truth: false
 ---
 
 # System Index
@@ -21,15 +22,19 @@ Global team-governance rules, knowledge-system rules, workflow rules, and vault-
 - [[AI-Rule-Updates]]
 - [[AI-Behavior-Protocol]]
 - [[AI-Session-Start-Protocol]]
-- [[Vault Rules]]
 - [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
+- [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
+
+## Reference-Only System Docs
+
+- [[Vault Rules]]
 - [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]
 - [[00-System/AI-Automation-Policy|AI Automation Policy]]
 - [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
 - [[00-System/Self-Improvement-Layer|Self-Improvement Layer]]
-- [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
 - [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]]
 - [[08-Runbooks/System/Operational-Pipelines-MVP|Operational Pipelines MVP]]
+- [[08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11|n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11]]
 
 ## Owner Lane
 

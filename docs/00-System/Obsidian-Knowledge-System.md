@@ -1,8 +1,9 @@
 ---
 type: reference
 status: active
+doc_class: canonical
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 owner: AI 3
 source_of_truth: true
 ---
@@ -77,6 +78,21 @@ Every important note must clearly say whether it is:
 - supporting context
 - historical / archived
 - draft / work-in-progress
+
+## Document Authority Classes
+
+Use `doc_class` to mark operating-system and index/reference docs explicitly:
+
+- `canonical` -> may define current behavior, authority, or truth
+- `reference-only` -> supports execution, implementation, or lookup; does not override canonical docs
+- `superseded` -> kept only for pointer/backlink continuity after replacement
+- `archived` -> historical record; not active operating truth
+
+Operational rule:
+
+- `source_of_truth: true` should normally appear only on `canonical` docs
+- `reference-only`, `superseded`, and `archived` docs should not present themselves as the governing rule when a canonical doc exists
+- lane docs may still be active truth for their own domain without becoming universal startup reading
 
 ### Rule 3 — Decisions must outlive chats
 
@@ -638,7 +654,7 @@ If duplicates appear, AI 3 or librarian mode must:
 
 ## Required Templates
 
-Templates live in [[11-Reference/Note-Templates|Note Templates]] and the canonical per-template files in [[11-Reference/Templates/README|Templates Library]].
+Templates live in [[11-Reference/Note-Templates|Note Templates]] and the approved per-template files in [[11-Reference/Templates/README|Templates Library]].
 
 Important note types should not be created in random style if a template already exists.
 

@@ -1,10 +1,11 @@
 ---
 type: runbook
 status: active
+doc_class: reference-only
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 owner: AI 3
-source_of_truth: true
+source_of_truth: false
 ---
 
 # KPI & Metrics Layer
@@ -310,7 +311,7 @@ AI 3 should use this layer to:
 - open follow-up tasks when metrics show drift
 - propose workflow, template, or documentation improvements before chaos spreads
 
-This does not let AI 3 override lane truth or Owner priorities. It gives AI 3 a canonical improvement loop.
+This does not let AI 3 override lane truth or Owner priorities. It gives AI 3 a reference review loop that feeds approved changes through the canonical governance path.
 
 Use it together with [[00-System/Self-Improvement-Layer|Self-Improvement Layer]] when metrics turn into actual change proposals.
 

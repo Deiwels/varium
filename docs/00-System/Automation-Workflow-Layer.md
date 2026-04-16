@@ -1,10 +1,11 @@
 ---
 type: reference
 status: active
+doc_class: reference-only
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-16
 owner: AI 3
-source_of_truth: true
+source_of_truth: false
 ---
 
 # Automation Workflow Layer
@@ -13,42 +14,31 @@ source_of_truth: true
 
 ## Purpose
 
-Define how work is classified, routed, handed off, and written back across the `Owner + 11 AI` operating system.
+Define the reference work-movement model for how work is classified, routed, handed off, and written back across the `Owner + 11 AI` operating system.
 
-This layer operationalizes governance. It does not replace governance.
+This layer operationalizes governance. It does not replace governance and does not override [[AI-Core-Manifesto]].
 
-## Core Principle
+## Scope
 
-Automation may increase speed, but it must not reduce truth, control, or safety.
+Use this file for:
 
-Automation may:
+- work movement
+- queue stages
+- routing families
+- handoff structure
+- writeback expectations
 
-- detect triggers
-- classify work
-- assemble canonical context
-- prepare drafts
-- maintain queue visibility
-- create handoff scaffolding
+Use other docs for:
 
-Automation must not:
-
-- bypass ownership
-- bypass AI 5 / AI 7 when external truth or compliance translation is required
-- bypass AI 3 planning or review gates for non-trivial work
-- bypass Owner approval where approval is required
-- invent product, pricing, compliance, or technical truth
+- automation permissions and levels -> [[00-System/AI-Automation-Policy|AI Automation Policy]]
+- external tool boundaries -> [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
+- escalation routing -> [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
+- trigger table -> [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]]
+- `n8n` payload/schema implementation -> [[08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11|n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11]]
 
 ## Automation-Level Rule
 
-Not every AI should be automated the same way.
-
-Use [[00-System/AI-Automation-Policy|AI Automation Policy]] as the canonical source for:
-
-- which AI may run only manually
-- which AI should be queue-only
-- which AI may draft automatically
-- which AI may safely auto-execute low-risk work
-- which AI may auto-route only under emergency conditions
+Use [[00-System/AI-Automation-Policy|AI Automation Policy]] for which roles are manual-only, queue-only, draft-enabled, safe-auto, or emergency-routed.
 
 Use [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]] when you need the practical trigger table and first-wave automation pack.
 
@@ -138,9 +128,7 @@ Canonical notes for workflow operations:
 
 ## Weekly Review Loop
 
-AI 3 should use [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]] as the canonical weekly review and system-improvement loop.
-
-When weekly review turns into an actual operating-model change, route it through [[00-System/Self-Improvement-Layer|Self-Improvement Layer]] and log the approved result in [[10-Decisions/System-Changes/README|System Changes Log]].
+AI 3 should use [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]] for weekly review input and [[00-System/Self-Improvement-Layer|Self-Improvement Layer]] for approved system-change flow.
 
 ## Final Principle
 

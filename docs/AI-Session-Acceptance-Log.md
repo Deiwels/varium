@@ -5,7 +5,8 @@
 
 ## How to use this log
 
-- Before any planning, coding, verification, or commits, the AI must read [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], and the required startup docs.
+- Before any planning, coding, verification, or commits, the AI must read the universal startup set from [[Home]]: [[Home]], [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], and its own AI profile.
+- Load other docs only when the task actually needs them.
 - If [[AI-Rule-Updates]] changed since the AI's last session, old acceptance entries are stale and a fresh entry is required.
 - Then it must append a new line here for the current session.
 - **No entry = no permission to proceed.**
@@ -17,6 +18,8 @@
 ```
 
 ## Session Entries
+
+- 2026-04-16 09:00 — AI 2 / Codex — scope: docs/process — I have re-read [[Home]], [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], and [[AI-Profiles/AI-2-Codex]]. I accept the approved optimization pass: universal startup is now limited to the minimal set in [[Home]], all other docs are task-triggered only, reference docs no longer override canonical docs, and the system should favor execution over further framework expansion unless safety is at risk.
 
 - 2026-04-14 17:06 — AI 2 / Codex — scope: frontend — I have read and accept [[AI-Core-Manifesto]] and will follow it before doing any work.
 - 2026-04-14 17:35 — AI 1 / Claude — scope: backend + docs — I have read and accept [[AI-Core-Manifesto]] (including the 5 Rules, Hard Gate, Session Start Protocol, Commit Standards, Security Rules, Rollback Protocol, and Escalation Triggers) and [[Architecture/Decision-Log]] DECISION-001..005, and will follow them before any further work in this session. I also acknowledge I made two ownership-rule exceptions earlier today on explicit owner instruction (patched `components/Shell.tsx` pill bar regression, and absorbed Verdent's `backend/index.js` edits into commit `e97efd9`) — both are recorded in DevLog. Going forward I will re-route cross-scope work through plan-first coordination per Manifesto Rule 5.
