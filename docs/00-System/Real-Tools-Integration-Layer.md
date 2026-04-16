@@ -105,6 +105,19 @@ Durable insights are written back into canonical notes.
 - **Messaging / SMS Infrastructure** — Telnyx delivery, provisioning, and compliance-state awareness
 - **Media / Asset Generation** — image/video/creative tools used by AI 10 and AI 11
 
+## Preferred MVP Orchestrator
+
+Use `n8n` as the primary orchestration layer for the first operational build-out.
+
+Why:
+
+- built-in Gmail, webhook, and schedule primitives cover the first real workflows
+- conditional routing is strong enough for AI 9 / AI 4 / Owner escalation paths
+- credential storage and external-secrets support align with Owner-controlled sensitive systems
+- self-hosted deployment is easier to keep inside the team's audit and security posture
+
+Zapier is still acceptable for lighter follow-up tasks, but canonical runbooks should assume `n8n` first unless a workflow is intentionally simpler.
+
 ## Owner-Only Systems
 
 The following remain Owner-controlled:
@@ -141,6 +154,13 @@ The following remain Owner-controlled:
 - compliance-significant messaging sends
 - final campaign publishing
 - final product launch
+
+Additional hard rules:
+
+- no auto-send for billing, compliance, dispute, or account-sensitive communication
+- no portal mutation without an explicit Owner gate
+- every escalation must include a reason, not only a target
+- prefer built-in orchestrator nodes over unreviewed community nodes
 
 ## Canonical Real-Tool Workflows
 

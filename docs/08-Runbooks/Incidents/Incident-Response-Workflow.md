@@ -15,6 +15,11 @@ source_of_truth: true
 
 Define the emergency path from alert to stabilization, post-hotfix scan, and permanent cleanup.
 
+Implementation preference:
+
+- route alerts through a webhook-first `n8n` workflow or equivalent safe orchestrator
+- keep severity classification explicit before any automated action
+
 ## Flow Logic
 
 `Alert -> Classify Severity -> Route to AI 4 -> Stabilize -> AI 3 QA -> Permanent Cleanup -> Log`
@@ -52,6 +57,12 @@ Suggested rule:
 - `critical` -> production down, compliance risk, or financial risk
 - `high` -> major user-facing breakage or blocked operations
 - `low` -> degraded but not system-threatening
+
+Operational routing rule:
+
+- `critical` -> notify Owner immediately and route to AI 4
+- `high` -> route to AI 4 and create incident log
+- `low` -> create owned follow-up task for AI 1 or AI 2 when no emergency action is required
 
 ## AI 4 Response Contract
 

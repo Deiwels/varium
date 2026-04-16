@@ -22,6 +22,12 @@ This is the canonical node-by-node path for:
 - optional AI 8 lead-temperature insight
 - CRM/log writeback
 
+Implementation preference:
+
+- `n8n` is the primary orchestrator
+- Zapier is acceptable for lighter follow-up steps
+- keep the workflow version-tolerant and avoid unnecessary community nodes
+
 ## Flow Logic
 
 `Form Webhook -> Normalize Lead -> AI 9 Lead Reply -> Send Reply -> Store Lead -> Optional AI 8 Insight -> Log`
@@ -41,6 +47,7 @@ Expected fields:
 - `campaign`
 - `name`
 - `email`
+- `business_name`
 - `message`
 - `receivedAt`
 
@@ -59,6 +66,7 @@ Output JSON:
   "campaign": "{{campaign}}",
   "lead_name": "{{name}}",
   "lead_email": "{{email}}",
+  "business_name": "{{business_name}}",
   "message": "{{message}}",
   "received_at": "{{receivedAt}}"
 }
@@ -83,7 +91,13 @@ Required output fields:
 - `reply_draft`
 - `safe_to_send`
 - `escalate_to`
+- `next_cta`
 - `reason`
+
+Helpful optional fields:
+
+- `lead_temperature`
+- `objection_tag`
 
 Allowed `escalate_to` values:
 
@@ -100,6 +114,8 @@ Expected output:
   "reply_draft": "Hi Sarah,\n\nThanks for reaching out. I'd love to help you get set up. The fastest next step is to ...",
   "safe_to_send": true,
   "escalate_to": "none",
+  "next_cta": "Reply with your preferred setup time.",
+  "lead_temperature": "warm",
   "reason": "Routine new lead reply."
 }
 ```
@@ -151,6 +167,12 @@ Goal:
 - identify obvious messaging pattern when helpful
 
 This node is optional in MVP. Do not block the lead reply on it.
+
+Suggested follow-up behavior:
+
+- `hot` -> notify Owner
+- `warm` -> create scheduled follow-up
+- `cold` -> place in nurture queue
 
 ### Node 8 — Escalation Note
 

@@ -22,10 +22,17 @@ source_of_truth: true
 ### 2026-04-15 — Operational Pipelines MVP is now canonical
 
 - [[08-Runbooks/System/Operational-Pipelines-MVP|Operational Pipelines MVP]] is now the canonical starting set for real automation build-out.
+- `n8n` is now the primary orchestrator recommendation for the first practical rollout; Zapier remains acceptable only for lighter follow-up steps.
 - The first build order is:
   - Gmail support inbox
   - lead form follow-up
   - incident alert routing
+- Recommended rollout staging is now:
+  - Stage 1 -> Gmail trigger + AI 9 draft + manual approval send
+  - Stage 2 -> safe routine support auto-send only
+  - Stage 3 -> lead form intake + follow-up queue
+  - Stage 4 -> incident webhook + AI 4 emergency routing
+  - Stage 5 -> Stripe/Telnyx awareness only, no automatic financial or portal actions
 - Lead-form intake now has its own canonical implementation doc in [[08-Runbooks/Support/Lead-Form-Follow-Up-Workflow|Lead Form Follow-Up Workflow]].
 - Trigger taxonomy now explicitly includes `lead-form`, `monitoring-alert`, `stripe-event`, and `telnyx-event`.
 

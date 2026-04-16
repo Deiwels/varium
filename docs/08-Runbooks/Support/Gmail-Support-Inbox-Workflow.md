@@ -24,6 +24,11 @@ This is the canonical node-by-node schema for:
 - escalation-note creation
 - workflow logging
 
+Recommended rollout:
+
+- Stage 1 -> AI 9 draft plus manual approval send
+- Stage 2 -> auto-send only for clearly safe routine replies
+
 ## Flow Logic
 
 `Gmail Trigger -> Normalize Email -> Classify Email -> Route by Label`
@@ -196,6 +201,7 @@ Allow auto-send only when:
 
 - `safe_to_send == true`
 - `escalate_to == "none"`
+- no billing / compliance / sensitive-dispute flags are present
 
 If yes -> send reply
 If no -> create escalation note
@@ -366,6 +372,7 @@ Never auto-send when:
 - `label == compliance_risk`
 - `escalate_to != none`
 - `safe_to_send == false`
+- the case includes refund, pricing exception, dispute, or account-sensitive handling
 
 ## Minimal Shared Data Schema
 
@@ -418,3 +425,16 @@ Requirements:
 7. Log all outcomes
 8. Keep workflow easy to maintain
 9. No refunds, pricing exceptions, or sensitive promises via automation
+
+## Recommended Rollout Policy
+
+### Stage 1
+
+- Gmail trigger active
+- AI 9 drafts replies
+- send stays manual or Owner-approved
+
+### Stage 2
+
+- auto-send allowed only for routine support / onboarding / lead replies
+- all billing, compliance, dispute, and account-sensitive cases remain escalation-only

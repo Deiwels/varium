@@ -21,6 +21,35 @@ This is the practical starting set:
 2. Lead / Growth Pipeline
 3. Incident / Alert Pipeline
 
+## Preferred Orchestrator
+
+Use `n8n` as the primary MVP orchestrator.
+
+Why:
+
+- built-in Gmail, webhook, and schedule triggers fit the first three pipelines cleanly
+- `If` / switch routing is enough for the initial escalation logic
+- credential management and external secrets fit the Owner-controls-reality rule
+- self-hosted deployment keeps audit/security posture under team control
+
+Zapier remains acceptable for lighter follow-up steps, but the canonical MVP should be designed `n8n`-first.
+
+## AI Invocation Pattern
+
+For MVP, prefer one shared LLM endpoint with role-specific system prompts:
+
+- AI 9 -> support / lead prompt
+- AI 4 -> emergency prompt
+- AI 8 -> growth-insight prompt when needed
+
+If the team later wants cleaner separation, move to an internal API gateway such as:
+
+- `POST /ai/ai9-support`
+- `POST /ai/ai4-emergency`
+- `POST /ai/ai8-growth`
+
+Do not block MVP on MCP-style tool routing.
+
 ## Architecture
 
 ### 1. Email / Support Pipeline
@@ -84,19 +113,51 @@ Never automate:
 
 Use [[08-Runbooks/Owner/Portal-Only-Actions|Owner Portal-Only Actions]] when a pipeline touches protected operations.
 
+Additional guardrails:
+
+- no auto-send for billing, compliance, dispute, or account-sensitive cases
+- no portal mutation through `n8n` without an Owner gate
+- every escalation must include a reason
+- prefer built-in `n8n` nodes over unreviewed community nodes
+
+## Secrets Rule
+
+Keep workflow credentials inside the orchestrator's encrypted credential store or approved external secrets backend.
+
+Recommended MVP posture:
+
+- self-hosted `n8n`
+- external secrets or vault-backed sensitive values
+- Owner holds master access
+- workflow payloads pass only the minimum context needed by each AI
+
 ## Recommended MVP Build Order
 
-### Step 1
+### Stage 1
 
-Build Gmail support inbox.
+- Gmail trigger
+- AI 9 draft
+- manual approval send
 
-### Step 2
+### Stage 2
 
-Build lead form follow-up.
+- auto-send only for clearly safe support replies
+- FAQ-candidate logging
 
-### Step 3
+### Stage 3
 
-Build incident alert routing.
+- lead form intake
+- structured follow-up queue
+
+### Stage 4
+
+- incident webhook
+- AI 4 emergency routing
+
+### Stage 5
+
+- Stripe / Telnyx awareness only
+- no automatic financial or portal actions
 
 Do not widen scope until these three flows are stable.
 
