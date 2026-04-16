@@ -16,6 +16,7 @@ const { z } = require('zod');
 const { Firestore } = require('@google-cloud/firestore');
 const { google } = require('googleapis');
 const Anthropic = require('@anthropic-ai/sdk');
+const OpenAI = require('openai');
 // BE.9 — server-side DOMPurify via linkedom for custom HTML sanitization.
 // linkedom is ~500 KB vs ~20 MB for jsdom → faster Cloud Run cold start.
 // Lazy-initialized on first use so cold-start cost is deferred until a
@@ -3436,8 +3437,14 @@ app.post('/api/vurium-dev/gmail/reply', requireSuperadmin, async (req, res) => {
 
 // ── AI Diagnostics System ────────────────────────────────────────────────────
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.2';
+const AI_PROVIDER_MODE = safeStr(process.env.AI_PROVIDER_MODE || 'hybrid').toLowerCase();
 const AnthropicClient = Anthropic.default || Anthropic;
+const OpenAIClient = OpenAI.default || OpenAI;
 const anthropic = ANTHROPIC_API_KEY ? new AnthropicClient({ apiKey: ANTHROPIC_API_KEY }) : null;
+const openai = OPENAI_API_KEY ? new OpenAIClient({ apiKey: OPENAI_API_KEY }) : null;
 
 const DIAGNOSTIC_SYSTEM_PROMPT = `You are the AI product advisor and diagnostics engine for VuriumBook — a multi-tenant SaaS platform for barbershops and salons.
 
@@ -4214,7 +4221,96 @@ function unwrapWorkflowEnvelope(body) {
   return { meta, context, payload };
 }
 
-const AI_NOT_CONFIGURED_REASON = 'AI not configured (missing ANTHROPIC_API_KEY).';
+const AI_NOT_CONFIGURED_REASON = 'AI not configured (missing supported AI provider API key).';
+const OPENAI_PRIMARY_WORKFLOW_NAMES = new Set([
+  'growth_brief',
+  'creative_variants',
+  'video_brief',
+  'support_inbox_process',
+]);
+const ANTHROPIC_PRIMARY_WORKFLOW_NAMES = new Set([
+  'planning_intake',
+  'qa_scan',
+  'research_brief',
+]);
+
+function getStructuredWorkflowProviderChain(workflowName, providerPreference = '') {
+  const normalizedPreference = safeStr(providerPreference).trim().toLowerCase();
+  if (normalizedPreference === 'openai') return ['openai', 'anthropic'];
+  if (normalizedPreference === 'anthropic') return ['anthropic', 'openai'];
+
+  if (AI_PROVIDER_MODE === 'openai_only') return ['openai'];
+  if (AI_PROVIDER_MODE === 'anthropic_only') return ['anthropic'];
+
+  if (OPENAI_PRIMARY_WORKFLOW_NAMES.has(workflowName)) return ['openai', 'anthropic'];
+  if (ANTHROPIC_PRIMARY_WORKFLOW_NAMES.has(workflowName)) return ['anthropic', 'openai'];
+  return ['openai', 'anthropic'];
+}
+
+async function callAnthropicStructuredWorkflow({ systemPrompt, input, meta, context, maxTokens }) {
+  if (!anthropic) throw new Error('Anthropic API key not configured');
+  const response = await anthropic.messages.create({
+    model: ANTHROPIC_MODEL,
+    max_tokens: maxTokens,
+    system: systemPrompt,
+    messages: [{
+      role: 'user',
+      content: [
+        'Return JSON only.',
+        '',
+        'Meta:',
+        JSON.stringify(meta, null, 2),
+        '',
+        'Context:',
+        JSON.stringify(context, null, 2),
+        '',
+        'Input:',
+        JSON.stringify(input, null, 2),
+      ].join('\n'),
+    }],
+  });
+
+  return {
+    rawText: response.content?.[0]?.text || '',
+    ai_meta: {
+      provider: 'anthropic',
+      model: ANTHROPIC_MODEL,
+      input_tokens: response.usage?.input_tokens || 0,
+      output_tokens: response.usage?.output_tokens || 0,
+    },
+  };
+}
+
+async function callOpenAIStructuredWorkflow({ systemPrompt, input, meta, context, maxTokens }) {
+  if (!openai) throw new Error('OpenAI API key not configured');
+  const response = await openai.responses.create({
+    model: OPENAI_MODEL,
+    instructions: systemPrompt,
+    input: [
+      'Return JSON only.',
+      '',
+      'Meta:',
+      JSON.stringify(meta, null, 2),
+      '',
+      'Context:',
+      JSON.stringify(context, null, 2),
+      '',
+      'Input:',
+      JSON.stringify(input, null, 2),
+    ].join('\n'),
+    max_output_tokens: maxTokens,
+  });
+
+  return {
+    rawText: safeStr(response.output_text || ''),
+    ai_meta: {
+      provider: 'openai',
+      model: OPENAI_MODEL,
+      input_tokens: response.usage?.input_tokens || 0,
+      output_tokens: response.usage?.output_tokens || 0,
+    },
+  };
+}
 
 function uniqueList(entries) {
   return Array.from(new Set((entries || []).map((entry) => safeStr(entry)).filter(Boolean)));
@@ -5615,7 +5711,7 @@ async function generateResearchBrief(meta, context, input) {
     );
   }
 
-  if (!anthropic) {
+  if (!anthropic && !openai) {
     return buildResearchBriefStaged(input, AI_NOT_CONFIGURED_REASON, sourceSummary, fetched);
   }
 
@@ -5626,6 +5722,7 @@ async function generateResearchBrief(meta, context, input) {
   );
 
   const result = await runStructuredWorkflowAI({
+    workflowName: 'research_brief',
     systemPrompt: AI5_RESEARCH_BRIEF_SYSTEM_PROMPT,
     input: {
       ...input,
@@ -5678,6 +5775,7 @@ function shouldGenerateVideoAssets(growthOutput, input) {
 
 async function generateGrowthBrief(meta, context, input) {
   return runStructuredWorkflowAI({
+    workflowName: 'growth_brief',
     systemPrompt: AI8_GROWTH_BRIEF_SYSTEM_PROMPT,
     input,
     meta,
@@ -5690,6 +5788,7 @@ async function generateGrowthBrief(meta, context, input) {
 
 async function generateCreativeVariants(meta, context, input) {
   return runStructuredWorkflowAI({
+    workflowName: 'creative_variants',
     systemPrompt: AI11_CREATIVE_VARIANTS_SYSTEM_PROMPT,
     input,
     meta,
@@ -5702,6 +5801,7 @@ async function generateCreativeVariants(meta, context, input) {
 
 async function generateVideoBrief(meta, context, input) {
   return runStructuredWorkflowAI({
+    workflowName: 'video_brief',
     systemPrompt: AI10_VIDEO_BRIEF_SYSTEM_PROMPT,
     input,
     meta,
@@ -5807,6 +5907,7 @@ async function executeGrowthAssetFlow(meta, context, input) {
 
 async function executePlanningIntakeWorkflow(meta, context, input, { notifyOwner = true } = {}) {
   const result = await runStructuredWorkflowAI({
+    workflowName: 'planning_intake',
     systemPrompt: AI3_PLANNING_INTAKE_SYSTEM_PROMPT,
     input,
     meta,
@@ -5832,6 +5933,7 @@ async function executePlanningIntakeWorkflow(meta, context, input, { notifyOwner
 
 async function executeQAScanWorkflow(meta, context, input, { notifyOwner = true } = {}) {
   const result = await runStructuredWorkflowAI({
+    workflowName: 'qa_scan',
     systemPrompt: AI3_QA_SCAN_SYSTEM_PROMPT,
     input,
     meta,
@@ -6033,44 +6135,45 @@ async function executeOwnerIntake(meta, context, input) {
   });
 }
 
-async function runStructuredWorkflowAI({ systemPrompt, input, meta = {}, context = {}, fallback, outputSchema, maxTokens = 1600 }) {
-  if (!anthropic) return outputSchema.parse(fallback);
-  try {
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{
-        role: 'user',
-        content: [
-          'Return JSON only.',
-          '',
-          'Meta:',
-          JSON.stringify(meta, null, 2),
-          '',
-          'Context:',
-          JSON.stringify(context, null, 2),
-          '',
-          'Input:',
-          JSON.stringify(input, null, 2),
-        ].join('\n'),
-      }],
-    });
-    const rawText = response.content[0]?.text || '';
-    const parsed = extractJsonObject(rawText, fallback);
-    const validated = outputSchema.parse(parsed);
-    return {
-      ...validated,
-      ai_meta: {
-        model: 'claude-sonnet-4-20250514',
-        input_tokens: response.usage?.input_tokens || 0,
-        output_tokens: response.usage?.output_tokens || 0,
-      },
-    };
-  } catch (e) {
-    const providerReason = `AI provider error: ${safeStr(e?.message || 'Unknown provider error')}`;
-    return outputSchema.parse(withWorkflowFallbackReason(fallback, providerReason));
+async function runStructuredWorkflowAI({
+  workflowName = 'structured_workflow',
+  systemPrompt,
+  input,
+  meta = {},
+  context = {},
+  fallback,
+  outputSchema,
+  maxTokens = 1600,
+}) {
+  const providerChain = getStructuredWorkflowProviderChain(
+    workflowName,
+    meta.ai_provider || context.ai_provider || input.ai_provider || ''
+  );
+  const errors = [];
+
+  for (const provider of providerChain) {
+    try {
+      const providerResult = provider === 'anthropic'
+        ? await callAnthropicStructuredWorkflow({ systemPrompt, input, meta, context, maxTokens })
+        : await callOpenAIStructuredWorkflow({ systemPrompt, input, meta, context, maxTokens });
+      const parsed = extractJsonObject(providerResult.rawText, null);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error(`Failed to parse JSON object from ${provider} response`);
+      }
+      const validated = outputSchema.parse(parsed);
+      return {
+        ...validated,
+        ai_meta: providerResult.ai_meta,
+      };
+    } catch (e) {
+      errors.push(`${provider}: ${safeStr(e?.message || 'Unknown provider error')}`);
+    }
   }
+
+  const reason = errors.length
+    ? `AI provider error: ${errors.join(' | ')}`
+    : AI_NOT_CONFIGURED_REASON;
+  return outputSchema.parse(withWorkflowFallbackReason(fallback, reason));
 }
 
 async function collectDiagnosticMetrics() {
@@ -6382,10 +6485,11 @@ app.post('/api/vurium-dev/ai/support-inbox-process', requireSuperadmin, async (r
   try {
     const { meta, context, payload } = unwrapWorkflowEnvelope(req.body);
     const input = AI9SupportInboxInputSchema.parse(payload);
-    if (!anthropic) {
-      return res.json(buildSupportInboxFallback(input, 'AI not configured (missing ANTHROPIC_API_KEY).'));
+    if (!anthropic && !openai) {
+      return res.json(buildSupportInboxFallback(input, AI_NOT_CONFIGURED_REASON));
     }
     const result = await runStructuredWorkflowAI({
+      workflowName: 'support_inbox_process',
       systemPrompt: AI9_SUPPORT_INBOX_SYSTEM_PROMPT,
       input,
       meta,
@@ -10385,19 +10489,49 @@ EXAMPLE for "luxury gold dark":
 
 app.post('/api/ai/generate-style', requireRole('owner', 'admin'), async (req, res) => {
   try {
-    if (!anthropic) return res.status(503).json({ error: 'AI not configured' });
+    if (!openai && !anthropic) return res.status(503).json({ error: 'AI not configured' });
     const { prompt } = req.body || {};
     if (!prompt || typeof prompt !== 'string' || prompt.length < 3) return res.status(400).json({ error: 'Please describe your desired style' });
     if (prompt.length > 500) return res.status(400).json({ error: 'Description too long (max 500 chars)' });
 
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      system: AI_STYLE_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: `Generate CSS for this style: ${prompt}` }],
-    });
+    let css = '';
+    const providerErrors = [];
 
-    let css = response.content[0]?.text || '';
+    if (openai) {
+      try {
+        const response = await openai.responses.create({
+          model: OPENAI_MODEL,
+          instructions: AI_STYLE_SYSTEM_PROMPT,
+          input: `Generate CSS for this style: ${prompt}`,
+          max_output_tokens: 1024,
+        });
+        css = safeStr(response.output_text || '');
+      } catch (e) {
+        providerErrors.push(`openai: ${safeStr(e?.message || 'Unknown provider error')}`);
+      }
+    }
+
+    if (!css && anthropic) {
+      try {
+        const response = await anthropic.messages.create({
+          model: ANTHROPIC_MODEL,
+          max_tokens: 1024,
+          system: AI_STYLE_SYSTEM_PROMPT,
+          messages: [{ role: 'user', content: `Generate CSS for this style: ${prompt}` }],
+        });
+        css = response.content[0]?.text || '';
+      } catch (e) {
+        providerErrors.push(`anthropic: ${safeStr(e?.message || 'Unknown provider error')}`);
+      }
+    }
+
+    if (!css) {
+      return res.status(502).json({
+        error: 'AI style generation failed',
+        details: providerErrors,
+      });
+    }
+
     // Strip markdown code fences if present
     css = css.replace(/```css\n?/gi, '').replace(/```\n?/gi, '').trim();
     // BE.9: sanitize AI-generated CSS through the shared helper

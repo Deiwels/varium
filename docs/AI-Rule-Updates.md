@@ -439,3 +439,12 @@ If it is only in chat, it does not count.
   - `handoff` -> handoff note only
   - `truth_update_draft` -> draft note only
 - This keeps the system one-entry for the Owner without weakening queue, writeback, escalation, or truth rules.
+
+### 2026-04-16 — Hybrid AI provider routing is now the default direction
+
+- Structured AI lanes now support multi-provider routing in the backend.
+- Default split:
+  - OpenAI primary -> growth, creative, video, support/design-heavy lanes
+  - Claude primary -> planning, QA, research, code/governance-heavy lanes
+- Fallback order remains provider-aware, so one provider can backstop the other before local fallback mode is used.
+- `n8n` does not need provider-specific rewiring for this split because workflows still call the same backend routes.
