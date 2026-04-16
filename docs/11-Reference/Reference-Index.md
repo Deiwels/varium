@@ -9,7 +9,7 @@ source_of_truth: false
 
 # Reference Index
 
-> Part of [[Home]] > Reference | See also: [[11-Reference/Note-Templates|Note Templates]], [[11-Reference/Templates/README|Templates Library]], [[11-Reference/AI-Session-Template|AI Session Template]], [[CHANGELOG]], [[Vault Rules]]
+> Part of [[Home]] > Reference | See also: [[11-Reference/Note-Templates|Note Templates]], [[11-Reference/Templates/README|Templates Library]], [[11-Reference/AI-Session-Template|AI Session Template]], [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]], [[CHANGELOG]], [[Vault Rules]]
 
 ## What Belongs Here
 
@@ -20,6 +20,7 @@ Stable support material that many other notes depend on: templates, naming rules
 - [[11-Reference/Note-Templates|Note Templates]]
 - [[11-Reference/Templates/README|Templates Library]]
 - [[11-Reference/AI-Session-Template|AI Session Template]]
+- [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]]
 - [[CHANGELOG]]
 - [[Vault Rules]]
 

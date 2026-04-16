@@ -19,6 +19,19 @@ source_of_truth: true
 
 ## Current active updates
 
+### 2026-04-15 — Automation Routing Reference is now canonical
+
+- [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]] is now the canonical practical routing table for automation triggers.
+- Use it when you need `trigger -> AI -> automation mode -> input -> output -> next step`.
+- It also now defines the first-wave automation pack for:
+  - AI 3 planning intake / QA / weekly review
+  - AI 8 growth briefs
+  - AI 11 creative variants
+  - AI 10 video briefs/scripts
+  - AI 5 research briefs
+- Use [[00-System/AI-Automation-Policy|AI Automation Policy]] for rules and levels.
+- Use [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]] for practical implementation routing.
+
 ### 2026-04-15 — AI Automation Policy is now canonical
 
 - [[00-System/AI-Automation-Policy|AI Automation Policy]] is now the canonical per-agent automation-level document.

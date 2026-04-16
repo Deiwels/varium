@@ -9,7 +9,7 @@ source_of_truth: true
 
 # AI Automation Policy
 
-> Part of [[Home]] > System | See also: [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[AI-Profiles/README|AI Profiles]], [[AI-Core-Manifesto]]
+> Part of [[Home]] > System | See also: [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[AI-Profiles/README|AI Profiles]], [[AI-Core-Manifesto]]
 
 ## Purpose
 
@@ -44,6 +44,8 @@ It is the one where:
 - with the correct context
 - under the correct level of control
 - and with the correct escalation path
+
+For the practical `trigger -> AI -> mode -> output -> next step` table, use [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]].
 
 ## Automation Levels
 

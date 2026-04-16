@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Automation Workflow Layer
 
-> Part of [[Home]] > System | See also: [[00-System/System-Index|System Index]], [[00-System/AI-Automation-Policy|AI Automation Policy]], [[AI-Core-Manifesto]], [[AI-Work-Split]], [[00-System/Self-Improvement-Layer|Self-Improvement Layer]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]], [[04-Tasks/Workflow-Queue|Workflow Queue]], [[04-Tasks/Workflow-Trigger-Labels|Workflow Trigger Labels]], [[04-Tasks/Handoffs/README|Handoffs]]
+> Part of [[Home]] > System | See also: [[00-System/System-Index|System Index]], [[00-System/AI-Automation-Policy|AI Automation Policy]], [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]], [[AI-Core-Manifesto]], [[AI-Work-Split]], [[00-System/Self-Improvement-Layer|Self-Improvement Layer]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]], [[04-Tasks/Workflow-Queue|Workflow Queue]], [[04-Tasks/Workflow-Trigger-Labels|Workflow Trigger Labels]], [[04-Tasks/Handoffs/README|Handoffs]]
 
 ## Purpose
 
@@ -49,6 +49,8 @@ Use [[00-System/AI-Automation-Policy|AI Automation Policy]] as the canonical sou
 - which AI may draft automatically
 - which AI may safely auto-execute low-risk work
 - which AI may auto-route only under emergency conditions
+
+Use [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]] when you need the practical trigger table and first-wave automation pack.
 
 ## Standard Automation Pattern
 

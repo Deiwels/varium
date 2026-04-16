@@ -51,6 +51,7 @@
 - [[11-Reference/Note-Templates|Note Templates]] — standard templates for AI profiles, briefs, plans, QA scans, runbooks, decisions, and incident notes
 - [[11-Reference/Templates/README|Templates Library]] — canonical per-template files for queue items, handoffs, briefs, runbooks, incidents, and decisions
 - [[11-Reference/AI-Session-Template|AI Session Template]] — reusable copy-paste startup prompt for every AI session
+- [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]] — practical `trigger -> AI -> mode -> output -> next step` table plus first-wave automation pack
 - [[12-Archive/Archive-Index|Archive Index]] — superseded and historical docs
 
 ---
