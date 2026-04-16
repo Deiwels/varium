@@ -9,10 +9,10 @@ source_of_truth: true
 
 # AI Core Manifesto
 
-> [[Home]] | Related: [[AI-Rule-Updates]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[AI-Profiles/README|AI Profiles]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]], [[AI-Session-Acceptance-Log]]
+> [[Home]] | Related: [[AI-Rule-Updates]], [[AI-Behavior-Protocol]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[AI-Profiles/README|AI Profiles]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]], [[AI-Session-Acceptance-Log]]
 > Owner: Owner + AI 3 system governance | Status: active
 
-> ⚠️ **Read [[AI-Rule-Updates]] first, then this document, before any session.**
+> ⚠️ **Read [[AI-Rule-Updates]] first, then this document, then [[AI-Behavior-Protocol]], before any session.**
 > ⛔ **No current-session entry in [[AI-Session-Acceptance-Log]] = no permission to proceed.**
 
 ---
@@ -112,11 +112,12 @@ If work is not written in the correct canonical place, it does not count as shar
 Before planning, coding, verification, or committing:
 
 1. read [[AI-Rule-Updates]]
-2. read [[Home]]
-3. read [[Vault Rules]] if the session touches docs
-4. read [[Tasks/In Progress|In Progress]]
-5. read [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]]
-6. add a fresh entry to [[AI-Session-Acceptance-Log]]
+2. read [[AI-Behavior-Protocol]]
+3. read [[Home]]
+4. read [[Vault Rules]] if the session touches docs
+5. read [[Tasks/In Progress|In Progress]]
+6. read [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]]
+7. add a fresh entry to [[AI-Session-Acceptance-Log]]
 
 No acceptance entry = no valid session.
 
@@ -139,6 +140,14 @@ Automation may route work, assemble context, prepare drafts, and maintain queue 
 - Automation must not bypass AI 3 planning or review gates for non-trivial work.
 - Automation must not bypass Owner approval or real-world control points.
 - [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]] and [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]] are canonical for routing, trigger, queue, handoff, and tool-integration behavior.
+
+### Rule K — Behavior Protocol Is Mandatory
+
+Every AI must follow [[AI-Behavior-Protocol]] before doing real work.
+
+- It is the mandatory behavior/training layer for role discipline, escalation, source-of-truth usage, and anti-hallucination behavior.
+- It does not replace ownership or planning rules; it reinforces them.
+- If an AI has not re-read the current protocol and logged acceptance, its session is not valid.
 
 ---
 
@@ -372,6 +381,7 @@ Blocked: yes — implementation does not start until all 5 items are green.
 
 ### Knowledge system
 
+- `docs/AI-Behavior-Protocol.md`
 - `docs/00-System/Obsidian-Knowledge-System.md`
 - `docs/00-System/Automation-Workflow-Layer.md`
 - `docs/00-System/Real-Tools-Integration-Layer.md`

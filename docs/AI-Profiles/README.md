@@ -9,19 +9,20 @@ source_of_truth: true
 
 # AI Profiles
 
-> [[Home]] | Related: [[AI-Core-Manifesto]], [[AI-Rule-Updates]], [[AI-Work-Split]], [[AI-Session-Acceptance-Log]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]]
+> [[Home]] | Related: [[AI-Core-Manifesto]], [[AI-Rule-Updates]], [[AI-Behavior-Protocol]], [[AI-Work-Split]], [[AI-Session-Acceptance-Log]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]]
 > Purpose: one canonical profile per role in the `Owner + 11 AI` system.
 
 Before starting a session:
 
 1. read [[AI-Rule-Updates]]
 2. read [[AI-Core-Manifesto]]
-3. read your own profile
-4. if the session touches docs, read [[Vault Rules]]
-5. if the session touches note structure, note status, source-of-truth, archive handling, or vault organization, also read [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
-6. if the session touches workflow routing, queue state, trigger labels, or handoff behavior, also read [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]
-7. if the session touches real tools, inboxes, forms, Stripe, Telnyx, alerts, or safe integration boundaries, also read [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
-8. add a fresh entry to [[AI-Session-Acceptance-Log]]
+3. read [[AI-Behavior-Protocol]]
+4. read your own profile
+5. if the session touches docs, read [[Vault Rules]]
+6. if the session touches note structure, note status, source-of-truth, archive handling, or vault organization, also read [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
+7. if the session touches workflow routing, queue state, trigger labels, or handoff behavior, also read [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]
+8. if the session touches real tools, inboxes, forms, Stripe, Telnyx, alerts, or safe integration boundaries, also read [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
+9. add a fresh entry to [[AI-Session-Acceptance-Log]]
 
 If a profile is outdated, update the profile before treating it as trustworthy.
 
@@ -103,6 +104,7 @@ This is intentional. The goal is that any AI can open any profile and orient ins
 
 - **Global rules** → [[AI-Core-Manifesto]]
 - **What changed recently** → [[AI-Rule-Updates]]
+- **Behavior / training layer** → [[AI-Behavior-Protocol]]
 - **Knowledge-system semantics** → [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
 - **Workflow routing / queue / handoff logic** → [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]
 - **Real tools / trigger / integration boundaries** → [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
