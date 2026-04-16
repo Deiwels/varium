@@ -1,0 +1,10 @@
+{
+  "messageId": "gmail-message-id",
+  "threadId": "gmail-thread-id",
+  "from": "user@example.com",
+  "subject": "Need help with getting started",
+  "bodyText": "Hi, I just signed up and need help getting started with the booking page setup.",
+  "bodyHtml": "<p>Hi, I just signed up and need help getting started with the booking page setup.</p>",
+  "receivedAt": "2026-04-16T14:00:00Z",
+  "account": "support@vurium.com"
+}

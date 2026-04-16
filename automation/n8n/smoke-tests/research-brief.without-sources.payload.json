@@ -1,0 +1,16 @@
+{
+  "researchId": "R-204",
+  "taskId": "TASK-124",
+  "topic": "Reminder SMS consent wording",
+  "questions": [
+    "What kind of consent wording is required for reminder messages?"
+  ],
+  "target_sources": [
+    "official vendor docs",
+    "official policy docs"
+  ],
+  "related_links": [
+    "[[Booking Flow MVP Product Brief]]"
+  ],
+  "sourceUrls": []
+}

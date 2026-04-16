@@ -1,0 +1,20 @@
+{
+  "researchId": "R-203",
+  "taskId": "TASK-123",
+  "topic": "SMS consent wording requirements for booking reminders",
+  "questions": [
+    "What kind of consent language is required?",
+    "What opt-out wording is required?"
+  ],
+  "target_sources": [
+    "official vendor docs",
+    "official policy docs"
+  ],
+  "related_links": [
+    "[[Booking Flow MVP Product Brief]]"
+  ],
+  "sourceUrls": [
+    "https://developers.telnyx.com/docs/messaging/compliance/10dlc/overview",
+    "https://support.telnyx.com/en/articles/1130687-messaging-features-and-support-in-canada"
+  ]
+}

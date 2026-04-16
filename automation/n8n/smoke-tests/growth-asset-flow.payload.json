@@ -1,0 +1,17 @@
+{
+  "requestId": "GROWTH-022",
+  "campaignName": "Spring Signup Push",
+  "goal": "Increase barbershop trial signups",
+  "audience": "US barbershop owners with small teams",
+  "channel": "landing page + social ads",
+  "currentOfferLink": "[[Current Offer]]",
+  "product_truth_links": [
+    "[[Booking Flow MVP Product Brief]]"
+  ],
+  "approvedClaimsLink": "[[Approved Claims and Angles]]",
+  "known_objections": [
+    "setup takes too long"
+  ],
+  "needStaticCreatives": true,
+  "needVideoBrief": true
+}

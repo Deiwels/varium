@@ -1,0 +1,19 @@
+{
+  "current_stage": "Waiting for QA",
+  "task_id": "TASK-123",
+  "plan_link": "[[TASK-123-Plan]]",
+  "acceptance_criteria": [
+    "Consent copy is explicit",
+    "Backend stores consent state"
+  ],
+  "implementation_summary": [
+    "frontend consent checkbox added",
+    "backend consent flag stored",
+    "copy updated"
+  ],
+  "changed_areas": [
+    "app/signup/",
+    "backend/index.js"
+  ],
+  "hotfix": false
+}

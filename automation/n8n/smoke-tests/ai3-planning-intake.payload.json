@@ -1,0 +1,16 @@
+{
+  "current_stage": "Ready for Planning",
+  "task_id": "TASK-123",
+  "title": "Improve booking flow SMS consent",
+  "description": "Need safer onboarding consent flow for SMS reminders",
+  "requested_by": "Owner",
+  "complexity": "non-trivial",
+  "external_dependency": true,
+  "product_context_links": [
+    "[[Booking Flow MVP Product Brief]]"
+  ],
+  "known_constraints": [
+    "Must preserve current signup speed"
+  ],
+  "priority": "high"
+}

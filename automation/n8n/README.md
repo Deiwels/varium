@@ -10,6 +10,11 @@ Current phase-1 workflows:
 - `Growth_Asset_Flow.workflow.json`
 - `Research_Brief.workflow.json`
 
+Local setup helpers:
+
+- `.env.example`
+- `smoke-tests/*.payload.json`
+
 ## Required Environment
 
 Set these in `n8n` before running the workflows:
@@ -18,6 +23,36 @@ Set these in `n8n` before running the workflows:
   - example: `https://vuriumbook-api-431945333485.us-central1.run.app`
 - `VURIUM_ADMIN_TOKEN`
   - superadmin bearer token for `/api/vurium-dev/**` routes
+
+Optional local execution helpers:
+
+- `VURIUM_OBSIDIAN_ROOT`
+  - absolute docs path if your self-hosted `n8n` writes directly into the Obsidian repo
+- `VURIUM_OWNER_EMAIL`
+  - destination for high-risk or blocked workflow notifications
+- `VURIUM_SUPPORT_MAILBOX`
+  - useful if you add email notification nodes in the final mile
+
+Use [`.env.example`](/Users/nazarii/Downloads/varium/automation/n8n/.env.example) as the starter file.
+
+## Import in n8n
+
+Use this exact order:
+
+1. Open `n8n`.
+2. Import the workflow JSON file from `automation/n8n/`.
+3. Set `VURIUM_API_BASE_URL` and `VURIUM_ADMIN_TOKEN` in the `n8n` environment.
+4. Open the imported workflow and confirm the webhook path matches the filename intent.
+5. Run one smoke test payload against the webhook before connecting any real trigger.
+6. Only after a passing smoke test, wire the upstream real trigger.
+
+Recommended import order:
+
+1. `AI3_Planning_Intake.workflow.json`
+2. `AI3_QA_Scan.workflow.json`
+3. `Gmail_Support_Inbox.workflow.json`
+4. `Growth_Asset_Flow.workflow.json`
+5. `Research_Brief.workflow.json`
 
 ## Current Backend Endpoints
 
@@ -43,11 +78,12 @@ All AI execution endpoints accept either:
 
 ## Trigger Mode
 
-Both workflows now use real `POST` webhook triggers inside `n8n`:
+These workflows use real `POST` webhook triggers inside `n8n`:
 
 - `AI3_Planning_Intake` -> `.../webhook/ai3-planning-intake`
 - `AI3_QA_Scan` -> `.../webhook/ai3-qa-scan`
 - `Gmail_Support_Inbox` -> `.../webhook/gmail-support-inbox`
+- `Growth_Asset_Flow` -> `.../webhook/growth-asset-flow`
 - `Research_Brief` -> `.../webhook/research-brief`
 
 The AI 3 workflows are designed to be called by a queue/status bridge when a task changes stage.
@@ -193,6 +229,26 @@ It returns:
 - optionally call a follow-up execution endpoint when the lane uses a split `process -> execute` contract
 - emit one structured result item that can then be wired into queue writeback, handoff creation, or notifications
 
+## Smoke Tests
+
+Use these fixtures for the first pass:
+
+- [ai3-planning-intake.payload.json](/Users/nazarii/Downloads/varium/automation/n8n/smoke-tests/ai3-planning-intake.payload.json)
+- [ai3-qa-scan.payload.json](/Users/nazarii/Downloads/varium/automation/n8n/smoke-tests/ai3-qa-scan.payload.json)
+- [gmail-support-inbox.payload.json](/Users/nazarii/Downloads/varium/automation/n8n/smoke-tests/gmail-support-inbox.payload.json)
+- [growth-asset-flow.payload.json](/Users/nazarii/Downloads/varium/automation/n8n/smoke-tests/growth-asset-flow.payload.json)
+- [research-brief.with-sources.payload.json](/Users/nazarii/Downloads/varium/automation/n8n/smoke-tests/research-brief.with-sources.payload.json)
+- [research-brief.without-sources.payload.json](/Users/nazarii/Downloads/varium/automation/n8n/smoke-tests/research-brief.without-sources.payload.json)
+
+Expected first-pass outcomes:
+
+- `AI3_Planning_Intake` -> structured planning output, usually with `AI-5` or `AI-7` escalation when dependencies exist
+- `AI3_QA_Scan` -> `pass`, `fail`, or `needs_review`
+- `Gmail_Support_Inbox` -> `sent_reply`, `escalated`, or `manual_review_required`
+- `Growth_Asset_Flow` -> combined brief and asset draft package
+- `Research_Brief` with sources -> source-backed findings or partial result
+- `Research_Brief` without sources -> `queued`
+
 ## Minimum Incoming Payloads
 
 ### Planning intake
@@ -248,3 +304,58 @@ After import:
    - next-owner notification
 
 These artifacts intentionally stop before file/database mutation so they stay version-tolerant and easy to adapt.
+
+## Last-Mile Wiring
+
+Add these nodes after the final validation node in each workflow:
+
+1. `If`
+   - branch on `escalate_to !== "none"` or blocked/manual-review states
+2. `Code`
+   - build the exact queue or note payload for your storage target
+3. one storage node
+   - file write, Notion, Airtable, Sheets, DB, or webhook to your writeback worker
+4. one notification node
+   - email, Slack, Telegram, or internal webhook
+
+Use these routing rules:
+
+- `AI3_Planning_Intake`
+  - if `escalate_to = AI-5` -> create research handoff + notify next owner
+  - if `escalate_to = AI-7` -> create compliance handoff
+  - if `escalate_to = none` -> create plan shell + queue update
+- `AI3_QA_Scan`
+  - if `result = pass` and `escalate_to = none` -> mark queue ready for next review gate
+  - otherwise -> create follow-up task + notify next owner
+- `Gmail_Support_Inbox`
+  - `sent_reply` -> log outcome only
+  - `escalated` -> create escalation note + notify target owner
+  - `manual_review_required` -> notify Owner/support lane
+- `Growth_Asset_Flow`
+  - write one campaign log note
+  - create asset handoffs for AI 11 and AI 10 outputs if present
+  - notify Owner only when `escalate_to != none`
+- `Research_Brief`
+  - `done` or `partial` -> write research brief note + notify AI 7 or AI 3
+  - `queued` -> notify requester that official `sourceUrls` are required
+  - `blocked` -> notify Owner or AI 3, depending on your research intake owner
+
+## Automatic Runtime Model
+
+This is the correct end-to-end loop:
+
+1. a real trigger fires
+2. `n8n` normalizes the event
+3. the workflow calls the matching live backend AI route
+4. the workflow validates the AI output
+5. the workflow writes back queue / handoff / log data
+6. the workflow notifies the next owner only if action is needed
+7. risky actions stay behind approval gates
+
+When this is wired correctly:
+
+- routine support can auto-send safely
+- planning and QA can auto-route without chaos
+- growth can auto-produce draft assets
+- research can auto-intake without hallucinating facts
+- Owner sees only true exceptions
