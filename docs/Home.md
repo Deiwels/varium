@@ -18,11 +18,11 @@
 |---|---|
 | **Stage** | Pre-launch — finishing production readiness |
 | **Goal** | Sell-ready: new business can sign up, onboard, book, and pay without manual rescue |
-| **Current focus** | P0 tasks in [[Tasks/Launch Readiness Plan\|Launch Readiness Plan]] |
-| **Active work** | [[Tasks/In Progress\|In Progress]] |
-| **Who's working** | 11 AI + Owner — see [[Tasks/3-AI-Remaining-Work-Split\|11-AI Work Split]] + [[AI-Session-Acceptance-Log]] |
-| **AI profiles** | [[AI-Profiles/README\|AI Profiles]] |
-| **Rule updates** | [[AI-Rule-Updates\|AI Rule Updates]] |
+| **Current focus** | P0 tasks in [[Tasks/Launch Readiness Plan|Launch Readiness Plan]] |
+| **Active work** | [[Tasks/In Progress|In Progress]] |
+| **Who's working** | 11 AI + Owner — see [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]] + [[AI-Session-Acceptance-Log]] |
+| **AI profiles** | [[AI-Profiles/README|AI Profiles]] |
+| **Rule updates** | [[AI-Rule-Updates|AI Rule Updates]] |
 
 ---
 
@@ -127,25 +127,25 @@
 
 ## Tasks & Plans
 
-- [[Tasks/In Progress\|In Progress]] — Current sprint (P0 items + active tasks)
+- [[Tasks/In Progress|In Progress]] — Current sprint (P0 items + active tasks)
 - [[Tasks/3-AI-Remaining-Work-Split|11-AI Remaining Work Split]] — **current operating split** — active work plus role lanes across backend, frontend, planning, research, product, compliance, growth, business execution, and Owner operations
 - [[04-Tasks/Workflow-Queue|Workflow Queue]] — canonical queue model for automated routing and stage visibility
 - [[04-Tasks/Workflow-Trigger-Labels|Workflow Trigger Labels]] — canonical trigger taxonomy for workflow classification
 - [[04-Tasks/Handoffs/README|Handoffs]] — canonical handoff standard for cross-lane work movement
 - [[Tasks/AI4-Emergency-Readiness-Review-2026-04-15|AI 4 Emergency Readiness Review]] — current AI 4 sign-off and emergency-readiness asks
-- [[Tasks/Backlog\|Backlog]] — Feature ideas & bugs
-- [[Tasks/Launch Readiness Plan\|Launch Readiness Plan]] — Unified P0/P1/P2 plan (both AIs agreed)
+- [[Tasks/Backlog|Backlog]] — Feature ideas & bugs
+- [[Tasks/Launch Readiness Plan|Launch Readiness Plan]] — Unified P0/P1/P2 plan (both AIs agreed)
 - [[Tasks/Telnyx-Integration-Plan|Telnyx Integration Plan]] — Hardening + P0 fixes (Verify profile, webhook sig, auto-provision on plan activation)
 - [[Tasks/Element-10DLC-Resubmission-Checklist|Element 10DLC Resubmission Checklist]] — Evidence + monitoring log for campaign CICHCOJ (now Pending MNO Review)
 - [[Tasks/Live-SMS-Verification-Checklist|Live SMS Verification Checklist]] — One-shot deep runbook for Gap 2–5 after deploy (AI 1, BE.3)
 - [[Tasks/Launch-Verification-Runbook|Launch Verification Runbook]] — Generic post-deploy flow verification (Verdent, VR.4)
 - [[Tasks/Deploy-Smoke-Test|Deploy Smoke Test]] — 5-minute post-push sanity check (Verdent, VR.5)
 - [[Tasks/Platform-Sender-Pivot-Decision|Platform Sender Pivot Decision]] — Decision note: чому НЕ переходимо на shared Vurium TFN зараз, draft листа Jonathan
-- [[Tasks/SMS Delivery Options Research\|SMS Delivery Options Research]] — Broader SMS provider, country, sender-ID, and architecture research
-- [[Tasks/SMS Finalization Plan\|SMS Finalization Plan]] — SMS launch steps
-- [[Tasks/SMS-Strategy-Review\|SMS Strategy Review]] — Dual-path launch memo
-- [[Tasks/Edge Case Bugs\|Edge Case Bugs]] — Deep scan edge cases
-- [[Tasks/Pre-Deploy Safety Audit\|Pre-Deploy Safety Audit]] — Pre-deploy checks
+- [[Tasks/SMS Delivery Options Research|SMS Delivery Options Research]] — Broader SMS provider, country, sender-ID, and architecture research
+- [[Tasks/SMS Finalization Plan|SMS Finalization Plan]] — SMS launch steps
+- [[Tasks/SMS-Strategy-Review|SMS Strategy Review]] — Dual-path launch memo
+- [[Tasks/Edge Case Bugs|Edge Case Bugs]] — Deep scan edge cases
+- [[Tasks/Pre-Deploy Safety Audit|Pre-Deploy Safety Audit]] — Pre-deploy checks
 - [[Production-Plan-AI1]] — AI 1 detailed scan (backend & finance)
 - [[Production-Plan-AI2]] — AI 2 detailed scan (frontend & UX)
 - [[AI-Work-Split]] — File ownership rules to prevent merge conflicts

@@ -523,7 +523,6 @@ created: 2026-04-15
 
 ## Firestore
 - Collection: `workspaces/{wsId}/...`
-```
 
 ### Шаблон 2: Architecture doc
 

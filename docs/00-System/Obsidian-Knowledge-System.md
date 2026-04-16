@@ -613,7 +613,7 @@ Every note must clearly show lifecycle state:
 If a note becomes superseded, add:
 
 > Status: Superseded
-> Replaced by: [[New Canonical Note]]
+> Replaced by: `[[New Canonical Note]]`
 
 If archived:
 
