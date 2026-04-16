@@ -3784,6 +3784,34 @@ const AI5ResearchBriefOutputSchema = z.object({
   next_step: z.string().default(''),
 });
 
+const OWNER_NOTIFICATION_SEVERITY_VALUES = ['low', 'medium', 'high', 'critical'];
+const OwnerNotificationSeveritySchema = z.enum(OWNER_NOTIFICATION_SEVERITY_VALUES);
+
+const OwnerNotificationInputSchema = z.object({
+  workflow_source: z.string().min(1),
+  severity: OwnerNotificationSeveritySchema.default('medium'),
+  subject: z.string().min(1),
+  summary: z.string().min(1),
+  details: z.array(z.string()).default([]),
+  next_step: z.string().default(''),
+  links: z.array(z.string()).default([]),
+  recipient: z.string().default(''),
+});
+
+const OwnerNotificationOutputSchema = z.object({
+  agent: z.literal('SYSTEM'),
+  workflow: z.literal('owner_notification'),
+  status: WorkflowStatusSchema,
+  channel: z.literal('email'),
+  workflow_source: z.string().min(1),
+  severity: OwnerNotificationSeveritySchema,
+  recipient: z.string().default(''),
+  subject: z.string().default(''),
+  reason: z.string().default(''),
+  notification_id: z.string().default(''),
+  next_step: z.string().default(''),
+});
+
 const AI3_PLANNING_INTAKE_SYSTEM_PROMPT = `You are AI 3 inside the VuriumBook AI Operating System.
 
 Your role:
@@ -4401,6 +4429,105 @@ function inferResearchSourceType(url) {
 
 function buildResearchWritebackTargets() {
   return ['07-Research/', '07-Research/AI5-Research-Brief-*.md', '04-Tasks/Handoffs/'];
+}
+
+function buildOwnerNotificationHtml(input) {
+  const severity = safeStr(input.severity || 'medium').toUpperCase();
+  const detailsHtml = (Array.isArray(input.details) ? input.details : [])
+    .filter(Boolean)
+    .map((entry) => `<li style="margin:0 0 8px;color:#344054;">${sanitizeHtml(String(entry))}</li>`)
+    .join('');
+  const linksHtml = (Array.isArray(input.links) ? input.links : [])
+    .filter(Boolean)
+    .map((entry) => `<li style="margin:0 0 8px;"><span style="color:#475467;">${sanitizeHtml(String(entry))}</span></li>`)
+    .join('');
+
+  return vuriumSupportEmailTemplate(input.subject, `
+    <p style="margin:0 0 12px;color:#475467;">An automation lane raised an Owner notification from <strong style="color:#101828;">${sanitizeHtml(input.workflow_source)}</strong>.</p>
+    <div style="margin:16px 0;padding:16px 20px;border-radius:14px;background:#f8fafc;border:1px solid #e8edf5;">
+      <p style="margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#98a2b3;">Severity</p>
+      <p style="margin:0 0 16px;font-weight:600;color:#101828;">${severity}</p>
+      <p style="margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#98a2b3;">Summary</p>
+      <p style="margin:0 0 16px;color:#344054;">${sanitizeHtml(input.summary)}</p>
+      ${detailsHtml ? `<p style="margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#98a2b3;">Details</p><ul style="margin:0 0 16px 18px;padding:0;">${detailsHtml}</ul>` : ''}
+      ${linksHtml ? `<p style="margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#98a2b3;">Links / References</p><ul style="margin:0 0 16px 18px;padding:0;">${linksHtml}</ul>` : ''}
+      ${input.next_step ? `<p style="margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#98a2b3;">Next Step</p><p style="margin:0;color:#344054;">${sanitizeHtml(input.next_step)}</p>` : ''}
+    </div>
+  `, {
+    teamLabel: 'Operations',
+    teamEmail: 'support@vurium.com',
+    fromName: 'Vurium Operations',
+    eyebrow: 'Automation alert',
+    intro: 'A workflow needs Owner awareness or action before it can proceed safely.',
+    actionNote: 'Review the workflow output and complete the next step only if the action fits current governance and approval rules.',
+    signature: 'Vurium Operations',
+  });
+}
+
+async function sendOwnerNotification(input) {
+  const recipient = safeStr(input.recipient || process.env.VURIUM_OWNER_EMAIL || ADMIN_NOTIFY_EMAIL).trim().toLowerCase();
+  if (!recipient) {
+    return {
+      agent: 'SYSTEM',
+      workflow: 'owner_notification',
+      status: 'blocked',
+      channel: 'email',
+      workflow_source: input.workflow_source,
+      severity: input.severity,
+      recipient: '',
+      subject: input.subject,
+      reason: 'No Owner notification email is configured.',
+      notification_id: '',
+      next_step: 'Set ADMIN_NOTIFY_EMAIL or VURIUM_OWNER_EMAIL before using automatic Owner notifications.',
+    };
+  }
+
+  const subject = `[Vurium][${String(input.severity || 'medium').toUpperCase()}] ${input.subject}`;
+  const html = buildOwnerNotificationHtml(input);
+  const result = await sendEmail(recipient, subject, html, 'Vurium Operations');
+
+  await db.collection('vurium_emails').add({
+    direction: 'outbound',
+    from: 'noreply@vurium.com',
+    mailbox: 'support@vurium.com',
+    to: recipient,
+    subject,
+    body_html: html,
+    body_text: '',
+    status: result?.id ? 'sent' : 'failed',
+    read: true,
+    created_at: toIso(new Date()),
+  }).catch(() => {});
+
+  if (!result?.id) {
+    return {
+      agent: 'SYSTEM',
+      workflow: 'owner_notification',
+      status: 'blocked',
+      channel: 'email',
+      workflow_source: input.workflow_source,
+      severity: input.severity,
+      recipient,
+      subject,
+      reason: 'Owner notification email failed to send.',
+      notification_id: '',
+      next_step: 'Review the blocked notification manually and resend from the developer/admin panel.',
+    };
+  }
+
+  return {
+    agent: 'SYSTEM',
+    workflow: 'owner_notification',
+    status: 'done',
+    channel: 'email',
+    workflow_source: input.workflow_source,
+    severity: input.severity,
+    recipient,
+    subject,
+    reason: 'Owner notification sent successfully.',
+    notification_id: result.id,
+    next_step: input.next_step || 'Review the notification and continue with the gated action if needed.',
+  };
 }
 
 function buildResearchBriefQueued(input, reason) {
@@ -5126,6 +5253,19 @@ app.post('/api/vurium-dev/ai/research-brief', requireSuperadmin, async (req, res
     if (e.message === 'AI not configured') return res.status(503).json({ error: 'AI not configured (missing ANTHROPIC_API_KEY)' });
     console.error('AI research brief error:', e.message);
     res.status(500).json({ error: 'Failed to generate research brief' });
+  }
+});
+
+app.post('/api/vurium-dev/automation/owner-notify', requireSuperadmin, async (req, res) => {
+  try {
+    const { payload } = unwrapWorkflowEnvelope(req.body);
+    const input = OwnerNotificationInputSchema.parse(payload);
+    const result = OwnerNotificationOutputSchema.parse(await sendOwnerNotification(input));
+    res.json(result);
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid owner-notify payload', details: e.issues });
+    console.error('Owner notification error:', e.message);
+    res.status(500).json({ error: 'Failed to send Owner notification' });
   }
 });
 

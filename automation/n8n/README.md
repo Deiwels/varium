@@ -9,6 +9,7 @@ Current phase-1 workflows:
 - `Gmail_Support_Inbox.workflow.json`
 - `Growth_Asset_Flow.workflow.json`
 - `Research_Brief.workflow.json`
+- `Owner_Notification.workflow.json`
 
 Local setup helpers:
 
@@ -53,6 +54,7 @@ Recommended import order:
 3. `Gmail_Support_Inbox.workflow.json`
 4. `Growth_Asset_Flow.workflow.json`
 5. `Research_Brief.workflow.json`
+6. `Owner_Notification.workflow.json`
 
 ## Current Backend Endpoints
 
@@ -62,6 +64,7 @@ Recommended import order:
 - `POST /api/vurium-dev/ai/support-inbox-execute`
 - `POST /api/vurium-dev/ai/growth-asset-flow`
 - `POST /api/vurium-dev/ai/research-brief`
+- `POST /api/vurium-dev/automation/owner-notify`
 
 All AI execution endpoints accept either:
 
@@ -85,6 +88,7 @@ These workflows use real `POST` webhook triggers inside `n8n`:
 - `Gmail_Support_Inbox` -> `.../webhook/gmail-support-inbox`
 - `Growth_Asset_Flow` -> `.../webhook/growth-asset-flow`
 - `Research_Brief` -> `.../webhook/research-brief`
+- `Owner_Notification` -> `.../webhook/owner-notification`
 
 The AI 3 workflows are designed to be called by a queue/status bridge when a task changes stage.
 
@@ -220,6 +224,34 @@ It returns:
 - `escalate_to`
 - `next_step`
 
+## Owner Notification Contract
+
+`Owner_Notification.workflow.json` expects one automation alert event and sends an email notification through the backend notification route.
+
+Minimum payload:
+
+```json
+{
+  "workflowSource": "Gmail_Support_Inbox",
+  "severity": "high",
+  "subject": "Billing-sensitive support message requires Owner review",
+  "summary": "A support inbox message was classified as billing-sensitive and cannot be auto-sent.",
+  "details": [
+    "message_id: gmail-message-id",
+    "thread_id: gmail-thread-id"
+  ],
+  "nextStep": "Review the escalation payload and respond manually from the correct mailbox."
+}
+```
+
+It returns:
+
+- `status`
+- `recipient`
+- `subject`
+- `reason`
+- `next_step`
+
 ## What These Workflows Do
 
 - accept one structured webhook event from the relevant upstream trigger
@@ -239,6 +271,7 @@ Use these fixtures for the first pass:
 - [growth-asset-flow.payload.json](/Users/nazarii/Downloads/varium/automation/n8n/smoke-tests/growth-asset-flow.payload.json)
 - [research-brief.with-sources.payload.json](/Users/nazarii/Downloads/varium/automation/n8n/smoke-tests/research-brief.with-sources.payload.json)
 - [research-brief.without-sources.payload.json](/Users/nazarii/Downloads/varium/automation/n8n/smoke-tests/research-brief.without-sources.payload.json)
+- [owner-notification.payload.json](/Users/nazarii/Downloads/varium/automation/n8n/smoke-tests/owner-notification.payload.json)
 
 Expected first-pass outcomes:
 
@@ -248,6 +281,7 @@ Expected first-pass outcomes:
 - `Growth_Asset_Flow` -> combined brief and asset draft package
 - `Research_Brief` with sources -> source-backed findings or partial result
 - `Research_Brief` without sources -> `queued`
+- `Owner_Notification` -> Owner alert email sent or blocked if email config is missing
 
 ## Minimum Incoming Payloads
 
@@ -329,16 +363,16 @@ Use these routing rules:
   - otherwise -> create follow-up task + notify next owner
 - `Gmail_Support_Inbox`
   - `sent_reply` -> log outcome only
-  - `escalated` -> create escalation note + notify target owner
-  - `manual_review_required` -> notify Owner/support lane
+  - `escalated` -> create escalation note + if `escalate_to = Owner`, call `Owner_Notification.workflow.json`
+  - `manual_review_required` -> call `Owner_Notification.workflow.json` or notify support lane
 - `Growth_Asset_Flow`
   - write one campaign log note
   - create asset handoffs for AI 11 and AI 10 outputs if present
-  - notify Owner only when `escalate_to != none`
+  - when `escalate_to = Owner`, call `Owner_Notification.workflow.json`
 - `Research_Brief`
   - `done` or `partial` -> write research brief note + notify AI 7 or AI 3
   - `queued` -> notify requester that official `sourceUrls` are required
-  - `blocked` -> notify Owner or AI 3, depending on your research intake owner
+  - `blocked` -> call `Owner_Notification.workflow.json` or notify AI 3, depending on your research intake owner
 
 ## Automatic Runtime Model
 

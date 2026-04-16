@@ -21,6 +21,20 @@ source_of_truth: true
 
 ## Current active updates
 
+### 2026-04-16 — Owner notification last-mile artifact is now live
+
+- A reusable last-mile Owner notification lane now exists for blocked, high-risk, or approval-gated workflow states.
+- Live backend route now exists at:
+  - `/api/vurium-dev/automation/owner-notify`
+- Import-adaptable `n8n` workflow artifact now lives in:
+  - `automation/n8n/Owner_Notification.workflow.json`
+  - `automation/n8n/README.md`
+- This lane sends one structured Owner alert email using the existing backend email stack.
+- It is intended for:
+  - `escalate_to = Owner`
+  - `manual_review_required`
+  - blocked last-mile workflow states that need human awareness
+
 ### 2026-04-16 — AI 5 research intake execution lane is now live
 
 - The first execution-ready AI 5 lane now exists for source-backed external research intake.

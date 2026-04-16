@@ -1,0 +1,16 @@
+{
+  "workflowSource": "Gmail_Support_Inbox",
+  "severity": "high",
+  "subject": "Billing-sensitive support message requires Owner review",
+  "summary": "A support inbox message was classified as billing-sensitive and cannot be auto-sent.",
+  "details": [
+    "message_id: gmail-message-id",
+    "thread_id: gmail-thread-id",
+    "escalate_to: Owner"
+  ],
+  "nextStep": "Review the escalation payload and respond manually from the correct mailbox.",
+  "links": [
+    "[[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]",
+    "[[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]]"
+  ]
+}
