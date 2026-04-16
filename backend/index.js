@@ -3613,6 +3613,16 @@ const AI9SupportExecutionOutputSchema = z.object({
     target: WorkflowEscalationTargetSchema,
     body: z.string().default(''),
   }).nullable().default(null),
+  writeback: z.object({
+    status: WorkflowStatusSchema,
+    relative_path: z.string().default(''),
+    reason: z.string().default(''),
+  }).nullable().default(null),
+  owner_notification: z.object({
+    status: WorkflowStatusSchema,
+    recipient: z.string().default(''),
+    reason: z.string().default(''),
+  }).nullable().default(null),
   next_step: z.string().default(''),
 });
 
@@ -4276,6 +4286,126 @@ function buildSupportEscalationNote(input) {
   };
 }
 
+function buildSupportExecutionWritebackInput(result) {
+  const datePrefix = toIso(new Date()).slice(0, 10);
+  const messagePart = safeStr(result.message_id || 'support-message').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 80) || 'support-message';
+  const actionPart = safeStr(result.action || 'result').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 40) || 'result';
+  const notePath = `06-Growth/Customer-Communication/${datePrefix}-${messagePart}-${actionPart}.md`;
+  const noteBody = [
+    '---',
+    'type: support-log',
+    `status: ${result.status}`,
+    `created: ${datePrefix}`,
+    '---',
+    '',
+    '# Support Workflow Log',
+    '',
+    '## Source',
+    '- Workflow: Gmail Support Inbox',
+    `- Action: ${result.action}`,
+    `- Label: ${result.label}`,
+    `- Message ID: ${result.message_id}`,
+    `- Thread ID: ${result.thread_id}`,
+    '',
+    '## Decision',
+    `- Safe to send: ${result.safe_to_send ? 'yes' : 'no'}`,
+    `- Escalate to: ${result.escalate_to}`,
+    '',
+    '## Reason',
+    result.reason || '(none)',
+    '',
+    result.escalation_note?.body
+      ? ['## Escalation Note', result.escalation_note.body, ''].join('\n')
+      : '',
+    '## Next Step',
+    result.next_step || 'Review the support workflow output and continue with the correct lane.',
+  ].filter(Boolean).join('\n');
+
+  return {
+    relative_path: notePath,
+    content: noteBody,
+    mode: 'replace',
+    dry_run: false,
+  };
+}
+
+function shouldNotifyOwnerForSupportResult(result) {
+  if (result.escalate_to === 'Owner') return true;
+  if (result.label === 'billing' || result.label === 'compliance_risk') return true;
+  if (result.status === 'blocked' && result.action === 'manual_review_required') return true;
+  return false;
+}
+
+function buildSupportOwnerNotificationInput(result) {
+  return {
+    workflow_source: 'Gmail_Support_Inbox',
+    severity: result.label === 'billing' || result.label === 'compliance_risk' ? 'high' : 'medium',
+    subject: `Support workflow needs Owner review (${result.label})`,
+    summary: result.reason || 'A support workflow result requires Owner attention before it can proceed safely.',
+    details: [
+      `message_id: ${result.message_id}`,
+      `thread_id: ${result.thread_id}`,
+      `action: ${result.action}`,
+      `label: ${result.label}`,
+      `escalate_to: ${result.escalate_to}`,
+    ],
+    next_step: result.next_step || 'Review the support workflow result and handle the next action manually if needed.',
+    links: [
+      '[[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]',
+      '[[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]]',
+    ],
+    recipient: '',
+  };
+}
+
+async function finalizeSupportExecution(result) {
+  const finalResult = { ...result, writeback: null, owner_notification: null };
+
+  try {
+    const writebackResult = await writeObsidianNote(buildSupportExecutionWritebackInput(finalResult));
+    finalResult.writeback = {
+      status: writebackResult.status,
+      relative_path: writebackResult.relative_path,
+      reason: writebackResult.reason,
+    };
+    if (writebackResult.status !== 'done' && finalResult.status === 'done') {
+      finalResult.status = 'partial';
+    }
+  } catch (e) {
+    console.error('Support writeback error:', e.message);
+    finalResult.writeback = {
+      status: 'blocked',
+      relative_path: '',
+      reason: `Support writeback failed: ${e.message}`,
+    };
+    if (finalResult.status === 'done') finalResult.status = 'partial';
+  }
+
+  if (shouldNotifyOwnerForSupportResult(finalResult)) {
+    try {
+      const ownerNotificationResult = await sendOwnerNotification(buildSupportOwnerNotificationInput(finalResult));
+      finalResult.owner_notification = {
+        status: ownerNotificationResult.status,
+        recipient: ownerNotificationResult.recipient,
+        reason: ownerNotificationResult.reason,
+      };
+      if (ownerNotificationResult.status !== 'done' && finalResult.status === 'done') {
+        finalResult.status = 'partial';
+      }
+    } catch (e) {
+      console.error('Support owner notification error:', e.message);
+      finalResult.owner_notification = {
+        status: 'blocked',
+        recipient: '',
+        reason: `Owner notification failed: ${e.message}`,
+      };
+      if (finalResult.status === 'done') finalResult.status = 'partial';
+    }
+  }
+
+  return finalResult;
+}
+
 async function executeSupportInboxAction(input) {
   const account = safeStr(input.account || input.mailbox || 'support@vurium.com').trim().toLowerCase() || 'support@vurium.com';
   const mailbox = safeStr(input.mailbox || input.account || account).trim().toLowerCase() || account;
@@ -4306,6 +4436,8 @@ async function executeSupportInboxAction(input) {
         gmail_message_id: sendResult.id,
         gmail_thread_id: sendResult.threadId,
         escalation_note: null,
+        writeback: null,
+        owner_notification: null,
         next_step: 'Reply sent. Log the outcome and update the queue if durable follow-up is needed.',
       };
     } catch (e) {
@@ -4334,16 +4466,24 @@ async function executeSupportInboxAction(input) {
           escalate_to: 'Owner',
           reason: blockedReason,
         }),
+        writeback: null,
+        owner_notification: null,
         next_step: 'Review the blocked send manually, then send from the correct mailbox or reconnect Gmail.',
       };
     }
   }
 
+  const action = input.safe_to_send
+    ? 'manual_review_required'
+    : input.escalate_to === 'none'
+      ? 'manual_review_required'
+      : 'escalated';
+
   return {
     agent: 'AI-9',
     workflow: 'support_inbox_execute',
-    status: input.safe_to_send ? 'needs_review' : 'done',
-    action: input.safe_to_send ? 'manual_review_required' : 'escalated',
+    status: action === 'manual_review_required' ? 'needs_review' : 'done',
+    action,
     message_id: input.message_id,
     thread_id: input.thread_id,
     account,
@@ -4360,6 +4500,8 @@ async function executeSupportInboxAction(input) {
       mailbox,
       escalate_to: input.escalate_to,
     }),
+    writeback: null,
+    owner_notification: null,
     next_step: input.safe_to_send
       ? 'Review the draft manually before sending.'
       : 'Create the escalation note and route it to the correct next owner.',
@@ -5293,6 +5435,9 @@ app.post('/api/vurium-dev/ai/support-inbox-process', requireSuperadmin, async (r
   try {
     const { meta, context, payload } = unwrapWorkflowEnvelope(req.body);
     const input = AI9SupportInboxInputSchema.parse(payload);
+    if (!anthropic) {
+      return res.json(buildSupportInboxFallback(input, 'AI not configured (missing ANTHROPIC_API_KEY).'));
+    }
     const result = await runStructuredWorkflowAI({
       systemPrompt: AI9_SUPPORT_INBOX_SYSTEM_PROMPT,
       input,
@@ -5305,7 +5450,6 @@ app.post('/api/vurium-dev/ai/support-inbox-process', requireSuperadmin, async (r
     res.json(result);
   } catch (e) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid support-inbox payload', details: e.issues });
-    if (e.message === 'AI not configured') return res.status(503).json({ error: 'AI not configured (missing ANTHROPIC_API_KEY)' });
     console.error('AI support inbox error:', e.message);
     res.status(500).json({ error: 'Failed to process support inbox message' });
   }
@@ -5315,7 +5459,7 @@ app.post('/api/vurium-dev/ai/support-inbox-execute', requireSuperadmin, async (r
   try {
     const { payload } = unwrapWorkflowEnvelope(req.body);
     const input = AI9SupportInboxOutputSchema.parse(payload);
-    const result = AI9SupportExecutionOutputSchema.parse(await executeSupportInboxAction(input));
+    const result = AI9SupportExecutionOutputSchema.parse(await finalizeSupportExecution(await executeSupportInboxAction(input)));
     res.json(result);
   } catch (e) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid support-inbox execution payload', details: e.issues });

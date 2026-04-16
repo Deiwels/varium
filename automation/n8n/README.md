@@ -37,13 +37,18 @@ Optional local execution helpers:
 
 Use [`.env.example`](/Users/nazarii/Downloads/varium/automation/n8n/.env.example) as the starter file.
 
+Important for local/self-hosted `n8n`:
+- set `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`
+- these workflows use `$env.VURIUM_API_BASE_URL`, `$env.VURIUM_ADMIN_TOKEN`, and related values inside node expressions
+- if env access stays blocked, HTTP nodes fail with `access to env vars denied`
+
 ## Import in n8n
 
 Use this exact order:
 
 1. Open `n8n`.
 2. Import the workflow JSON file from `automation/n8n/`.
-3. Set `VURIUM_API_BASE_URL` and `VURIUM_ADMIN_TOKEN` in the `n8n` environment.
+3. Set `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`, `VURIUM_API_BASE_URL`, and `VURIUM_ADMIN_TOKEN` in the `n8n` environment.
 4. Open the imported workflow and confirm the webhook path matches the filename intent.
 5. Run one smoke test payload against the webhook before connecting any real trigger.
 6. Only after a passing smoke test, wire the upstream real trigger.
