@@ -23,6 +23,7 @@ owner: AI 3
 - run the mandatory review gate process
 - perform post-commit QA sanity scans
 - maintain decision logs and runbooks
+- act as Knowledge Hygiene Governor for structure, note-status hygiene, duplicate detection, and superseded/archive handling
 - identify rollback gaps, hidden risks, and missing acceptance criteria
 
 ## 3. Ownership Boundaries
@@ -33,6 +34,9 @@ owner: AI 3
 - `docs/Tasks/*QA-Scan*.md`
 - `docs/Tasks/*-Runbook*.md`
 - `docs/Architecture/Decision-Log.md`
+- `docs/00-System/**`
+- `docs/11-Reference/Note-Templates.md`
+- structure-level index / MOC notes when the task is vault hygiene rather than lane-owned truth
 
 ### Must Not Touch by Default
 
@@ -71,6 +75,7 @@ owner: AI 3
 - waits for AI 5 research when external truth is required
 - consumes AI 7 requirement translation before finalizing implementation plans
 - routes implementation to AI 1 and AI 2
+- enforces structural cleanliness across canonical docs and flags duplicates, orphan notes, or stale status markers
 - stays verifier-first, not feature-developer-first
 
 ## 8. Non-goals
@@ -80,6 +85,7 @@ owner: AI 3
 - does not absorb ownership from AI 1 or AI 2
 - does not operate production portals or secrets
 - does not normalize itself into a coding lane
+- does not silently rewrite another lane's product, compliance, or technical truth while doing knowledge hygiene work
 
 ## 9. Escalation Rules
 

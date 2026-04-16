@@ -5,9 +5,12 @@
 
 ## Призначення
 
-Цей документ — **єдине джерело правди** про те, як AI агенти (Claude, Codex, Verdent, Phone AI) додають, перейменовують, лінкують і структурують файли в `docs/`. Ціль — щоб граф Obsidian залишався читабельним, без сиріт, без broken links, з чіткими hub-кластерами.
+Цей документ — **єдине джерело правди** про те, як команда `Owner + 8 AI` додає, перейменовує, лінкує і структурує файли в `docs/`. Ціль — щоб граф Obsidian залишався читабельним, без сиріт, без broken links, з чіткими hub-кластерами.
 
 **Перед тим як створити будь-який новий файл — прочитай цей документ повністю.**
+
+> Для **типів нотаток, `source_of_truth`, статусів `draft/review/superseded/archived`, knowledge-layer папок `00-System` → `12-Archive`, і правил canonical vs historical** використовуй [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]] як вищий рівень семантики.
+> Цей файл відповідає за **практичну механіку vault**: де класти, як називати, як лінкувати, як додавати в [[Home]].
 
 ---
 
@@ -57,20 +60,25 @@
 
 ## Правило 3 — Frontmatter (YAML properties)
 
-**Мінімальний обов'язковий frontmatter** для всіх нових доків (крім DevLog щоденників):
+**Мінімальний обов'язковий frontmatter** для всіх нових важливих доків (крім щоденних DevLog файлів):
 
 ```yaml
 ---
-type: feature        # feature | architecture | task | plan | review | profile | reference
-status: active       # active | draft | done | archived
-created: 2026-04-15  # YYYY-MM-DD
+type: reference
+status: active
+created: 2026-04-15
+updated: 2026-04-15
+source_of_truth: false
 ---
 ```
 
 Додаткові поля (опціонально):
-- `owner: AI 1 / AI 2 / AI 3 / AI 4 / Owner` — хто веде доку
+- `owner: AI 1 / AI 2 / AI 3 / AI 4 / AI 5 / AI 6 / AI 7 / AI 8 / Owner` — хто веде доку
+- `reviewers: [Owner, AI 3]` — коли для нотатки потрібен формальний review lane
 - `tags: [area/sms, status/inbox]` — лише cross-cutting атрибути, не теми
 - `aliases: ["Alt Name 1", "10DLC"]` — стабільні синоніми
+
+**Для canonical note types, allowed statuses, і правил коли `source_of_truth: true`, дивись [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]].**
 
 **Заборонено**: deprecated формати `tag:` (single), `alias:` (single), `cssclass:`. Використовуй plural list форму: `tags:`, `aliases:`, `cssclasses:`.
 
@@ -413,32 +421,54 @@ grep -rn "File Name" docs/ | grep -v "\[\[File Name"
 Щоб граф можна було фільтрувати консистентно, всі AI використовують **однакові значення** в frontmatter:
 
 ### `type` (обов'язково)
-- `feature` — продуктова фіча в `Features/`
-- `architecture` — технічний документ в `Architecture/`
-- `backend` — backend reference в `Backend/`
-- `frontend` — frontend reference в `Frontend/`
-- `task` — активна задача в `Tasks/`
-- `plan` — план / стратегія в `Tasks/`
-- `review` — огляд / аудит / QA scan в `Tasks/`
-- `devlog` — щоденний лог в `DevLog/`
-- `profile` — профіль AI або owner в `AI-Profiles/`
-- `moc` — Map of Content / hub-нотатка
-- `reference` — довідник / changelog / checklist
-- `decision` — запис в Decision-Log
+- `system` — системна / governance note
+- `profile` — профіль AI або owner
+- `product-brief` — canonical product brief
+- `research-brief` — AI 5 research brief
+- `compliance-requirement` — AI 7 requirements note
+- `plan` — execution plan / strategy doc
+- `qa-scan` — QA / verification note
+- `runbook` — repeatable operational procedure
+- `decision-log` — permanent decision note
+- `incident-report` — incident / hotfix / postmortem note
+- `growth-brief` — growth / funnel / messaging brief
+- `open-questions` — explicit unknowns register
+- `reference` — stable reference doc
+- `moc` — Map of Content / hub note
+
+**Legacy values still allowed during staged migration**:
+- `feature`
+- `architecture`
+- `backend`
+- `frontend`
+- `task`
+- `review`
+- `devlog`
+- `decision`
 
 ### `status` (обов'язково)
 - `active` — поточна робота
 - `draft` — чорновик, ще не готовий
+- `review` — готово до перевірки, але ще не final
 - `done` — завершено
+- `superseded` — замінене новішим canonical note
 - `archived` — застаріле, замінене
 - `blocked` — чекає на розблокування
 - `pending` — в очікуванні рішення
+
+### `source_of_truth` (рекомендовано для всіх важливих notes)
+- `true` — canonical / binding note
+- `false` — supporting / working / historical / non-binding note
 
 ### `owner` (опціонально, для tasks/plans/reviews)
 - `AI 1` (Claude Code CLI — backend, infra)
 - `AI 2` (Codex / Claude Web — frontend, UX)
 - `AI 3` (Verdent — architecture, decisions, QA)
 - `AI 4` (Phone AI — coordination)
+- `AI 5` (GPT Chat Deep Research — external truth)
+- `AI 6` (Product Strategist — product framing)
+- `AI 7` (Compliance Executor — policy-to-implementation)
+- `AI 8` (Growth Marketing Operator — funnel and messaging)
 - `Owner` (Назарій)
 
 ### `priority` (опціонально, для tasks)
@@ -721,5 +751,5 @@ created: 2026-04-15
 
 - Зміни в цих правилах: пропонує AI 3 (Verdent), затверджує Owner.
 - Конфлікти інтерпретації: дивись [[AI-Work-Split]] для розподілу відповідальності.
-- При сумнівах щодо структури: дивись [[Decision-Log]] для прецедентів.
+- При сумнівах щодо структури: дивись [[Architecture/Decision-Log|Decision Log]] для прецедентів.
 - При новому типі контенту, який не вписується ні в один шаблон — створи `Inbox` файл (Шаблон 8) і ескалюй до Owner.

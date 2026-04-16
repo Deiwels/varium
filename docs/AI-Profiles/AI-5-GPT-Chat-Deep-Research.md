@@ -2,7 +2,9 @@
 type: profile
 status: active
 created: 2026-04-15
+updated: 2026-04-15
 owner: AI 5
+source_of_truth: true
 ---
 
 # AI 5 — GPT Chat Deep Research

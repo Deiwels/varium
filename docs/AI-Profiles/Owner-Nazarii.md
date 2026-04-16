@@ -2,7 +2,9 @@
 type: profile
 status: active
 created: 2026-04-15
+updated: 2026-04-15
 owner: Owner
+source_of_truth: true
 ---
 
 # Owner — Nazarii
@@ -68,6 +70,7 @@ owner: Owner
 
 - gives business direction directly and/or through AI 6 product framing
 - approves final plans after the review gate
+- approves sensitive support communication, creative directions, or publishing decisions surfaced by AI 9 / AI 10 / AI 11
 - performs real-world checks after AI 3 QA and before final go/no-go
 - should not be forced to infer hidden external blockers from long technical notes
 

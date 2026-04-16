@@ -20,3 +20,7 @@ Canonical folder index for vendor-specific compliance or policy constraints afte
 - Apple
 - Google OAuth
 - carrier / telecom requirements
+
+## Active Vendor Constraint Cards
+
+- [[Compliance/Vendor-Constraints/Telnyx-TFV|Telnyx TFV]] — Toll-free verification constraints for US appointment reminder SMS (AI 7, 2026-04-15)

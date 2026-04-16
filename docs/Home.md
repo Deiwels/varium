@@ -1,6 +1,7 @@
 # Varium (VuriumBook)
 
 > 📌 **ВСІМ AI: перед створенням/редагуванням будь-якого .md файлу — обов'язково прочитати [[Vault Rules]]** (де класти, як називати, як лінкувати, як додавати в Home).
+> 🗂️ **Для note types, source-of-truth, lifecycle status, knowledge-layer папок і archive/superseded правил — обов'язково прочитати [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]].**
 > ⚠️ **ВСІМ AI: Читати [[AI-Rule-Updates]] і [[AI-Core-Manifesto]] перед початком будь-якої роботи. Обов'язково.**
 > ⛔ **Поки немає нового запису в [[AI-Session-Acceptance-Log]], AI не має права продовжувати далі.**
 > 🧠 **Якщо задача потребує планування — вона йде в `In Progress.md` як `@AI3 [PLAN REQUEST]`, а реалізація блокується до завершення 4-AI Plan Review Gate.**
@@ -19,9 +20,29 @@
 | **Goal** | Sell-ready: new business can sign up, onboard, book, and pay without manual rescue |
 | **Current focus** | P0 tasks in [[Tasks/Launch Readiness Plan\|Launch Readiness Plan]] |
 | **Active work** | [[Tasks/In Progress\|In Progress]] |
-| **Who's working** | 8 AI + Owner — see [[Tasks/3-AI-Remaining-Work-Split\|8-AI Work Split]] + [[AI-Session-Acceptance-Log]] |
+| **Who's working** | 11 AI + Owner — see [[Tasks/3-AI-Remaining-Work-Split\|11-AI Work Split]] + [[AI-Session-Acceptance-Log]] |
 | **AI profiles** | [[AI-Profiles/README\|AI Profiles]] |
 | **Rule updates** | [[AI-Rule-Updates\|AI Rule Updates]] |
+
+---
+
+## Knowledge System
+
+- [[00-System/System-Index|System Index]] — governance, startup rules, and vault-operating model
+- [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]] — canonical rule for note types, source-of-truth hierarchy, staged migration, and archive discipline
+- [[01-Team/Team-Index|Team Index]] — profiles, work split, and acceptance-log lane
+- [[02-Product/Product-Index|Product Index]] — product-lane MOC
+- [[03-Architecture/Architecture-Index|Architecture Index]] — architecture-lane MOC
+- [[04-Tasks/Tasks-Index|Tasks Index]] — tasks, plans, QA scans, and runbooks MOC
+- [[05-Compliance/Compliance-Index|Compliance Index]] — compliance requirements and vendor constraints MOC
+- [[06-Growth/Growth-Index|Growth Index]] — growth-lane MOC
+- [[07-Research/Research-Index|Research Index]] — external-facts and research-brief MOC
+- [[08-Runbooks/Runbooks-Index|Runbooks Index]] — operational procedures MOC
+- [[09-Incidents/Incidents-Index|Incidents Index]] — incidents, hotfixes, and postmortems MOC
+- [[10-Decisions/Decisions-Index|Decisions Index]] — permanent decision history MOC
+- [[11-Reference/Reference-Index|Reference Index]] — templates and stable reference material
+- [[11-Reference/Note-Templates|Note Templates]] — standard templates for AI profiles, briefs, plans, QA scans, runbooks, decisions, and incident notes
+- [[12-Archive/Archive-Index|Archive Index]] — superseded and historical docs
 
 ---
 
@@ -56,7 +77,7 @@
 - [[Lib Utilities]] — 7 shared utils (API client, PIN crypto, terminology, timezones)
 - [[Infrastructure]] — CI/CD (GitHub Actions → Cloud Run), env vars, security headers, Docker
 - [[GitHub Secrets Inventory]] — Owner-confirmed list of repo secrets
-- [[Decision-Log]] — Architecture decision register (owner: AI 3 Verdent)
+- [[Architecture/Decision-Log|Decision Log]] — Architecture decision register (owner: AI 3 Verdent)
 - [[Superadmin-Endpoints]] — Platform admin endpoints reference
 - [[Background Jobs]] — 6 auto jobs (reminders, memberships, audits, cleanup)
 - [[Security & Audit]] — Rate limiting, audit logs, GDPR export
@@ -96,7 +117,7 @@
 ## Tasks & Plans
 
 - [[Tasks/In Progress\|In Progress]] — Current sprint (P0 items + active tasks)
-- [[Tasks/3-AI-Remaining-Work-Split|8-AI Remaining Work Split]] — **current operating split** — active work plus role lanes across backend, frontend, planning, research, product, compliance, growth, and Owner operations
+- [[Tasks/3-AI-Remaining-Work-Split|11-AI Remaining Work Split]] — **current operating split** — active work plus role lanes across backend, frontend, planning, research, product, compliance, growth, business execution, and Owner operations
 - [[Tasks/AI4-Emergency-Readiness-Review-2026-04-15|AI 4 Emergency Readiness Review]] — current AI 4 sign-off and emergency-readiness asks
 - [[Tasks/Backlog\|Backlog]] — Feature ideas & bugs
 - [[Tasks/Launch Readiness Plan\|Launch Readiness Plan]] — Unified P0/P1/P2 plan (both AIs agreed)
@@ -187,6 +208,8 @@ Latest first:
 - [[Tasks/QA-Scan-2026-04-13|QA Scan 2026-04-13]] — Claude Opus QA session
 - [[Tasks/Launch-Verification-Runbook|Launch Verification Runbook]] — Full pre-launch checklist (VR.4)
 - [[Tasks/Deploy-Smoke-Test|Deploy Smoke Test]] — 5-min post-deploy sanity check (VR.5)
+- [[08-Runbooks/Support/README|Support Runbooks]] — customer communication and email-reply procedures
+- [[08-Runbooks/Growth/README|Growth Runbooks]] — growth-execution and creative/video production procedures
 - [[Permissions]] — Role permission matrix reference
 
 ---
@@ -203,6 +226,9 @@ Latest first:
 - [[AI-6-Product-Strategist]] — Product strategist (briefs, MVP framing, priorities)
 - [[AI-7-Compliance-Executor]] — Compliance executor (turns vendor/policy truth into implementation requirements)
 - [[AI-8-Growth-Marketing-Operator]] — Growth / marketing operator (funnel, onboarding, positioning, launch messaging)
+- [[AI-9-Support-Email-Agent]] — Support / email execution specialist (customer replies, follow-ups, FAQ growth)
+- [[AI-10-Video-Agent]] — Video execution specialist (promo/demo/ad video briefs and scripts)
+- [[AI-11-Creative-Ad-Image-Agent]] — Creative execution specialist (static ads, social, landing-page visuals)
 
 ---
 
@@ -212,16 +238,19 @@ Latest first:
 - [[Product/Priorities|Product Priorities]] — active business priorities and launch sequencing
 - [[Product/Open-Questions|Product Open Questions]] — unresolved product choices that still need framing
 - [[Product/Feature-Briefs/README|Feature Briefs]] — canonical home for AI 6 product briefs
+- [[Product/Feature-Briefs/Reminder-SMS-Launch-Readiness|Reminder SMS Launch Readiness]] — AI 6 brief for the current launch-critical reminder SMS scope
 - [[Product/User-Flows/README|User Flows]] — canonical home for structured flow docs
 
 ---
 
 ## Compliance
 
-- [[Compliance/Control-Matrix|Compliance Control Matrix]] — cross-system control map
-- [[Compliance/Implementation-Checklist|Compliance Implementation Checklist]] — translation layer from requirements to execution checks
+- [[Compliance/Control-Matrix|Compliance Control Matrix]] — cross-system control map (TFV controls populated)
+- [[Compliance/Implementation-Checklist|Compliance Implementation Checklist]] — translation layer from requirements to execution checks (TFV checklist populated)
 - [[Compliance/Requirements/README|Compliance Requirements]] — canonical home for requirement docs
+  - [[Compliance/Requirements/TFV-Reminder-SMS-Requirements|TFV Reminder SMS Requirements]] — 🆕 AI 7 translation of AI 5 research into 30 binding requirements (SYS/BE/UI/DOC/MON/OWN)
 - [[Compliance/Vendor-Constraints/README|Vendor Constraints]] — canonical home for vendor-specific compliance constraints
+  - [[Compliance/Vendor-Constraints/Telnyx-TFV|Telnyx TFV]] — 🆕 Telnyx toll-free verification constraints card
 
 ---
 
@@ -230,6 +259,11 @@ Latest first:
 - [[Growth/Growth-Backlog|Growth Backlog]] — growth tasks and ideas routed through the operating system
 - [[Growth/Funnel-Audit|Funnel Audit]] — acquisition and conversion friction log
 - [[Growth/Onboarding-Optimization|Onboarding Optimization]] — onboarding improvement lane
+- [[Growth/Customer-Communication/README|Customer Communication]] — support policy, tone, and customer communication lane (AI 9)
+- [[Growth/Support-Responses/README|Support Responses]] — reusable support and follow-up response lane (AI 9)
+- [[Growth/FAQ/Customer-FAQ|Customer FAQ]] — reusable support truth and repeated-question capture (AI 9)
+- [[Growth/Video/README|Video]] — promo/demo/ad video execution lane (AI 10)
+- [[Growth/Creative/README|Creative]] — static creative, ad, and landing-page visual lane (AI 11)
 - [[Growth/Experiments/README|Growth Experiments]] — canonical home for structured experiments
 - [[Growth/Landing-Pages/README|Landing Pages]] — canonical home for landing-page planning and messaging
 

@@ -2,7 +2,9 @@
 type: profile
 status: active
 created: 2026-04-15
+updated: 2026-04-15
 owner: AI 6
+source_of_truth: true
 ---
 
 # AI 6 — Product Strategist

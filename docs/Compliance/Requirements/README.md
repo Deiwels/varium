@@ -21,3 +21,7 @@ Canonical folder index for AI 7 requirement docs.
 - documentation requirement
 - monitoring requirement
 - Owner action requirement
+
+## Active Requirement Docs
+
+- [[Compliance/Requirements/TFV-Reminder-SMS-Requirements|TFV Reminder SMS Requirements]] — Telnyx toll-free verification requirements for per-workspace appointment reminder SMS (AI 7, 2026-04-15)

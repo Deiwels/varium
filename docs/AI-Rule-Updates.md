@@ -2,12 +2,14 @@
 type: reference
 status: active
 created: 2026-04-15
+updated: 2026-04-15
 owner: AI 3
+source_of_truth: true
 ---
 
 # AI Rule Updates
 
-> [[Home]] | Related: [[AI-Core-Manifesto]], [[AI-Profiles/README|AI Profiles]], [[AI-Session-Acceptance-Log]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|8-AI Work Split]]
+> [[Home]] | Related: [[AI-Core-Manifesto]], [[AI-Profiles/README|AI Profiles]], [[AI-Session-Acceptance-Log]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]]
 > Purpose: short changelog for cross-AI behavior changes that every role must see before starting work.
 
 > ⚠️ **If this file changed after your last acceptance entry, your old acceptance is stale.**
@@ -16,6 +18,46 @@ owner: AI 3
 ---
 
 ## Current active updates
+
+### 2026-04-15 — Business / Ops / Content Execution layer added
+
+- The system now includes three new downstream execution agents:
+  - **AI 9 — Support / Email Agent**
+  - **AI 10 — Video Agent**
+  - **AI 11 — Creative / Ad Image Agent**
+- These roles are **not** new strategy owners.
+- AI 8 remains the growth brain; AI 9 / AI 10 / AI 11 are downstream support, video, and creative execution hands.
+- They sit downstream of the existing truth/governance lanes:
+  - AI 8 defines growth direction
+  - AI 6 defines product truth and framing when relevant
+  - AI 7 guards compliance-sensitive wording and claims when relevant
+  - AI 9 / AI 10 / AI 11 execute support, video, and creative work inside those constraints
+- These agents do **not** replace AI 8, Owner, or engineering ownership.
+- Canonical support/video/creative docs now live under:
+  - `docs/Growth/Customer-Communication/**`
+  - `docs/Growth/Support-Responses/**`
+  - `docs/Growth/FAQ/**`
+  - `docs/Growth/Video/**`
+  - `docs/Growth/Creative/**`
+  - `docs/08-Runbooks/Support/**`
+  - `docs/08-Runbooks/Growth/**`
+- Guardrail: AI 9 / AI 10 / AI 11 may execute content work, but they must not invent product truth, compliance truth, pricing truth, or engineering behavior.
+
+### 2026-04-15 — Obsidian Knowledge System is now canonical
+
+- [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]] is now the canonical rule for:
+  - note types
+  - `source_of_truth`
+  - lifecycle status (`draft`, `review`, `superseded`, `archived`)
+  - source-of-truth hierarchy
+  - archive / superseded handling
+- The numbered folders `00-System` through `12-Archive` now exist as **knowledge-layer indexes, templates, and governance anchors**.
+- This is a **staged migration**, not a mass move:
+  - existing live canonical paths such as `docs/Tasks/**`, `docs/Architecture/**`, `docs/AI-Profiles/**`, `docs/Features/**`, and `docs/DevLog/**` stay stable during launch work
+  - no one mass-moves canonical docs unless AI 3 opens a dedicated migration plan
+- **AI 3 is now the Knowledge Hygiene Governor** for note structure, template discipline, superseded/archive hygiene, and duplicate detection.
+- `[[11-Reference/Note-Templates|Note Templates]]` is the canonical template source for important note types.
+- Vault-librarian cleanup is allowed only as an explicit mode/task, not as a silent rewrite of other lanes' truth.
 
 ### 2026-04-15 — Operating system expanded to Owner + 8 AI roles
 
@@ -38,6 +80,7 @@ owner: AI 3
 ### 2026-04-15 — Correct documentation recording is a hard rule
 
 - [[Vault Rules]] is mandatory for any markdown creation/editing work.
+- [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]] is mandatory when the session touches note type, note status, source-of-truth semantics, archive handling, or vault structure.
 - Docs navigation is **Home-first**.
 - Information must be written in the correct canonical file, not merely “some nearby file”.
 - New docs must be linked properly and added to [[Home]].

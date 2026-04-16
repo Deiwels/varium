@@ -2,13 +2,15 @@
 type: reference
 status: active
 created: 2026-04-15
+updated: 2026-04-15
 owner: AI 3
+source_of_truth: true
 ---
 
 # AI Profiles
 
-> [[Home]] | Related: [[AI-Core-Manifesto]], [[AI-Rule-Updates]], [[AI-Work-Split]], [[AI-Session-Acceptance-Log]], [[Tasks/3-AI-Remaining-Work-Split|8-AI Work Split]]
-> Purpose: one canonical profile per role in the `Owner + 8 AI` system.
+> [[Home]] | Related: [[AI-Core-Manifesto]], [[AI-Rule-Updates]], [[AI-Work-Split]], [[AI-Session-Acceptance-Log]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]]
+> Purpose: one canonical profile per role in the `Owner + 11 AI` system.
 
 Before starting a session:
 
@@ -16,7 +18,8 @@ Before starting a session:
 2. read [[AI-Core-Manifesto]]
 3. read your own profile
 4. if the session touches docs, read [[Vault Rules]]
-5. add a fresh entry to [[AI-Session-Acceptance-Log]]
+5. if the session touches note structure, note status, source-of-truth, archive handling, or vault organization, also read [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
+6. add a fresh entry to [[AI-Session-Acceptance-Log]]
 
 If a profile is outdated, update the profile before treating it as trustworthy.
 
@@ -35,6 +38,9 @@ If a profile is outdated, update the profile before treating it as trustworthy.
 | **AI 6** | [[AI-6-Product-Strategist]] | Product Strategy Owner | product briefs, roadmap, priorities, user-flow framing |
 | **AI 7** | [[AI-7-Compliance-Executor]] | Compliance-to-Implementation Translator | requirements, control matrix, implementation constraints |
 | **AI 8** | [[AI-8-Growth-Marketing-Operator]] | Growth Engine Owner | funnel, onboarding, positioning, conversion and launch messaging |
+| **AI 9** | [[AI-9-Support-Email-Agent]] | Customer Communication Agent | support replies, follow-ups, FAQ growth, customer communication docs |
+| **AI 10** | [[AI-10-Video-Agent]] | Video Content Generator | promo videos, demo scripts, video briefs, motion content execution |
+| **AI 11** | [[AI-11-Creative-Ad-Image-Agent]] | Visual Marketing Generator | ad creatives, social visuals, landing-page imagery, creative variants |
 
 ---
 
@@ -75,9 +81,18 @@ This is intentional. The goal is that any AI can open any profile and orient ins
    - AI 7 translates requirements
    - AI 3 plans execution
 
-5. **For docs work**
+5. **For business / ops / content execution work**
+   - AI 8 defines growth direction
+   - AI 8 stays the strategy owner for growth
+   - AI 9 executes support/email communication
+   - AI 10 executes video production work
+   - AI 11 executes static creative work
+   - all three stay inside approved product/compliance truth
+
+6. **For docs work**
    - start from [[Home]]
    - obey [[Vault Rules]]
+   - use [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]] for note type / status / source-of-truth questions
    - write only in the canonical file path
 
 ---
@@ -86,7 +101,8 @@ This is intentional. The goal is that any AI can open any profile and orient ins
 
 - **Global rules** → [[AI-Core-Manifesto]]
 - **What changed recently** → [[AI-Rule-Updates]]
+- **Knowledge-system semantics** → [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
 - **File ownership** → [[AI-Work-Split]]
 - **Current active work** → [[Tasks/In Progress|In Progress]]
-- **Current sprint split** → [[Tasks/3-AI-Remaining-Work-Split|8-AI Work Split]]
+- **Current sprint split** → [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]]
 - **Session acceptance log** → [[AI-Session-Acceptance-Log]]

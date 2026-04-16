@@ -13,6 +13,10 @@ owner: AI 6
 
 Canonical folder index for AI 6 feature briefs.
 
+## Active Briefs
+
+- [[Product/Feature-Briefs/Reminder-SMS-Launch-Readiness|Reminder SMS Launch Readiness]] — product framing for the current launch-critical reminder SMS item
+
 ## Standard Brief Shape
 
 - problem
