@@ -9,13 +9,46 @@ source_of_truth: true
 
 # Note Templates
 
-> Part of [[Home]] > Reference | See also: [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]], [[Vault Rules]], [[11-Reference/Reference-Index|Reference Index]]
+> Part of [[Home]] > Reference | See also: [[11-Reference/Templates/README|Templates Library]], [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]], [[Vault Rules]], [[11-Reference/Reference-Index|Reference Index]]
 
-Use these templates as the default starting point for important notes. Adapt them to the lane, but do not invent a random structure when a template already exists.
+Use this file as the template index and overview.
+
+The canonical per-template files now live in [[11-Reference/Templates/README|Templates Library]].
+
+If a matching template exists there, use that file instead of inventing a free-form note.
+
+## Rule
+
+- no template = no work
+- if a template exists, use it
+- AI 3 may reject chaotic notes when a matching template already exists
+
+## Canonical Template Library
+
+- [[11-Reference/Templates/README|Templates Library]]
+- [[11-Reference/Templates/Task-Workflow-Queue-Item-Template|Task / Workflow Queue Item Template]]
+- [[11-Reference/Templates/Handoff-Template|Handoff Template]]
+- [[11-Reference/Templates/Support-Reply-Template|Support Reply Template]]
+- [[11-Reference/Templates/FAQ-Entry-Template|FAQ Entry Template]]
+- [[11-Reference/Templates/Product-Brief-Template|Product Brief Template]]
+- [[11-Reference/Templates/Growth-Brief-Template|Growth Brief Template]]
+- [[11-Reference/Templates/Creative-Brief-Template|Creative Brief Template]]
+- [[11-Reference/Templates/Video-Brief-Template|Video Brief Template]]
+- [[11-Reference/Templates/Experiment-Template|Experiment Template]]
+- [[11-Reference/Templates/Runbook-Template|Runbook Template]]
+- [[11-Reference/Templates/Incident-Template|Incident Template]]
+- [[11-Reference/Templates/Decision-Template|Decision Template]]
+- [[11-Reference/Templates/Short-Fast-Task-Template|Short Fast Task Template]]
 
 ## AI Session Start Template
 
 See [[11-Reference/AI-Session-Template|AI Session Template]] for the reusable startup prompt every AI can copy before a session.
+
+## Legacy Inline Overview
+
+The inline sections below remain as a compact overview of template shapes already used in the system.
+
+If an individual template file in [[11-Reference/Templates/README|Templates Library]] exists, that file is the canonical version.
 
 ## AI Profile Template
 

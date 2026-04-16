@@ -19,6 +19,26 @@ source_of_truth: true
 
 ## Current active updates
 
+### 2026-04-15 — Templates Library is now canonical
+
+- [[11-Reference/Templates/README|Templates Library]] is now the canonical per-template library for structured work.
+- `No template = no work` is now an active system rule.
+- If a matching template exists, AI must use it instead of creating a free-form note.
+- AI 3 is now the template-discipline enforcer and may reject chaotic notes when a matching template exists.
+- This applies especially to:
+  - queue items
+  - handoffs
+  - product briefs
+  - growth briefs
+  - creative briefs
+  - video briefs
+  - experiments
+  - runbooks
+  - incidents
+  - decisions
+  - FAQ entries
+  - support-reply drafts
+
 ### 2026-04-15 — AI Session Start Protocol is now mandatory
 
 - [[AI-Session-Start-Protocol]] is now a required startup file for every AI before beginning a task.

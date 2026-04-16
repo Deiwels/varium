@@ -51,6 +51,7 @@ Before acting, identify:
 
 - which docs define truth for this task
 - which note is canonical
+- which template applies if you are creating a structured note or artifact
 
 If source of truth is missing:
 
@@ -65,6 +66,7 @@ Define:
 
 - what exactly you will do
 - what you will not do
+- which template you will use if one exists
 
 You may not expand scope beyond your lane.
 

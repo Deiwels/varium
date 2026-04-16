@@ -46,6 +46,7 @@
 - [[10-Decisions/Decisions-Index|Decisions Index]] — permanent decision history MOC
 - [[11-Reference/Reference-Index|Reference Index]] — templates and stable reference material
 - [[11-Reference/Note-Templates|Note Templates]] — standard templates for AI profiles, briefs, plans, QA scans, runbooks, decisions, and incident notes
+- [[11-Reference/Templates/README|Templates Library]] — canonical per-template files for queue items, handoffs, briefs, runbooks, incidents, and decisions
 - [[11-Reference/AI-Session-Template|AI Session Template]] — reusable copy-paste startup prompt for every AI session
 - [[12-Archive/Archive-Index|Archive Index]] — superseded and historical docs
 

@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Obsidian Knowledge System
 
-> Part of [[Home]] > System | See also: [[00-System/System-Index|System Index]], [[Vault Rules]], [[AI-Core-Manifesto]], [[11-Reference/Note-Templates|Note Templates]]
+> Part of [[Home]] > System | See also: [[00-System/System-Index|System Index]], [[Vault Rules]], [[AI-Core-Manifesto]], [[11-Reference/Note-Templates|Note Templates]], [[11-Reference/Templates/README|Templates Library]]
 
 ## Purpose
 
@@ -255,6 +255,7 @@ Stable reference material:
 - glossary
 - naming rules
 - templates
+- template library
 - system diagrams
 - key definitions
 - canonical references that support many other notes
@@ -275,17 +276,25 @@ Every permanent note should belong to one of these note types:
 
 - system
 - profile
+- task
 - product-brief
 - research-brief
 - compliance-requirement
 - plan
 - workflow-queue
+- handoff
 - handoff-note
 - qa-scan
 - runbook
+- faq
 - decision-log
+- decision
 - incident-report
+- incident
 - growth-brief
+- creative
+- video
+- experiment
 - reference
 - open-questions
 - moc
@@ -438,6 +447,7 @@ Writes or updates:
 
 AI 3 also acts as the **Knowledge Hygiene Governor** for structure and consistency.
 AI 3 also owns workflow queue structure, handoff-note standards, and trigger-label discipline so automation does not create hidden work.
+AI 3 also enforces template discipline and may reject free-form notes when a matching template already exists.
 
 ### AI 4
 
@@ -628,9 +638,15 @@ If duplicates appear, AI 3 or librarian mode must:
 
 ## Required Templates
 
-Templates live in [[11-Reference/Note-Templates|Note Templates]].
+Templates live in [[11-Reference/Note-Templates|Note Templates]] and the canonical per-template files in [[11-Reference/Templates/README|Templates Library]].
 
 Important note types should not be created in random style if a template already exists.
+
+Rule:
+
+- no template = no work
+- if a matching template exists, use it
+- AI 3 may block or send back notes that ignore an existing template
 
 ## Open Questions Rule
 

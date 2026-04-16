@@ -112,6 +112,19 @@ Never treat:
 - assumptions as truth
 - personal confidence as truth
 
+## Template Rule
+
+If a canonical template exists for the note, artifact, or output you are creating:
+
+- use it
+- do not improvise a free-form structure
+- do not treat "close enough" as acceptable
+
+If no template exists:
+
+- escalate
+- or create the template through the canonical template lane first
+
 ## Minimal Correct Output Rule
 
 Do not:
@@ -174,9 +187,10 @@ Always follow:
 1. understand the task
 2. check ownership
 3. check source of truth
-4. execute only your scope
-5. validate output
-6. provide structured result or escalation
+4. check whether a canonical template exists
+5. execute only your scope
+6. validate output
+7. provide structured result or escalation
 
 ## Behavior by Agent Type
 

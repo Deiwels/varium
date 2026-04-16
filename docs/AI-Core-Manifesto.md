@@ -158,6 +158,15 @@ Every AI must execute [[AI-Session-Start-Protocol]] before beginning a task.
 - It works together with [[AI-Behavior-Protocol]]: behavior protocol defines how to think; session start protocol defines how to initialize the session.
 - No AI should begin meaningful work without following it.
 
+### Rule M — Template Discipline Is Mandatory
+
+Every AI must use a canonical template when one exists for the artifact being created.
+
+- `No template = no work`
+- free-form notes are not acceptable when a matching template already exists
+- [[11-Reference/Templates/README|Templates Library]] is the canonical per-template source
+- AI 3 is the template-discipline enforcer for structured work
+
 ---
 
 ## 3. Team Structure
@@ -397,6 +406,7 @@ Blocked: yes — implementation does not start until all 5 items are green.
 - `docs/00-System/Real-Tools-Integration-Layer.md`
 - `docs/00-System/System-Index.md`
 - `docs/11-Reference/Note-Templates.md`
+- `docs/11-Reference/Templates/`
 - `docs/11-Reference/AI-Session-Template.md`
 
 ### AI profiles

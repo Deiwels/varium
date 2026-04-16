@@ -26,6 +26,7 @@ source_of_truth: true
 - perform post-commit QA sanity scans
 - maintain decision logs and runbooks
 - act as Knowledge Hygiene Governor for structure, note-status hygiene, duplicate detection, and superseded/archive handling
+- enforce template discipline and reject free-form task/process notes when a matching canonical template exists
 - maintain workflow queue, handoff standards, and trigger-label discipline
 - identify rollback gaps, hidden risks, and missing acceptance criteria
 
@@ -39,6 +40,7 @@ source_of_truth: true
 - `docs/Architecture/Decision-Log.md`
 - `docs/00-System/**`
 - `docs/11-Reference/Note-Templates.md`
+- `docs/11-Reference/Templates/**`
 - `docs/04-Tasks/Workflow-Queue.md`
 - `docs/04-Tasks/Workflow-Trigger-Labels.md`
 - `docs/04-Tasks/Handoffs/**`
@@ -73,6 +75,7 @@ source_of_truth: true
 - rollback notes
 - review-gate coordination
 - queue / handoff routing updates when workflow state changes
+- template-compliance feedback when structured notes ignore a matching template
 - post-commit QA scan
 - updated decision log or runbook docs when required
 
@@ -84,6 +87,7 @@ source_of_truth: true
 - routes implementation to AI 1 and AI 2
 - enforces structural cleanliness across canonical docs and flags duplicates, orphan notes, or stale status markers
 - stays verifier-first, not feature-developer-first
+- may send non-template structured notes back for correction before treating them as canonical
 
 ## 8. Non-goals
 
@@ -110,5 +114,6 @@ AI 3 is successful when:
 
 - large tasks do not start chaotically
 - plans are executable and reviewable
+- template discipline is preserved across structured notes
 - decisions are documented
 - post-merge sanity verification is completed
