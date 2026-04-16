@@ -34,19 +34,82 @@ Both endpoints accept either:
 }
 ```
 
+## Trigger Mode
+
+Both workflows now use real `POST` webhook triggers inside `n8n`:
+
+- `AI3_Planning_Intake` -> `.../webhook/ai3-planning-intake`
+- `AI3_QA_Scan` -> `.../webhook/ai3-qa-scan`
+
+They are designed to be called by a queue/status bridge when a task changes stage.
+
+## Queue Stage Contract
+
+Use the canonical queue stages from [Workflow Queue](/Users/nazarii/Downloads/varium/docs/04-Tasks/Workflow-Queue.md):
+
+- `Ready for Planning` -> planning intake
+- `Waiting for QA` -> QA scan
+
+Compatibility note:
+
+- the QA workflow still accepts legacy `Ready for QA` in the incoming payload and normalizes it to canonical `Waiting for QA`
+
 ## What These Workflows Do
 
-- start from a manual test trigger
-- build a sample phase-1 payload
+- accept a queue/status event webhook
+- normalize the event into the standard AI envelope
 - call the live backend AI endpoint
 - validate the returned JSON shape
 - emit one structured result item that can then be wired into queue writeback, handoff creation, or notifications
+
+## Minimum Incoming Payloads
+
+### Planning intake
+
+```json
+{
+  "current_stage": "Ready for Planning",
+  "task_id": "TASK-123",
+  "title": "Improve booking flow SMS consent",
+  "description": "Need safer onboarding consent flow for SMS reminders",
+  "requested_by": "Owner",
+  "complexity": "non-trivial",
+  "external_dependency": true,
+  "product_context_links": [
+    "[[Booking Flow MVP Product Brief]]"
+  ],
+  "known_constraints": [
+    "Must preserve current signup speed"
+  ],
+  "priority": "high"
+}
+```
+
+### QA scan
+
+```json
+{
+  "current_stage": "Waiting for QA",
+  "task_id": "TASK-123",
+  "plan_link": "[[TASK-123-Plan]]",
+  "acceptance_criteria": [
+    "Consent copy is explicit"
+  ],
+  "implementation_summary": [
+    "frontend consent checkbox added"
+  ],
+  "changed_areas": [
+    "backend/index.js"
+  ],
+  "hotfix": false
+}
+```
 
 ## Next Wiring Step
 
 After import:
 
-1. replace the `Manual Trigger` with the real queue/status trigger
+1. point your queue/status emitter at the correct webhook path
 2. wire the last node into your writeback path:
    - queue update
    - handoff note

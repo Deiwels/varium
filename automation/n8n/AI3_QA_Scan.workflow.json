@@ -4,27 +4,32 @@
   "settings": {},
   "nodes": [
     {
-      "id": "manual-trigger",
-      "name": "Manual Trigger",
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
+      "id": "webhook-trigger",
+      "name": "QA Scan Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
       "position": [
         240,
         300
       ],
-      "parameters": {}
+      "webhookId": "ai3-qa-scan",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai3-qa-scan",
+        "responseMode": "lastNode"
+      }
     },
     {
-      "id": "sample-input",
-      "name": "Sample QA Input",
+      "id": "normalize-input",
+      "name": "Normalize QA Queue Event",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        500,
+        520,
         300
       ],
       "parameters": {
-        "jsCode": "return [{\n  json: {\n    meta: {\n      workflow_name: 'AI3_QA_Scan',\n      timestamp: new Date().toISOString(),\n      trigger_source: 'manual_test',\n      risk_level: 'low'\n    },\n    context: {\n      canonical_links: [\n        '[[Home]]',\n        '[[04-Tasks/Workflow-Queue|Workflow Queue]]'\n      ],\n      constraints: [\n        'Do not approve launch automatically'\n      ]\n    },\n    payload: {\n      task_id: 'TASK-123',\n      plan_link: '[[Tasks/Reminder-SMS-TFV-Implementation-Plan-v2|Reminder SMS TFV Implementation Plan v2]]',\n      acceptance_criteria: [\n        'Consent copy is explicit',\n        'Backend stores consent state',\n        'No regression in booking flow'\n      ],\n      implementation_summary: [\n        'frontend consent checkbox added',\n        'backend consent flag stored',\n        'copy updated'\n      ],\n      changed_areas: [\n        'app/signup/',\n        'backend/index.js'\n      ],\n      hotfix: false\n    }\n  }\n}];"
+        "jsCode": "const raw = items[0]?.json || {};\nconst payload = raw.payload && typeof raw.payload === 'object' && !Array.isArray(raw.payload) ? raw.payload : raw;\nconst queueStageRaw = raw.current_stage || raw.queue_stage || raw.stage || payload.current_stage || payload.queue_stage || payload.stage || '';\nconst queueStage = queueStageRaw === 'Ready for QA' ? 'Waiting for QA' : queueStageRaw;\nif (queueStage !== 'Waiting for QA') {\n  throw new Error(`AI3 QA scan accepts only the 'Waiting for QA' queue stage. Received: ${queueStageRaw || 'missing'}`);\n}\nconst taskId = payload.task_id || payload.id || raw.task_id || raw.id;\nconst planLink = payload.plan_link || raw.plan_link;\nif (!taskId) throw new Error('Missing task_id');\nif (!planLink) throw new Error('Missing plan_link');\nreturn [{\n  json: {\n    meta: {\n      workflow_name: 'AI3_QA_Scan',\n      timestamp: new Date().toISOString(),\n      trigger_source: raw.trigger_source || 'queue_status_webhook',\n      risk_level: raw.risk_level || 'low'\n    },\n    context: {\n      canonical_links: [\n        raw.queue_link || '[[04-Tasks/Workflow-Queue|Workflow Queue]]',\n        planLink\n      ],\n      constraints: [\n        'Do not approve launch automatically',\n        ...(Array.isArray(raw.constraints) ? raw.constraints : [])\n      ]\n    },\n    payload: {\n      task_id: taskId,\n      plan_link: planLink,\n      acceptance_criteria: Array.isArray(payload.acceptance_criteria) ? payload.acceptance_criteria : [],\n      implementation_summary: Array.isArray(payload.implementation_summary) ? payload.implementation_summary : [],\n      changed_areas: Array.isArray(payload.changed_areas) ? payload.changed_areas : [],\n      hotfix: Boolean(payload.hotfix ?? raw.hotfix ?? false)\n    }\n  }\n}];"
       }
     },
     {
@@ -33,7 +38,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        780,
+        800,
         300
       ],
       "parameters": {
@@ -60,27 +65,27 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1060,
+        1080,
         300
       ],
       "parameters": {
-        "jsCode": "const item = items[0]?.json || {};\nconst required = ['agent', 'workflow', 'task_id', 'status', 'result', 'findings', 'follow_up_items', 'escalate_to', 'reason'];\nfor (const key of required) {\n  if (!(key in item)) {\n    throw new Error(`Missing required key: ${key}`);\n  }\n}\nconst allowedStatus = new Set(['done', 'partial', 'blocked', 'needs_review', 'queued']);\nif (!allowedStatus.has(item.status)) {\n  throw new Error(`Invalid status: ${item.status}`);\n}\nconst allowedResult = new Set(['pass', 'fail', 'needs_review']);\nif (!allowedResult.has(item.result)) {\n  throw new Error(`Invalid result: ${item.result}`);\n}\nconst allowedEscalation = new Set(['none', 'AI-1', 'AI-2', 'AI-3', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11', 'Owner']);\nif (!allowedEscalation.has(item.escalate_to)) {\n  throw new Error(`Invalid escalate_to: ${item.escalate_to}`);\n}\nitem.execution_action = item.result === 'pass' && item.escalate_to === 'none' ? 'write_qa_scan_and_move_queue' : 'create_follow_up_or_escalation';\nreturn [{ json: item }];"
+        "jsCode": "const item = items[0]?.json || {};\nconst required = ['agent', 'workflow', 'task_id', 'status', 'result', 'findings', 'follow_up_items', 'escalate_to', 'reason'];\nfor (const key of required) {\n  if (!(key in item)) {\n    throw new Error(`Missing required key: ${key}`);\n  }\n}\nconst allowedStatus = new Set(['done', 'partial', 'blocked', 'needs_review', 'queued']);\nif (!allowedStatus.has(item.status)) {\n  throw new Error(`Invalid status: ${item.status}`);\n}\nconst allowedResult = new Set(['pass', 'fail', 'needs_review']);\nif (!allowedResult.has(item.result)) {\n  throw new Error(`Invalid result: ${item.result}`);\n}\nconst allowedEscalation = new Set(['none', 'AI-1', 'AI-2', 'AI-3', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11', 'Owner']);\nif (!allowedEscalation.has(item.escalate_to)) {\n  throw new Error(`Invalid escalate_to: ${item.escalate_to}`);\n}\nitem.execution_action = item.result === 'pass' && item.escalate_to === 'none' ? 'write_qa_scan_and_move_queue' : 'create_follow_up_or_escalation';\nitem.queue_stage = 'Waiting for QA';\nreturn [{ json: item }];"
       }
     }
   ],
   "connections": {
-    "Manual Trigger": {
+    "QA Scan Webhook": {
       "main": [
         [
           {
-            "node": "Sample QA Input",
+            "node": "Normalize QA Queue Event",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Sample QA Input": {
+    "Normalize QA Queue Event": {
       "main": [
         [
           {

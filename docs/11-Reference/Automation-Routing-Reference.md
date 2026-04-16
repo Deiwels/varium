@@ -36,7 +36,7 @@ For concrete `n8n` payload contracts, envelopes, validation rules, and per-agent
 | Trigger | AI | Automation Mode | Input | Output | Next Step |
 |---|---|---|---|---|---|
 | New non-trivial feature request | AI 3 | Queue + Draft | task request, source docs | plan skeleton / intake structure | AI 6 or AI 5 or full planning |
-| Task moved to `Ready for QA` | AI 3 | Safe Auto | plan, implementation notes, changed-files summary | QA scan | Owner / queue / follow-up |
+| Task moved to `Waiting for QA` | AI 3 | Safe Auto | plan, implementation notes, changed-files summary | QA scan | Owner / queue / follow-up |
 | Weekly scheduled review | AI 3 | Scheduled | KPI docs, queue, incidents, blockers | weekly system review | Owner + improvements |
 | KPI threshold breach | AI 3 | Draft | KPI signal, affected lane | improvement proposal | review gate |
 | New campaign request | AI 8 | Draft | business goal, audience, current offer | growth brief | AI 10 / AI 11 / AI 9 |
@@ -73,7 +73,7 @@ These five agents are the best first automation wave after support / lead inbox 
 
 - new non-trivial task
 - workflow queue item with `new` / non-trivial state
-- task moved to `Ready for QA`
+- task moved to `Waiting for QA`
 - implementation marked complete
 - hotfix completed
 - weekly schedule trigger

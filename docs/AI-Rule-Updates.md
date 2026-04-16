@@ -33,6 +33,11 @@ source_of_truth: true
   - `automation/n8n/AI3_Planning_Intake.workflow.json`
   - `automation/n8n/AI3_QA_Scan.workflow.json`
   - `automation/n8n/README.md`
+- Those `n8n` artifacts are now webhook-driven queue/status triggers, not manual-only test flows.
+- Canonical queue-stage alignment for AI 3 is now:
+  - `Ready for Planning` -> planning intake
+  - `Waiting for QA` -> QA scan
+- Legacy `Ready for QA` should be treated as compatibility-only input, not canonical naming.
 - This is the approved shift from framework-only design to execution artifacts for phase 1.
 
 ### 2026-04-16 — Approved optimization pass is now active

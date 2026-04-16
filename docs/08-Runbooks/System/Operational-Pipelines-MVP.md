@@ -59,6 +59,8 @@ Current live execution artifacts:
 - `automation/n8n/AI3_QA_Scan.workflow.json`
 - `automation/n8n/README.md`
 
+These phase-1 AI 3 flows now start from real `n8n` webhook queue/status triggers rather than manual-only test triggers.
+
 ## Architecture
 
 ### 1. Email / Support Pipeline

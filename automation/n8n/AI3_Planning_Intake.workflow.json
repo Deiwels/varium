@@ -4,27 +4,32 @@
   "settings": {},
   "nodes": [
     {
-      "id": "manual-trigger",
-      "name": "Manual Trigger",
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
+      "id": "webhook-trigger",
+      "name": "Planning Intake Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
       "position": [
         240,
         300
       ],
-      "parameters": {}
+      "webhookId": "ai3-planning-intake",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai3-planning-intake",
+        "responseMode": "lastNode"
+      }
     },
     {
-      "id": "sample-input",
-      "name": "Sample Planning Input",
+      "id": "normalize-input",
+      "name": "Normalize Planning Queue Event",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        500,
+        520,
         300
       ],
       "parameters": {
-        "jsCode": "return [{\n  json: {\n    meta: {\n      workflow_name: 'AI3_Planning_Intake',\n      timestamp: new Date().toISOString(),\n      trigger_source: 'manual_test',\n      risk_level: 'medium'\n    },\n    context: {\n      canonical_links: [\n        '[[Home]]',\n        '[[04-Tasks/Workflow-Queue|Workflow Queue]]'\n      ],\n      constraints: [\n        'Do not invent compliance truth'\n      ]\n    },\n    payload: {\n      task_id: 'TASK-123',\n      title: 'Improve booking flow SMS consent',\n      description: 'Need safer onboarding consent flow for SMS reminders',\n      requested_by: 'Owner',\n      complexity: 'non-trivial',\n      external_dependency: true,\n      product_context_links: [\n        '[[Product/Feature-Briefs/Reminder-SMS-Launch-Readiness|Reminder SMS Launch Readiness]]'\n      ],\n      known_constraints: [\n        'Must preserve current signup speed'\n      ],\n      priority: 'high'\n    }\n  }\n}];"
+        "jsCode": "const raw = items[0]?.json || {};\nconst payload = raw.payload && typeof raw.payload === 'object' && !Array.isArray(raw.payload) ? raw.payload : raw;\nconst queueStage = raw.current_stage || raw.queue_stage || raw.stage || payload.current_stage || payload.queue_stage || payload.stage || '';\nif (queueStage !== 'Ready for Planning') {\n  throw new Error(`AI3 planning intake accepts only the 'Ready for Planning' queue stage. Received: ${queueStage || 'missing'}`);\n}\nconst taskId = payload.task_id || payload.id || raw.task_id || raw.id;\nconst title = payload.title || raw.title;\nconst description = payload.description || raw.description;\nif (!taskId) throw new Error('Missing task_id');\nif (!title) throw new Error('Missing title');\nif (!description) throw new Error('Missing description');\nreturn [{\n  json: {\n    meta: {\n      workflow_name: 'AI3_Planning_Intake',\n      timestamp: new Date().toISOString(),\n      trigger_source: raw.trigger_source || 'queue_status_webhook',\n      risk_level: raw.risk_level || 'medium'\n    },\n    context: {\n      canonical_links: [\n        raw.queue_link || '[[04-Tasks/Workflow-Queue|Workflow Queue]]',\n        ...(Array.isArray(payload.product_context_links) ? payload.product_context_links : [])\n      ],\n      constraints: [\n        'Do not invent compliance truth',\n        ...(Array.isArray(raw.constraints) ? raw.constraints : [])\n      ]\n    },\n    payload: {\n      task_id: taskId,\n      title,\n      description,\n      requested_by: payload.requested_by || raw.requested_by || 'Owner',\n      complexity: payload.complexity || raw.complexity || 'non-trivial',\n      external_dependency: Boolean(payload.external_dependency ?? raw.external_dependency ?? false),\n      product_context_links: Array.isArray(payload.product_context_links) ? payload.product_context_links : [],\n      known_constraints: Array.isArray(payload.known_constraints) ? payload.known_constraints : [],\n      priority: payload.priority || raw.priority || 'medium'\n    }\n  }\n}];"
       }
     },
     {
@@ -33,7 +38,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        780,
+        800,
         300
       ],
       "parameters": {
@@ -60,27 +65,27 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1060,
+        1080,
         300
       ],
       "parameters": {
-        "jsCode": "const item = items[0]?.json || {};\nconst required = ['agent', 'workflow', 'task_id', 'status', 'escalate_to', 'reason', 'plan_skeleton'];\nfor (const key of required) {\n  if (!(key in item)) {\n    throw new Error(`Missing required key: ${key}`);\n  }\n}\nconst allowedStatus = new Set(['done', 'partial', 'blocked', 'needs_review', 'queued']);\nif (!allowedStatus.has(item.status)) {\n  throw new Error(`Invalid status: ${item.status}`);\n}\nconst allowedEscalation = new Set(['none', 'AI-1', 'AI-2', 'AI-3', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11', 'Owner']);\nif (!allowedEscalation.has(item.escalate_to)) {\n  throw new Error(`Invalid escalate_to: ${item.escalate_to}`);\n}\nitem.execution_action = item.escalate_to !== 'none' ? 'create_handoff_or_escalation' : 'write_plan_shell_and_queue_update';\nreturn [{ json: item }];"
+        "jsCode": "const item = items[0]?.json || {};\nconst required = ['agent', 'workflow', 'task_id', 'status', 'escalate_to', 'reason', 'plan_skeleton'];\nfor (const key of required) {\n  if (!(key in item)) {\n    throw new Error(`Missing required key: ${key}`);\n  }\n}\nconst allowedStatus = new Set(['done', 'partial', 'blocked', 'needs_review', 'queued']);\nif (!allowedStatus.has(item.status)) {\n  throw new Error(`Invalid status: ${item.status}`);\n}\nconst allowedEscalation = new Set(['none', 'AI-1', 'AI-2', 'AI-3', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11', 'Owner']);\nif (!allowedEscalation.has(item.escalate_to)) {\n  throw new Error(`Invalid escalate_to: ${item.escalate_to}`);\n}\nitem.execution_action = item.escalate_to !== 'none' ? 'create_handoff_or_escalation' : 'write_plan_shell_and_queue_update';\nitem.queue_stage = 'Ready for Planning';\nreturn [{ json: item }];"
       }
     }
   ],
   "connections": {
-    "Manual Trigger": {
+    "Planning Intake Webhook": {
       "main": [
         [
           {
-            "node": "Sample Planning Input",
+            "node": "Normalize Planning Queue Event",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Sample Planning Input": {
+    "Normalize Planning Queue Event": {
       "main": [
         [
           {

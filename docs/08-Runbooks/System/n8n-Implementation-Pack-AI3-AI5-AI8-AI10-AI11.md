@@ -44,6 +44,8 @@ Current execution artifacts live in:
 - `automation/n8n/AI3_QA_Scan.workflow.json`
 - `automation/n8n/README.md`
 
+These phase-1 artifacts are now webhook-triggered queue/status workflows rather than manual-only test skeletons.
+
 Current backend AI endpoints for these workflows:
 
 - `POST /api/vurium-dev/ai/planning-intake`
@@ -233,7 +235,7 @@ Run structured QA review after implementation or hotfix.
 
 ### Trigger
 
-- task moved to `Ready for QA`
+- task moved to `Waiting for QA`
 - implementation marked complete
 - incident hotfix marked complete
 
