@@ -4223,6 +4223,24 @@ function buildOfflineGrowthHook(input) {
   return 'Simplify daily booking operations for small teams';
 }
 
+function withWorkflowFallbackReason(fallback, reason) {
+  const next = { ...(fallback || {}) };
+  if ('reason' in next) next.reason = reason;
+  if (next.growth_brief && typeof next.growth_brief === 'object') {
+    next.growth_brief = {
+      ...next.growth_brief,
+      risk_notes: uniqueList([
+        ...((next.growth_brief.risk_notes || []).filter((entry) => !/failed to parse|ai not configured|ai provider error/i.test(String(entry)))),
+        reason,
+      ]),
+    };
+  }
+  if (Array.isArray(next.findings) && next.findings.length) {
+    next.findings = [reason, ...next.findings.filter((entry) => safeStr(entry) && safeStr(entry) !== safeStr(reason))];
+  }
+  return next;
+}
+
 function buildPlanningFallback(input, reason) {
   const needsExternal = !!input.external_dependency;
   const needsCompliance = /(consent|privacy|policy|10dlc|compliance|opt[- ]?out|sms)/i.test(`${safeStr(input.title)}\n${safeStr(input.description)}`);
@@ -5460,37 +5478,42 @@ async function executeGrowthAssetFlow(meta, context, input) {
 
 async function runStructuredWorkflowAI({ systemPrompt, input, meta = {}, context = {}, fallback, outputSchema, maxTokens = 1600 }) {
   if (!anthropic) return outputSchema.parse(fallback);
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: maxTokens,
-    system: systemPrompt,
-    messages: [{
-      role: 'user',
-      content: [
-        'Return JSON only.',
-        '',
-        'Meta:',
-        JSON.stringify(meta, null, 2),
-        '',
-        'Context:',
-        JSON.stringify(context, null, 2),
-        '',
-        'Input:',
-        JSON.stringify(input, null, 2),
-      ].join('\n'),
-    }],
-  });
-  const rawText = response.content[0]?.text || '';
-  const parsed = extractJsonObject(rawText, fallback);
-  const validated = outputSchema.parse(parsed);
-  return {
-    ...validated,
-    ai_meta: {
+  try {
+    const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      input_tokens: response.usage?.input_tokens || 0,
-      output_tokens: response.usage?.output_tokens || 0,
-    },
-  };
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{
+        role: 'user',
+        content: [
+          'Return JSON only.',
+          '',
+          'Meta:',
+          JSON.stringify(meta, null, 2),
+          '',
+          'Context:',
+          JSON.stringify(context, null, 2),
+          '',
+          'Input:',
+          JSON.stringify(input, null, 2),
+        ].join('\n'),
+      }],
+    });
+    const rawText = response.content[0]?.text || '';
+    const parsed = extractJsonObject(rawText, fallback);
+    const validated = outputSchema.parse(parsed);
+    return {
+      ...validated,
+      ai_meta: {
+        model: 'claude-sonnet-4-20250514',
+        input_tokens: response.usage?.input_tokens || 0,
+        output_tokens: response.usage?.output_tokens || 0,
+      },
+    };
+  } catch (e) {
+    const providerReason = `AI provider error: ${safeStr(e?.message || 'Unknown provider error')}`;
+    return outputSchema.parse(withWorkflowFallbackReason(fallback, providerReason));
+  }
 }
 
 async function collectDiagnosticMetrics() {
