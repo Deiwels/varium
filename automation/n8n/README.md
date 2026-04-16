@@ -15,6 +15,7 @@ Current phase-1 workflows:
 Local setup helpers:
 
 - `.env.example`
+- `.env.local.example`
 - `smoke-tests/*.payload.json`
 
 ## Required Environment
@@ -42,6 +43,11 @@ Execution notes:
 - smoke tests for planning, QA, growth, and research create real markdown notes through backend writeback unless you point them at a disposable docs tree
 
 Use [`.env.example`](/Users/nazarii/Downloads/varium/automation/n8n/.env.example) as the starter file.
+For a local-only run, use [`.env.local.example`](/Users/nazarii/Downloads/varium/automation/n8n/.env.local.example) as the more direct template.
+
+Backend note:
+- use [backend/.env.local.example](/Users/nazarii/Downloads/varium/backend/.env.local.example) as the local backend secret/config template
+- the backend currently expects env vars to be present in the process environment; it does not auto-load `.env.local` by itself
 
 Important for local/self-hosted `n8n`:
 - set `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`
