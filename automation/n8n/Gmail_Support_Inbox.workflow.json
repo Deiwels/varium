@@ -1,0 +1,115 @@
+{
+  "name": "Gmail_Support_Inbox",
+  "active": false,
+  "settings": {},
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Support Inbox Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "gmail-support-inbox",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gmail-support-inbox",
+        "responseMode": "lastNode"
+      }
+    },
+    {
+      "id": "normalize-input",
+      "name": "Normalize Email Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const raw = items[0]?.json || {};\nconst payload = raw.payload && typeof raw.payload === 'object' && !Array.isArray(raw.payload) ? raw.payload : raw;\nconst messageId = payload.message_id || payload.messageId || raw.message_id || raw.messageId;\nconst threadId = payload.thread_id || payload.threadId || raw.thread_id || raw.threadId || messageId;\nconst fromEmail = payload.from_email || payload.from || raw.from_email || raw.from;\nconst subject = payload.subject || raw.subject || '(no subject)';\nconst body = payload.body || payload.bodyText || raw.body || raw.bodyText || payload.snippet || raw.snippet || payload.bodyHtml || raw.bodyHtml || '';\nif (!messageId) throw new Error('Missing message_id / messageId');\nif (!fromEmail) throw new Error('Missing from_email / from');\nif (!body) throw new Error('Missing body / bodyText / bodyHtml');\nreturn [{\n  json: {\n    meta: {\n      workflow_name: 'Gmail_Support_Inbox',\n      timestamp: new Date().toISOString(),\n      trigger_source: raw.trigger_source || 'support_inbox_webhook',\n      risk_level: raw.risk_level || 'medium'\n    },\n    context: {\n      canonical_links: [\n        '[[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]]',\n        '[[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]'\n      ],\n      constraints: [\n        'No unsupported promises',\n        'No refunds, pricing exceptions, or compliance commitments via automation'\n      ]\n    },\n    payload: {\n      message_id: String(messageId),\n      thread_id: String(threadId),\n      from_email: String(fromEmail),\n      subject: String(subject),\n      body: String(body),\n      body_html: String(payload.body_html || payload.bodyHtml || raw.body_html || raw.bodyHtml || ''),\n      received_at: String(payload.received_at || payload.receivedAt || raw.received_at || raw.receivedAt || new Date().toISOString()),\n      account: String(payload.account || raw.account || payload.mailbox || raw.mailbox || ''),\n      mailbox: String(payload.mailbox || raw.mailbox || payload.account || raw.account || '')\n    }\n  }\n}];"
+      }
+    },
+    {
+      "id": "call-backend",
+      "name": "Call AI9 Support Inbox",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        820,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.VURIUM_API_BASE_URL || 'http://localhost:8080') + '/api/vurium-dev/ai/support-inbox-process' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.VURIUM_ADMIN_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "validate-output",
+      "name": "Validate Support Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const item = items[0]?.json || {};\nconst required = ['agent', 'workflow', 'status', 'message_id', 'thread_id', 'from_email', 'subject', 'reply_subject', 'label', 'route_lane', 'reply_draft', 'safe_to_send', 'escalate_to', 'technical_target', 'faq_candidate', 'reason'];\nfor (const key of required) {\n  if (!(key in item)) throw new Error(`Missing required key: ${key}`);\n}\nconst allowedStatus = new Set(['done', 'partial', 'blocked', 'needs_review', 'queued']);\nif (!allowedStatus.has(item.status)) throw new Error(`Invalid status: ${item.status}`);\nconst allowedLabels = new Set(['support', 'lead', 'onboarding', 'technical', 'billing', 'compliance_risk']);\nif (!allowedLabels.has(item.label)) throw new Error(`Invalid label: ${item.label}`);\nconst allowedLanes = new Set(['support_reply', 'technical_escalation', 'billing_escalation', 'compliance_escalation']);\nif (!allowedLanes.has(item.route_lane)) throw new Error(`Invalid route_lane: ${item.route_lane}`);\nconst allowedEscalation = new Set(['none', 'AI-1', 'AI-2', 'AI-3', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11', 'Owner']);\nif (!allowedEscalation.has(item.escalate_to)) throw new Error(`Invalid escalate_to: ${item.escalate_to}`);\nconst allowedTechnical = new Set(['none', 'AI-1', 'AI-2']);\nif (!allowedTechnical.has(item.technical_target)) throw new Error(`Invalid technical_target: ${item.technical_target}`);\nitem.gmail_reply_request = item.safe_to_send && item.escalate_to === 'none'\n  ? {\n      account: item.account || item.mailbox,\n      to: item.from_email,\n      subject: item.reply_subject,\n      body_html: String(item.reply_draft || '').replace(/\\n/g, '<br>'),\n      threadId: item.thread_id,\n      messageId: item.message_id\n    }\n  : null;\nitem.execution_action = item.safe_to_send && item.escalate_to === 'none'\n  ? 'send_or_manual_review'\n  : 'create_escalation_note';\nreturn [{ json: item }];"
+      }
+    }
+  ],
+  "connections": {
+    "Support Inbox Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Email Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Email Event": {
+      "main": [
+        [
+          {
+            "node": "Call AI9 Support Inbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call AI9 Support Inbox": {
+      "main": [
+        [
+          {
+            "node": "Validate Support Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

@@ -3528,6 +3528,48 @@ const AI3QAScanOutputSchema = z.object({
   next_step: z.string().default(''),
 });
 
+const SUPPORT_EMAIL_LABEL_VALUES = ['support', 'lead', 'onboarding', 'technical', 'billing', 'compliance_risk'];
+const SUPPORT_ROUTE_LANE_VALUES = ['support_reply', 'technical_escalation', 'billing_escalation', 'compliance_escalation'];
+const SUPPORT_TECHNICAL_TARGET_VALUES = ['none', 'AI-1', 'AI-2'];
+const SupportEmailLabelSchema = z.enum(SUPPORT_EMAIL_LABEL_VALUES);
+const SupportRouteLaneSchema = z.enum(SUPPORT_ROUTE_LANE_VALUES);
+const SupportTechnicalTargetSchema = z.enum(SUPPORT_TECHNICAL_TARGET_VALUES);
+
+const AI9SupportInboxInputSchema = z.object({
+  message_id: z.string().min(1),
+  thread_id: z.string().min(1),
+  from_email: z.string().min(3),
+  subject: z.string().min(1),
+  body: z.string().min(1),
+  body_html: z.string().default(''),
+  received_at: z.string().default(''),
+  account: z.string().default(''),
+  mailbox: z.string().default(''),
+});
+
+const AI9SupportInboxOutputSchema = z.object({
+  agent: z.literal('AI-9'),
+  workflow: z.literal('support_inbox_process'),
+  status: WorkflowStatusSchema,
+  message_id: z.string().min(1),
+  thread_id: z.string().min(1),
+  from_email: z.string().min(3),
+  subject: z.string().min(1),
+  reply_subject: z.string().min(1),
+  account: z.string().default(''),
+  mailbox: z.string().default(''),
+  label: SupportEmailLabelSchema,
+  route_lane: SupportRouteLaneSchema,
+  reply_draft: z.string().default(''),
+  safe_to_send: z.boolean(),
+  escalate_to: WorkflowEscalationTargetSchema,
+  technical_target: SupportTechnicalTargetSchema,
+  faq_candidate: z.boolean(),
+  reason: z.string().default(''),
+  writeback_targets: z.array(z.string()).default([]),
+  next_step: z.string().default(''),
+});
+
 const AI3_PLANNING_INTAKE_SYSTEM_PROMPT = `You are AI 3 inside the VuriumBook AI Operating System.
 
 Your role:
@@ -3597,6 +3639,72 @@ Return exactly this JSON shape:
   "next_step": "clear next action"
 }`;
 
+const AI9_SUPPORT_INBOX_SYSTEM_PROMPT = `You are AI 9 inside the VuriumBook AI Operating System.
+
+Your role:
+- classify incoming support inbox messages
+- draft safe routine replies when appropriate
+- escalate risky, ambiguous, billing, technical, or compliance-sensitive cases
+- never invent product truth, pricing, legal claims, or promises
+
+Classification labels:
+- support
+- lead
+- onboarding
+- technical
+- billing
+- compliance_risk
+
+Routing rules:
+- support / lead / onboarding -> route_lane = "support_reply"
+- technical -> route_lane = "technical_escalation"
+- billing -> route_lane = "billing_escalation"
+- compliance_risk -> route_lane = "compliance_escalation"
+
+Escalation rules:
+- technical backend / API / server / data issues -> escalate_to = "AI-1", technical_target = "AI-1"
+- technical UI / frontend / rendering / booking-page issues -> escalate_to = "AI-2", technical_target = "AI-2"
+- product ambiguity -> escalate_to = "AI-6"
+- compliance / policy wording -> escalate_to = "AI-7"
+- billing / refund / pricing exception / account-sensitive commitments -> escalate_to = "Owner"
+- routine low-risk support / onboarding / lead -> escalate_to = "none"
+
+Safe-send rules:
+- safe_to_send may be true only for routine support / onboarding / lead replies
+- safe_to_send must be false for technical, billing, compliance-risk, angry or dispute-like, or unclear requests
+- if uncertain, escalate instead of guessing
+
+Rules:
+- return JSON only
+- no markdown
+- no code fences
+- keep reply short and clear
+- do not promise launch dates, refunds, pricing exceptions, legal outcomes, or unsupported features
+
+Return exactly this JSON shape:
+{
+  "agent": "AI-9",
+  "workflow": "support_inbox_process",
+  "status": "done",
+  "message_id": "msg-123",
+  "thread_id": "thread-123",
+  "from_email": "user@example.com",
+  "subject": "Need help",
+  "reply_subject": "Re: Need help",
+  "account": "support@vurium.com",
+  "mailbox": "support@vurium.com",
+  "label": "support",
+  "route_lane": "support_reply",
+  "reply_draft": "Hi,\\n\\nThanks for reaching out. ...",
+  "safe_to_send": true,
+  "escalate_to": "none",
+  "technical_target": "none",
+  "faq_candidate": false,
+  "reason": "Routine onboarding clarification.",
+  "writeback_targets": ["06-Growth/Customer-Communication/", "04-Tasks/Handoffs/"],
+  "next_step": "Send the reply if auto-send rules allow it."
+}`;
+
 function extractJsonObject(rawText, fallback) {
   const text = safeStr(rawText);
   if (!text) return fallback;
@@ -3651,6 +3759,66 @@ function buildQAFallback(input, reason) {
     reason,
     writeback_targets: ['04-Tasks/*QA-Scan*.md', '04-Tasks/Workflow-Queue.md'],
     next_step: 'Review QA scan manually before moving the task forward.',
+  };
+}
+
+function detectSupportLabel(input) {
+  const text = `${safeStr(input.subject)}\n${safeStr(input.body)}\n${safeStr(input.from_email)}`.toLowerCase();
+  if (/(consent|privacy|gdpr|policy|legal|terms|opt[- ]?out|10dlc|compliance)/.test(text)) return 'compliance_risk';
+  if (/(refund|charge|charged|invoice|billing|payment|card declined|subscription|pricing exception)/.test(text)) return 'billing';
+  if (/(bug|error|broken|not working|can't log in|cannot log in|api|server|500|crash|frontend|ui|render|page|mobile|responsive)/.test(text)) return 'technical';
+  if (/(setup|set up|get started|getting started|onboard|onboarding|first time|configure)/.test(text)) return 'onboarding';
+  if (/(demo|interested|trial|sales|book a call|sign up|signup|pricing|learn more)/.test(text)) return 'lead';
+  return 'support';
+}
+
+function detectTechnicalTarget(input) {
+  const text = `${safeStr(input.subject)}\n${safeStr(input.body)}`.toLowerCase();
+  if (/(ui|frontend|render|layout|button|screen|mobile|responsive|booking page|page)/.test(text)) return 'AI-2';
+  return 'AI-1';
+}
+
+function buildSupportInboxFallback(input, reason) {
+  const label = detectSupportLabel(input);
+  const technicalTarget = label === 'technical' ? detectTechnicalTarget(input) : 'none';
+  const routeLane = label === 'technical'
+    ? 'technical_escalation'
+    : label === 'billing'
+      ? 'billing_escalation'
+      : label === 'compliance_risk'
+        ? 'compliance_escalation'
+        : 'support_reply';
+  const escalateTo = label === 'technical'
+    ? technicalTarget
+    : label === 'billing'
+      ? 'Owner'
+      : label === 'compliance_risk'
+        ? 'AI-7'
+        : 'none';
+  const isReplyLane = routeLane === 'support_reply';
+  return {
+    agent: 'AI-9',
+    workflow: 'support_inbox_process',
+    status: 'blocked',
+    message_id: input.message_id,
+    thread_id: input.thread_id,
+    from_email: input.from_email,
+    subject: input.subject,
+    reply_subject: `Re: ${input.subject}`,
+    account: input.account || '',
+    mailbox: input.mailbox || '',
+    label,
+    route_lane: routeLane,
+    reply_draft: isReplyLane
+      ? "Hi,\n\nThanks for reaching out. We've received your message and are reviewing it now. We'll follow up as soon as possible.\n\n— Vurium Team"
+      : '',
+    safe_to_send: false,
+    escalate_to: escalateTo,
+    technical_target: technicalTarget,
+    faq_candidate: false,
+    reason,
+    writeback_targets: ['06-Growth/Customer-Communication/', '04-Tasks/Handoffs/'],
+    next_step: isReplyLane ? 'Review the draft manually before sending.' : 'Create an escalation note and route to the next owner.',
   };
 }
 
@@ -4011,6 +4179,28 @@ app.post('/api/vurium-dev/ai/qa-scan', requireSuperadmin, async (req, res) => {
     if (e.message === 'AI not configured') return res.status(503).json({ error: 'AI not configured (missing ANTHROPIC_API_KEY)' });
     console.error('AI QA scan error:', e.message);
     res.status(500).json({ error: 'Failed to generate QA scan' });
+  }
+});
+
+app.post('/api/vurium-dev/ai/support-inbox-process', requireSuperadmin, async (req, res) => {
+  try {
+    const { meta, context, payload } = unwrapWorkflowEnvelope(req.body);
+    const input = AI9SupportInboxInputSchema.parse(payload);
+    const result = await runStructuredWorkflowAI({
+      systemPrompt: AI9_SUPPORT_INBOX_SYSTEM_PROMPT,
+      input,
+      meta,
+      context,
+      fallback: buildSupportInboxFallback(input, 'Failed to parse support inbox AI output.'),
+      outputSchema: AI9SupportInboxOutputSchema,
+      maxTokens: 1800,
+    });
+    res.json(result);
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid support-inbox payload', details: e.issues });
+    if (e.message === 'AI not configured') return res.status(503).json({ error: 'AI not configured (missing ANTHROPIC_API_KEY)' });
+    console.error('AI support inbox error:', e.message);
+    res.status(500).json({ error: 'Failed to process support inbox message' });
   }
 });
 

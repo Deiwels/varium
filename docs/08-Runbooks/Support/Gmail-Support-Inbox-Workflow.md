@@ -29,6 +29,19 @@ Recommended rollout:
 - Stage 1 -> AI 9 draft plus manual approval send
 - Stage 2 -> auto-send only for clearly safe routine replies
 
+## Live Execution Artifacts
+
+Current execution-ready support artifacts:
+
+- `automation/n8n/Gmail_Support_Inbox.workflow.json`
+- `automation/n8n/README.md`
+- `POST /api/vurium-dev/ai/support-inbox-process`
+
+Implementation note:
+
+- the canonical logic below stays node-by-node for clarity
+- the live MVP execution artifact currently uses one consolidated backend AI decision step so `n8n` can stay smaller and easier to maintain
+
 ## Flow Logic
 
 `Gmail Trigger -> Normalize Email -> Classify Email -> Route by Label`
