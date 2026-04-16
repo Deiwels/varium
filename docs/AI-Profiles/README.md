@@ -27,7 +27,8 @@ Before starting a session:
 11. if the session touches system performance, weekly review, or role effectiveness, also read [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]]
 12. if the session proposes or reviews system changes, also read [[00-System/Self-Improvement-Layer|Self-Improvement Layer]]
 13. if the session touches real tools, inboxes, forms, Stripe, Telnyx, alerts, or safe integration boundaries, also read [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
-14. add a fresh entry to [[AI-Session-Acceptance-Log]]
+14. if the session touches automation mode, triggers, queue-only vs draft-only behavior, or safe auto-execution boundaries, also read [[00-System/AI-Automation-Policy|AI Automation Policy]]
+15. add a fresh entry to [[AI-Session-Acceptance-Log]]
 
 If a profile is outdated, update the profile before treating it as trustworthy.
 
@@ -117,6 +118,7 @@ This is intentional. The goal is that any AI can open any profile and orient ins
 - **System self-improvement / controlled evolution layer** → [[00-System/Self-Improvement-Layer|Self-Improvement Layer]]
 - **Knowledge-system semantics** → [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
 - **Workflow routing / queue / handoff logic** → [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]
+- **Per-agent automation levels and safe trigger design** → [[00-System/AI-Automation-Policy|AI Automation Policy]]
 - **Real tools / trigger / integration boundaries** → [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
 - **File ownership** → [[AI-Work-Split]]
 - **Current active work** → [[Tasks/In Progress|In Progress]]

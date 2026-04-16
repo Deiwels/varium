@@ -9,7 +9,7 @@ source_of_truth: true
 
 # AI Session Start Protocol
 
-> Part of [[Home]] > System | See also: [[AI-Behavior-Protocol]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[11-Reference/AI-Session-Template|AI Session Template]], [[AI-Session-Acceptance-Log]]
+> Part of [[Home]] > System | See also: [[AI-Behavior-Protocol]], [[00-System/AI-Automation-Policy|AI Automation Policy]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[11-Reference/AI-Session-Template|AI Session Template]], [[AI-Session-Acceptance-Log]]
 
 ## Purpose
 
@@ -53,6 +53,7 @@ Before acting, identify:
 - which note is canonical
 - which template applies if you are creating a structured note or artifact
 - which escalation path applies if you get blocked or risky, usually via [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
+- which automation level applies if this task arrived through workflow/trigger/queue automation, via [[00-System/AI-Automation-Policy|AI Automation Policy]]
 
 If source of truth is missing:
 
@@ -80,6 +81,7 @@ Work under these constraints:
 - do not override other roles
 - do not skip system rules
 - do not produce irrelevant output
+- do not auto-execute work that is queue-only, draft-only, or approval-gated for your role
 
 ## Step 6 — Escalation Rule
 

@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Real Tools Integration Layer
 
-> Part of [[Home]] > System | See also: [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[08-Runbooks/System/Operational-Pipelines-MVP|Operational Pipelines MVP]], [[08-Runbooks/Owner/Portal-Only-Actions|Owner Portal-Only Actions]]
+> Part of [[Home]] > System | See also: [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/AI-Automation-Policy|AI Automation Policy]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[08-Runbooks/System/Operational-Pipelines-MVP|Operational Pipelines MVP]], [[08-Runbooks/Owner/Portal-Only-Actions|Owner Portal-Only Actions]]
 
 ## Purpose
 
@@ -42,6 +42,8 @@ Tools must not:
 - bypass compliance checks
 - auto-send risky communication without explicit rules
 - grant AI autonomous control of sensitive portals or production accounts
+
+AI-specific automation levels are defined in [[00-System/AI-Automation-Policy|AI Automation Policy]].
 
 ## Integration Model
 

@@ -9,7 +9,7 @@ source_of_truth: true
 
 # AI Core Manifesto
 
-> [[Home]] | Related: [[AI-Rule-Updates]], [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[AI-Profiles/README|AI Profiles]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]], [[AI-Session-Acceptance-Log]]
+> [[Home]] | Related: [[AI-Rule-Updates]], [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/AI-Automation-Policy|AI Automation Policy]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[AI-Profiles/README|AI Profiles]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]], [[AI-Session-Acceptance-Log]]
 > Owner: Owner + AI 3 system governance | Status: active
 
 > ⚠️ **Read [[AI-Rule-Updates]] first, then this document, then [[AI-Behavior-Protocol]] and [[AI-Session-Start-Protocol]], before any session.**
@@ -141,6 +141,18 @@ Automation may route work, assemble context, prepare drafts, and maintain queue 
 - Automation must not bypass AI 3 planning or review gates for non-trivial work.
 - Automation must not bypass Owner approval or real-world control points.
 - [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]] and [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]] are canonical for routing, trigger, queue, handoff, and tool-integration behavior.
+
+### Rule N — Automation Levels Are Role-Specific
+
+Different AI roles must run at different automation levels.
+
+- some roles are manual-only
+- some are queue-only
+- some may draft automatically
+- some may auto-execute only safe low-risk work
+- AI 4 may auto-route only in emergency mode
+
+[[00-System/AI-Automation-Policy|AI Automation Policy]] is canonical for per-agent automation level, safe trigger design, and rollout order.
 
 ### Rule K — Behavior Protocol Is Mandatory
 

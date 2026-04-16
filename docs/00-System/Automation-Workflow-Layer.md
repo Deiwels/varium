@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Automation Workflow Layer
 
-> Part of [[Home]] > System | See also: [[00-System/System-Index|System Index]], [[AI-Core-Manifesto]], [[AI-Work-Split]], [[00-System/Self-Improvement-Layer|Self-Improvement Layer]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]], [[04-Tasks/Workflow-Queue|Workflow Queue]], [[04-Tasks/Workflow-Trigger-Labels|Workflow Trigger Labels]], [[04-Tasks/Handoffs/README|Handoffs]]
+> Part of [[Home]] > System | See also: [[00-System/System-Index|System Index]], [[00-System/AI-Automation-Policy|AI Automation Policy]], [[AI-Core-Manifesto]], [[AI-Work-Split]], [[00-System/Self-Improvement-Layer|Self-Improvement Layer]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]], [[04-Tasks/Workflow-Queue|Workflow Queue]], [[04-Tasks/Workflow-Trigger-Labels|Workflow Trigger Labels]], [[04-Tasks/Handoffs/README|Handoffs]]
 
 ## Purpose
 
@@ -37,6 +37,18 @@ Automation must not:
 - bypass AI 3 planning or review gates for non-trivial work
 - bypass Owner approval where approval is required
 - invent product, pricing, compliance, or technical truth
+
+## Automation-Level Rule
+
+Not every AI should be automated the same way.
+
+Use [[00-System/AI-Automation-Policy|AI Automation Policy]] as the canonical source for:
+
+- which AI may run only manually
+- which AI should be queue-only
+- which AI may draft automatically
+- which AI may safely auto-execute low-risk work
+- which AI may auto-route only under emergency conditions
 
 ## Standard Automation Pattern
 

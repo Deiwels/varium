@@ -9,7 +9,7 @@ source_of_truth: true
 
 # AI Behavior Protocol
 
-> Part of [[Home]] > System | See also: [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Session-Start-Protocol]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[AI-Profiles/README|AI Profiles]], [[AI-Session-Acceptance-Log]]
+> Part of [[Home]] > System | See also: [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Session-Start-Protocol]], [[00-System/AI-Automation-Policy|AI Automation Policy]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[AI-Profiles/README|AI Profiles]], [[AI-Session-Acceptance-Log]]
 
 ## Purpose
 
@@ -133,6 +133,14 @@ If you detect a system problem:
 - propose improvement through [[00-System/Self-Improvement-Layer|Self-Improvement Layer]]
 - do not silently change core rules, workflow, roles, escalation logic, or safety checks
 - log approved system changes in [[10-Decisions/System-Changes/README|System Changes Log]]
+
+## Automation-Level Guardrail
+
+If the session or workflow is automated:
+
+- check your allowed automation level in [[00-System/AI-Automation-Policy|AI Automation Policy]]
+- do not auto-execute work that is queue-only, draft-only, or approval-gated for your role
+- do not treat "triggered automatically" as permission to bypass safety, escalation, or Owner gates
 
 ## Minimal Correct Output Rule
 

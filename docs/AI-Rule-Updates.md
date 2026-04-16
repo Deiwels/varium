@@ -19,6 +19,26 @@ source_of_truth: true
 
 ## Current active updates
 
+### 2026-04-15 — AI Automation Policy is now canonical
+
+- [[00-System/AI-Automation-Policy|AI Automation Policy]] is now the canonical per-agent automation-level document.
+- Not every AI should be automated the same way.
+- The active model is now:
+  - Level 0 -> manual only
+  - Level 1 -> queue-only
+  - Level 2 -> draft automation
+  - Level 3 -> safe auto-execution
+  - Level 4 -> emergency auto-routing
+- High-automation priority is now explicitly biased toward:
+  - AI 9 support/lead communication
+  - AI 3 planning/QA/review support
+  - AI 8 growth briefs
+  - AI 10 script/video briefs
+  - AI 11 creative variants
+  - AI 5 research-brief prep
+- AI 1 / AI 2 remain queue/prep-first, not direct auto-change lanes.
+- Owner remains manual-only, and AI 4 remains emergency-only.
+
 ### 2026-04-15 — Operational Pipelines MVP is now canonical
 
 - [[08-Runbooks/System/Operational-Pipelines-MVP|Operational Pipelines MVP]] is now the canonical starting set for real automation build-out.

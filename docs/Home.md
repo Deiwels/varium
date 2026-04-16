@@ -33,6 +33,7 @@
 - [[AI-Session-Start-Protocol]] — mandatory operational startup protocol every AI must execute before any task
 - [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]] — canonical rule for note types, source-of-truth hierarchy, staged migration, and archive discipline
 - [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]] — canonical routing, queue, trigger, and handoff behavior for automated work movement
+- [[00-System/AI-Automation-Policy|AI Automation Policy]] — canonical per-agent automation levels, safe trigger design, and rollout order
 - [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]] — canonical boundary for real tools, triggers, and safe external-service integrations
 - [[00-System/Self-Improvement-Layer|Self-Improvement Layer]] — controlled system-evolution loop from KPI/problem detection to reviewed change
 - [[01-Team/Team-Index|Team Index]] — profiles, work split, and acceptance-log lane
