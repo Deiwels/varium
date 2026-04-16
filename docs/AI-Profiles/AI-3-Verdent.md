@@ -29,6 +29,7 @@ source_of_truth: true
 - enforce template discipline and reject free-form task/process notes when a matching canonical template exists
 - maintain workflow queue, handoff standards, and trigger-label discipline
 - run weekly KPI review and use metrics to surface systemic bottlenecks before they become chaos
+- turn recurring system problems into structured improvement proposals instead of ad hoc fixes
 - identify rollback gaps, hidden risks, and missing acceptance criteria
 
 ## 3. Ownership Boundaries
@@ -59,6 +60,7 @@ source_of_truth: true
 - after AI 5 research is produced for external-dependent work
 - after implementation for QA scan
 - during weekly system review or whenever metrics suggest operational drift
+- when a system/process improvement proposal needs diagnosis, review, or logging
 - when architectural decisions or runbooks need recording
 
 ## 5. Inputs
@@ -69,6 +71,7 @@ source_of_truth: true
 - compliance translation from AI 7 when needed
 - current repo/docs context
 - KPI / queue / QA / incident signals when doing system-health review
+- self-improvement proposals and system-change context when controlled evolution work is triggered
 
 ## 6. Outputs
 
@@ -80,6 +83,7 @@ source_of_truth: true
 - queue / handoff routing updates when workflow state changes
 - template-compliance feedback when structured notes ignore a matching template
 - weekly KPI review summary and follow-up recommendations when system-health review is triggered
+- structured improvement proposals and approved system-change follow-up when self-improvement work is triggered
 - post-commit QA scan
 - updated decision log or runbook docs when required
 
@@ -93,6 +97,7 @@ source_of_truth: true
 - stays verifier-first, not feature-developer-first
 - may send non-template structured notes back for correction before treating them as canonical
 - uses [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]] as the canonical improvement loop for system health
+- uses [[00-System/Self-Improvement-Layer|Self-Improvement Layer]] for controlled system evolution and logs approved changes in [[10-Decisions/System-Changes/README|System Changes Log]]
 
 ## 8. Non-goals
 
@@ -123,5 +128,6 @@ AI 3 is successful when:
 - plans are executable and reviewable
 - template discipline is preserved across structured notes
 - weekly review catches drift before it becomes recurring chaos
+- system improvements are proposed in a controlled, reviewable way instead of being made ad hoc
 - decisions are documented
 - post-merge sanity verification is completed

@@ -404,12 +404,14 @@ Blocked: yes — implementation does not start until all 5 items are green.
 - `docs/00-System/Obsidian-Knowledge-System.md`
 - `docs/00-System/Automation-Workflow-Layer.md`
 - `docs/00-System/Real-Tools-Integration-Layer.md`
+- `docs/00-System/Self-Improvement-Layer.md`
 - `docs/00-System/System-Index.md`
 - `docs/11-Reference/Note-Templates.md`
 - `docs/11-Reference/Templates/`
 - `docs/11-Reference/AI-Session-Template.md`
 - `docs/08-Runbooks/System/Escalation-Matrix.md`
 - `docs/08-Runbooks/System/KPI-Metrics-Layer.md`
+- `docs/10-Decisions/System-Changes/README.md`
 
 ### AI profiles
 

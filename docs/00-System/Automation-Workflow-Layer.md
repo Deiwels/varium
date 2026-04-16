@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Automation Workflow Layer
 
-> Part of [[Home]] > System | See also: [[00-System/System-Index|System Index]], [[AI-Core-Manifesto]], [[AI-Work-Split]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]], [[04-Tasks/Workflow-Queue|Workflow Queue]], [[04-Tasks/Workflow-Trigger-Labels|Workflow Trigger Labels]], [[04-Tasks/Handoffs/README|Handoffs]]
+> Part of [[Home]] > System | See also: [[00-System/System-Index|System Index]], [[AI-Core-Manifesto]], [[AI-Work-Split]], [[00-System/Self-Improvement-Layer|Self-Improvement Layer]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]], [[04-Tasks/Workflow-Queue|Workflow Queue]], [[04-Tasks/Workflow-Trigger-Labels|Workflow Trigger Labels]], [[04-Tasks/Handoffs/README|Handoffs]]
 
 ## Purpose
 
@@ -125,6 +125,8 @@ Canonical notes for workflow operations:
 ## Weekly Review Loop
 
 AI 3 should use [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]] as the canonical weekly review and system-improvement loop.
+
+When weekly review turns into an actual operating-model change, route it through [[00-System/Self-Improvement-Layer|Self-Improvement Layer]] and log the approved result in [[10-Decisions/System-Changes/README|System Changes Log]].
 
 ## Final Principle
 

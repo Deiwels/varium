@@ -9,7 +9,7 @@ source_of_truth: true
 
 # KPI & Metrics Layer
 
-> Part of [[Home]] > Runbooks | See also: [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[AI-Profiles/AI-3-Verdent|AI 3 — Verdent]], [[04-Tasks/Workflow-Queue|Workflow Queue]]
+> Part of [[Home]] > Runbooks | See also: [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Self-Improvement-Layer|Self-Improvement Layer]], [[AI-Profiles/AI-3-Verdent|AI 3 — Verdent]], [[04-Tasks/Workflow-Queue|Workflow Queue]]
 
 ## Purpose
 
@@ -311,6 +311,8 @@ AI 3 should use this layer to:
 - propose workflow, template, or documentation improvements before chaos spreads
 
 This does not let AI 3 override lane truth or Owner priorities. It gives AI 3 a canonical improvement loop.
+
+Use it together with [[00-System/Self-Improvement-Layer|Self-Improvement Layer]] when metrics turn into actual change proposals.
 
 ## Final Principle
 

@@ -38,6 +38,7 @@ If a matching template exists there, use that file instead of inventing a free-f
 - [[11-Reference/Templates/Runbook-Template|Runbook Template]]
 - [[11-Reference/Templates/Incident-Template|Incident Template]]
 - [[11-Reference/Templates/Decision-Template|Decision Template]]
+- [[11-Reference/Templates/Improvement-Proposal-Template|Improvement Proposal Template]]
 - [[11-Reference/Templates/Short-Fast-Task-Template|Short Fast Task Template]]
 
 ## AI Session Start Template

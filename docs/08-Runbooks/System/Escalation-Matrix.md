@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Escalation Matrix
 
-> Part of [[Home]] > Runbooks | See also: [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]]
+> Part of [[Home]] > Runbooks | See also: [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]], [[00-System/Self-Improvement-Layer|Self-Improvement Layer]]
 
 ## Purpose
 

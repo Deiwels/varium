@@ -19,6 +19,12 @@ source_of_truth: true
 
 ## Current active updates
 
+### 2026-04-15 — Self-Improvement Layer is now canonical
+
+- [[00-System/Self-Improvement-Layer|Self-Improvement Layer]] is now the canonical controlled-evolution loop for the operating system.
+- AI 3 should use it with [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]] to turn recurring problems into structured, reviewable improvements.
+- System improvements must not be silent; approved changes should be logged in [[10-Decisions/System-Changes/README|System Changes Log]].
+
 ### 2026-04-15 — KPI & Metrics Layer is now canonical
 
 - [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]] is now the canonical system-performance and weekly-review document.

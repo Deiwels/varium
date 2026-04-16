@@ -9,7 +9,7 @@ source_of_truth: false
 
 # Decisions Index
 
-> Part of [[Home]] > Decisions | See also: [[Architecture/Decision-Log|Decision Log]], [[Tasks/Platform-Sender-Pivot-Decision|Platform Sender Pivot Decision]], [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
+> Part of [[Home]] > Decisions | See also: [[Architecture/Decision-Log|Decision Log]], [[Tasks/Platform-Sender-Pivot-Decision|Platform Sender Pivot Decision]], [[10-Decisions/System-Changes/README|System Changes Log]], [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
 
 ## What Belongs Here
 
@@ -23,6 +23,7 @@ The main canonical decision register is still [[Architecture/Decision-Log|Decisi
 
 - [[Architecture/Decision-Log|Decision Log]]
 - [[Tasks/Platform-Sender-Pivot-Decision|Platform Sender Pivot Decision]]
+- [[10-Decisions/System-Changes/README|System Changes Log]]
 
 ## Owner Lane
 

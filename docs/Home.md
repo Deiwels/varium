@@ -34,6 +34,7 @@
 - [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]] — canonical rule for note types, source-of-truth hierarchy, staged migration, and archive discipline
 - [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]] — canonical routing, queue, trigger, and handoff behavior for automated work movement
 - [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]] — canonical boundary for real tools, triggers, and safe external-service integrations
+- [[00-System/Self-Improvement-Layer|Self-Improvement Layer]] — controlled system-evolution loop from KPI/problem detection to reviewed change
 - [[01-Team/Team-Index|Team Index]] — profiles, work split, and acceptance-log lane
 - [[02-Product/Product-Index|Product Index]] — product-lane MOC
 - [[03-Architecture/Architecture-Index|Architecture Index]] — architecture-lane MOC
@@ -44,6 +45,7 @@
 - [[08-Runbooks/Runbooks-Index|Runbooks Index]] — operational procedures MOC
 - [[09-Incidents/Incidents-Index|Incidents Index]] — incidents, hotfixes, and postmortems MOC
 - [[10-Decisions/Decisions-Index|Decisions Index]] — permanent decision history MOC
+- [[10-Decisions/System-Changes/README|System Changes Log]] — approved operating-system changes and self-improvement decisions
 - [[11-Reference/Reference-Index|Reference Index]] — templates and stable reference material
 - [[11-Reference/Note-Templates|Note Templates]] — standard templates for AI profiles, briefs, plans, QA scans, runbooks, decisions, and incident notes
 - [[11-Reference/Templates/README|Templates Library]] — canonical per-template files for queue items, handoffs, briefs, runbooks, incidents, and decisions
