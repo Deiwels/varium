@@ -1,0 +1,11 @@
+{
+  "title": "Booking confirmation hardening",
+  "message": "Потрібно доробити safer booking confirmation step before final submit. Не ламати швидкість flow. Це нетривіальна продуктова задача для VuriumBook.",
+  "priority": "high",
+  "productContextLinks": [
+    "[[Booking Flow MVP Product Brief]]"
+  ],
+  "knownConstraints": [
+    "Do not break current booking speed"
+  ]
+}

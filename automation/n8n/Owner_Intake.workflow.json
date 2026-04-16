@@ -1,0 +1,115 @@
+{
+  "name": "Owner_Intake",
+  "active": false,
+  "settings": {},
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Owner Intake Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "owner-intake",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "owner-intake",
+        "responseMode": "lastNode"
+      }
+    },
+    {
+      "id": "normalize-input",
+      "name": "Normalize Owner Intake",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const raw = items[0]?.json || {};\nconst event = raw.body && typeof raw.body === 'object' && !Array.isArray(raw.body) ? raw.body : raw;\nconst eventPayload = event.payload;\nconst payload = typeof eventPayload === 'undefined' ? event : eventPayload;\nconst normalizedPayload = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : { message: payload };\nconst message = normalizedPayload.message || normalizedPayload.text || normalizedPayload.body || event.message || event.text || event.body;\nif (!message) throw new Error('Missing message / text / body');\nconst sourceUrls = Array.isArray(normalizedPayload.source_urls)\n  ? normalizedPayload.source_urls\n  : Array.isArray(normalizedPayload.sourceUrls)\n    ? normalizedPayload.sourceUrls\n    : Array.isArray(event.source_urls)\n      ? event.source_urls\n      : Array.isArray(event.sourceUrls)\n        ? event.sourceUrls\n        : [];\nreturn [{\n  json: {\n    meta: {\n      workflow_name: 'Owner_Intake',\n      timestamp: new Date().toISOString(),\n      trigger_source: event.trigger_source || raw.trigger_source || 'owner_intake_webhook',\n      risk_level: event.risk_level || raw.risk_level || 'medium'\n    },\n    context: {\n      canonical_links: [\n        '[[Home]]',\n        '[[04-Tasks/Workflow-Queue|Workflow Queue]]',\n        '[[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]'\n      ],\n      constraints: [\n        'Do not mutate canonical truth directly from intake',\n        'Write durable work into the correct docs lane',\n        'Route the work to the correct AI workflow instead of opening hidden state'\n      ]\n    },\n    payload: {\n      message: String(message),\n      title: String(normalizedPayload.title || event.title || ''),\n      intake_kind: String(normalizedPayload.intake_kind || normalizedPayload.intakeKind || event.intake_kind || event.intakeKind || 'auto'),\n      requested_by: String(normalizedPayload.requested_by || normalizedPayload.requestedBy || event.requested_by || event.requestedBy || 'Owner'),\n      priority: String(normalizedPayload.priority || event.priority || 'medium'),\n      product_context_links: Array.isArray(normalizedPayload.product_context_links)\n        ? normalizedPayload.product_context_links\n        : Array.isArray(normalizedPayload.productContextLinks)\n          ? normalizedPayload.productContextLinks\n          : Array.isArray(event.product_context_links)\n            ? event.product_context_links\n            : Array.isArray(event.productContextLinks)\n              ? event.productContextLinks\n              : [],\n      known_constraints: Array.isArray(normalizedPayload.known_constraints)\n        ? normalizedPayload.known_constraints\n        : Array.isArray(normalizedPayload.knownConstraints)\n          ? normalizedPayload.knownConstraints\n          : Array.isArray(event.known_constraints)\n            ? event.known_constraints\n            : Array.isArray(event.knownConstraints)\n              ? event.knownConstraints\n              : [],\n      source_urls: sourceUrls.map((entry) => String(entry)).filter(Boolean),\n      questions: Array.isArray(normalizedPayload.questions) ? normalizedPayload.questions.map((entry) => String(entry)) : [],\n      target_sources: Array.isArray(normalizedPayload.target_sources)\n        ? normalizedPayload.target_sources.map((entry) => String(entry))\n        : Array.isArray(normalizedPayload.targetSources)\n          ? normalizedPayload.targetSources.map((entry) => String(entry))\n          : [],\n      related_links: Array.isArray(normalizedPayload.related_links)\n        ? normalizedPayload.related_links.map((entry) => String(entry))\n        : Array.isArray(normalizedPayload.relatedLinks)\n          ? normalizedPayload.relatedLinks.map((entry) => String(entry))\n          : [],\n      related_task_id: String(normalizedPayload.related_task_id || normalizedPayload.relatedTaskId || event.related_task_id || event.relatedTaskId || ''),\n      audience: String(normalizedPayload.audience || event.audience || ''),\n      channel: String(normalizedPayload.channel || event.channel || ''),\n      approved_claims_link: String(normalizedPayload.approved_claims_link || normalizedPayload.approvedClaimsLink || event.approved_claims_link || event.approvedClaimsLink || ''),\n      current_offer_link: String(normalizedPayload.current_offer_link || normalizedPayload.currentOfferLink || event.current_offer_link || event.currentOfferLink || ''),\n      ...(typeof normalizedPayload.need_static_creatives === 'boolean' ? { need_static_creatives: normalizedPayload.need_static_creatives } : {}),\n      ...(typeof normalizedPayload.needStaticCreatives === 'boolean' ? { need_static_creatives: normalizedPayload.needStaticCreatives } : {}),\n      ...(typeof normalizedPayload.need_video_brief === 'boolean' ? { need_video_brief: normalizedPayload.need_video_brief } : {}),\n      ...(typeof normalizedPayload.needVideoBrief === 'boolean' ? { need_video_brief: normalizedPayload.needVideoBrief } : {})\n    }\n  }\n}];"
+      }
+    },
+    {
+      "id": "call-backend",
+      "name": "Call Owner Intake",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        820,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.VURIUM_API_BASE_URL || 'http://localhost:8080') + '/api/vurium-dev/ai/owner-intake' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.VURIUM_ADMIN_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "validate-output",
+      "name": "Validate Owner Intake Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const item = items[0]?.json || {};\nconst required = ['agent', 'workflow', 'status', 'intake_id', 'intake_kind', 'title', 'queue_stage', 'route_target', 'created_note_relative_path', 'downstream_workflow', 'downstream_status', 'escalate_to', 'reason', 'next_step'];\nfor (const key of required) {\n  if (!(key in item)) throw new Error(`Missing required key: ${key}`);\n}\nconst allowedStatus = new Set(['done', 'partial', 'blocked', 'needs_review', 'queued']);\nif (!allowedStatus.has(item.status)) throw new Error(`Invalid status: ${item.status}`);\nif (!allowedStatus.has(item.downstream_status)) throw new Error(`Invalid downstream_status: ${item.downstream_status}`);\nconst allowedKinds = new Set(['task', 'growth', 'research', 'handoff', 'truth_update_draft']);\nif (!allowedKinds.has(item.intake_kind)) throw new Error(`Invalid intake_kind: ${item.intake_kind}`);\nconst allowedEscalation = new Set(['none', 'AI-1', 'AI-2', 'AI-3', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11', 'Owner']);\nif (!allowedEscalation.has(item.route_target)) throw new Error(`Invalid route_target: ${item.route_target}`);\nif (!allowedEscalation.has(item.escalate_to)) throw new Error(`Invalid escalate_to: ${item.escalate_to}`);\nitem.execution_summary = {\n  note_created: item.writeback?.status || 'unknown',\n  downstream: item.downstream_workflow,\n  downstream_status: item.downstream_status,\n  next_step: item.next_step\n};\nreturn [{ json: item }];"
+      }
+    }
+  ],
+  "connections": {
+    "Owner Intake Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Owner Intake",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Owner Intake": {
+      "main": [
+        [
+          {
+            "node": "Call Owner Intake",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Owner Intake": {
+      "main": [
+        [
+          {
+            "node": "Validate Owner Intake Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

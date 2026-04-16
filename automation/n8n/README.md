@@ -4,6 +4,7 @@ Execution-first `n8n` artifacts for the approved rollout.
 
 Current phase-1 workflows:
 
+- `Owner_Intake.workflow.json`
 - `AI3_Planning_Intake.workflow.json`
 - `AI3_QA_Scan.workflow.json`
 - `Gmail_Support_Inbox.workflow.json`
@@ -67,18 +68,20 @@ Use this exact order:
 
 Recommended import order:
 
-1. `AI3_Planning_Intake.workflow.json`
-2. `AI3_QA_Scan.workflow.json`
-3. `Gmail_Support_Inbox.workflow.json`
-4. `Growth_Asset_Flow.workflow.json`
-5. `Research_Brief.workflow.json`
-6. `Owner_Notification.workflow.json`
-7. `Obsidian_Writeback.workflow.json`
+1. `Owner_Intake.workflow.json`
+2. `AI3_Planning_Intake.workflow.json`
+3. `AI3_QA_Scan.workflow.json`
+4. `Gmail_Support_Inbox.workflow.json`
+5. `Growth_Asset_Flow.workflow.json`
+6. `Research_Brief.workflow.json`
+7. `Owner_Notification.workflow.json`
+8. `Obsidian_Writeback.workflow.json`
 
 ## Current Backend Endpoints
 
 - `POST /api/vurium-dev/ai/planning-intake`
 - `POST /api/vurium-dev/ai/qa-scan`
+- `POST /api/vurium-dev/ai/owner-intake`
 - `POST /api/vurium-dev/ai/support-inbox-process`
 - `POST /api/vurium-dev/ai/support-inbox-execute`
 - `POST /api/vurium-dev/ai/growth-asset-flow`
@@ -103,6 +106,7 @@ All AI execution endpoints accept either:
 
 These workflows use real `POST` webhook triggers inside `n8n`:
 
+- `Owner_Intake` -> `.../webhook/owner-intake`
 - `AI3_Planning_Intake` -> `.../webhook/ai3-planning-intake`
 - `AI3_QA_Scan` -> `.../webhook/ai3-qa-scan`
 - `Gmail_Support_Inbox` -> `.../webhook/gmail-support-inbox`
@@ -119,10 +123,68 @@ The growth asset workflow is designed to be called by a campaign request bridge,
 
 The research workflow is designed to be called by an AI 3 planning handoff, external-dependency tag bridge, or any upstream research intake normalizer that can emit one structured research request with explicit official source URLs.
 
+## Owner Intake Contract
+
+`Owner_Intake.workflow.json` is the single-entry intake lane for Owner-created work.
+
+Minimum payload:
+
+```json
+{
+  "message": "Need to harden the booking confirmation flow before final submit.",
+  "title": "Booking confirmation hardening",
+  "priority": "high",
+  "productContextLinks": [
+    "[[Booking Flow MVP Product Brief]]"
+  ],
+  "knownConstraints": [
+    "Do not break current booking speed"
+  ]
+}
+```
+
+Optional fields:
+
+- `intakeKind`
+  - `auto`, `task`, `growth`, `research`, `handoff`, `truth_update_draft`
+- `sourceUrls`
+- `questions`
+- `targetSources`
+- `relatedLinks`
+- `audience`
+- `channel`
+- `approvedClaimsLink`
+- `currentOfferLink`
+
+What it does:
+
+- classifies the Owner message into the correct lane
+- writes one durable markdown note into the correct docs folder
+- sets the note's queue stage / route target
+- runs the downstream lane when supported:
+  - `task` -> `AI3_Planning_Intake`
+  - `growth` -> `Growth_Asset_Flow`
+  - `research` -> `Research_Brief`
+  - `handoff` -> note only
+  - `truth_update_draft` -> draft note only
+
+What it returns:
+
+- `intake_id`
+- `intake_kind`
+- `created_note_relative_path`
+- `queue_stage`
+- `route_target`
+- `downstream_workflow`
+- `downstream_status`
+- `writeback`
+- `next_step`
+
 ## Local Fallback Behavior
 
 These workflows are now usable locally before external secrets are added:
 
+- `Owner_Intake` still creates the correct markdown intake note and routes the work even when AI providers are unavailable
 - `AI3_Planning_Intake` returns a draft planning shell and routes to the next lane instead of failing when AI is not configured
 - `AI3_QA_Scan` returns a manual-review QA result with follow-up routing instead of failing
 - `Growth_Asset_Flow` returns a draft growth brief plus draft creative/video packages using offline fallbacks

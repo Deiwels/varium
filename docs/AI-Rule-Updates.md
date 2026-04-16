@@ -427,3 +427,15 @@ Every new process rule must be updated in the same session across:
 7. current-day DevLog
 
 If it is only in chat, it does not count.
+
+### 2026-04-16 — Owner Intake is now the single-entry orchestration lane
+
+- A new `Owner_Intake` execution lane now exists for Owner-created work.
+- Owner intake does not update canonical truth directly.
+- It creates the correct durable note first, then routes work into the correct downstream lane:
+  - `task` -> `AI3_Planning_Intake`
+  - `growth` -> `Growth_Asset_Flow`
+  - `research` -> `Research_Brief`
+  - `handoff` -> handoff note only
+  - `truth_update_draft` -> draft note only
+- This keeps the system one-entry for the Owner without weakening queue, writeback, escalation, or truth rules.

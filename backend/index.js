@@ -3856,6 +3856,53 @@ const ObsidianWritebackOutputSchema = z.object({
   next_step: z.string().default(''),
 });
 
+const OWNER_INTAKE_KIND_VALUES = ['task', 'growth', 'research', 'handoff', 'truth_update_draft'];
+const OwnerIntakeKindSchema = z.enum(OWNER_INTAKE_KIND_VALUES);
+const OwnerIntakeInputKindSchema = z.enum(['auto', ...OWNER_INTAKE_KIND_VALUES]);
+
+const OwnerIntakeInputSchema = z.object({
+  message: z.string().min(1),
+  title: z.string().default(''),
+  intake_kind: OwnerIntakeInputKindSchema.default('auto'),
+  requested_by: z.string().default('Owner'),
+  priority: z.string().default('medium'),
+  product_context_links: z.array(z.string()).default([]),
+  known_constraints: z.array(z.string()).default([]),
+  source_urls: z.array(z.string()).default([]),
+  questions: z.array(z.string()).default([]),
+  target_sources: z.array(z.string()).default([]),
+  related_links: z.array(z.string()).default([]),
+  related_task_id: z.string().default(''),
+  audience: z.string().default(''),
+  channel: z.string().default(''),
+  approved_claims_link: z.string().default(''),
+  current_offer_link: z.string().default(''),
+  need_static_creatives: z.boolean().optional(),
+  need_video_brief: z.boolean().optional(),
+});
+
+const OwnerIntakeOutputSchema = z.object({
+  agent: z.literal('SYSTEM'),
+  workflow: z.literal('owner_intake'),
+  status: WorkflowStatusSchema,
+  intake_id: z.string().min(1),
+  intake_kind: OwnerIntakeKindSchema,
+  title: z.string().min(1),
+  queue_stage: z.string().default(''),
+  route_target: WorkflowEscalationTargetSchema,
+  created_note_relative_path: z.string().default(''),
+  downstream_workflow: z.string().default('none'),
+  downstream_status: WorkflowStatusSchema,
+  downstream_reference: z.string().default(''),
+  downstream_result: z.any().nullable().default(null),
+  escalate_to: WorkflowEscalationTargetSchema,
+  reason: z.string().default(''),
+  writeback_targets: z.array(z.string()).default([]),
+  writeback: WorkflowWritebackStateSchema,
+  owner_notification: WorkflowOwnerNotificationStateSchema,
+  next_step: z.string().default(''),
+});
+
 const AI3_PLANNING_INTAKE_SYSTEM_PROMPT = `You are AI 3 inside the VuriumBook AI Operating System.
 
 Your role:
@@ -4176,6 +4223,288 @@ function uniqueList(entries) {
 function splitChannelList(value) {
   const raw = Array.isArray(value) ? value : safeStr(value).split(/[,+]/);
   return uniqueList(raw.map((entry) => safeStr(entry).trim()).filter(Boolean));
+}
+
+function extractUrlsFromText(text) {
+  const matches = safeStr(text).match(/https?:\/\/[^\s)>"']+/gi) || [];
+  return uniqueList(matches.map((entry) => safeStr(entry).replace(/[),.;]+$/, '')));
+}
+
+function deriveOwnerIntakeTitle(input) {
+  if (safeStr(input.title).trim()) return safeStr(input.title).trim().slice(0, 120);
+  const lines = safeStr(input.message)
+    .split('\n')
+    .map((entry) => safeStr(entry).trim())
+    .filter(Boolean);
+  const firstMeaningfulLine = lines.find((entry) => !/^[-*#>]/.test(entry)) || lines[0] || 'Owner intake';
+  return firstMeaningfulLine.replace(/\s+/g, ' ').slice(0, 120);
+}
+
+function detectOwnerIntakeKind(input) {
+  if (input.intake_kind && input.intake_kind !== 'auto') return input.intake_kind;
+  const text = `${safeStr(input.title)}\n${safeStr(input.message)}`.toLowerCase();
+  const sourceUrls = normalizeResearchSourceUrls(input.source_urls);
+  if (sourceUrls.length) return 'research';
+  if (/(canonical|source of truth|rule update|protocol|manifesto|update the system|онови правила|онови протокол|онови канон|системн(ий|і) документ|truth update)/i.test(text)) {
+    return 'truth_update_draft';
+  }
+  if (/(handoff|передай|передача|assign to|route to|next owner|перекинь)/i.test(text)) {
+    return 'handoff';
+  }
+  if (/(research|дослід|знайди|знайти|official|офіційн|policy|compliance|vendor|source|джерел|documentation|документац|10dlc|consent|privacy|terms|telnyx|stripe rules)/i.test(text)) {
+    return 'research';
+  }
+  if (/(campaign|growth|landing|ленд|landing page|ad |ads|реклам|creative|креатив|video|відео|promo|промо|cta|funnel|signup|trial|marketing|launch asset)/i.test(text)) {
+    return 'growth';
+  }
+  return 'task';
+}
+
+function buildOwnerIntakeId(kind, now = new Date()) {
+  const stamp = toIso(now).replace(/\.\d+Z$/, 'Z');
+  const compact = stamp.replace(/[-:TZ]/g, '').slice(0, 14);
+  if (kind === 'growth') return `GROWTH-${compact}`;
+  if (kind === 'research') return `R-${compact}`;
+  if (kind === 'handoff') return `HANDOFF-${compact}`;
+  if (kind === 'truth_update_draft') return `SYS-${compact}`;
+  return `TASK-${compact}`;
+}
+
+function buildOwnerIntakeMetadata(kind) {
+  if (kind === 'growth') {
+    return {
+      queue_stage: 'Waiting for Creative',
+      route_target: 'AI-8',
+      downstream_workflow: 'Growth_Asset_Flow',
+    };
+  }
+  if (kind === 'research') {
+    return {
+      queue_stage: 'Waiting for Research',
+      route_target: 'AI-5',
+      downstream_workflow: 'Research_Brief',
+    };
+  }
+  if (kind === 'handoff') {
+    return {
+      queue_stage: 'Ready for Implementation',
+      route_target: 'none',
+      downstream_workflow: 'none',
+    };
+  }
+  if (kind === 'truth_update_draft') {
+    return {
+      queue_stage: 'Waiting for Owner',
+      route_target: 'Owner',
+      downstream_workflow: 'none',
+    };
+  }
+  return {
+    queue_stage: 'Ready for Planning',
+    route_target: 'AI-3',
+    downstream_workflow: 'AI3_Planning_Intake',
+  };
+}
+
+function markdownList(entries, fallback = '- none') {
+  const normalized = uniqueList(entries);
+  return normalized.length ? normalized.map((entry) => `- ${entry}`) : [fallback];
+}
+
+function buildOwnerIntakeNote(kind, intakeId, title, input, metadata) {
+  const date = toIso(new Date()).slice(0, 10);
+  const slug = safeWorkflowSlug(title, 'owner-intake');
+  const sourceUrls = normalizeResearchSourceUrls([
+    ...normalizeResearchSourceUrls(input.source_urls),
+    ...extractUrlsFromText(input.message),
+  ]);
+  const baseFrontmatter = [
+    '---',
+    `type: ${kind === 'task' ? 'task' : kind === 'growth' ? 'growth-request' : kind === 'research' ? 'research-request' : kind === 'handoff' ? 'handoff' : 'truth-update-draft'}`,
+    kind === 'truth_update_draft' ? 'status: draft' : 'status: active',
+    `priority: ${safeStr(input.priority || 'medium') || 'medium'}`,
+    `owner: ${metadata.route_target === 'none' ? 'unassigned' : metadata.route_target}`,
+    `created: ${date}`,
+    `updated: ${date}`,
+    'trigger: owner-intake',
+    `queue_stage: ${metadata.queue_stage}`,
+    `route_target: ${metadata.route_target}`,
+    '---',
+    '',
+  ];
+
+  if (kind === 'growth') {
+    return {
+      relative_path: `06-Growth/Experiments/${intakeId}-${slug}.md`,
+      content: [
+        ...baseFrontmatter,
+        `# Growth Request: ${title}`,
+        '',
+        '## Goal',
+        safeStr(input.message).trim(),
+        '',
+        '## Audience',
+        safeStr(input.audience || 'Audience needs clarification.'),
+        '',
+        '## Channels',
+        ...markdownList(splitChannelList(input.channel), '- pending'),
+        '',
+        '## Product Context',
+        ...markdownList(input.product_context_links, '- pending'),
+        '',
+        '## Constraints',
+        ...markdownList(input.known_constraints, '- none listed'),
+        '',
+        '## Approved Claims Link',
+        safeStr(input.approved_claims_link || '(pending)'),
+        '',
+        '## Current Offer Link',
+        safeStr(input.current_offer_link || '(pending)'),
+        '',
+        '## Next Step',
+        'Run Growth_Asset_Flow and review the generated brief/assets before any publishing.',
+      ].join('\n'),
+    };
+  }
+
+  if (kind === 'research') {
+    return {
+      relative_path: `07-Research/${intakeId}-${slug}.md`,
+      content: [
+        ...baseFrontmatter,
+        `# Research Request: ${title}`,
+        '',
+        '## Topic',
+        safeStr(title),
+        '',
+        '## Source Message',
+        safeStr(input.message).trim(),
+        '',
+        '## Questions',
+        ...markdownList(input.questions.length ? input.questions : [safeStr(input.message).trim()], '- pending'),
+        '',
+        '## Target Sources',
+        ...markdownList(input.target_sources, '- official sources still need to be specified'),
+        '',
+        '## Source URLs',
+        ...markdownList(sourceUrls, '- explicit official source URLs still needed'),
+        '',
+        '## Related Links',
+        ...markdownList(input.related_links.concat(input.product_context_links), '- none'),
+        '',
+        '## Next Step',
+        'Run Research_Brief or keep this queued until official source URLs are available.',
+      ].join('\n'),
+    };
+  }
+
+  if (kind === 'handoff') {
+    return {
+      relative_path: `04-Tasks/Handoffs/${intakeId}-${slug}.md`,
+      content: [
+        ...baseFrontmatter,
+        `# Handoff: ${title}`,
+        '',
+        '## Current Status',
+        metadata.queue_stage,
+        '',
+        '## What Was Completed',
+        '- pending',
+        '',
+        '## What Remains',
+        '- pending',
+        '',
+        '## Canonical Notes To Read',
+        ...markdownList(input.product_context_links.concat(input.related_links), '- pending'),
+        '',
+        '## Unresolved Questions',
+        '- pending',
+        '',
+        '## Source Message',
+        safeStr(input.message).trim(),
+        '',
+        '## Next Owner',
+        'unassigned',
+        '',
+        '## Recommended Next Action',
+        'Review this handoff and assign it into the correct implementation or review lane.',
+      ].join('\n'),
+    };
+  }
+
+  if (kind === 'truth_update_draft') {
+    return {
+      relative_path: `10-Decisions/System-Changes/${intakeId}-${slug}.md`,
+      content: [
+        ...baseFrontmatter,
+        `# Truth Update Draft: ${title}`,
+        '',
+        '## Proposed Change',
+        safeStr(input.message).trim(),
+        '',
+        '## Canonical Notes To Review',
+        ...markdownList(input.product_context_links.concat(input.related_links), '- pending'),
+        '',
+        '## Constraints',
+        ...markdownList(input.known_constraints, '- preserve existing guardrails'),
+        '',
+        '## Review Rule',
+        'Do not update canonical truth directly from intake. Review this draft first, then apply the approved change manually.',
+        '',
+        '## Next Step',
+        'Owner or AI-3 should review the draft and decide whether to turn it into a canonical update.',
+      ].join('\n'),
+    };
+  }
+
+  return {
+    relative_path: `04-Tasks/${intakeId}-${slug}.md`,
+    content: [
+      ...baseFrontmatter,
+      `# Task: ${title}`,
+      '',
+      '## Description',
+      safeStr(input.message).trim(),
+      '',
+      '## Trigger',
+      '- Source: owner-intake',
+      '',
+      '## Classification',
+      '- Type: product',
+      '- Complexity: non-trivial',
+      `- External dependency: ${sourceUrls.length ? 'yes' : 'no'}`,
+      '',
+      '## Context',
+      '- Relevant docs:',
+      ...markdownList(input.product_context_links.concat(input.related_links), '- none'),
+      '- Constraints:',
+      ...markdownList(input.known_constraints, '- none listed'),
+      '',
+      '## Assigned To',
+      metadata.route_target,
+      '',
+      '## Status',
+      '- Current: new',
+      `- Queue stage: ${metadata.queue_stage}`,
+      '',
+      '## Next Step',
+      'Run AI3_Planning_Intake and continue in the delivery queue.',
+      '',
+      '## Notes',
+      'Created automatically from Owner Intake.',
+    ].join('\n'),
+  };
+}
+
+function inferOwnerIntakeVideoNeed(input) {
+  if (typeof input.need_video_brief === 'boolean') return input.need_video_brief;
+  return /(video|відео|script|ролик|promo video|demo video)/i.test(`${safeStr(input.title)}\n${safeStr(input.message)}`);
+}
+
+function inferOwnerIntakeCreativeNeed(input) {
+  if (typeof input.need_static_creatives === 'boolean') return input.need_static_creatives;
+  if (inferOwnerIntakeVideoNeed(input)) return true;
+  return /(landing|ad|ads|creative|креатив|image|visual|banner|promo)/i.test(`${safeStr(input.title)}\n${safeStr(input.message)}`);
 }
 
 function inferPlanningWorkstreams(input) {
@@ -5476,6 +5805,234 @@ async function executeGrowthAssetFlow(meta, context, input) {
   };
 }
 
+async function executePlanningIntakeWorkflow(meta, context, input, { notifyOwner = true } = {}) {
+  const result = await runStructuredWorkflowAI({
+    systemPrompt: AI3_PLANNING_INTAKE_SYSTEM_PROMPT,
+    input,
+    meta,
+    context,
+    fallback: buildPlanningFallback(input, anthropic ? 'Failed to parse planning intake AI output.' : AI_NOT_CONFIGURED_REASON),
+    outputSchema: AI3PlanningIntakeOutputSchema,
+    maxTokens: 1400,
+  });
+
+  return AI3PlanningIntakeOutputSchema.parse(await finalizeWorkflowResult(result, {
+    writebackBuilder: buildPlanningWritebackInput,
+    ownerBuilder: notifyOwner
+      ? (finalResult) => buildGenericOwnerNotificationInput(
+        'AI3_Planning_Intake',
+        `Planning intake needs Owner review (${finalResult.task_id})`,
+        finalResult.reason || 'Planning intake requires Owner review before work can continue safely.',
+        finalResult,
+        ['[[04-Tasks/Workflow-Queue|Workflow Queue]]']
+      )
+      : null,
+  }));
+}
+
+async function executeQAScanWorkflow(meta, context, input, { notifyOwner = true } = {}) {
+  const result = await runStructuredWorkflowAI({
+    systemPrompt: AI3_QA_SCAN_SYSTEM_PROMPT,
+    input,
+    meta,
+    context,
+    fallback: buildQAFallback(input, anthropic ? 'Failed to parse QA scan AI output.' : AI_NOT_CONFIGURED_REASON),
+    outputSchema: AI3QAScanOutputSchema,
+    maxTokens: 1400,
+  });
+
+  return AI3QAScanOutputSchema.parse(await finalizeWorkflowResult(result, {
+    writebackBuilder: buildQAWritebackInput,
+    ownerBuilder: notifyOwner
+      ? (finalResult) => buildGenericOwnerNotificationInput(
+        'AI3_QA_Scan',
+        `QA scan needs Owner review (${finalResult.task_id})`,
+        finalResult.reason || 'QA scan result requires Owner awareness before release or launch.',
+        finalResult,
+        ['[[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]']
+      )
+      : null,
+  }));
+}
+
+async function executeGrowthAssetFlowWorkflow(meta, context, input, { notifyOwner = true } = {}) {
+  const result = GrowthAssetFlowOutputSchema.parse(await executeGrowthAssetFlow(meta, context, input));
+  return GrowthAssetFlowOutputSchema.parse(await finalizeWorkflowResult(result, {
+    writebackBuilder: buildGrowthWritebackInput,
+    ownerBuilder: notifyOwner
+      ? (finalResult) => buildGenericOwnerNotificationInput(
+        'Growth_Asset_Flow',
+        `Growth asset flow needs Owner review (${finalResult.request_id})`,
+        finalResult.reason || 'Growth asset flow requires Owner review before approval or publishing.',
+        finalResult,
+        ['[[08-Runbooks/Growth/Campaign-Workflow|Campaign Workflow]]']
+      )
+      : null,
+  }));
+}
+
+async function executeResearchBriefWorkflow(meta, context, input, { notifyOwner = true } = {}) {
+  const result = await generateResearchBrief(meta, context, input);
+  return AI5ResearchBriefOutputSchema.parse(await finalizeWorkflowResult(result, {
+    writebackBuilder: buildResearchWritebackInput,
+    ownerBuilder: notifyOwner
+      ? (finalResult) => buildGenericOwnerNotificationInput(
+        'Research_Brief',
+        `Research brief needs Owner review (${finalResult.research_id})`,
+        finalResult.reason || 'Research brief requires Owner review before risk-sensitive decisions continue.',
+        finalResult,
+        ['[[07-Research/Research-Index|Research Index]]']
+      )
+      : null,
+  }));
+}
+
+async function executeOwnerIntake(meta, context, input) {
+  const title = deriveOwnerIntakeTitle(input);
+  const intakeKind = detectOwnerIntakeKind(input);
+  const intakeId = buildOwnerIntakeId(intakeKind);
+  const metadata = buildOwnerIntakeMetadata(intakeKind);
+  const note = buildOwnerIntakeNote(intakeKind, intakeId, title, input, metadata);
+
+  let writeback = null;
+  try {
+    const writebackResult = await writeObsidianNote({
+      relative_path: note.relative_path,
+      content: note.content,
+      mode: 'create',
+      dry_run: false,
+    });
+    writeback = {
+      status: writebackResult.status,
+      relative_path: writebackResult.relative_path,
+      reason: writebackResult.reason,
+    };
+  } catch (e) {
+    writeback = {
+      status: 'blocked',
+      relative_path: '',
+      reason: `Writeback failed: ${e.message}`,
+    };
+  }
+
+  let downstreamResult = null;
+  if (intakeKind === 'task') {
+    downstreamResult = await executePlanningIntakeWorkflow(
+      { ...meta, workflow_name: 'AI3_Planning_Intake', trigger_source: meta.trigger_source || 'owner_intake' },
+      {
+        ...context,
+        owner_intake_note: note.relative_path,
+      },
+      {
+        task_id: intakeId,
+        title,
+        description: safeStr(input.message).trim(),
+        requested_by: safeStr(input.requested_by || 'Owner') || 'Owner',
+        complexity: 'non-trivial',
+        external_dependency: normalizeResearchSourceUrls([
+          ...normalizeResearchSourceUrls(input.source_urls),
+          ...extractUrlsFromText(input.message),
+        ]).length > 0,
+        product_context_links: uniqueList([note.relative_path, ...(input.product_context_links || []), ...(input.related_links || [])]),
+        known_constraints: uniqueList(input.known_constraints || []),
+        priority: safeStr(input.priority || 'medium') || 'medium',
+      },
+      { notifyOwner: false }
+    );
+  } else if (intakeKind === 'growth') {
+    downstreamResult = await executeGrowthAssetFlowWorkflow(
+      { ...meta, workflow_name: 'Growth_Asset_Flow', trigger_source: meta.trigger_source || 'owner_intake' },
+      {
+        ...context,
+        owner_intake_note: note.relative_path,
+      },
+      {
+        request_id: intakeId,
+        campaign_name: title,
+        goal: safeStr(input.message).trim(),
+        audience: safeStr(input.audience || 'Audience needs clarification.') || 'Audience needs clarification.',
+        channel: safeStr(input.channel || ''),
+        current_offer_link: safeStr(input.current_offer_link || ''),
+        product_truth_links: uniqueList(input.product_context_links || []),
+        known_objections: [],
+        approved_claims_link: safeStr(input.approved_claims_link || ''),
+        need_static_creatives: inferOwnerIntakeCreativeNeed(input),
+        need_video_brief: inferOwnerIntakeVideoNeed(input),
+        brand_direction: ['clean', 'modern', 'trustworthy'],
+        formats: ['1080x1350', '1200x628'],
+      },
+      { notifyOwner: false }
+    );
+  } else if (intakeKind === 'research') {
+    downstreamResult = await executeResearchBriefWorkflow(
+      { ...meta, workflow_name: 'Research_Brief', trigger_source: meta.trigger_source || 'owner_intake' },
+      {
+        ...context,
+        owner_intake_note: note.relative_path,
+      },
+      {
+        research_id: intakeId,
+        task_id: safeStr(input.related_task_id || intakeId) || intakeId,
+        topic: title,
+        questions: uniqueList((input.questions || []).length ? input.questions : [safeStr(input.message).trim()]),
+        target_sources: uniqueList(input.target_sources || []),
+        related_links: uniqueList([note.relative_path, ...(input.related_links || []), ...(input.product_context_links || [])]),
+        source_urls: normalizeResearchSourceUrls([
+          ...normalizeResearchSourceUrls(input.source_urls),
+          ...extractUrlsFromText(input.message),
+        ]),
+      },
+      { notifyOwner: false }
+    );
+  }
+
+  const downstreamStatus = downstreamResult?.status || (writeback?.status || 'queued');
+  let status = downstreamStatus;
+  if (!downstreamResult) {
+    status = writeback?.status === 'done' ? 'done' : writeback?.status || 'queued';
+  } else if (writeback && writeback.status !== 'done' && downstreamStatus === 'done') {
+    status = 'partial';
+  }
+
+  const overallEscalation = downstreamResult?.escalate_to || metadata.route_target;
+  const reason = downstreamResult?.reason
+    || (intakeKind === 'truth_update_draft'
+      ? 'Truth updates from Owner Intake must remain draft-only until manually approved.'
+      : intakeKind === 'handoff'
+        ? 'Handoff note created from Owner Intake.'
+        : 'Owner intake created successfully.');
+
+  return OwnerIntakeOutputSchema.parse({
+    agent: 'SYSTEM',
+    workflow: 'owner_intake',
+    status,
+    intake_id: intakeId,
+    intake_kind: intakeKind,
+    title,
+    queue_stage: metadata.queue_stage,
+    route_target: metadata.route_target,
+    created_note_relative_path: writeback?.relative_path || note.relative_path,
+    downstream_workflow: metadata.downstream_workflow,
+    downstream_status: downstreamStatus,
+    downstream_reference: downstreamResult?.writeback?.relative_path || '',
+    downstream_result: downstreamResult,
+    escalate_to: overallEscalation,
+    reason,
+    writeback_targets: uniqueList([
+      note.relative_path,
+      ...(downstreamResult?.writeback_targets || []),
+    ]),
+    writeback,
+    owner_notification: downstreamResult?.owner_notification || null,
+    next_step: downstreamResult?.next_step
+      || (intakeKind === 'truth_update_draft'
+        ? 'Review the draft and manually update canonical truth only after approval.'
+        : intakeKind === 'handoff'
+          ? 'Assign the handoff to the correct next owner and continue in the queue.'
+          : `Open ${metadata.downstream_workflow} and continue the routed lane.`),
+  });
+}
+
 async function runStructuredWorkflowAI({ systemPrompt, input, meta = {}, context = {}, fallback, outputSchema, maxTokens = 1600 }) {
   if (!anthropic) return outputSchema.parse(fallback);
   try {
@@ -5801,25 +6358,7 @@ app.post('/api/vurium-dev/ai/planning-intake', requireSuperadmin, async (req, re
   try {
     const { meta, context, payload } = unwrapWorkflowEnvelope(req.body);
     const input = AI3PlanningIntakeInputSchema.parse(payload);
-    const result = await runStructuredWorkflowAI({
-      systemPrompt: AI3_PLANNING_INTAKE_SYSTEM_PROMPT,
-      input,
-      meta,
-      context,
-      fallback: buildPlanningFallback(input, anthropic ? 'Failed to parse planning intake AI output.' : AI_NOT_CONFIGURED_REASON),
-      outputSchema: AI3PlanningIntakeOutputSchema,
-      maxTokens: 1400,
-    });
-    res.json(AI3PlanningIntakeOutputSchema.parse(await finalizeWorkflowResult(result, {
-      writebackBuilder: buildPlanningWritebackInput,
-      ownerBuilder: (finalResult) => buildGenericOwnerNotificationInput(
-        'AI3_Planning_Intake',
-        `Planning intake needs Owner review (${finalResult.task_id})`,
-        finalResult.reason || 'Planning intake requires Owner review before work can continue safely.',
-        finalResult,
-        ['[[04-Tasks/Workflow-Queue|Workflow Queue]]']
-      ),
-    })));
+    res.json(await executePlanningIntakeWorkflow(meta, context, input));
   } catch (e) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid planning-intake payload', details: e.issues });
     console.error('AI planning intake error:', e.message);
@@ -5831,25 +6370,7 @@ app.post('/api/vurium-dev/ai/qa-scan', requireSuperadmin, async (req, res) => {
   try {
     const { meta, context, payload } = unwrapWorkflowEnvelope(req.body);
     const input = AI3QAScanInputSchema.parse(payload);
-    const result = await runStructuredWorkflowAI({
-      systemPrompt: AI3_QA_SCAN_SYSTEM_PROMPT,
-      input,
-      meta,
-      context,
-      fallback: buildQAFallback(input, anthropic ? 'Failed to parse QA scan AI output.' : AI_NOT_CONFIGURED_REASON),
-      outputSchema: AI3QAScanOutputSchema,
-      maxTokens: 1400,
-    });
-    res.json(AI3QAScanOutputSchema.parse(await finalizeWorkflowResult(result, {
-      writebackBuilder: buildQAWritebackInput,
-      ownerBuilder: (finalResult) => buildGenericOwnerNotificationInput(
-        'AI3_QA_Scan',
-        `QA scan needs Owner review (${finalResult.task_id})`,
-        finalResult.reason || 'QA scan result requires Owner awareness before release or launch.',
-        finalResult,
-        ['[[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]']
-      ),
-    })));
+    res.json(await executeQAScanWorkflow(meta, context, input));
   } catch (e) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid qa-scan payload', details: e.issues });
     console.error('AI QA scan error:', e.message);
@@ -5898,17 +6419,7 @@ app.post('/api/vurium-dev/ai/growth-asset-flow', requireSuperadmin, async (req, 
   try {
     const { meta, context, payload } = unwrapWorkflowEnvelope(req.body);
     const input = GrowthAssetFlowInputSchema.parse(payload);
-    const result = GrowthAssetFlowOutputSchema.parse(await executeGrowthAssetFlow(meta, context, input));
-    res.json(GrowthAssetFlowOutputSchema.parse(await finalizeWorkflowResult(result, {
-      writebackBuilder: buildGrowthWritebackInput,
-      ownerBuilder: (finalResult) => buildGenericOwnerNotificationInput(
-        'Growth_Asset_Flow',
-        `Growth asset flow needs Owner review (${finalResult.request_id})`,
-        finalResult.reason || 'Growth asset flow requires Owner review before approval or publishing.',
-        finalResult,
-        ['[[08-Runbooks/Growth/Campaign-Workflow|Campaign Workflow]]']
-      ),
-    })));
+    res.json(await executeGrowthAssetFlowWorkflow(meta, context, input));
   } catch (e) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid growth-asset-flow payload', details: e.issues });
     console.error('AI growth asset flow error:', e.message);
@@ -5920,21 +6431,23 @@ app.post('/api/vurium-dev/ai/research-brief', requireSuperadmin, async (req, res
   try {
     const { meta, context, payload } = unwrapWorkflowEnvelope(req.body);
     const input = AI5ResearchBriefInputSchema.parse(payload);
-    const result = await generateResearchBrief(meta, context, input);
-    res.json(AI5ResearchBriefOutputSchema.parse(await finalizeWorkflowResult(result, {
-      writebackBuilder: buildResearchWritebackInput,
-      ownerBuilder: (finalResult) => buildGenericOwnerNotificationInput(
-        'Research_Brief',
-        `Research brief needs Owner review (${finalResult.research_id})`,
-        finalResult.reason || 'Research brief requires Owner review before risk-sensitive decisions continue.',
-        finalResult,
-        ['[[07-Research/Research-Index|Research Index]]']
-      ),
-    })));
+    res.json(await executeResearchBriefWorkflow(meta, context, input));
   } catch (e) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid research-brief payload', details: e.issues });
     console.error('AI research brief error:', e.message);
     res.status(500).json({ error: 'Failed to generate research brief' });
+  }
+});
+
+app.post('/api/vurium-dev/ai/owner-intake', requireSuperadmin, async (req, res) => {
+  try {
+    const { meta, context, payload } = unwrapWorkflowEnvelope(req.body);
+    const input = OwnerIntakeInputSchema.parse(payload);
+    res.json(await executeOwnerIntake(meta, context, input));
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid owner-intake payload', details: e.issues });
+    console.error('Owner intake error:', e.message);
+    res.status(500).json({ error: 'Failed to process owner intake' });
   }
 });
 
