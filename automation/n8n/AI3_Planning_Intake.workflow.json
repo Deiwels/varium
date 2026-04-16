@@ -1,0 +1,110 @@
+{
+  "name": "AI3_Planning_Intake",
+  "active": false,
+  "settings": {},
+  "nodes": [
+    {
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "sample-input",
+      "name": "Sample Planning Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    meta: {\n      workflow_name: 'AI3_Planning_Intake',\n      timestamp: new Date().toISOString(),\n      trigger_source: 'manual_test',\n      risk_level: 'medium'\n    },\n    context: {\n      canonical_links: [\n        '[[Home]]',\n        '[[04-Tasks/Workflow-Queue|Workflow Queue]]'\n      ],\n      constraints: [\n        'Do not invent compliance truth'\n      ]\n    },\n    payload: {\n      task_id: 'TASK-123',\n      title: 'Improve booking flow SMS consent',\n      description: 'Need safer onboarding consent flow for SMS reminders',\n      requested_by: 'Owner',\n      complexity: 'non-trivial',\n      external_dependency: true,\n      product_context_links: [\n        '[[Product/Feature-Briefs/Reminder-SMS-Launch-Readiness|Reminder SMS Launch Readiness]]'\n      ],\n      known_constraints: [\n        'Must preserve current signup speed'\n      ],\n      priority: 'high'\n    }\n  }\n}];"
+      }
+    },
+    {
+      "id": "call-backend",
+      "name": "Call AI3 Planning Intake",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        780,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.VURIUM_API_BASE_URL || 'http://localhost:8080') + '/api/vurium-dev/ai/planning-intake' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.VURIUM_ADMIN_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "validate-output",
+      "name": "Validate Planning Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1060,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const item = items[0]?.json || {};\nconst required = ['agent', 'workflow', 'task_id', 'status', 'escalate_to', 'reason', 'plan_skeleton'];\nfor (const key of required) {\n  if (!(key in item)) {\n    throw new Error(`Missing required key: ${key}`);\n  }\n}\nconst allowedStatus = new Set(['done', 'partial', 'blocked', 'needs_review', 'queued']);\nif (!allowedStatus.has(item.status)) {\n  throw new Error(`Invalid status: ${item.status}`);\n}\nconst allowedEscalation = new Set(['none', 'AI-1', 'AI-2', 'AI-3', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11', 'Owner']);\nif (!allowedEscalation.has(item.escalate_to)) {\n  throw new Error(`Invalid escalate_to: ${item.escalate_to}`);\n}\nitem.execution_action = item.escalate_to !== 'none' ? 'create_handoff_or_escalation' : 'write_plan_shell_and_queue_update';\nreturn [{ json: item }];"
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Sample Planning Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sample Planning Input": {
+      "main": [
+        [
+          {
+            "node": "Call AI3 Planning Intake",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call AI3 Planning Intake": {
+      "main": [
+        [
+          {
+            "node": "Validate Planning Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

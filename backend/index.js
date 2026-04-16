@@ -3467,6 +3467,228 @@ PRIORITIES:
 
 IMPORTANT: Return ONLY valid JSON, no markdown, no code fences. Aim for 5-10 actionable findings per scan.`;
 
+const WORKFLOW_STATUS_VALUES = ['done', 'partial', 'blocked', 'needs_review', 'queued'];
+const WORKFLOW_ESCALATION_TARGET_VALUES = ['none', 'AI-1', 'AI-2', 'AI-3', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11', 'Owner'];
+const WorkflowStatusSchema = z.enum(WORKFLOW_STATUS_VALUES);
+const WorkflowEscalationTargetSchema = z.enum(WORKFLOW_ESCALATION_TARGET_VALUES);
+
+const AI3PlanningIntakeInputSchema = z.object({
+  task_id: z.string().min(1),
+  title: z.string().min(3),
+  description: z.string().min(1),
+  requested_by: z.string().default('Owner'),
+  complexity: z.string().default('non-trivial'),
+  external_dependency: z.boolean().default(false),
+  product_context_links: z.array(z.string()).default([]),
+  known_constraints: z.array(z.string()).default([]),
+  priority: z.string().default('medium'),
+});
+
+const AI3PlanningIntakeOutputSchema = z.object({
+  agent: z.literal('AI-3'),
+  workflow: z.literal('planning_intake'),
+  task_id: z.string().min(1),
+  status: WorkflowStatusSchema,
+  requires_ai5: z.boolean(),
+  requires_ai6: z.boolean(),
+  requires_ai7: z.boolean(),
+  recommended_sequence: z.array(z.string()).default([]),
+  plan_skeleton: z.object({
+    objective: z.string().default(''),
+    workstreams: z.array(z.string()).default([]),
+    missing_inputs: z.array(z.string()).default([]),
+    acceptance_criteria_seed: z.array(z.string()).default([]),
+  }),
+  escalate_to: WorkflowEscalationTargetSchema,
+  reason: z.string().default(''),
+  writeback_targets: z.array(z.string()).default([]),
+  next_step: z.string().default(''),
+});
+
+const AI3QAScanInputSchema = z.object({
+  task_id: z.string().min(1),
+  plan_link: z.string().min(1),
+  acceptance_criteria: z.array(z.string()).default([]),
+  implementation_summary: z.array(z.string()).default([]),
+  changed_areas: z.array(z.string()).default([]),
+  hotfix: z.boolean().default(false),
+});
+
+const AI3QAScanOutputSchema = z.object({
+  agent: z.literal('AI-3'),
+  workflow: z.literal('qa_scan'),
+  task_id: z.string().min(1),
+  status: WorkflowStatusSchema,
+  result: z.enum(['pass', 'fail', 'needs_review']),
+  findings: z.array(z.string()).default([]),
+  follow_up_items: z.array(z.string()).default([]),
+  escalate_to: WorkflowEscalationTargetSchema,
+  reason: z.string().default(''),
+  writeback_targets: z.array(z.string()).default([]),
+  next_step: z.string().default(''),
+});
+
+const AI3_PLANNING_INTAKE_SYSTEM_PROMPT = `You are AI 3 inside the VuriumBook AI Operating System.
+
+Your role:
+- convert non-trivial task intake into structured planning intake
+- identify whether AI 5, AI 6, or AI 7 are needed before planning continues
+- stay inside planning / structure / QA governance
+- do not invent compliance, vendor, product, or pricing truth
+
+Rules:
+- return JSON only
+- no markdown
+- no code fences
+- do not write implementation code
+- if critical information is missing, block or escalate instead of guessing
+- keep recommended_sequence realistic and ownership-based
+
+Return exactly this JSON shape:
+{
+  "agent": "AI-3",
+  "workflow": "planning_intake",
+  "task_id": "TASK-123",
+  "status": "done",
+  "requires_ai5": true,
+  "requires_ai6": false,
+  "requires_ai7": true,
+  "recommended_sequence": ["AI-5", "AI-7", "AI-3"],
+  "plan_skeleton": {
+    "objective": "short objective",
+    "workstreams": ["research", "planning"],
+    "missing_inputs": ["missing thing"],
+    "acceptance_criteria_seed": ["criterion 1"]
+  },
+  "escalate_to": "AI-5",
+  "reason": "why escalation or dependency exists",
+  "writeback_targets": ["04-Tasks/Workflow-Queue.md", "04-Tasks/Handoffs/"],
+  "next_step": "clear next action"
+}`;
+
+const AI3_QA_SCAN_SYSTEM_PROMPT = `You are AI 3 inside the VuriumBook AI Operating System.
+
+Your role:
+- run a structured QA scan after implementation or hotfix
+- compare acceptance criteria against the implementation summary
+- identify likely gaps, follow-up work, and escalation targets
+- stay inside planning / QA governance
+
+Rules:
+- return JSON only
+- no markdown
+- no code fences
+- do not approve launch
+- do not invent implementation facts that are not supported by the provided summary
+- if confidence is low or verification is incomplete, use "needs_review"
+
+Return exactly this JSON shape:
+{
+  "agent": "AI-3",
+  "workflow": "qa_scan",
+  "task_id": "TASK-123",
+  "status": "done",
+  "result": "needs_review",
+  "findings": ["finding 1"],
+  "follow_up_items": ["follow-up 1"],
+  "escalate_to": "AI-2",
+  "reason": "why escalation or follow-up is needed",
+  "writeback_targets": ["04-Tasks/*QA-Scan*.md", "04-Tasks/Workflow-Queue.md"],
+  "next_step": "clear next action"
+}`;
+
+function extractJsonObject(rawText, fallback) {
+  const text = safeStr(rawText);
+  if (!text) return fallback;
+  try { return JSON.parse(text); } catch {}
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return fallback;
+  try { return JSON.parse(jsonMatch[0]); } catch { return fallback; }
+}
+
+function unwrapWorkflowEnvelope(body) {
+  const raw = body && typeof body === 'object' ? body : {};
+  const payload = raw.payload && typeof raw.payload === 'object' && !Array.isArray(raw.payload) ? raw.payload : raw;
+  const meta = raw.meta && typeof raw.meta === 'object' && !Array.isArray(raw.meta) ? raw.meta : {};
+  const context = raw.context && typeof raw.context === 'object' && !Array.isArray(raw.context) ? raw.context : {};
+  return { meta, context, payload };
+}
+
+function buildPlanningFallback(input, reason) {
+  const needsExternal = !!input.external_dependency;
+  return {
+    agent: 'AI-3',
+    workflow: 'planning_intake',
+    task_id: input.task_id,
+    status: 'blocked',
+    requires_ai5: needsExternal,
+    requires_ai6: false,
+    requires_ai7: needsExternal,
+    recommended_sequence: needsExternal ? ['AI-5', 'AI-7', 'AI-3'] : ['AI-3'],
+    plan_skeleton: {
+      objective: input.title,
+      workstreams: ['planning'],
+      missing_inputs: ['Manual review required'],
+      acceptance_criteria_seed: [],
+    },
+    escalate_to: needsExternal ? 'AI-5' : 'Owner',
+    reason,
+    writeback_targets: ['04-Tasks/Workflow-Queue.md', '04-Tasks/Handoffs/'],
+    next_step: needsExternal ? 'Open AI-5 research brief before planning continues.' : 'Review blocked planning intake manually.',
+  };
+}
+
+function buildQAFallback(input, reason) {
+  return {
+    agent: 'AI-3',
+    workflow: 'qa_scan',
+    task_id: input.task_id,
+    status: 'blocked',
+    result: 'needs_review',
+    findings: [reason],
+    follow_up_items: ['Manual QA review required'],
+    escalate_to: 'Owner',
+    reason,
+    writeback_targets: ['04-Tasks/*QA-Scan*.md', '04-Tasks/Workflow-Queue.md'],
+    next_step: 'Review QA scan manually before moving the task forward.',
+  };
+}
+
+async function runStructuredWorkflowAI({ systemPrompt, input, meta = {}, context = {}, fallback, outputSchema, maxTokens = 1600 }) {
+  if (!anthropic) throw new Error('AI not configured');
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: maxTokens,
+    system: systemPrompt,
+    messages: [{
+      role: 'user',
+      content: [
+        'Return JSON only.',
+        '',
+        'Meta:',
+        JSON.stringify(meta, null, 2),
+        '',
+        'Context:',
+        JSON.stringify(context, null, 2),
+        '',
+        'Input:',
+        JSON.stringify(input, null, 2),
+      ].join('\n'),
+    }],
+  });
+  const rawText = response.content[0]?.text || '';
+  const parsed = extractJsonObject(rawText, fallback);
+  const validated = outputSchema.parse(parsed);
+  return {
+    ...validated,
+    ai_meta: {
+      model: 'claude-sonnet-4-20250514',
+      input_tokens: response.usage?.input_tokens || 0,
+      output_tokens: response.usage?.output_tokens || 0,
+    },
+  };
+}
+
 async function collectDiagnosticMetrics() {
   const now = new Date();
   const h24 = new Date(now - 24 * 60 * 60 * 1000);
@@ -3745,6 +3967,50 @@ app.post('/api/vurium-dev/ai/scan', requireSuperadmin, async (req, res) => {
     res.json({ ok: true, scan_id: scanId });
   } catch (e) {
     res.status(500).json({ error: 'Failed to start scan' });
+  }
+});
+
+app.post('/api/vurium-dev/ai/planning-intake', requireSuperadmin, async (req, res) => {
+  try {
+    const { meta, context, payload } = unwrapWorkflowEnvelope(req.body);
+    const input = AI3PlanningIntakeInputSchema.parse(payload);
+    const result = await runStructuredWorkflowAI({
+      systemPrompt: AI3_PLANNING_INTAKE_SYSTEM_PROMPT,
+      input,
+      meta,
+      context,
+      fallback: buildPlanningFallback(input, 'Failed to parse planning intake AI output.'),
+      outputSchema: AI3PlanningIntakeOutputSchema,
+      maxTokens: 1400,
+    });
+    res.json(result);
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid planning-intake payload', details: e.issues });
+    if (e.message === 'AI not configured') return res.status(503).json({ error: 'AI not configured (missing ANTHROPIC_API_KEY)' });
+    console.error('AI planning intake error:', e.message);
+    res.status(500).json({ error: 'Failed to generate planning intake' });
+  }
+});
+
+app.post('/api/vurium-dev/ai/qa-scan', requireSuperadmin, async (req, res) => {
+  try {
+    const { meta, context, payload } = unwrapWorkflowEnvelope(req.body);
+    const input = AI3QAScanInputSchema.parse(payload);
+    const result = await runStructuredWorkflowAI({
+      systemPrompt: AI3_QA_SCAN_SYSTEM_PROMPT,
+      input,
+      meta,
+      context,
+      fallback: buildQAFallback(input, 'Failed to parse QA scan AI output.'),
+      outputSchema: AI3QAScanOutputSchema,
+      maxTokens: 1400,
+    });
+    res.json(result);
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid qa-scan payload', details: e.issues });
+    if (e.message === 'AI not configured') return res.status(503).json({ error: 'AI not configured (missing ANTHROPIC_API_KEY)' });
+    console.error('AI QA scan error:', e.message);
+    res.status(500).json({ error: 'Failed to generate QA scan' });
   }
 });
 

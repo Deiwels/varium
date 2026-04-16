@@ -21,6 +21,20 @@ source_of_truth: true
 
 ## Current active updates
 
+### 2026-04-16 — Phase 1 AI 3 execution artifacts are now live
+
+- The first execution-first artifacts now exist for:
+  - `AI 3 planning intake`
+  - `AI 3 QA scan`
+- Live backend endpoints now exist at:
+  - `/api/vurium-dev/ai/planning-intake`
+  - `/api/vurium-dev/ai/qa-scan`
+- Import-adaptable `n8n` workflow skeletons now live in:
+  - `automation/n8n/AI3_Planning_Intake.workflow.json`
+  - `automation/n8n/AI3_QA_Scan.workflow.json`
+  - `automation/n8n/README.md`
+- This is the approved shift from framework-only design to execution artifacts for phase 1.
+
 ### 2026-04-16 — Approved optimization pass is now active
 
 - Universal startup reading is now reduced to:

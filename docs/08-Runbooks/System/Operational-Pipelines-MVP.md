@@ -53,6 +53,12 @@ Do not block MVP on MCP-style tool routing.
 
 For the first non-inbox automation wave in `n8n`, use [[08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11|n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11]].
 
+Current live execution artifacts:
+
+- `automation/n8n/AI3_Planning_Intake.workflow.json`
+- `automation/n8n/AI3_QA_Scan.workflow.json`
+- `automation/n8n/README.md`
+
 ## Architecture
 
 ### 1. Email / Support Pipeline

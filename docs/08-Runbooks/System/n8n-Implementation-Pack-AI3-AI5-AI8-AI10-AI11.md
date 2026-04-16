@@ -36,6 +36,19 @@ This file is intended for `n8n` implementation.
 
 It is an implementation reference. It does not define governance, policy, or authority on its own.
 
+## Live Phase-1 Artifacts
+
+Current execution artifacts live in:
+
+- `automation/n8n/AI3_Planning_Intake.workflow.json`
+- `automation/n8n/AI3_QA_Scan.workflow.json`
+- `automation/n8n/README.md`
+
+Current backend AI endpoints for these workflows:
+
+- `POST /api/vurium-dev/ai/planning-intake`
+- `POST /api/vurium-dev/ai/qa-scan`
+
 ## Global Rules
 
 ### Rule A
