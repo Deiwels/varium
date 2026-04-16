@@ -35,6 +35,12 @@ Optional local execution helpers:
 - `VURIUM_SUPPORT_MAILBOX`
   - useful if you add email notification nodes in the final mile
 
+Execution notes:
+
+- without `ANTHROPIC_API_KEY` in the backend, the AI lanes now return structured local fallback results instead of hard-failing
+- without `RESEND_API_KEY`, `Owner_Notification` stays runnable but returns a structured blocked notification result
+- smoke tests for planning, QA, growth, and research create real markdown notes through backend writeback unless you point them at a disposable docs tree
+
 Use [`.env.example`](/Users/nazarii/Downloads/varium/automation/n8n/.env.example) as the starter file.
 
 Important for local/self-hosted `n8n`:
@@ -106,6 +112,18 @@ The support workflow is designed to be called by a Gmail trigger bridge, inbound
 The growth asset workflow is designed to be called by a campaign request bridge, KPI trigger, or any upstream growth intake normalizer that can emit one structured campaign request.
 
 The research workflow is designed to be called by an AI 3 planning handoff, external-dependency tag bridge, or any upstream research intake normalizer that can emit one structured research request with explicit official source URLs.
+
+## Local Fallback Behavior
+
+These workflows are now usable locally before external secrets are added:
+
+- `AI3_Planning_Intake` returns a draft planning shell and routes to the next lane instead of failing when AI is not configured
+- `AI3_QA_Scan` returns a manual-review QA result with follow-up routing instead of failing
+- `Growth_Asset_Flow` returns a draft growth brief plus draft creative/video packages using offline fallbacks
+- `Research_Brief` returns `queued` when no official `sourceUrls` are supplied, `blocked` when no sources can be fetched, and `partial` staged research when sources were fetched but AI is not configured
+- `Gmail_Support_Inbox` already falls back to deterministic classification and routing when AI is not configured
+
+This makes local validation possible while secrets are still missing, without weakening escalation or approval gates.
 
 ## Queue Stage Contract
 

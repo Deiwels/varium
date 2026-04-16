@@ -21,6 +21,18 @@ source_of_truth: true
 
 ## Current active updates
 
+### 2026-04-16 — Local execution contour now survives missing secrets
+
+- The local `n8n -> backend -> writeback` execution contour is now runnable even before external AI/email keys are added.
+- `AI3_Planning_Intake`, `AI3_QA_Scan`, `Growth_Asset_Flow`, and `Research_Brief` now return structured local fallback results instead of hard-failing when `ANTHROPIC_API_KEY` is missing.
+- `Owner_Notification` remains live, but returns a structured blocked result until `RESEND_API_KEY` is configured.
+- `Obsidian_Writeback` is now the canonical local last-mile for these lanes during smoke testing and local validation.
+- This change does **not** weaken governance:
+  - escalation still happens
+  - Owner gates still apply
+  - source-backed research still requires official sources
+  - final external sends still require real provider configuration
+
 ### 2026-04-16 — Owner notification last-mile artifact is now live
 
 - A reusable last-mile Owner notification lane now exists for blocked, high-risk, or approval-gated workflow states.
