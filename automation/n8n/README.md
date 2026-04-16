@@ -8,6 +8,7 @@ Current phase-1 workflows:
 - `AI3_QA_Scan.workflow.json`
 - `Gmail_Support_Inbox.workflow.json`
 - `Growth_Asset_Flow.workflow.json`
+- `Research_Brief.workflow.json`
 
 ## Required Environment
 
@@ -25,8 +26,9 @@ Set these in `n8n` before running the workflows:
 - `POST /api/vurium-dev/ai/support-inbox-process`
 - `POST /api/vurium-dev/ai/support-inbox-execute`
 - `POST /api/vurium-dev/ai/growth-asset-flow`
+- `POST /api/vurium-dev/ai/research-brief`
 
-Both endpoints accept either:
+All AI execution endpoints accept either:
 
 1. a plain payload body
 2. or the standard envelope:
@@ -46,12 +48,15 @@ Both workflows now use real `POST` webhook triggers inside `n8n`:
 - `AI3_Planning_Intake` -> `.../webhook/ai3-planning-intake`
 - `AI3_QA_Scan` -> `.../webhook/ai3-qa-scan`
 - `Gmail_Support_Inbox` -> `.../webhook/gmail-support-inbox`
+- `Research_Brief` -> `.../webhook/research-brief`
 
 The AI 3 workflows are designed to be called by a queue/status bridge when a task changes stage.
 
 The support workflow is designed to be called by a Gmail trigger bridge, inbound email worker, or any upstream inbox normalizer that can emit one normalized email event.
 
 The growth asset workflow is designed to be called by a campaign request bridge, KPI trigger, or any upstream growth intake normalizer that can emit one structured campaign request.
+
+The research workflow is designed to be called by an AI 3 planning handoff, external-dependency tag bridge, or any upstream research intake normalizer that can emit one structured research request with explicit official source URLs.
 
 ## Queue Stage Contract
 
@@ -136,14 +141,57 @@ It returns one combined result with:
 - one top-level `escalate_to`
 - one top-level `next_step`
 
+## Research Brief Contract
+
+`Research_Brief.workflow.json` expects one research intake event and calls the AI 5 backend route.
+
+Minimum payload:
+
+```json
+{
+  "researchId": "R-203",
+  "taskId": "TASK-123",
+  "topic": "SMS consent wording requirements for booking reminders",
+  "questions": [
+    "What kind of consent language is required?",
+    "What opt-out wording is required?"
+  ],
+  "target_sources": [
+    "official vendor docs",
+    "official policy docs"
+  ],
+  "related_links": [
+    "[[Booking Flow MVP Product Brief]]"
+  ],
+  "sourceUrls": [
+    "https://example.com/official-doc"
+  ]
+}
+```
+
+Important:
+
+- AI 5 only produces source-backed findings from explicit `sourceUrls`
+- if no official source URLs are provided, the workflow returns a structured `queued` result instead of inventing research
+- if all provided sources fail to fetch, the workflow returns `blocked`
+
+It returns:
+
+- `facts`
+- `inferences`
+- `open_questions`
+- `source_summary`
+- `escalate_to`
+- `next_step`
+
 ## What These Workflows Do
 
-- accept a queue/status event webhook
+- accept one structured webhook event from the relevant upstream trigger
 - normalize the event into the standard AI envelope
-- call the live backend AI decision endpoint
+- call the live backend AI endpoint for that lane
 - validate the returned JSON shape
-- call the live backend execution endpoint
-- emit one structured execution result item that can then be wired into queue writeback, handoff creation, or notifications
+- optionally call a follow-up execution endpoint when the lane uses a split `process -> execute` contract
+- emit one structured result item that can then be wired into queue writeback, handoff creation, or notifications
 
 ## Minimum Incoming Payloads
 

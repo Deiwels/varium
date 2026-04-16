@@ -42,6 +42,7 @@ Current execution artifacts live in:
 
 - `automation/n8n/AI3_Planning_Intake.workflow.json`
 - `automation/n8n/AI3_QA_Scan.workflow.json`
+- `automation/n8n/Research_Brief.workflow.json`
 - `automation/n8n/README.md`
 
 These phase-1 artifacts are now webhook-triggered queue/status workflows rather than manual-only test skeletons.
@@ -50,6 +51,7 @@ Current backend AI endpoints for these workflows:
 
 - `POST /api/vurium-dev/ai/planning-intake`
 - `POST /api/vurium-dev/ai/qa-scan`
+- `POST /api/vurium-dev/ai/research-brief`
 
 ## Global Rules
 
@@ -688,6 +690,9 @@ Create and fill a source-backed research brief for external dependency tasks.
   ],
   "related_links": [
     "[[Booking Flow MVP Product Brief]]"
+  ],
+  "source_urls": [
+    "https://example.com/official-doc"
   ]
 }
 ```
@@ -725,6 +730,7 @@ Create and fill a source-backed research brief for external dependency tasks.
 ### Safe Mode Rules
 
 - only source-backed research
+- if `source_urls` are missing, return a structured queued result instead of inventing findings
 - facts must be separate from inferences
 - no code
 - no product decisions

@@ -59,11 +59,13 @@ Current live execution artifacts:
 - `automation/n8n/AI3_QA_Scan.workflow.json`
 - `automation/n8n/Gmail_Support_Inbox.workflow.json`
 - `automation/n8n/Growth_Asset_Flow.workflow.json`
+- `automation/n8n/Research_Brief.workflow.json`
 - `automation/n8n/README.md`
 
 These phase-1 AI 3 flows now start from real `n8n` webhook queue/status triggers rather than manual-only test triggers.
 The support inbox lane now also has a live webhook-ready `n8n` artifact plus a consolidated backend AI 9 processing route.
 The growth asset lane now also has a live webhook-ready `n8n` artifact plus a consolidated backend route for `AI 8 -> AI 11 / AI 10`.
+The AI 5 research lane now also has a live webhook-ready `n8n` artifact plus a consolidated backend route for source-backed research intake.
 
 ## Architecture
 

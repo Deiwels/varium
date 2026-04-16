@@ -21,6 +21,23 @@ source_of_truth: true
 
 ## Current active updates
 
+### 2026-04-16 — AI 5 research intake execution lane is now live
+
+- The first execution-ready AI 5 lane now exists for source-backed external research intake.
+- Live backend route now exists at:
+  - `/api/vurium-dev/ai/research-brief`
+- Import-adaptable `n8n` workflow artifact now lives in:
+  - `automation/n8n/Research_Brief.workflow.json`
+  - `automation/n8n/README.md`
+- The live AI 5 lane is intentionally source-gated:
+  - it only produces source-backed findings from explicit official `source_urls`
+  - if no source URLs are provided, it returns a structured queued result
+  - if all provided sources fail to fetch, it returns a blocked result instead of inventing research
+- This does not bypass governance:
+  - AI 5 still does not replace AI 7 for compliance translation
+  - AI 5 still does not make product or legal decisions
+  - unresolved research still routes back into escalation / queue flow
+
 ### 2026-04-16 — AI 8 -> AI 11 / AI 10 growth asset execution lane is now live
 
 - The first execution-ready growth asset lane now exists for `AI 8 -> AI 11 / AI 10`.

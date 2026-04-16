@@ -3747,6 +3747,43 @@ const GrowthAssetFlowOutputSchema = z.object({
   next_step: z.string().default(''),
 });
 
+const RESEARCH_SOURCE_STATUS_VALUES = ['provided', 'fetched', 'failed'];
+const ResearchSourceStatusSchema = z.enum(RESEARCH_SOURCE_STATUS_VALUES);
+
+const ResearchSourceSummarySchema = z.object({
+  source_type: z.string().default('official_source'),
+  topic: z.string().default(''),
+  url: z.string().default(''),
+  title: z.string().default(''),
+  status: ResearchSourceStatusSchema.default('fetched'),
+});
+
+const AI5ResearchBriefInputSchema = z.object({
+  research_id: z.string().min(1),
+  task_id: z.string().min(1),
+  topic: z.string().min(1),
+  questions: z.array(z.string()).default([]),
+  target_sources: z.array(z.string()).default([]),
+  related_links: z.array(z.string()).default([]),
+  source_urls: z.array(z.string()).default([]),
+});
+
+const AI5ResearchBriefOutputSchema = z.object({
+  agent: z.literal('AI-5'),
+  workflow: z.literal('research_brief'),
+  research_id: z.string().min(1),
+  task_id: z.string().min(1),
+  status: WorkflowStatusSchema,
+  facts: z.array(z.string()).default([]),
+  inferences: z.array(z.string()).default([]),
+  open_questions: z.array(z.string()).default([]),
+  source_summary: z.array(ResearchSourceSummarySchema).default([]),
+  escalate_to: WorkflowEscalationTargetSchema,
+  reason: z.string().default(''),
+  writeback_targets: z.array(z.string()).default([]),
+  next_step: z.string().default(''),
+});
+
 const AI3_PLANNING_INTAKE_SYSTEM_PROMPT = `You are AI 3 inside the VuriumBook AI Operating System.
 
 Your role:
@@ -3993,6 +4030,52 @@ Return exactly this JSON shape:
   "reason": "Final publish/review required",
   "writeback_targets": ["06-Growth/Video/", "06-Growth/Video/Scripts/"],
   "next_step": "Review the script pack before production or publishing."
+}`;
+
+const AI5_RESEARCH_BRIEF_SYSTEM_PROMPT = `You are AI 5 inside the VuriumBook AI Operating System.
+
+Your role:
+- produce source-backed external research briefs
+- separate facts from inferences
+- identify unresolved questions when evidence is incomplete
+- never invent vendor, policy, or compliance truth
+
+Critical rule:
+- you may only use the provided research source extracts in Context.research_sources
+- if the provided extracts do not support a claim, do not write it as a fact
+- never claim legal certainty
+- no code
+- no product decisions
+
+Rules:
+- return JSON only
+- no markdown
+- no code fences
+- facts must be short, explicit, and source-grounded
+- inferences must be clearly framed as interpretation, not confirmed truth
+- if evidence is incomplete, add it to open_questions instead of guessing
+
+Return exactly this JSON shape:
+{
+  "agent": "AI-5",
+  "workflow": "research_brief",
+  "research_id": "R-203",
+  "task_id": "TASK-123",
+  "status": "done",
+  "facts": [
+    "Fact grounded in the provided source extracts"
+  ],
+  "inferences": [
+    "Inference based on the provided source extracts"
+  ],
+  "open_questions": [
+    "Unresolved question still needing evidence"
+  ],
+  "source_summary": [],
+  "escalate_to": "AI-7",
+  "reason": "Implementation constraints should now be translated from the research findings.",
+  "writeback_targets": ["07-Research/", "07-Research/AI5-Research-Brief-*.md", "04-Tasks/Handoffs/"],
+  "next_step": "Route the source-backed brief to AI-7 for translation or AI-3 for planning continuation."
 }`;
 
 function extractJsonObject(rawText, fallback) {
@@ -4287,6 +4370,201 @@ function buildVideoBriefFallback(input, reason) {
     writeback_targets: ['06-Growth/Video/', '06-Growth/Video/Scripts/'],
     next_step: 'Review the blocked video request manually before production.',
   };
+}
+
+function decodeBasicHtmlEntities(text) {
+  return safeStr(text)
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+}
+
+function stripHtmlToPlainText(html) {
+  return decodeBasicHtmlEntities(
+    safeStr(html)
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+  ).replace(/\s+/g, ' ').trim();
+}
+
+function inferResearchSourceType(url) {
+  const text = safeStr(url).toLowerCase();
+  if (/(policy|compliance|terms|privacy|legal|10dlc|consent)/.test(text)) return 'official_policy';
+  if (/(docs|developer|api|support|help|knowledgebase|kb)/.test(text)) return 'official_vendor_doc';
+  return 'official_source';
+}
+
+function buildResearchWritebackTargets() {
+  return ['07-Research/', '07-Research/AI5-Research-Brief-*.md', '04-Tasks/Handoffs/'];
+}
+
+function buildResearchBriefQueued(input, reason) {
+  return {
+    agent: 'AI-5',
+    workflow: 'research_brief',
+    research_id: input.research_id,
+    task_id: input.task_id,
+    status: 'queued',
+    facts: [],
+    inferences: [],
+    open_questions: input.questions.length ? input.questions : ['Research request needs explicit external fact questions.'],
+    source_summary: [],
+    escalate_to: 'AI-3',
+    reason,
+    writeback_targets: buildResearchWritebackTargets(),
+    next_step: 'Attach official source URLs to the research request, then rerun AI-5 research intake.',
+  };
+}
+
+function buildResearchBriefBlocked(input, reason, sourceSummary = []) {
+  return {
+    agent: 'AI-5',
+    workflow: 'research_brief',
+    research_id: input.research_id,
+    task_id: input.task_id,
+    status: 'blocked',
+    facts: [],
+    inferences: [],
+    open_questions: input.questions.length ? input.questions : ['Research request needs manual review.'],
+    source_summary: sourceSummary,
+    escalate_to: 'AI-3',
+    reason,
+    writeback_targets: buildResearchWritebackTargets(),
+    next_step: 'Repair the source list or attach accessible official sources before rerunning AI-5 research intake.',
+  };
+}
+
+function normalizeResearchSourceUrls(sourceUrls) {
+  return Array.from(new Set((Array.isArray(sourceUrls) ? sourceUrls : [])
+    .map((entry) => safeStr(entry).trim())
+    .filter(Boolean)))
+    .slice(0, 5);
+}
+
+async function fetchResearchSources(sourceUrls) {
+  const normalized = normalizeResearchSourceUrls(sourceUrls);
+  const fetched = [];
+  const failed = [];
+
+  for (const rawUrl of normalized) {
+    let timeout = null;
+    try {
+      const parsed = new URL(rawUrl);
+      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Unsupported protocol');
+      const controller = new AbortController();
+      timeout = setTimeout(() => controller.abort(), 12000);
+      const response = await fetch(parsed.toString(), {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'VuriumBook-AI5-Research/1.0',
+          'Accept': 'text/html,text/plain,application/xhtml+xml,application/xml;q=0.9,text/markdown;q=0.8,*/*;q=0.2',
+        },
+      });
+      clearTimeout(timeout);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const contentType = safeStr(response.headers.get('content-type')).toLowerCase();
+      if (/application\/pdf|\/pdf\b/.test(contentType)) throw new Error('PDF sources are not supported in this MVP lane');
+      const body = await response.text();
+      const titleMatch = body.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      const extractedTitle = stripHtmlToPlainText(titleMatch?.[1] || '');
+      const extractedText = /html|xml/.test(contentType)
+        ? stripHtmlToPlainText(body)
+        : decodeBasicHtmlEntities(safeStr(body)).replace(/\s+/g, ' ').trim();
+      if (!extractedText) throw new Error('Empty source content');
+      fetched.push({
+        source_type: inferResearchSourceType(parsed.toString()),
+        topic: '',
+        url: parsed.toString(),
+        title: extractedTitle || parsed.hostname,
+        status: 'fetched',
+        content: extractedText.slice(0, 7000),
+      });
+    } catch (e) {
+      failed.push({
+        source_type: inferResearchSourceType(rawUrl),
+        topic: '',
+        url: rawUrl,
+        title: '',
+        status: 'failed',
+        error: e.name === 'AbortError' ? 'Fetch timed out' : e.message,
+      });
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
+  }
+
+  return { fetched, failed };
+}
+
+async function generateResearchBrief(meta, context, input) {
+  const sourceUrls = normalizeResearchSourceUrls(input.source_urls);
+  if (!sourceUrls.length) {
+    return buildResearchBriefQueued(
+      input,
+      'AI-5 research intake requires explicit official source URLs before it can produce source-backed findings.'
+    );
+  }
+
+  const { fetched, failed } = await fetchResearchSources(sourceUrls);
+  const sourceSummary = [
+    ...fetched.map(({ source_type, topic, url, title, status }) => ({ source_type, topic, url, title, status })),
+    ...failed.map(({ source_type, topic, url, title, status }) => ({ source_type, topic, url, title, status })),
+  ];
+
+  if (!fetched.length) {
+    return buildResearchBriefBlocked(
+      input,
+      'AI-5 could not fetch any usable official sources from the provided source_urls list.',
+      sourceSummary
+    );
+  }
+
+  const fallback = buildResearchBriefBlocked(
+    input,
+    'Failed to parse AI-5 research brief output from the model.',
+    sourceSummary
+  );
+
+  const result = await runStructuredWorkflowAI({
+    systemPrompt: AI5_RESEARCH_BRIEF_SYSTEM_PROMPT,
+    input: {
+      ...input,
+      source_urls: sourceUrls,
+    },
+    meta,
+    context: {
+      ...context,
+      research_sources: fetched.map(({ source_type, url, title, content }) => ({
+        source_type,
+        url,
+        title,
+        excerpt: content,
+      })),
+    },
+    fallback,
+    outputSchema: AI5ResearchBriefOutputSchema,
+    maxTokens: 1800,
+  });
+
+  const fetchFailures = failed.map((entry) => `Unable to fetch ${entry.url}: ${entry.error}`);
+  return AI5ResearchBriefOutputSchema.parse({
+    ...result,
+    status: failed.length && result.status === 'done' ? 'partial' : result.status,
+    open_questions: Array.from(new Set([...(result.open_questions || []), ...fetchFailures])),
+    source_summary: sourceSummary,
+    reason: result.reason || (failed.length
+      ? 'Research completed with some source fetch failures.'
+      : 'Source-backed research brief generated successfully.'),
+    writeback_targets: result.writeback_targets?.length ? result.writeback_targets : buildResearchWritebackTargets(),
+    next_step: result.next_step || (result.escalate_to === 'AI-7'
+      ? 'Route the source-backed findings to AI-7 for compliance translation.'
+      : 'Review the research brief and route it to the next owner.'),
+  });
 }
 
 function shouldGenerateCreativeAssets(growthOutput, input) {
@@ -4834,6 +5112,20 @@ app.post('/api/vurium-dev/ai/growth-asset-flow', requireSuperadmin, async (req, 
     if (e.message === 'AI not configured') return res.status(503).json({ error: 'AI not configured (missing ANTHROPIC_API_KEY)' });
     console.error('AI growth asset flow error:', e.message);
     res.status(500).json({ error: 'Failed to generate growth asset flow' });
+  }
+});
+
+app.post('/api/vurium-dev/ai/research-brief', requireSuperadmin, async (req, res) => {
+  try {
+    const { meta, context, payload } = unwrapWorkflowEnvelope(req.body);
+    const input = AI5ResearchBriefInputSchema.parse(payload);
+    const result = await generateResearchBrief(meta, context, input);
+    res.json(result);
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid research-brief payload', details: e.issues });
+    if (e.message === 'AI not configured') return res.status(503).json({ error: 'AI not configured (missing ANTHROPIC_API_KEY)' });
+    console.error('AI research brief error:', e.message);
+    res.status(500).json({ error: 'Failed to generate research brief' });
   }
 });
 

@@ -1,0 +1,115 @@
+{
+  "name": "Research_Brief",
+  "active": false,
+  "settings": {},
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Research Brief Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "research-brief",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "research-brief",
+        "responseMode": "lastNode"
+      }
+    },
+    {
+      "id": "normalize-input",
+      "name": "Normalize Research Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const raw = items[0]?.json || {};\nconst payload = raw.payload && typeof raw.payload === 'object' && !Array.isArray(raw.payload) ? raw.payload : raw;\nconst researchId = payload.research_id || payload.researchId || raw.research_id || raw.researchId;\nconst taskId = payload.task_id || payload.taskId || raw.task_id || raw.taskId;\nconst topic = payload.topic || raw.topic;\nif (!researchId) throw new Error('Missing research_id / researchId');\nif (!taskId) throw new Error('Missing task_id / taskId');\nif (!topic) throw new Error('Missing topic');\nconst questions = Array.isArray(payload.questions) ? payload.questions : Array.isArray(raw.questions) ? raw.questions : [];\nconst sourceUrls = Array.isArray(payload.source_urls)\n  ? payload.source_urls\n  : Array.isArray(payload.sourceUrls)\n    ? payload.sourceUrls\n    : Array.isArray(raw.source_urls)\n      ? raw.source_urls\n      : Array.isArray(raw.sourceUrls)\n        ? raw.sourceUrls\n        : [];\nreturn [{\n  json: {\n    meta: {\n      workflow_name: 'Research_Brief',\n      timestamp: new Date().toISOString(),\n      trigger_source: raw.trigger_source || 'research_request_webhook',\n      risk_level: raw.risk_level || 'medium'\n    },\n    context: {\n      canonical_links: [\n        '[[07-Research/Research-Index|Research Index]]',\n        '[[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]'\n      ],\n      constraints: [\n        'Only use explicit official source URLs',\n        'Do not invent facts beyond fetched source extracts'\n      ]\n    },\n    payload: {\n      research_id: String(researchId),\n      task_id: String(taskId),\n      topic: String(topic),\n      questions: questions.map((entry) => String(entry)).filter(Boolean),\n      target_sources: Array.isArray(payload.target_sources) ? payload.target_sources : Array.isArray(raw.target_sources) ? raw.target_sources : [],\n      related_links: Array.isArray(payload.related_links) ? payload.related_links : Array.isArray(raw.related_links) ? raw.related_links : [],\n      source_urls: sourceUrls.map((entry) => String(entry)).filter(Boolean)\n    }\n  }\n}];"
+      }
+    },
+    {
+      "id": "call-backend",
+      "name": "Call Research Brief",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        820,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.VURIUM_API_BASE_URL || 'http://localhost:8080') + '/api/vurium-dev/ai/research-brief' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.VURIUM_ADMIN_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "validate-output",
+      "name": "Validate Research Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const item = items[0]?.json || {};\nconst required = ['agent', 'workflow', 'status', 'research_id', 'task_id', 'facts', 'inferences', 'open_questions', 'source_summary', 'escalate_to', 'reason', 'next_step'];\nfor (const key of required) {\n  if (!(key in item)) throw new Error(`Missing required key: ${key}`);\n}\nconst allowedStatus = new Set(['done', 'partial', 'blocked', 'needs_review', 'queued']);\nif (!allowedStatus.has(item.status)) throw new Error(`Invalid status: ${item.status}`);\nconst allowedEscalation = new Set(['none', 'AI-1', 'AI-2', 'AI-3', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11', 'Owner']);\nif (!allowedEscalation.has(item.escalate_to)) throw new Error(`Invalid escalate_to: ${item.escalate_to}`);\nitem.execution_summary = {\n  facts_count: Array.isArray(item.facts) ? item.facts.length : 0,\n  inference_count: Array.isArray(item.inferences) ? item.inferences.length : 0,\n  source_count: Array.isArray(item.source_summary) ? item.source_summary.length : 0,\n  requires_follow_up: item.status !== 'done'\n};\nreturn [{ json: item }];"
+      }
+    }
+  ],
+  "connections": {
+    "Research Brief Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Research Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Research Request": {
+      "main": [
+        [
+          {
+            "node": "Call Research Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Research Brief": {
+      "main": [
+        [
+          {
+            "node": "Validate Research Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
