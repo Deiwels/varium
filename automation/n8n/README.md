@@ -22,6 +22,7 @@ Set these in `n8n` before running the workflows:
 - `POST /api/vurium-dev/ai/planning-intake`
 - `POST /api/vurium-dev/ai/qa-scan`
 - `POST /api/vurium-dev/ai/support-inbox-process`
+- `POST /api/vurium-dev/ai/support-inbox-execute`
 
 Both endpoints accept either:
 
@@ -78,22 +79,33 @@ Minimum payload:
 }
 ```
 
-It returns a structured AI 9 decision with:
+It first returns a structured AI 9 decision with:
 
 - classification label
 - route lane
 - draft reply
 - safe-to-send decision
 - escalation target
-- a prebuilt `gmail_reply_request` object when safe send is allowed
+
+The workflow then calls the execution route, which returns one of:
+
+- `sent_reply`
+- `escalated`
+- `manual_review_required`
+
+This keeps the `n8n` lane simple:
+
+- AI logic stays in `/api/vurium-dev/ai/support-inbox-process`
+- send/escalate gate stays in `/api/vurium-dev/ai/support-inbox-execute`
 
 ## What These Workflows Do
 
 - accept a queue/status event webhook
 - normalize the event into the standard AI envelope
-- call the live backend AI endpoint
+- call the live backend AI decision endpoint
 - validate the returned JSON shape
-- emit one structured result item that can then be wired into queue writeback, handoff creation, or notifications
+- call the live backend execution endpoint
+- emit one structured execution result item that can then be wired into queue writeback, handoff creation, or notifications
 
 ## Minimum Incoming Payloads
 

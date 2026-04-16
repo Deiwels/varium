@@ -3248,6 +3248,27 @@ function buildRawEmail({ from, to, cc, bcc, subject, html, inReplyTo, references
   return Buffer.from(raw).toString('base64url');
 }
 
+async function sendGmailReply({ account, to, subject, bodyHtml, threadId, messageId }) {
+  const gmail = await getGmailClient(account);
+  if (!gmail) {
+    const err = new Error('Account not connected');
+    err.code = 'GMAIL_NOT_CONNECTED';
+    throw err;
+  }
+  const mailboxMeta = getVuriumMailboxMeta(account);
+  const styledHtml = vuriumSupportEmailTemplate(subject, bodyHtml || '', mailboxMeta);
+  const raw = buildRawEmail({
+    from: mailboxMeta.fromHeader,
+    to,
+    subject,
+    html: styledHtml,
+    inReplyTo: messageId,
+    references: messageId,
+  });
+  const result = await gmail.users.messages.send({ userId: 'me', requestBody: { raw, threadId } });
+  return { id: result.data.id, threadId: result.data.threadId };
+}
+
 // Gmail OAuth: Start authorization
 app.get('/api/vurium-dev/gmail/auth', requireSuperadmin, (req, res) => {
   const account = req.query.account;
@@ -3395,20 +3416,17 @@ app.post('/api/vurium-dev/gmail/reply', requireSuperadmin, async (req, res) => {
   try {
     const { account, to, subject, body_html, threadId, messageId } = req.body;
     if (!account || !to || !subject || !threadId) return res.status(400).json({ error: 'account, to, subject, threadId required' });
-    const gmail = await getGmailClient(account);
-    if (!gmail) return res.status(400).json({ error: 'Account not connected', needsAuth: true });
-
-    const mailboxMeta = getVuriumMailboxMeta(account);
-    const styledHtml = vuriumSupportEmailTemplate(subject, body_html || '', mailboxMeta);
-    const raw = buildRawEmail({
-      from: mailboxMeta.fromHeader, to, subject,
-      html: styledHtml,
-      inReplyTo: messageId,
-      references: messageId,
+    const result = await sendGmailReply({
+      account,
+      to,
+      subject,
+      bodyHtml: body_html || '',
+      threadId,
+      messageId,
     });
-    const result = await gmail.users.messages.send({ userId: 'me', requestBody: { raw, threadId } });
-    res.json({ ok: true, id: result.data.id, threadId: result.data.threadId });
+    res.json({ ok: true, id: result.id, threadId: result.threadId });
   } catch (e) {
+    if (e.code === 'GMAIL_NOT_CONNECTED') return res.status(400).json({ error: 'Account not connected', needsAuth: true });
     console.error('Gmail reply error:', e.message);
     res.status(500).json({ error: 'Failed to send reply' });
   }
@@ -3567,6 +3585,32 @@ const AI9SupportInboxOutputSchema = z.object({
   faq_candidate: z.boolean(),
   reason: z.string().default(''),
   writeback_targets: z.array(z.string()).default([]),
+  next_step: z.string().default(''),
+});
+
+const SUPPORT_EXECUTION_ACTION_VALUES = ['sent_reply', 'escalated', 'manual_review_required'];
+const SupportExecutionActionSchema = z.enum(SUPPORT_EXECUTION_ACTION_VALUES);
+
+const AI9SupportExecutionOutputSchema = z.object({
+  agent: z.literal('AI-9'),
+  workflow: z.literal('support_inbox_execute'),
+  status: WorkflowStatusSchema,
+  action: SupportExecutionActionSchema,
+  message_id: z.string().min(1),
+  thread_id: z.string().min(1),
+  account: z.string().default(''),
+  mailbox: z.string().default(''),
+  label: SupportEmailLabelSchema,
+  safe_to_send: z.boolean(),
+  escalate_to: WorkflowEscalationTargetSchema,
+  reason: z.string().default(''),
+  gmail_message_id: z.string().default(''),
+  gmail_thread_id: z.string().default(''),
+  escalation_note: z.object({
+    title: z.string().default(''),
+    target: WorkflowEscalationTargetSchema,
+    body: z.string().default(''),
+  }).nullable().default(null),
   next_step: z.string().default(''),
 });
 
@@ -3819,6 +3863,125 @@ function buildSupportInboxFallback(input, reason) {
     reason,
     writeback_targets: ['06-Growth/Customer-Communication/', '04-Tasks/Handoffs/'],
     next_step: isReplyLane ? 'Review the draft manually before sending.' : 'Create an escalation note and route to the next owner.',
+  };
+}
+
+function buildSupportEscalationNote(input) {
+  return {
+    title: `Support escalation: ${input.subject}`,
+    target: input.escalate_to,
+    body: [
+      '# Escalation',
+      '',
+      '## Source',
+      '- Workflow: Gmail Support Inbox',
+      `- Label: ${input.label}`,
+      `- Message ID: ${input.message_id}`,
+      `- Thread ID: ${input.thread_id}`,
+      '',
+      '## Issue',
+      input.reason || 'Escalation required.',
+      '',
+      '## Email',
+      `- From: ${input.from_email}`,
+      `- Subject: ${input.subject}`,
+      '',
+      '## Suggested Target',
+      input.escalate_to,
+      '',
+      '## Draft',
+      input.reply_draft || '(no safe draft)',
+    ].join('\n'),
+  };
+}
+
+async function executeSupportInboxAction(input) {
+  const account = safeStr(input.account || input.mailbox || 'support@vurium.com').trim().toLowerCase() || 'support@vurium.com';
+  const mailbox = safeStr(input.mailbox || input.account || account).trim().toLowerCase() || account;
+  const shouldSend = !!input.safe_to_send && input.escalate_to === 'none';
+  if (shouldSend) {
+    try {
+      const sendResult = await sendGmailReply({
+        account,
+        to: input.from_email,
+        subject: input.reply_subject,
+        bodyHtml: String(input.reply_draft || '').replace(/\n/g, '<br>'),
+        threadId: input.thread_id,
+        messageId: input.message_id,
+      });
+      return {
+        agent: 'AI-9',
+        workflow: 'support_inbox_execute',
+        status: 'done',
+        action: 'sent_reply',
+        message_id: input.message_id,
+        thread_id: input.thread_id,
+        account,
+        mailbox,
+        label: input.label,
+        safe_to_send: true,
+        escalate_to: 'none',
+        reason: input.reason || 'Routine reply sent safely.',
+        gmail_message_id: sendResult.id,
+        gmail_thread_id: sendResult.threadId,
+        escalation_note: null,
+        next_step: 'Reply sent. Log the outcome and update the queue if durable follow-up is needed.',
+      };
+    } catch (e) {
+      const blockedReason = e.code === 'GMAIL_NOT_CONNECTED'
+        ? `Mailbox ${account} is not connected for Gmail sending.`
+        : `Reply send failed: ${e.message}`;
+      return {
+        agent: 'AI-9',
+        workflow: 'support_inbox_execute',
+        status: 'blocked',
+        action: 'manual_review_required',
+        message_id: input.message_id,
+        thread_id: input.thread_id,
+        account,
+        mailbox,
+        label: input.label,
+        safe_to_send: false,
+        escalate_to: 'Owner',
+        reason: blockedReason,
+        gmail_message_id: '',
+        gmail_thread_id: '',
+        escalation_note: buildSupportEscalationNote({
+          ...input,
+          account,
+          mailbox,
+          escalate_to: 'Owner',
+          reason: blockedReason,
+        }),
+        next_step: 'Review the blocked send manually, then send from the correct mailbox or reconnect Gmail.',
+      };
+    }
+  }
+
+  return {
+    agent: 'AI-9',
+    workflow: 'support_inbox_execute',
+    status: input.safe_to_send ? 'needs_review' : 'done',
+    action: input.safe_to_send ? 'manual_review_required' : 'escalated',
+    message_id: input.message_id,
+    thread_id: input.thread_id,
+    account,
+    mailbox,
+    label: input.label,
+    safe_to_send: !!input.safe_to_send,
+    escalate_to: input.escalate_to,
+    reason: input.reason || 'Escalation or manual review required.',
+    gmail_message_id: '',
+    gmail_thread_id: '',
+    escalation_note: buildSupportEscalationNote({
+      ...input,
+      account,
+      mailbox,
+      escalate_to: input.escalate_to,
+    }),
+    next_step: input.safe_to_send
+      ? 'Review the draft manually before sending.'
+      : 'Create the escalation note and route it to the correct next owner.',
   };
 }
 
@@ -4201,6 +4364,19 @@ app.post('/api/vurium-dev/ai/support-inbox-process', requireSuperadmin, async (r
     if (e.message === 'AI not configured') return res.status(503).json({ error: 'AI not configured (missing ANTHROPIC_API_KEY)' });
     console.error('AI support inbox error:', e.message);
     res.status(500).json({ error: 'Failed to process support inbox message' });
+  }
+});
+
+app.post('/api/vurium-dev/ai/support-inbox-execute', requireSuperadmin, async (req, res) => {
+  try {
+    const { payload } = unwrapWorkflowEnvelope(req.body);
+    const input = AI9SupportInboxOutputSchema.parse(payload);
+    const result = AI9SupportExecutionOutputSchema.parse(await executeSupportInboxAction(input));
+    res.json(result);
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid support-inbox execution payload', details: e.issues });
+    console.error('AI support inbox execute error:', e.message);
+    res.status(500).json({ error: 'Failed to execute support inbox action' });
   }
 });
 

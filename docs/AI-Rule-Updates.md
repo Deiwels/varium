@@ -26,10 +26,14 @@ source_of_truth: true
 - The first execution-ready support inbox lane now exists for `AI 9 support / email`.
 - Live backend processing endpoint now exists at:
   - `/api/vurium-dev/ai/support-inbox-process`
+  - `/api/vurium-dev/ai/support-inbox-execute`
 - Import-adaptable `n8n` workflow artifact now lives in:
   - `automation/n8n/Gmail_Support_Inbox.workflow.json`
   - `automation/n8n/README.md`
 - The live execution artifact uses one consolidated backend decision step so `n8n` does not duplicate classification, drafting, safe-send logic, and escalation logic across many nodes.
+- The support lane now follows a clean `process -> execute` split:
+  - `process` -> classify, draft, decide
+  - `execute` -> send reply if safe, otherwise return escalation/manual-review payload
 - This does not bypass governance:
   - technical issues still escalate to `AI-1` or `AI-2`
   - compliance-risk issues still escalate to `AI-7`

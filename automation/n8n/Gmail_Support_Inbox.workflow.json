@@ -25,20 +25,20 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        520,
+        500,
         300
       ],
       "parameters": {
-        "jsCode": "const raw = items[0]?.json || {};\nconst payload = raw.payload && typeof raw.payload === 'object' && !Array.isArray(raw.payload) ? raw.payload : raw;\nconst messageId = payload.message_id || payload.messageId || raw.message_id || raw.messageId;\nconst threadId = payload.thread_id || payload.threadId || raw.thread_id || raw.threadId || messageId;\nconst fromEmail = payload.from_email || payload.from || raw.from_email || raw.from;\nconst subject = payload.subject || raw.subject || '(no subject)';\nconst body = payload.body || payload.bodyText || raw.body || raw.bodyText || payload.snippet || raw.snippet || payload.bodyHtml || raw.bodyHtml || '';\nif (!messageId) throw new Error('Missing message_id / messageId');\nif (!fromEmail) throw new Error('Missing from_email / from');\nif (!body) throw new Error('Missing body / bodyText / bodyHtml');\nreturn [{\n  json: {\n    meta: {\n      workflow_name: 'Gmail_Support_Inbox',\n      timestamp: new Date().toISOString(),\n      trigger_source: raw.trigger_source || 'support_inbox_webhook',\n      risk_level: raw.risk_level || 'medium'\n    },\n    context: {\n      canonical_links: [\n        '[[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]]',\n        '[[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]'\n      ],\n      constraints: [\n        'No unsupported promises',\n        'No refunds, pricing exceptions, or compliance commitments via automation'\n      ]\n    },\n    payload: {\n      message_id: String(messageId),\n      thread_id: String(threadId),\n      from_email: String(fromEmail),\n      subject: String(subject),\n      body: String(body),\n      body_html: String(payload.body_html || payload.bodyHtml || raw.body_html || raw.bodyHtml || ''),\n      received_at: String(payload.received_at || payload.receivedAt || raw.received_at || raw.receivedAt || new Date().toISOString()),\n      account: String(payload.account || raw.account || payload.mailbox || raw.mailbox || ''),\n      mailbox: String(payload.mailbox || raw.mailbox || payload.account || raw.account || '')\n    }\n  }\n}];"
+        "jsCode": "const raw = items[0]?.json || {};\nconst payload = raw.payload && typeof raw.payload === 'object' && !Array.isArray(raw.payload) ? raw.payload : raw;\nconst messageId = payload.message_id || payload.messageId || raw.message_id || raw.messageId;\nconst threadId = payload.thread_id || payload.threadId || raw.thread_id || raw.threadId || messageId;\nconst fromEmail = payload.from_email || payload.from || raw.from_email || raw.from;\nconst subject = payload.subject || raw.subject || '(no subject)';\nconst body = payload.body || payload.bodyText || raw.body || raw.bodyText || payload.snippet || raw.snippet || payload.bodyHtml || raw.bodyHtml || '';\nif (!messageId) throw new Error('Missing message_id / messageId');\nif (!fromEmail) throw new Error('Missing from_email / from');\nif (!body) throw new Error('Missing body / bodyText / bodyHtml');\nconst account = String(payload.account || raw.account || payload.mailbox || raw.mailbox || 'support@vurium.com');\nreturn [{\n  json: {\n    meta: {\n      workflow_name: 'Gmail_Support_Inbox',\n      timestamp: new Date().toISOString(),\n      trigger_source: raw.trigger_source || 'support_inbox_webhook',\n      risk_level: raw.risk_level || 'medium'\n    },\n    context: {\n      canonical_links: [\n        '[[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]]',\n        '[[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]'\n      ],\n      constraints: [\n        'No unsupported promises',\n        'No refunds, pricing exceptions, or compliance commitments via automation'\n      ]\n    },\n    payload: {\n      message_id: String(messageId),\n      thread_id: String(threadId),\n      from_email: String(fromEmail),\n      subject: String(subject),\n      body: String(body),\n      body_html: String(payload.body_html || payload.bodyHtml || raw.body_html || raw.bodyHtml || ''),\n      received_at: String(payload.received_at || payload.receivedAt || raw.received_at || raw.receivedAt || new Date().toISOString()),\n      account,\n      mailbox: String(payload.mailbox || raw.mailbox || account)\n    }\n  }\n}];"
       }
     },
     {
-      "id": "call-backend",
+      "id": "call-process",
       "name": "Call AI9 Support Inbox",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        820,
+        780,
         300
       ],
       "parameters": {
@@ -60,16 +60,56 @@
       }
     },
     {
-      "id": "validate-output",
-      "name": "Validate Support Output",
+      "id": "validate-process-output",
+      "name": "Validate Support Decision",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
+        1040,
         300
       ],
       "parameters": {
-        "jsCode": "const item = items[0]?.json || {};\nconst required = ['agent', 'workflow', 'status', 'message_id', 'thread_id', 'from_email', 'subject', 'reply_subject', 'label', 'route_lane', 'reply_draft', 'safe_to_send', 'escalate_to', 'technical_target', 'faq_candidate', 'reason'];\nfor (const key of required) {\n  if (!(key in item)) throw new Error(`Missing required key: ${key}`);\n}\nconst allowedStatus = new Set(['done', 'partial', 'blocked', 'needs_review', 'queued']);\nif (!allowedStatus.has(item.status)) throw new Error(`Invalid status: ${item.status}`);\nconst allowedLabels = new Set(['support', 'lead', 'onboarding', 'technical', 'billing', 'compliance_risk']);\nif (!allowedLabels.has(item.label)) throw new Error(`Invalid label: ${item.label}`);\nconst allowedLanes = new Set(['support_reply', 'technical_escalation', 'billing_escalation', 'compliance_escalation']);\nif (!allowedLanes.has(item.route_lane)) throw new Error(`Invalid route_lane: ${item.route_lane}`);\nconst allowedEscalation = new Set(['none', 'AI-1', 'AI-2', 'AI-3', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11', 'Owner']);\nif (!allowedEscalation.has(item.escalate_to)) throw new Error(`Invalid escalate_to: ${item.escalate_to}`);\nconst allowedTechnical = new Set(['none', 'AI-1', 'AI-2']);\nif (!allowedTechnical.has(item.technical_target)) throw new Error(`Invalid technical_target: ${item.technical_target}`);\nitem.gmail_reply_request = item.safe_to_send && item.escalate_to === 'none'\n  ? {\n      account: item.account || item.mailbox,\n      to: item.from_email,\n      subject: item.reply_subject,\n      body_html: String(item.reply_draft || '').replace(/\\n/g, '<br>'),\n      threadId: item.thread_id,\n      messageId: item.message_id\n    }\n  : null;\nitem.execution_action = item.safe_to_send && item.escalate_to === 'none'\n  ? 'send_or_manual_review'\n  : 'create_escalation_note';\nreturn [{ json: item }];"
+        "jsCode": "const item = items[0]?.json || {};\nconst required = ['agent', 'workflow', 'status', 'message_id', 'thread_id', 'from_email', 'subject', 'reply_subject', 'label', 'route_lane', 'reply_draft', 'safe_to_send', 'escalate_to', 'technical_target', 'faq_candidate', 'reason'];\nfor (const key of required) {\n  if (!(key in item)) throw new Error(`Missing required key: ${key}`);\n}\nconst allowedStatus = new Set(['done', 'partial', 'blocked', 'needs_review', 'queued']);\nif (!allowedStatus.has(item.status)) throw new Error(`Invalid status: ${item.status}`);\nconst allowedLabels = new Set(['support', 'lead', 'onboarding', 'technical', 'billing', 'compliance_risk']);\nif (!allowedLabels.has(item.label)) throw new Error(`Invalid label: ${item.label}`);\nconst allowedLanes = new Set(['support_reply', 'technical_escalation', 'billing_escalation', 'compliance_escalation']);\nif (!allowedLanes.has(item.route_lane)) throw new Error(`Invalid route_lane: ${item.route_lane}`);\nconst allowedEscalation = new Set(['none', 'AI-1', 'AI-2', 'AI-3', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11', 'Owner']);\nif (!allowedEscalation.has(item.escalate_to)) throw new Error(`Invalid escalate_to: ${item.escalate_to}`);\nconst allowedTechnical = new Set(['none', 'AI-1', 'AI-2']);\nif (!allowedTechnical.has(item.technical_target)) throw new Error(`Invalid technical_target: ${item.technical_target}`);\nreturn [{ json: item }];"
+      }
+    },
+    {
+      "id": "call-execute",
+      "name": "Execute Support Action",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.VURIUM_API_BASE_URL || 'http://localhost:8080') + '/api/vurium-dev/ai/support-inbox-execute' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.VURIUM_ADMIN_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ payload: $json }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "validate-execution-output",
+      "name": "Validate Support Execution",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const item = items[0]?.json || {};\nconst required = ['agent', 'workflow', 'status', 'action', 'message_id', 'thread_id', 'label', 'safe_to_send', 'escalate_to', 'reason', 'next_step'];\nfor (const key of required) {\n  if (!(key in item)) throw new Error(`Missing required key: ${key}`);\n}\nconst allowedStatus = new Set(['done', 'partial', 'blocked', 'needs_review', 'queued']);\nif (!allowedStatus.has(item.status)) throw new Error(`Invalid status: ${item.status}`);\nconst allowedActions = new Set(['sent_reply', 'escalated', 'manual_review_required']);\nif (!allowedActions.has(item.action)) throw new Error(`Invalid action: ${item.action}`);\nconst allowedEscalation = new Set(['none', 'AI-1', 'AI-2', 'AI-3', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11', 'Owner']);\nif (!allowedEscalation.has(item.escalate_to)) throw new Error(`Invalid escalate_to: ${item.escalate_to}`);\nitem.execution_summary = item.action === 'sent_reply'\n  ? `Reply sent in thread ${item.gmail_thread_id || item.thread_id}`\n  : item.action === 'escalated'\n    ? `Escalate to ${item.escalate_to}`\n    : 'Manual review required before send';\nreturn [{ json: item }];"
       }
     }
   ],
@@ -100,7 +140,29 @@
       "main": [
         [
           {
-            "node": "Validate Support Output",
+            "node": "Validate Support Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Support Decision": {
+      "main": [
+        [
+          {
+            "node": "Execute Support Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Support Action": {
+      "main": [
+        [
+          {
+            "node": "Validate Support Execution",
             "type": "main",
             "index": 0
           }

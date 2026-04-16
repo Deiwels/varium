@@ -36,11 +36,15 @@ Current execution-ready support artifacts:
 - `automation/n8n/Gmail_Support_Inbox.workflow.json`
 - `automation/n8n/README.md`
 - `POST /api/vurium-dev/ai/support-inbox-process`
+- `POST /api/vurium-dev/ai/support-inbox-execute`
 
 Implementation note:
 
 - the canonical logic below stays node-by-node for clarity
-- the live MVP execution artifact currently uses one consolidated backend AI decision step so `n8n` can stay smaller and easier to maintain
+- the live MVP execution artifact currently uses:
+  - one consolidated backend AI decision step
+  - one backend execution step for `send / escalate / manual review`
+- this keeps `n8n` smaller and easier to maintain while preserving the guardrails below
 
 ## Flow Logic
 
