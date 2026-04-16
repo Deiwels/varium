@@ -9,7 +9,7 @@ source_of_truth: true
 
 # AI Core Manifesto
 
-> [[Home]] | Related: [[AI-Rule-Updates]], [[AI-Profiles/README|AI Profiles]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]], [[AI-Session-Acceptance-Log]]
+> [[Home]] | Related: [[AI-Rule-Updates]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[AI-Profiles/README|AI Profiles]], [[AI-Work-Split]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]], [[AI-Session-Acceptance-Log]]
 > Owner: Owner + AI 3 system governance | Status: active
 
 > ⚠️ **Read [[AI-Rule-Updates]] first, then this document, before any session.**
@@ -129,6 +129,16 @@ The vault is not a scratchpad. It is shared team memory.
 - The `00-System` → `12-Archive` folders are a **staged migration layer**, not permission to mass-move live canonical docs during launch.
 - **AI 3 is the Knowledge Hygiene Governor** for structure, links, template discipline, duplicate detection, and superseded/archive hygiene.
 - AI 3 may standardize structure, but must not silently rewrite another lane's product truth, compliance truth, or technical truth.
+
+### Rule J — Automation Must Not Bypass Governance
+
+Automation may route work, assemble context, prepare drafts, and maintain queue visibility.
+
+- Automation must not bypass ownership boundaries.
+- Automation must not bypass AI 5 / AI 7 where external truth or compliance translation is required.
+- Automation must not bypass AI 3 planning or review gates for non-trivial work.
+- Automation must not bypass Owner approval or real-world control points.
+- [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]] and [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]] are canonical for routing, trigger, queue, handoff, and tool-integration behavior.
 
 ---
 
@@ -306,6 +316,15 @@ Use this for support communication, lead follow-up, promo videos, ad creatives, 
 7. AI 11 handles static creative execution.
 8. Owner approves sensitive communication, brand-sensitive assets, publishing, or exception cases.
 
+### Flow 6 — Automated Routing Pattern
+
+1. A trigger enters the system.
+2. The task is classified by lane, risk, and whether external truth or approval is required.
+3. Canonical context is assembled.
+4. The correct AI executes only its owned role.
+5. Structured output is written back into queue, handoff, and canonical notes.
+6. The task moves to the next owner, waits for approval, or completes.
+
 ---
 
 ## 7. Required Review Gate Block
@@ -338,6 +357,7 @@ Blocked: yes — implementation does not start until all 5 items are green.
 - **AI 9 ↔ AI 6 / AI 7**: support truth and compliance-sensitive wording stay constrained
 - **AI 10 ↔ AI 6 / AI 7**: video claims must stay inside product/compliance truth
 - **AI 11 ↔ AI 6 / AI 7**: creative assets must stay inside product/compliance truth
+- **AI 3 ↔ Workflow Queue / Handoffs**: AI 3 owns routing structure, queue hygiene, and handoff discipline
 
 ---
 
@@ -353,6 +373,8 @@ Blocked: yes — implementation does not start until all 5 items are green.
 ### Knowledge system
 
 - `docs/00-System/Obsidian-Knowledge-System.md`
+- `docs/00-System/Automation-Workflow-Layer.md`
+- `docs/00-System/Real-Tools-Integration-Layer.md`
 - `docs/00-System/System-Index.md`
 - `docs/11-Reference/Note-Templates.md`
 
@@ -407,6 +429,9 @@ Blocked: yes — implementation does not start until all 5 items are green.
 ### Planning and QA lane
 
 - `docs/Tasks/In Progress.md`
+- `docs/04-Tasks/Workflow-Queue.md`
+- `docs/04-Tasks/Workflow-Trigger-Labels.md`
+- `docs/04-Tasks/Handoffs/`
 - `docs/Tasks/*-Plan.md`
 - `docs/Tasks/*QA-Scan*.md`
 - `docs/Tasks/*-Runbook.md`

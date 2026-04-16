@@ -360,6 +360,46 @@ source_of_truth: false
 ## Compliance / escalation note
 ```
 
+## Handoff Note Template
+
+```md
+---
+type: handoff-note
+status: active
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+owner: AI N
+source_of_truth: false
+---
+
+# Handoff — <Task or Topic>
+
+> Part of [[Home]] > Tasks | See also: [[04-Tasks/Handoffs/README|Handoffs]], [[04-Tasks/Workflow-Queue|Workflow Queue]]
+
+## Current status
+## What was completed
+## What remains
+## Canonical notes to read
+## Unresolved questions
+## Next owner
+## Blocking or non-blocking
+## Recommended next action
+```
+
+## Workflow Queue Item Template
+
+```md
+# Queue Item — <Task or Trigger>
+
+## Trigger label
+## Current stage
+## Current owner
+## Canonical docs
+## Blocker (if any)
+## Next owner
+## Recommended next action
+```
+
 ## Open Questions Note Template
 
 ```md

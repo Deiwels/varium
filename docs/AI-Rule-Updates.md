@@ -19,6 +19,26 @@ source_of_truth: true
 
 ## Current active updates
 
+### 2026-04-15 — Automation / workflow layer is now canonical
+
+- [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]] is now the canonical routing and handoff layer for the system.
+- [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]] is now the canonical tools/integration layer for real events and safe tool usage.
+- Automation may:
+  - classify triggers
+  - assemble context
+  - prepare drafts
+  - maintain queue visibility
+  - route work to the correct AI
+- Automation may **not**:
+  - bypass ownership
+  - bypass AI 5 / AI 7 on external/compliance truth
+  - bypass AI 3 planning for non-trivial work
+  - bypass Owner approval for sensitive or real-world actions
+- Canonical workflow-support notes now exist in:
+  - `docs/04-Tasks/Workflow-Queue.md`
+  - `docs/04-Tasks/Workflow-Trigger-Labels.md`
+  - `docs/04-Tasks/Handoffs/**`
+
 ### 2026-04-15 — Business / Ops / Content Execution layer added
 
 - The system now includes three new downstream execution agents:

@@ -19,7 +19,9 @@ Before starting a session:
 3. read your own profile
 4. if the session touches docs, read [[Vault Rules]]
 5. if the session touches note structure, note status, source-of-truth, archive handling, or vault organization, also read [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
-6. add a fresh entry to [[AI-Session-Acceptance-Log]]
+6. if the session touches workflow routing, queue state, trigger labels, or handoff behavior, also read [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]
+7. if the session touches real tools, inboxes, forms, Stripe, Telnyx, alerts, or safe integration boundaries, also read [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
+8. add a fresh entry to [[AI-Session-Acceptance-Log]]
 
 If a profile is outdated, update the profile before treating it as trustworthy.
 
@@ -102,6 +104,8 @@ This is intentional. The goal is that any AI can open any profile and orient ins
 - **Global rules** → [[AI-Core-Manifesto]]
 - **What changed recently** → [[AI-Rule-Updates]]
 - **Knowledge-system semantics** → [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
+- **Workflow routing / queue / handoff logic** → [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]
+- **Real tools / trigger / integration boundaries** → [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
 - **File ownership** → [[AI-Work-Split]]
 - **Current active work** → [[Tasks/In Progress|In Progress]]
 - **Current sprint split** → [[Tasks/3-AI-Remaining-Work-Split|11-AI Work Split]]

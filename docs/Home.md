@@ -30,6 +30,8 @@
 
 - [[00-System/System-Index|System Index]] — governance, startup rules, and vault-operating model
 - [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]] — canonical rule for note types, source-of-truth hierarchy, staged migration, and archive discipline
+- [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]] — canonical routing, queue, trigger, and handoff behavior for automated work movement
+- [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]] — canonical boundary for real tools, triggers, and safe external-service integrations
 - [[01-Team/Team-Index|Team Index]] — profiles, work split, and acceptance-log lane
 - [[02-Product/Product-Index|Product Index]] — product-lane MOC
 - [[03-Architecture/Architecture-Index|Architecture Index]] — architecture-lane MOC
@@ -118,6 +120,9 @@
 
 - [[Tasks/In Progress\|In Progress]] — Current sprint (P0 items + active tasks)
 - [[Tasks/3-AI-Remaining-Work-Split|11-AI Remaining Work Split]] — **current operating split** — active work plus role lanes across backend, frontend, planning, research, product, compliance, growth, business execution, and Owner operations
+- [[04-Tasks/Workflow-Queue|Workflow Queue]] — canonical queue model for automated routing and stage visibility
+- [[04-Tasks/Workflow-Trigger-Labels|Workflow Trigger Labels]] — canonical trigger taxonomy for workflow classification
+- [[04-Tasks/Handoffs/README|Handoffs]] — canonical handoff standard for cross-lane work movement
 - [[Tasks/AI4-Emergency-Readiness-Review-2026-04-15|AI 4 Emergency Readiness Review]] — current AI 4 sign-off and emergency-readiness asks
 - [[Tasks/Backlog\|Backlog]] — Feature ideas & bugs
 - [[Tasks/Launch Readiness Plan\|Launch Readiness Plan]] — Unified P0/P1/P2 plan (both AIs agreed)
@@ -210,6 +215,13 @@ Latest first:
 - [[Tasks/Deploy-Smoke-Test|Deploy Smoke Test]] — 5-min post-deploy sanity check (VR.5)
 - [[08-Runbooks/Support/README|Support Runbooks]] — customer communication and email-reply procedures
 - [[08-Runbooks/Growth/README|Growth Runbooks]] — growth-execution and creative/video production procedures
+- [[08-Runbooks/Support/Escalation-Matrix|Escalation Matrix]] — who escalates to whom across support, growth, product, and incident flows
+- [[08-Runbooks/Growth/Campaign-Workflow|Campaign Workflow]] — growth brief -> support/video/creative execution path
+- [[08-Runbooks/Product/Feature-Flow|Feature Flow]] — product/build request path from framing to Owner verification
+- [[08-Runbooks/Incidents/Incident-Response-Workflow|Incident Response Workflow]] — alert -> hotfix -> QA -> permanent cleanup
+- [[08-Runbooks/Billing/Stripe-Event-Handling|Stripe Event Handling]] — safe routing model for billing events
+- [[08-Runbooks/Messaging/Telnyx-Event-Handling|Telnyx Event Handling]] — safe routing model for messaging events
+- [[08-Runbooks/Owner/Portal-Only-Actions|Owner Portal-Only Actions]] — canonical list of actions automation must not absorb
 - [[Permissions]] — Role permission matrix reference
 
 ---

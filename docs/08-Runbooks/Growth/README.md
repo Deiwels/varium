@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Growth Runbooks
 
-> Part of [[Home]] > Runbooks | See also: [[Growth/Video/README|Video]], [[Growth/Creative/README|Creative]], [[08-Runbooks/Growth/Creative-Production-Workflow|Creative Production Workflow]]
+> Part of [[Home]] > Runbooks | See also: [[Growth/Video/README|Video]], [[Growth/Creative/README|Creative]], [[08-Runbooks/Growth/Creative-Production-Workflow|Creative Production Workflow]], [[08-Runbooks/Growth/Campaign-Workflow|Campaign Workflow]]
 
 ## Purpose
 
@@ -18,6 +18,7 @@ Canonical home for growth-execution procedures that turn approved messaging into
 ## Canonical Notes
 
 - [[08-Runbooks/Growth/Creative-Production-Workflow|Creative Production Workflow]]
+- [[08-Runbooks/Growth/Campaign-Workflow|Campaign Workflow]]
 
 ## Owner Lane
 

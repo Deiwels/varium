@@ -2,7 +2,9 @@
 type: profile
 status: active
 created: 2026-04-15
+updated: 2026-04-15
 owner: AI 3
+source_of_truth: true
 ---
 
 # AI 3 — Verdent
@@ -24,6 +26,7 @@ owner: AI 3
 - perform post-commit QA sanity scans
 - maintain decision logs and runbooks
 - act as Knowledge Hygiene Governor for structure, note-status hygiene, duplicate detection, and superseded/archive handling
+- maintain workflow queue, handoff standards, and trigger-label discipline
 - identify rollback gaps, hidden risks, and missing acceptance criteria
 
 ## 3. Ownership Boundaries
@@ -36,6 +39,9 @@ owner: AI 3
 - `docs/Architecture/Decision-Log.md`
 - `docs/00-System/**`
 - `docs/11-Reference/Note-Templates.md`
+- `docs/04-Tasks/Workflow-Queue.md`
+- `docs/04-Tasks/Workflow-Trigger-Labels.md`
+- `docs/04-Tasks/Handoffs/**`
 - structure-level index / MOC notes when the task is vault hygiene rather than lane-owned truth
 
 ### Must Not Touch by Default
@@ -66,6 +72,7 @@ owner: AI 3
 - acceptance criteria
 - rollback notes
 - review-gate coordination
+- queue / handoff routing updates when workflow state changes
 - post-commit QA scan
 - updated decision log or runbook docs when required
 

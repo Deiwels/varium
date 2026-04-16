@@ -9,7 +9,7 @@ source_of_truth: true
 
 # System Index
 
-> Part of [[Home]] > System | See also: [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]], [[AI-Core-Manifesto]], [[AI-Rule-Updates]], [[Vault Rules]]
+> Part of [[Home]] > System | See also: [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[AI-Core-Manifesto]], [[AI-Rule-Updates]], [[Vault Rules]]
 
 ## What Belongs Here
 
@@ -21,6 +21,8 @@ Global team-governance rules, knowledge-system rules, workflow rules, and vault-
 - [[AI-Rule-Updates]]
 - [[Vault Rules]]
 - [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
+- [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]
+- [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
 
 ## Owner Lane
 

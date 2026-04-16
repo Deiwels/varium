@@ -81,6 +81,9 @@ Owns:
 - `docs/Tasks/*-Plan*.md`
 - `docs/Tasks/*QA-Scan*.md`
 - `docs/Tasks/*-Runbook*.md`
+- `docs/04-Tasks/Workflow-Queue.md`
+- `docs/04-Tasks/Workflow-Trigger-Labels.md`
+- `docs/04-Tasks/Handoffs/**`
 - `docs/Architecture/Decision-Log.md`
 - `docs/00-System/**`
 - `docs/11-Reference/Note-Templates.md`
@@ -263,6 +266,10 @@ Purpose:
    - they do not replace AI 7 compliance truth
    - they do not replace engineering ownership
    - AI 8 remains the growth brain, while AI 9 / AI 10 / AI 11 provide execution capacity
+
+9. **AI 3 owns automation-routing structure**
+   - queue discipline, trigger labels, and handoff standards belong to AI 3
+   - routing structure does not give AI 3 ownership over another lane's truth
 
 ---
 

@@ -20,10 +20,13 @@ It is not just a notes app. It is the system that keeps the AI team aligned acro
 - planning
 - implementation
 - compliance
+- workflow routing
 - product decisions
 - growth work
 - incident recovery
 - runbooks
+- queue state
+- handoffs
 - open questions
 - historical context
 
@@ -175,6 +178,9 @@ Technical system design:
 Execution-level task management:
 
 - in-progress tasks
+- workflow queue
+- handoff notes
+- trigger labels
 - execution plans
 - task breakdowns
 - QA scans
@@ -273,6 +279,8 @@ Every permanent note should belong to one of these note types:
 - research-brief
 - compliance-requirement
 - plan
+- workflow-queue
+- handoff-note
 - qa-scan
 - runbook
 - decision-log
@@ -429,6 +437,7 @@ Writes or updates:
 - task state summaries
 
 AI 3 also acts as the **Knowledge Hygiene Governor** for structure and consistency.
+AI 3 also owns workflow queue structure, handoff-note standards, and trigger-label discipline so automation does not create hidden work.
 
 ### AI 4
 
