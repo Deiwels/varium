@@ -30,6 +30,7 @@ Technical runbooks still live mostly in `docs/Tasks/*-Runbook*.md`, but support 
 - [[08-Runbooks/Support/Email-Reply-Workflow|Email Reply Workflow]]
 - [[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]]
 - [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
+- [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]]
 - [[08-Runbooks/Growth/Creative-Production-Workflow|Creative Production Workflow]]
 - [[08-Runbooks/Growth/Campaign-Workflow|Campaign Workflow]]
 - [[08-Runbooks/Product/Feature-Flow|Feature Flow]]

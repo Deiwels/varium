@@ -19,6 +19,12 @@ source_of_truth: true
 
 ## Current active updates
 
+### 2026-04-15 — KPI & Metrics Layer is now canonical
+
+- [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]] is now the canonical system-performance and weekly-review document.
+- AI 3 should use it to run weekly review, detect bottlenecks, and propose system improvements.
+- This layer measures role health, workflow health, escalation health, documentation health, and rework/incident trends.
+
 ### 2026-04-15 — Escalation Matrix is now canonical
 
 - [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]] is now the canonical escalation-routing document for the whole operating system.

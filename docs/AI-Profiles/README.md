@@ -24,8 +24,9 @@ Before starting a session:
 8. if the session creates or updates a structured note or artifact, also read [[11-Reference/Templates/README|Templates Library]]
 9. if the session touches note structure, note status, source-of-truth, archive handling, or vault organization, also read [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
 10. if the session touches workflow routing, queue state, trigger labels, or handoff behavior, also read [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]
-11. if the session touches real tools, inboxes, forms, Stripe, Telnyx, alerts, or safe integration boundaries, also read [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
-12. add a fresh entry to [[AI-Session-Acceptance-Log]]
+11. if the session touches system performance, weekly review, or role effectiveness, also read [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]]
+12. if the session touches real tools, inboxes, forms, Stripe, Telnyx, alerts, or safe integration boundaries, also read [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
+13. add a fresh entry to [[AI-Session-Acceptance-Log]]
 
 If a profile is outdated, update the profile before treating it as trustworthy.
 
@@ -111,6 +112,7 @@ This is intentional. The goal is that any AI can open any profile and orient ins
 - **Session startup prompt layer** → [[AI-Session-Start-Protocol]]
 - **Canonical escalation routing** → [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
 - **Canonical templates** → [[11-Reference/Templates/README|Templates Library]]
+- **System performance / weekly review layer** → [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]]
 - **Knowledge-system semantics** → [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
 - **Workflow routing / queue / handoff logic** → [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]
 - **Real tools / trigger / integration boundaries** → [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]

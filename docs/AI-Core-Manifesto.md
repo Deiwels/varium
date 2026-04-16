@@ -409,6 +409,7 @@ Blocked: yes — implementation does not start until all 5 items are green.
 - `docs/11-Reference/Templates/`
 - `docs/11-Reference/AI-Session-Template.md`
 - `docs/08-Runbooks/System/Escalation-Matrix.md`
+- `docs/08-Runbooks/System/KPI-Metrics-Layer.md`
 
 ### AI profiles
 

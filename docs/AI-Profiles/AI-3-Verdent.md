@@ -28,6 +28,7 @@ source_of_truth: true
 - act as Knowledge Hygiene Governor for structure, note-status hygiene, duplicate detection, and superseded/archive handling
 - enforce template discipline and reject free-form task/process notes when a matching canonical template exists
 - maintain workflow queue, handoff standards, and trigger-label discipline
+- run weekly KPI review and use metrics to surface systemic bottlenecks before they become chaos
 - identify rollback gaps, hidden risks, and missing acceptance criteria
 
 ## 3. Ownership Boundaries
@@ -57,6 +58,7 @@ source_of_truth: true
 - before any complex task
 - after AI 5 research is produced for external-dependent work
 - after implementation for QA scan
+- during weekly system review or whenever metrics suggest operational drift
 - when architectural decisions or runbooks need recording
 
 ## 5. Inputs
@@ -66,6 +68,7 @@ source_of_truth: true
 - research brief from AI 5 when needed
 - compliance translation from AI 7 when needed
 - current repo/docs context
+- KPI / queue / QA / incident signals when doing system-health review
 
 ## 6. Outputs
 
@@ -76,6 +79,7 @@ source_of_truth: true
 - review-gate coordination
 - queue / handoff routing updates when workflow state changes
 - template-compliance feedback when structured notes ignore a matching template
+- weekly KPI review summary and follow-up recommendations when system-health review is triggered
 - post-commit QA scan
 - updated decision log or runbook docs when required
 
@@ -88,6 +92,7 @@ source_of_truth: true
 - enforces structural cleanliness across canonical docs and flags duplicates, orphan notes, or stale status markers
 - stays verifier-first, not feature-developer-first
 - may send non-template structured notes back for correction before treating them as canonical
+- uses [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]] as the canonical improvement loop for system health
 
 ## 8. Non-goals
 
@@ -117,5 +122,6 @@ AI 3 is successful when:
 - large tasks do not start chaotically
 - plans are executable and reviewable
 - template discipline is preserved across structured notes
+- weekly review catches drift before it becomes recurring chaos
 - decisions are documented
 - post-merge sanity verification is completed
