@@ -35,6 +35,19 @@ source_of_truth: true
   - `manual_review_required`
   - blocked last-mile workflow states that need human awareness
 
+### 2026-04-16 — Obsidian writeback last-mile artifact is now live
+
+- A reusable last-mile Obsidian writeback lane now exists for queue notes, handoffs, research briefs, QA scans, and operational logs.
+- Live backend route now exists at:
+  - `/api/vurium-dev/automation/obsidian-writeback`
+- Import-adaptable `n8n` workflow artifact now lives in:
+  - `automation/n8n/Obsidian_Writeback.workflow.json`
+  - `automation/n8n/README.md`
+- This lane is intentionally guarded:
+  - only `.md` files are allowed
+  - the target must stay inside `VURIUM_OBSIDIAN_ROOT`
+  - `dry_run` is supported for safe testing
+
 ### 2026-04-16 — AI 5 research intake execution lane is now live
 
 - The first execution-ready AI 5 lane now exists for source-backed external research intake.

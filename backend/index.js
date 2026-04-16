@@ -10,6 +10,8 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const https = require('https');
 const http2 = require('http2');
+const path = require('path');
+const fsPromises = require('fs').promises;
 const { z } = require('zod');
 const { Firestore } = require('@google-cloud/firestore');
 const { google } = require('googleapis');
@@ -3812,6 +3814,28 @@ const OwnerNotificationOutputSchema = z.object({
   next_step: z.string().default(''),
 });
 
+const OBSIDIAN_WRITEBACK_MODE_VALUES = ['create', 'append', 'replace'];
+const ObsidianWritebackModeSchema = z.enum(OBSIDIAN_WRITEBACK_MODE_VALUES);
+
+const ObsidianWritebackInputSchema = z.object({
+  relative_path: z.string().min(1),
+  content: z.string().min(1),
+  mode: ObsidianWritebackModeSchema.default('create'),
+  dry_run: z.boolean().default(false),
+});
+
+const ObsidianWritebackOutputSchema = z.object({
+  agent: z.literal('SYSTEM'),
+  workflow: z.literal('obsidian_writeback'),
+  status: WorkflowStatusSchema,
+  mode: ObsidianWritebackModeSchema,
+  relative_path: z.string().min(1),
+  absolute_path: z.string().default(''),
+  bytes_written: z.number().default(0),
+  reason: z.string().default(''),
+  next_step: z.string().default(''),
+});
+
 const AI3_PLANNING_INTAKE_SYSTEM_PROMPT = `You are AI 3 inside the VuriumBook AI Operating System.
 
 Your role:
@@ -4431,6 +4455,22 @@ function buildResearchWritebackTargets() {
   return ['07-Research/', '07-Research/AI5-Research-Brief-*.md', '04-Tasks/Handoffs/'];
 }
 
+function getObsidianRoot() {
+  return path.resolve(process.env.VURIUM_OBSIDIAN_ROOT || path.resolve(__dirname, '../docs'));
+}
+
+function resolveObsidianTargetPath(relativePath) {
+  const cleaned = safeStr(relativePath).replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!cleaned) throw new Error('Missing relative_path');
+  if (!cleaned.endsWith('.md')) throw new Error('Obsidian writeback only supports .md files');
+  const root = getObsidianRoot();
+  const absolute = path.resolve(root, cleaned);
+  if (!(absolute === root || absolute.startsWith(root + path.sep))) {
+    throw new Error('Obsidian writeback path escapes the configured vault root');
+  }
+  return { root, cleaned, absolute };
+}
+
 function buildOwnerNotificationHtml(input) {
   const severity = safeStr(input.severity || 'medium').toUpperCase();
   const detailsHtml = (Array.isArray(input.details) ? input.details : [])
@@ -4527,6 +4567,62 @@ async function sendOwnerNotification(input) {
     reason: 'Owner notification sent successfully.',
     notification_id: result.id,
     next_step: input.next_step || 'Review the notification and continue with the gated action if needed.',
+  };
+}
+
+async function writeObsidianNote(input) {
+  const { cleaned, absolute } = resolveObsidianTargetPath(input.relative_path);
+  const content = String(input.content || '');
+  const finalContent = content.endsWith('\n') ? content : `${content}\n`;
+  const directory = path.dirname(absolute);
+
+  if (input.dry_run) {
+    return {
+      agent: 'SYSTEM',
+      workflow: 'obsidian_writeback',
+      status: 'done',
+      mode: input.mode,
+      relative_path: cleaned,
+      absolute_path: absolute,
+      bytes_written: Buffer.byteLength(finalContent),
+      reason: 'Dry run completed successfully. No file was written.',
+      next_step: 'Disable dry_run to perform the actual writeback.',
+    };
+  }
+
+  await fsPromises.mkdir(directory, { recursive: true });
+  if (input.mode === 'create') {
+    try {
+      await fsPromises.access(absolute);
+      return {
+        agent: 'SYSTEM',
+        workflow: 'obsidian_writeback',
+        status: 'needs_review',
+        mode: input.mode,
+        relative_path: cleaned,
+        absolute_path: absolute,
+        bytes_written: 0,
+        reason: 'Target note already exists. Refusing to overwrite in create mode.',
+        next_step: 'Choose append or replace mode, or use a new target path.',
+      };
+    } catch {}
+    await fsPromises.writeFile(absolute, finalContent, 'utf8');
+  } else if (input.mode === 'append') {
+    await fsPromises.appendFile(absolute, finalContent, 'utf8');
+  } else {
+    await fsPromises.writeFile(absolute, finalContent, 'utf8');
+  }
+
+  return {
+    agent: 'SYSTEM',
+    workflow: 'obsidian_writeback',
+    status: 'done',
+    mode: input.mode,
+    relative_path: cleaned,
+    absolute_path: absolute,
+    bytes_written: Buffer.byteLength(finalContent),
+    reason: 'Obsidian note writeback completed successfully.',
+    next_step: 'Continue with notification or downstream routing if needed.',
   };
 }
 
@@ -5266,6 +5362,19 @@ app.post('/api/vurium-dev/automation/owner-notify', requireSuperadmin, async (re
     if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid owner-notify payload', details: e.issues });
     console.error('Owner notification error:', e.message);
     res.status(500).json({ error: 'Failed to send Owner notification' });
+  }
+});
+
+app.post('/api/vurium-dev/automation/obsidian-writeback', requireSuperadmin, async (req, res) => {
+  try {
+    const { payload } = unwrapWorkflowEnvelope(req.body);
+    const input = ObsidianWritebackInputSchema.parse(payload);
+    const result = ObsidianWritebackOutputSchema.parse(await writeObsidianNote(input));
+    res.json(result);
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid obsidian-writeback payload', details: e.issues });
+    console.error('Obsidian writeback error:', e.message);
+    res.status(500).json({ error: 'Failed to write Obsidian note' });
   }
 });
 

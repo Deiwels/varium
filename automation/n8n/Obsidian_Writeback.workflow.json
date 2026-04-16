@@ -1,0 +1,115 @@
+{
+  "name": "Obsidian_Writeback",
+  "active": false,
+  "settings": {},
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Obsidian Writeback Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "obsidian-writeback",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "obsidian-writeback",
+        "responseMode": "lastNode"
+      }
+    },
+    {
+      "id": "normalize-input",
+      "name": "Normalize Writeback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const raw = items[0]?.json || {};\nconst payload = raw.payload && typeof raw.payload === 'object' && !Array.isArray(raw.payload) ? raw.payload : raw;\nconst relativePath = payload.relative_path || payload.relativePath || raw.relative_path || raw.relativePath;\nconst content = payload.content || raw.content;\nif (!relativePath) throw new Error('Missing relative_path / relativePath');\nif (!content) throw new Error('Missing content');\nreturn [{\n  json: {\n    meta: {\n      workflow_name: 'Obsidian_Writeback',\n      timestamp: new Date().toISOString(),\n      trigger_source: raw.trigger_source || 'obsidian_writeback_webhook',\n      risk_level: raw.risk_level || 'low'\n    },\n    context: {\n      canonical_links: [\n        '[[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]'\n      ],\n      constraints: [\n        'Write only markdown files inside the configured Obsidian root',\n        'Do not let automation mutate files outside docs'\n      ]\n    },\n    payload: {\n      relative_path: String(relativePath),\n      content: String(content),\n      mode: String(payload.mode || raw.mode || 'create'),\n      dry_run: Boolean(payload.dry_run ?? payload.dryRun ?? raw.dry_run ?? raw.dryRun ?? false)\n    }\n  }\n}];"
+      }
+    },
+    {
+      "id": "call-backend",
+      "name": "Call Obsidian Writeback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        820,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.VURIUM_API_BASE_URL || 'http://localhost:8080') + '/api/vurium-dev/automation/obsidian-writeback' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.VURIUM_ADMIN_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "validate-output",
+      "name": "Validate Writeback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const item = items[0]?.json || {};\nconst required = ['agent', 'workflow', 'status', 'mode', 'relative_path', 'absolute_path', 'bytes_written', 'reason', 'next_step'];\nfor (const key of required) {\n  if (!(key in item)) throw new Error(`Missing required key: ${key}`);\n}\nconst allowedStatus = new Set(['done', 'partial', 'blocked', 'needs_review', 'queued']);\nif (!allowedStatus.has(item.status)) throw new Error(`Invalid status: ${item.status}`);\nconst allowedModes = new Set(['create', 'append', 'replace']);\nif (!allowedModes.has(item.mode)) throw new Error(`Invalid mode: ${item.mode}`);\nitem.execution_summary = item.status === 'done'\n  ? `Writeback OK -> ${item.relative_path}`\n  : `Writeback needs review -> ${item.reason}`;\nreturn [{ json: item }];"
+      }
+    }
+  ],
+  "connections": {
+    "Obsidian Writeback Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Writeback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Writeback": {
+      "main": [
+        [
+          {
+            "node": "Call Obsidian Writeback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Obsidian Writeback": {
+      "main": [
+        [
+          {
+            "node": "Validate Writeback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

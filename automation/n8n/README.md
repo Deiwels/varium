@@ -10,6 +10,7 @@ Current phase-1 workflows:
 - `Growth_Asset_Flow.workflow.json`
 - `Research_Brief.workflow.json`
 - `Owner_Notification.workflow.json`
+- `Obsidian_Writeback.workflow.json`
 
 Local setup helpers:
 
@@ -55,6 +56,7 @@ Recommended import order:
 4. `Growth_Asset_Flow.workflow.json`
 5. `Research_Brief.workflow.json`
 6. `Owner_Notification.workflow.json`
+7. `Obsidian_Writeback.workflow.json`
 
 ## Current Backend Endpoints
 
@@ -65,6 +67,7 @@ Recommended import order:
 - `POST /api/vurium-dev/ai/growth-asset-flow`
 - `POST /api/vurium-dev/ai/research-brief`
 - `POST /api/vurium-dev/automation/owner-notify`
+- `POST /api/vurium-dev/automation/obsidian-writeback`
 
 All AI execution endpoints accept either:
 
@@ -89,6 +92,7 @@ These workflows use real `POST` webhook triggers inside `n8n`:
 - `Growth_Asset_Flow` -> `.../webhook/growth-asset-flow`
 - `Research_Brief` -> `.../webhook/research-brief`
 - `Owner_Notification` -> `.../webhook/owner-notification`
+- `Obsidian_Writeback` -> `.../webhook/obsidian-writeback`
 
 The AI 3 workflows are designed to be called by a queue/status bridge when a task changes stage.
 
@@ -252,6 +256,37 @@ It returns:
 - `reason`
 - `next_step`
 
+## Obsidian Writeback Contract
+
+`Obsidian_Writeback.workflow.json` expects one markdown writeback event and writes the note through the guarded backend route.
+
+Minimum payload:
+
+```json
+{
+  "relativePath": "04-Tasks/Handoffs/TEST-Obsidian-Writeback.md",
+  "mode": "create",
+  "dryRun": true,
+  "content": "# Handoff\n\n..."
+}
+```
+
+Important:
+
+- only `.md` files are allowed
+- the target path must stay inside the configured `VURIUM_OBSIDIAN_ROOT`
+- `dryRun = true` validates the write without creating the file
+- `mode = create` refuses to overwrite an existing note
+
+It returns:
+
+- `status`
+- `relative_path`
+- `absolute_path`
+- `bytes_written`
+- `reason`
+- `next_step`
+
 ## What These Workflows Do
 
 - accept one structured webhook event from the relevant upstream trigger
@@ -272,6 +307,7 @@ Use these fixtures for the first pass:
 - [research-brief.with-sources.payload.json](/Users/nazarii/Downloads/varium/automation/n8n/smoke-tests/research-brief.with-sources.payload.json)
 - [research-brief.without-sources.payload.json](/Users/nazarii/Downloads/varium/automation/n8n/smoke-tests/research-brief.without-sources.payload.json)
 - [owner-notification.payload.json](/Users/nazarii/Downloads/varium/automation/n8n/smoke-tests/owner-notification.payload.json)
+- [obsidian-writeback.payload.json](/Users/nazarii/Downloads/varium/automation/n8n/smoke-tests/obsidian-writeback.payload.json)
 
 Expected first-pass outcomes:
 
@@ -282,6 +318,7 @@ Expected first-pass outcomes:
 - `Research_Brief` with sources -> source-backed findings or partial result
 - `Research_Brief` without sources -> `queued`
 - `Owner_Notification` -> Owner alert email sent or blocked if email config is missing
+- `Obsidian_Writeback` with `dryRun = true` -> successful validation without creating a file
 
 ## Minimum Incoming Payloads
 
@@ -348,7 +385,7 @@ Add these nodes after the final validation node in each workflow:
 2. `Code`
    - build the exact queue or note payload for your storage target
 3. one storage node
-   - file write, Notion, Airtable, Sheets, DB, or webhook to your writeback worker
+   - `Obsidian_Writeback.workflow.json`, file write, Notion, Airtable, Sheets, DB, or webhook to your writeback worker
 4. one notification node
    - email, Slack, Telegram, or internal webhook
 
@@ -358,21 +395,31 @@ Use these routing rules:
   - if `escalate_to = AI-5` -> create research handoff + notify next owner
   - if `escalate_to = AI-7` -> create compliance handoff
   - if `escalate_to = none` -> create plan shell + queue update
+  - writeback suggestion:
+    - `04-Tasks/TASK-123-Plan.md`
 - `AI3_QA_Scan`
   - if `result = pass` and `escalate_to = none` -> mark queue ready for next review gate
   - otherwise -> create follow-up task + notify next owner
+  - writeback suggestion:
+    - `04-Tasks/TASK-123-QA-Scan.md`
 - `Gmail_Support_Inbox`
   - `sent_reply` -> log outcome only
   - `escalated` -> create escalation note + if `escalate_to = Owner`, call `Owner_Notification.workflow.json`
   - `manual_review_required` -> call `Owner_Notification.workflow.json` or notify support lane
+  - writeback suggestion:
+    - `04-Tasks/Handoffs/gmail-message-id-support-escalation.md`
 - `Growth_Asset_Flow`
   - write one campaign log note
   - create asset handoffs for AI 11 and AI 10 outputs if present
   - when `escalate_to = Owner`, call `Owner_Notification.workflow.json`
+  - writeback suggestion:
+    - `06-Growth/Experiments/GROWTH-022-Asset-Flow.md`
 - `Research_Brief`
   - `done` or `partial` -> write research brief note + notify AI 7 or AI 3
   - `queued` -> notify requester that official `sourceUrls` are required
   - `blocked` -> call `Owner_Notification.workflow.json` or notify AI 3, depending on your research intake owner
+  - writeback suggestion:
+    - `07-Research/AI5-Research-Brief-R-203.md`
 
 ## Automatic Runtime Model
 
@@ -393,3 +440,28 @@ When this is wired correctly:
 - growth can auto-produce draft assets
 - research can auto-intake without hallucinating facts
 - Owner sees only true exceptions
+
+## Launch Today in n8n
+
+Do this exactly:
+
+1. Open `n8n`.
+2. Create the env vars from [`.env.example`](/Users/nazarii/Downloads/varium/automation/n8n/.env.example).
+3. Import these workflows in order:
+   - `AI3_Planning_Intake`
+   - `AI3_QA_Scan`
+   - `Gmail_Support_Inbox`
+   - `Growth_Asset_Flow`
+   - `Research_Brief`
+   - `Owner_Notification`
+   - `Obsidian_Writeback`
+4. Open `Obsidian_Writeback` first and run [obsidian-writeback.payload.json](/Users/nazarii/Downloads/varium/automation/n8n/smoke-tests/obsidian-writeback.payload.json) with `dryRun = true`.
+5. Confirm the result is `done` and the returned `absolute_path` points inside your docs root.
+6. Open `Owner_Notification` and run [owner-notification.payload.json](/Users/nazarii/Downloads/varium/automation/n8n/smoke-tests/owner-notification.payload.json).
+7. Confirm the email sends to the configured Owner address.
+8. Run the remaining smoke-test payloads one by one.
+9. After all smoke tests pass, edit each live workflow and add:
+   - one `If` node after validation
+   - one call to `Obsidian_Writeback` for notes/logs
+   - one call to `Owner_Notification` only for Owner-gated states
+10. Only then connect real triggers like Gmail, queue bridge, and campaign intake.

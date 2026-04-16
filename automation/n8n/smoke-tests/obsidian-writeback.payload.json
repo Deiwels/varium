@@ -1,0 +1,6 @@
+{
+  "relativePath": "04-Tasks/Handoffs/TEST-Obsidian-Writeback.md",
+  "mode": "create",
+  "dryRun": true,
+  "content": "---\ntype: handoff\nstatus: active\nfrom: AI-3\nto: AI-5\ncreated: 2026-04-16\n---\n\n# Handoff\n\n## Completed\n- Planning intake detected external dependency.\n\n## Remaining\n- Source-backed research is still required.\n\n## Source of Truth\n- [[04-Tasks/Workflow-Queue|Workflow Queue]]\n- [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]\n\n## Open Questions\n- What official source confirms the required consent language?\n\n## Risks\n- Planning would drift if we guess compliance truth.\n\n## Next Owner\nAI-5\n\n## Status\n- blocking\n\n## Recommended Action\nOpen the AI 5 research intake lane with official source URLs.\n"
+}
