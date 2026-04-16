@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Incident Response Workflow
 
-> Part of [[Home]] > Runbooks | See also: [[08-Runbooks/Support/Escalation-Matrix|Escalation Matrix]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
+> Part of [[Home]] > Runbooks | See also: [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
 
 ## Purpose
 

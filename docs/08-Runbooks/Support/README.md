@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Support Runbooks
 
-> Part of [[Home]] > Runbooks | See also: [[Growth/Customer-Communication/README|Customer Communication]], [[08-Runbooks/Support/Email-Reply-Workflow|Email Reply Workflow]], [[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]], [[08-Runbooks/Support/Escalation-Matrix|Escalation Matrix]]
+> Part of [[Home]] > Runbooks | See also: [[Growth/Customer-Communication/README|Customer Communication]], [[08-Runbooks/Support/Email-Reply-Workflow|Email Reply Workflow]], [[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
 
 ## Purpose
 
@@ -19,7 +19,7 @@ Canonical home for support-side operational procedures, reply workflows, and cus
 
 - [[08-Runbooks/Support/Email-Reply-Workflow|Email Reply Workflow]]
 - [[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]]
-- [[08-Runbooks/Support/Escalation-Matrix|Escalation Matrix]]
+- [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
 
 ## Owner Lane
 

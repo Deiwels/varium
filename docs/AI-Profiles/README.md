@@ -20,11 +20,12 @@ Before starting a session:
 4. read [[AI-Session-Start-Protocol]]
 5. read your own profile
 6. if the session touches docs, read [[Vault Rules]]
-7. if the session creates or updates a structured note or artifact, also read [[11-Reference/Templates/README|Templates Library]]
-8. if the session touches note structure, note status, source-of-truth, archive handling, or vault organization, also read [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
-9. if the session touches workflow routing, queue state, trigger labels, or handoff behavior, also read [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]
-10. if the session touches real tools, inboxes, forms, Stripe, Telnyx, alerts, or safe integration boundaries, also read [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
-11. add a fresh entry to [[AI-Session-Acceptance-Log]]
+7. read [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]] before making routing, blocked-state, risk, or uncertainty decisions
+8. if the session creates or updates a structured note or artifact, also read [[11-Reference/Templates/README|Templates Library]]
+9. if the session touches note structure, note status, source-of-truth, archive handling, or vault organization, also read [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
+10. if the session touches workflow routing, queue state, trigger labels, or handoff behavior, also read [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]
+11. if the session touches real tools, inboxes, forms, Stripe, Telnyx, alerts, or safe integration boundaries, also read [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]]
+12. add a fresh entry to [[AI-Session-Acceptance-Log]]
 
 If a profile is outdated, update the profile before treating it as trustworthy.
 
@@ -108,6 +109,7 @@ This is intentional. The goal is that any AI can open any profile and orient ins
 - **What changed recently** → [[AI-Rule-Updates]]
 - **Behavior / training layer** → [[AI-Behavior-Protocol]]
 - **Session startup prompt layer** → [[AI-Session-Start-Protocol]]
+- **Canonical escalation routing** → [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
 - **Canonical templates** → [[11-Reference/Templates/README|Templates Library]]
 - **Knowledge-system semantics** → [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]]
 - **Workflow routing / queue / handoff logic** → [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]]

@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Real Tools Integration Layer
 
-> Part of [[Home]] > System | See also: [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[08-Runbooks/Support/Escalation-Matrix|Escalation Matrix]], [[08-Runbooks/Owner/Portal-Only-Actions|Owner Portal-Only Actions]]
+> Part of [[Home]] > System | See also: [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[08-Runbooks/Owner/Portal-Only-Actions|Owner Portal-Only Actions]]
 
 ## Purpose
 
@@ -154,7 +154,7 @@ The following remain Owner-controlled:
 
 ## Required Operational Docs
 
-- [[08-Runbooks/Support/Escalation-Matrix|Escalation Matrix]]
+- [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
 - [[08-Runbooks/Support/Email-Reply-Workflow|Email Reply Workflow]]
 - [[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]]
 - [[08-Runbooks/Growth/Campaign-Workflow|Campaign Workflow]]

@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Telnyx Event Handling
 
-> Part of [[Home]] > Runbooks | See also: [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[08-Runbooks/Support/Escalation-Matrix|Escalation Matrix]], [[SMS & 10DLC]]
+> Part of [[Home]] > Runbooks | See also: [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[SMS & 10DLC]]
 
 ## Purpose
 

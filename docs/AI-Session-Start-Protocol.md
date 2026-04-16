@@ -9,7 +9,7 @@ source_of_truth: true
 
 # AI Session Start Protocol
 
-> Part of [[Home]] > System | See also: [[AI-Behavior-Protocol]], [[11-Reference/AI-Session-Template|AI Session Template]], [[AI-Session-Acceptance-Log]]
+> Part of [[Home]] > System | See also: [[AI-Behavior-Protocol]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[11-Reference/AI-Session-Template|AI Session Template]], [[AI-Session-Acceptance-Log]]
 
 ## Purpose
 
@@ -52,6 +52,7 @@ Before acting, identify:
 - which docs define truth for this task
 - which note is canonical
 - which template applies if you are creating a structured note or artifact
+- which escalation path applies if you get blocked or risky, usually via [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
 
 If source of truth is missing:
 
@@ -92,7 +93,7 @@ If any of these appear:
 then:
 
 - stop
-- escalate to the correct AI
+- escalate using [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
 
 Do not guess.
 

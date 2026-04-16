@@ -9,7 +9,7 @@ source_of_truth: true
 
 # AI Behavior Protocol
 
-> Part of [[Home]] > System | See also: [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Session-Start-Protocol]], [[AI-Profiles/README|AI Profiles]], [[AI-Session-Acceptance-Log]]
+> Part of [[Home]] > System | See also: [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Session-Start-Protocol]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[AI-Profiles/README|AI Profiles]], [[AI-Session-Acceptance-Log]]
 
 ## Purpose
 
@@ -92,6 +92,7 @@ If something is unknown:
 When uncertain:
 
 - do not guess
+- use [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]] to choose the correct escalation target and urgency
 - escalate to the correct AI
 - or request the missing canonical context
 

@@ -84,6 +84,8 @@ source_of_truth: true
 
 ## 9. Escalation Rules
 
+Use [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]] as the canonical routing reference before choosing an escalation target.
+
 Escalate to:
 
 - **AI 8** for campaign clarity

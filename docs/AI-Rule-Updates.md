@@ -19,6 +19,13 @@ source_of_truth: true
 
 ## Current active updates
 
+### 2026-04-15 — Escalation Matrix is now canonical
+
+- [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]] is now the canonical escalation-routing document for the whole operating system.
+- Escalation routing is no longer support-scoped only.
+- AI must use this document before making blocked-state, risk, or uncertainty escalation decisions.
+- The legacy support-scoped matrix remains only as a superseded pointer for old backlinks.
+
 ### 2026-04-15 — Templates Library is now canonical
 
 - [[11-Reference/Templates/README|Templates Library]] is now the canonical per-template library for structured work.

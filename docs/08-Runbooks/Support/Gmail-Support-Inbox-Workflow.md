@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Gmail Support Inbox Workflow
 
-> Part of [[Home]] > Runbooks | See also: [[08-Runbooks/Support/Email-Reply-Workflow|Email Reply Workflow]], [[08-Runbooks/Support/Escalation-Matrix|Escalation Matrix]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[Growth/Customer-Communication/Support-Tone-Guide|Support Tone Guide]]
+> Part of [[Home]] > Runbooks | See also: [[08-Runbooks/Support/Email-Reply-Workflow|Email Reply Workflow]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[Growth/Customer-Communication/Support-Tone-Guide|Support Tone Guide]]
 
 ## Purpose
 

@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Stripe Event Handling
 
-> Part of [[Home]] > Runbooks | See also: [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[08-Runbooks/Support/Escalation-Matrix|Escalation Matrix]]
+> Part of [[Home]] > Runbooks | See also: [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
 
 ## Purpose
 

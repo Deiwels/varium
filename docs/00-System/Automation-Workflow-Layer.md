@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Automation Workflow Layer
 
-> Part of [[Home]] > System | See also: [[00-System/System-Index|System Index]], [[AI-Core-Manifesto]], [[AI-Work-Split]], [[04-Tasks/Workflow-Queue|Workflow Queue]], [[04-Tasks/Workflow-Trigger-Labels|Workflow Trigger Labels]], [[04-Tasks/Handoffs/README|Handoffs]]
+> Part of [[Home]] > System | See also: [[00-System/System-Index|System Index]], [[AI-Core-Manifesto]], [[AI-Work-Split]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[04-Tasks/Workflow-Queue|Workflow Queue]], [[04-Tasks/Workflow-Trigger-Labels|Workflow Trigger Labels]], [[04-Tasks/Handoffs/README|Handoffs]]
 
 ## Purpose
 
@@ -47,6 +47,8 @@ Automation must not:
 5. **Structured Output** — result, status, next step, escalation, and writeback targets.
 6. **Knowledge Writeback** — durable outputs go into the correct canonical note types.
 7. **Handoff / Approval / Completion** — move to next owner, wait for approval, or close.
+
+Blocked or risky branches must use [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]] instead of ad hoc routing.
 
 ## Routing Rules
 

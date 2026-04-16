@@ -83,6 +83,8 @@ owner: AI 2
 
 ## 9. Escalation Rules
 
+Use [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]] as the canonical routing reference before choosing an escalation target.
+
 Escalate to:
 
 - **AI 3** if the task is complex or the plan is incomplete

@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Campaign Workflow
 
-> Part of [[Home]] > Runbooks | See also: [[Growth/Growth-Backlog|Growth Backlog]], [[Growth/Creative/Approved-Claims-and-Angles|Approved Claims and Angles]], [[08-Runbooks/Support/Escalation-Matrix|Escalation Matrix]]
+> Part of [[Home]] > Runbooks | See also: [[Growth/Growth-Backlog|Growth Backlog]], [[Growth/Creative/Approved-Claims-and-Angles|Approved Claims and Angles]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
 
 ## Purpose
 

@@ -82,6 +82,8 @@ source_of_truth: true
 
 ## 9. Escalation Rules
 
+Use [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]] as the canonical routing reference before deciding whether an issue stays delegated or must return to Owner.
+
 Escalate to Owner when:
 
 - real credentials or portal actions are required

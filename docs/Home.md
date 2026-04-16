@@ -220,7 +220,7 @@ Latest first:
 - [[08-Runbooks/Support/README|Support Runbooks]] — customer communication and email-reply procedures
 - [[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]] — n8n-ready Gmail intake, AI 9 draft, escalation, and logging schema
 - [[08-Runbooks/Growth/README|Growth Runbooks]] — growth-execution and creative/video production procedures
-- [[08-Runbooks/Support/Escalation-Matrix|Escalation Matrix]] — who escalates to whom across support, growth, product, and incident flows
+- [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]] — who escalates to whom across support, growth, product, incident, billing, and Owner-only flows
 - [[08-Runbooks/Growth/Campaign-Workflow|Campaign Workflow]] — growth brief -> support/video/creative execution path
 - [[08-Runbooks/Product/Feature-Flow|Feature Flow]] — product/build request path from framing to Owner verification
 - [[08-Runbooks/Incidents/Incident-Response-Workflow|Incident Response Workflow]] — alert -> hotfix -> QA -> permanent cleanup
