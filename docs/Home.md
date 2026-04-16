@@ -19,7 +19,7 @@
 | **Goal** | Sell-ready: new business can sign up, onboard, book, and pay without manual rescue |
 | **Current focus** | P0 tasks in [[Tasks/Launch Readiness Plan\|Launch Readiness Plan]] |
 | **Active work** | [[Tasks/In Progress\|In Progress]] |
-| **Who's working** | 4 AI + Owner — see [[Tasks/3-AI-Remaining-Work-Split\|4-AI Work Split]] + [[AI-Session-Acceptance-Log]] |
+| **Who's working** | 8 AI + Owner — see [[Tasks/3-AI-Remaining-Work-Split\|8-AI Work Split]] + [[AI-Session-Acceptance-Log]] |
 | **AI profiles** | [[AI-Profiles/README\|AI Profiles]] |
 | **Rule updates** | [[AI-Rule-Updates\|AI Rule Updates]] |
 
@@ -96,7 +96,7 @@
 ## Tasks & Plans
 
 - [[Tasks/In Progress\|In Progress]] — Current sprint (P0 items + active tasks)
-- [[Tasks/3-AI-Remaining-Work-Split|3-AI Remaining Work Split]] — **current sprint plan** — every open item categorized by AI (Claude / Codex / Verdent / Owner) with priorities and effort
+- [[Tasks/3-AI-Remaining-Work-Split|8-AI Remaining Work Split]] — **current operating split** — active work plus role lanes across backend, frontend, planning, research, product, compliance, growth, and Owner operations
 - [[Tasks/AI4-Emergency-Readiness-Review-2026-04-15|AI 4 Emergency Readiness Review]] — current AI 4 sign-off and emergency-readiness asks
 - [[Tasks/Backlog\|Backlog]] — Feature ideas & bugs
 - [[Tasks/Launch Readiness Plan\|Launch Readiness Plan]] — Unified P0/P1/P2 plan (both AIs agreed)
@@ -200,6 +200,38 @@ Latest first:
 - [[AI-4-Phone-AI]] — Phone AI profile
 - [[AI-4-Activation-Protocol]] — AI 4 activation protocol
 - [[AI-5-GPT-Chat-Deep-Research]] — GPT Chat Deep Research (external truth / research specialist)
+- [[AI-6-Product-Strategist]] — Product strategist (briefs, MVP framing, priorities)
+- [[AI-7-Compliance-Executor]] — Compliance executor (turns vendor/policy truth into implementation requirements)
+- [[AI-8-Growth-Marketing-Operator]] — Growth / marketing operator (funnel, onboarding, positioning, launch messaging)
+
+---
+
+## Product
+
+- [[Product/Roadmap|Product Roadmap]] — current product direction by now / next / later
+- [[Product/Priorities|Product Priorities]] — active business priorities and launch sequencing
+- [[Product/Open-Questions|Product Open Questions]] — unresolved product choices that still need framing
+- [[Product/Feature-Briefs/README|Feature Briefs]] — canonical home for AI 6 product briefs
+- [[Product/User-Flows/README|User Flows]] — canonical home for structured flow docs
+
+---
+
+## Compliance
+
+- [[Compliance/Control-Matrix|Compliance Control Matrix]] — cross-system control map
+- [[Compliance/Implementation-Checklist|Compliance Implementation Checklist]] — translation layer from requirements to execution checks
+- [[Compliance/Requirements/README|Compliance Requirements]] — canonical home for requirement docs
+- [[Compliance/Vendor-Constraints/README|Vendor Constraints]] — canonical home for vendor-specific compliance constraints
+
+---
+
+## Growth
+
+- [[Growth/Growth-Backlog|Growth Backlog]] — growth tasks and ideas routed through the operating system
+- [[Growth/Funnel-Audit|Funnel Audit]] — acquisition and conversion friction log
+- [[Growth/Onboarding-Optimization|Onboarding Optimization]] — onboarding improvement lane
+- [[Growth/Experiments/README|Growth Experiments]] — canonical home for structured experiments
+- [[Growth/Landing-Pages/README|Landing Pages]] — canonical home for landing-page planning and messaging
 
 ---
 

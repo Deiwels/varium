@@ -1,7 +1,7 @@
 # Decision Log — Журнал Архітектурних Рішень
 
 > [[Home]] > Architecture | Owner: AI 3 (Verdent — веде реєстр)
-> Related: [[AI-Core-Manifesto]], [[Tasks/4-AI-Remaining-Work-Split|4-AI Work Split]]
+> Related: [[AI-Core-Manifesto]], [[Tasks/3-AI-Remaining-Work-Split|8-AI Work Split]]
 > Created: 2026-04-15
 
 ---

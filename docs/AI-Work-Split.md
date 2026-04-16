@@ -1,111 +1,240 @@
+---
+type: reference
+status: active
+created: 2026-04-15
+owner: AI 3
+---
+
 # AI Work Split
 
-> [[Home]] > Plans & Process | See also: [[Production-Plan-AI1]], [[Production-Plan-AI2]], [[Tasks/Launch Readiness Plan|Launch Readiness Plan]]
-
-Two AI agents work on this project simultaneously. To avoid conflicts (duplicate variables, merge issues, broken deploys), each AI owns specific files.
-
-**Rule: never edit files owned by the other AI without explicit approval from the user.**
+> [[Home]] | Related: [[AI-Core-Manifesto]], [[AI-Profiles/README|AI Profiles]], [[Tasks/In Progress|In Progress]], [[Tasks/3-AI-Remaining-Work-Split|8-AI Work Split]]
+> Purpose: canonical ownership map for the `Owner + 8 AI` operating system.
 
 ---
 
-## AI 1 — Backend & Finance (Claude Code CLI)
+## 1. Ownership Summary
 
-### Owns
-- `backend/index.js` — server, all API endpoints, payroll, audit, payments
-- `backend/routes/` — route modules (після рефакторингу Phase 5.5)
-- `backend/lib/` — shared helpers: telnyx, square, email, push, crypto (після рефакторингу Phase 5.5)
-- `backend/jobs/` — background jobs (після рефакторингу Phase 5.5)
-- `backend/package.json`, `backend/Dockerfile`
-- `app/payroll/page.tsx` — payroll page
-- `app/cash/page.tsx` — cash register
-- `app/expenses/page.tsx` — expenses
-- `app/calendar/booking-modal.tsx` — payment flow in booking modal
-- `app/messages/page.tsx` — team messaging
-- `.github/workflows/` — CI/CD, deploy pipelines
-- `docs/` — documentation, DevLog, Features
-
-### Responsibilities
-- All backend API logic and endpoints
-- Payroll calculations, audit system, notifications
-- Payment processing (Square, cash, zelle)
-- Cash register, expenses integration
-- Cloud Run deployment and infrastructure
-- Documentation updates after every session
+| Role | Primary lane | Owns | Must not own by default |
+|---|---|---|---|
+| **AI 1 — Claude** | Backend + infra + technical docs | `backend/index.js`, `.github/workflows/**`, backend-adjacent docs, technical docs, and 5 explicitly assigned pages | general frontend/UI |
+| **AI 2 — Codex** | Frontend + UI | `app/**`, `components/**`, `lib/**`, `app/globals.css` except AI 1 exceptions | backend, workflows, infra |
+| **AI 3 — Verdent** | Planning + QA + decision logging | `docs/Tasks/*-Plan*.md`, `docs/Tasks/*QA-Scan*.md`, `docs/Tasks/*-Runbook*.md`, `docs/Architecture/Decision-Log.md` | routine product code |
+| **AI 4 — Phone AI** | Emergency response | any file only under emergency protocol | routine daily development |
+| **AI 5 — GPT Chat Deep Research** | External facts research | `docs/Tasks/AI5-Research-Brief-*.md` | code, implementation plans |
+| **AI 6 — Product Strategist** | Product framing | `docs/Product/**` | code, infra, raw research |
+| **AI 7 — Compliance Executor** | Compliance translation | `docs/Compliance/**` | code, legal sign-off |
+| **AI 8 — Growth / Marketing Operator** | Growth strategy | `docs/Growth/**` | code, compliance policy interpretation |
+| **Owner** | Real-world authority | secrets, portals, live verification, final go/no-go | delegation of secrets to AI |
 
 ---
 
-## AI 2 — Frontend & UI (Claude Code Web/Desktop)
+## 2. Code Ownership
 
-### Owns
-- `app/settings/page.tsx` — settings page UI
-- `app/settings/tabs/` — settings tab components (після рефакторингу Phase 5.2)
-- `app/dashboard/page.tsx` — dashboard, widgets, onboarding
-- `app/book/` — public booking pages
-- `app/signin/page.tsx` — auth pages
-- `app/signup/page.tsx` — signup flow (Stripe Elements, Apple IAP, step flow)
-- `app/landing/`, `app/pricing/` — marketing pages
-- `components/Shell.tsx` — navigation, layout, bottom nav
-- `components/OnboardingWizard.tsx` — onboarding wizard
-- `components/StyledDialog.tsx` — shared dialog component
-- `lib/` — utilities, terminology, templates
-- `app/globals.css` — global styles
-- Landing and public-facing pages
+### AI 1 — Backend + Infra + Technical Docs
 
-### Responsibilities
-- Settings UI and navigation patterns
-- Dashboard widgets and layout
-- Onboarding flow
-- Public booking page styling
-- Shell/navigation changes
-- Global CSS and design system
+Owns:
 
----
+- `backend/index.js`
+- `.github/workflows/**`
+- `app/payroll/**`
+- `app/cash/**`
+- `app/expenses/**`
+- `app/calendar/booking-modal.tsx`
+- `app/messages/**`
+- technical documentation under `docs/**` unless another lane owns the canonical file
 
-## Shared files (coordinate before editing)
-- `app/calendar/page.tsx` — large file, both may need to touch
-- `components/Shell.tsx` — if backend needs badge/notification changes, coordinate
-- `next.config.mjs` — rare changes, coordinate
-- `vercel.json` — rare changes, coordinate
+Does not own by default:
 
-## How to coordinate
-1. Before editing a shared file, check git log to see if the other AI recently changed it
-2. Always `git pull --rebase` before pushing
-3. If conflict: fix it, don't skip commits
-4. After changes: update `docs/DevLog/YYYY-MM-DD.md`
+- `app/**` outside the explicit exceptions above
+- `components/**`
+- `lib/**`
+- `app/globals.css`
+
+### AI 2 — Frontend + UI
+
+Owns:
+
+- `app/**` except the AI 1 page exceptions
+- `components/**`
+- `lib/**`
+- `app/globals.css`
+
+Does not own by default:
+
+- `backend/index.js`
+- `.github/workflows/**`
+- backend infrastructure logic
 
 ---
 
-## Documentation Rules (Obsidian)
+## 3. Governance / Docs Ownership
 
-We use Obsidian as the shared project brain. Every AI must write docs so both Obsidian and humans can follow the project without re-explaining context in chat.
+### AI 3 — Planning + QA + Decision Logging
 
-### Required rules
-- Re-read the relevant docs before changing code or plans
-- Record every substantial change in `docs/DevLog/YYYY-MM-DD.md`
-- Update the matching tracker doc when status changes:
-  - `docs/Tasks/In Progress.md` for active work
-  - feature docs under `docs/Features/` for product behavior
-  - plan docs under `docs/Tasks/` for decisions, rollouts, and execution plans
-- Use Obsidian wiki link syntax (double square brackets around the target doc name) for internal references whenever the target doc already exists
-- If you create a new important doc, add a link from `docs/Home.md` or the nearest parent doc so it does not become orphaned
-- Do not create duplicate docs for the same topic if an existing doc can be updated instead
-- Write concrete status, ownership, and dates; avoid vague notes like "fixed stuff" or "updated SMS"
-- When a decision changes, update the old plan/tracker docs too so Obsidian does not show contradictory versions of reality
+Owns:
 
-### Writing style
-- Prefer short sections with clear headings over long chat-style paragraphs
-- State who owns the work when multiple AI are involved
-- Use exact names for files, routes, env vars, and commits when relevant
-- Keep terminology consistent across docs (`toll-free-first`, `grandfathered manual 10DLC`, `Element Barbershop`, etc.)
-- If something is blocked by an external dependency, say exactly what is blocked and who must unblock it
+- `docs/Tasks/*-Plan*.md`
+- `docs/Tasks/*QA-Scan*.md`
+- `docs/Tasks/*-Runbook*.md`
+- `docs/Architecture/Decision-Log.md`
 
-### Goal
-- Any AI should be able to open Obsidian, read the linked docs, and understand:
-  - what changed
-  - what is still open
-  - who owns the next step
-  - which doc is the source of truth
+### AI 5 — External Research Briefs
+
+Owns:
+
+- `docs/Tasks/AI5-Research-Brief-*.md`
+
+### AI 6 — Product Strategy Docs
+
+Owns:
+
+- `docs/Product/**`
+
+### AI 7 — Compliance Translation Docs
+
+Owns:
+
+- `docs/Compliance/**`
+
+### AI 8 — Growth / Marketing Docs
+
+Owns:
+
+- `docs/Growth/**`
+
+### AI 1 Default Docs Stewardship
+
+AI 1 remains the default steward for technical and implementation-adjacent docs, but does **not** override the canonical docs lanes above.
+
+This means:
+
+- AI 1 may update technical docs and DevLog freely
+- AI 1 should not absorb `docs/Product/**`, `docs/Compliance/**`, `docs/Growth/**`, or AI 3 / AI 5 canonical docs unless there is an explicit handoff or emergency reason
 
 ---
 
-*Created 2026-04-13. Update this file if responsibilities shift.*
+## 4. New Lanes Added by the 8-AI System
+
+### Product Strategy Lane
+
+Owner: **AI 6**
+
+Artifacts:
+
+- `docs/Product/Roadmap.md`
+- `docs/Product/Priorities.md`
+- `docs/Product/Feature-Briefs/README.md`
+- `docs/Product/User-Flows/README.md`
+- `docs/Product/Open-Questions.md`
+
+Purpose:
+
+- define user problem
+- define MVP vs later
+- remove noise before planning starts
+
+### Compliance Execution Lane
+
+Owner: **AI 7**
+
+Artifacts:
+
+- `docs/Compliance/Requirements/README.md`
+- `docs/Compliance/Control-Matrix.md`
+- `docs/Compliance/Implementation-Checklist.md`
+- `docs/Compliance/Vendor-Constraints/README.md`
+
+Purpose:
+
+- turn AI 5 research into system/UI/backend/Owner constraints
+- prevent policy truth from getting lost between research and implementation
+
+### Growth Lane
+
+Owner: **AI 8**
+
+Artifacts:
+
+- `docs/Growth/Growth-Backlog.md`
+- `docs/Growth/Funnel-Audit.md`
+- `docs/Growth/Onboarding-Optimization.md`
+- `docs/Growth/Experiments/README.md`
+- `docs/Growth/Landing-Pages/README.md`
+
+Purpose:
+
+- own funnel thinking
+- structure onboarding improvements
+- keep launch messaging and conversion work from turning into random chat ideas
+
+---
+
+## 5. Collaboration Rules
+
+1. **No large implementation without AI 3 plan**
+   - complex work routes through `@AI3 [PLAN REQUEST]`
+
+2. **No vendor/compliance planning without AI 5 first**
+   - if external truth matters, create one `AI5-Research-Brief-<slug>.md`
+
+3. **No compliance-sensitive execution plan without AI 7 translation**
+   - AI 5 gives facts; AI 7 converts them into requirements; AI 3 plans from that
+
+4. **AI 4 remains emergency-only**
+   - no routine feature drift into the emergency lane
+
+5. **Docs are lane-owned**
+   - if the canonical file lives in another lane, route there instead of writing nearby duplicates
+
+6. **Home-first + Vault Rules apply to all docs work**
+   - start from `[[Home]]`
+   - read `[[Vault Rules]]`
+   - write in the canonical file
+
+---
+
+## 6. Shared / Sensitive Areas
+
+These areas require extra coordination even if ownership is nominally clear:
+
+- auth contract (`middleware.ts`, `lib/auth-cookie.ts`, `lib/api.ts`, `components/Shell.tsx`, native `WKWebView` dependencies)
+- billing and payment flows
+- SMS sender state and compliance state
+- any task touching both backend and frontend behavior
+- any task whose truth depends on portals, secrets, or live external systems
+
+Default routing:
+
+- product ambiguity → **AI 6**
+- external fact uncertainty → **AI 5**
+- compliance/system translation gap → **AI 7**
+- execution structure gap → **AI 3**
+- emergency / rollback risk → **AI 4**
+- real portal or credential step → **Owner**
+
+---
+
+## 7. Emergency Override
+
+AI 4 may touch any file only when:
+
+- production is down
+- a critical regression must be stopped immediately
+- Owner explicitly activates the emergency lane
+- another AI is blocked in an urgent incident
+
+After that:
+
+- AI 4 documents the intervention
+- AI 3 performs post-hotfix verification
+- permanent ownership returns to AI 1 or AI 2
+
+---
+
+## 8. Practical Rule
+
+When in doubt:
+
+- check [[AI-Profiles/README|AI Profiles]]
+- check [[Tasks/In Progress|In Progress]]
+- do **not** “just help” in someone else’s lane unless the docs explicitly route you there or Owner has approved the exception

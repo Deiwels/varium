@@ -1,7 +1,7 @@
 # AI 4 Emergency Readiness Review — 2026-04-15
 
 > [[Home]] > Tasks | Reviewer: AI 4 (Phone AI) | Scope: emergency lens on 4-AI plan
-> Related: [[AI-Profiles/AI-4-Phone-AI|AI 4 — Phone AI]], [[AI-Core-Manifesto]], [[Tasks/3-AI-Remaining-Work-Split|4-AI Work Split]], [[Tasks/In Progress]], [[Tasks/QA-Scan-2026-04-15]], [[Web-Native-Auth-Contract]]
+> Related: [[AI-Profiles/AI-4-Phone-AI|AI 4 — Phone AI]], [[AI-Core-Manifesto]], [[Tasks/3-AI-Remaining-Work-Split|8-AI Work Split]], [[Tasks/In Progress]], [[Tasks/QA-Scan-2026-04-15]], [[Web-Native-Auth-Contract]]
 
 ---
 

@@ -7,6 +7,7 @@
 > 📥 **AI 4 review from GitHub counts only after the real review doc is synced locally into `docs/Tasks/` and linked here.**
 > 🔎 **AI 5 (GPT Chat Deep Research) is now the external-facts lane. Before major work that depends on vendor/compliance/policy truth, consult AI 5 first or document why AI 5 is not needed.**
 > 📝 **For any large AI 5-assisted task, create one shared file `docs/Tasks/AI5-Research-Brief-<slug>.md`. All AI write their fact-questions there first. AI 5 fills the same file. Then AI 3 plans.**
+> 🧭 **Standard large-task flow is now: Owner → AI 6 product framing → AI 5 research (if external truth is needed) → AI 7 compliance translation → AI 3 execution plan → 4-AI Review Gate → AI 1 / AI 2 implementation → AI 3 QA → Owner live verification.**
 
 > 🆕 **2026-04-15 02:00 CDT — AI 4 emergency readiness review landed.** See [[Tasks/AI4-Emergency-Readiness-Review-2026-04-15]]. 5 open asks (`AI4-REQ.1`–`AI4-REQ.5`) are directed to AI 1 and AI 3. Owner-requested sign-off: 🟢 launch readiness green from the emergency-response lens, with 3 gaps flagged before a larger launch push.
 > 🆕 **AI 4 branch resolution is now written down.** See [[Tasks/AI4-Branch-Resolution-2026-04-15]]. `claude/read-docs-P7wBt` is archive-only; any new rule idea from AI 4 must re-enter via `@AI3 [PLAN REQUEST]`.

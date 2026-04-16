@@ -1,6 +1,6 @@
 # Reminder SMS — Launch Completion Path
 
-> [[Home]] > Tasks | Related: [[Features/SMS & 10DLC]], [[Tasks/Live-SMS-Verification-Checklist]], [[Tasks/Launch-Verification-Runbook]], [[Tasks/Telnyx-Integration-Plan]], [[Tasks/3-AI-Remaining-Work-Split|5-AI Work Split]], [[Tasks/AI5-Research-Brief-Reminder-SMS]]
+> [[Home]] > Tasks | Related: [[Features/SMS & 10DLC]], [[Tasks/Live-SMS-Verification-Checklist]], [[Tasks/Launch-Verification-Runbook]], [[Tasks/Telnyx-Integration-Plan]], [[Tasks/3-AI-Remaining-Work-Split|8-AI Work Split]], [[Tasks/AI5-Research-Brief-Reminder-SMS]]
 > Created: 2026-04-15
 
 ---

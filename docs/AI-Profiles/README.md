@@ -1,36 +1,92 @@
+---
+type: reference
+status: active
+created: 2026-04-15
+owner: AI 3
+---
+
 # AI Profiles
 
-> [[Home]] | Related: [[AI-Rule-Updates]], [[AI-Core-Manifesto]], [[AI-Work-Split]], [[AI-Session-Acceptance-Log]], [[Tasks/3-AI-Remaining-Work-Split|5-AI Work Split]]
-> Purpose: one page per AI + Owner with role, scope, strengths, known history, coordination rules.
+> [[Home]] | Related: [[AI-Core-Manifesto]], [[AI-Rule-Updates]], [[AI-Work-Split]], [[AI-Session-Acceptance-Log]], [[Tasks/3-AI-Remaining-Work-Split|8-AI Work Split]]
+> Purpose: one canonical profile per role in the `Owner + 8 AI` system.
 
-Before starting a session, every AI reads **[[AI-Rule-Updates]] first**, then **its own profile**, and confirms that its behaviour matches. If a profile is out of date, the first action of the session is to update the profile — not code.
+Before starting a session:
 
-If the session touches `docs/`, the AI also follows the new **Home-first + Vault Rules** rule: start from `[[Home]]`, read `[[Vault Rules]]`, and write information only into the correct canonical file path.
+1. read [[AI-Rule-Updates]]
+2. read [[AI-Core-Manifesto]]
+3. read your own profile
+4. if the session touches docs, read [[Vault Rules]]
+5. add a fresh entry to [[AI-Session-Acceptance-Log]]
+
+If a profile is outdated, update the profile before treating it as trustworthy.
+
+---
 
 ## Index
 
-| # | Profile | Platform | Primary scope |
+| # | Profile | Canonical role | Primary lane |
 |---|---|---|---|
-| **AI 1** | [[AI-1-Claude]] | Claude Code CLI (Sonnet/Opus, 1M ctx) | `backend/index.js`, `.github/workflows/`, all `docs/**` |
-| **AI 2** | [[AI-2-Codex]] | Codex CLI | `app/**`, `components/**`, `lib/**`, `globals.css`, frontend docs |
-| **AI 3** | [[AI-3-Verdent]] | Verdent | Planner + verifier: `docs/Tasks/QA-Scan-*.md`, `docs/Tasks/*-Runbook.md`, planning docs |
-| **AI 4** | [[AI-4-Phone-AI]] | Phone AI (mobile Claude) | Universal quick-fixer — any file, emergencies only |
-| **AI 5** | [[AI-5-GPT-Chat-Deep-Research]] | GPT Chat Deep Research | Exact external research: vendor/policy/compliance/market facts before major work |
-| **Owner** | [[Owner-Nazarii]] | Human | Final decisions, secrets, external services, legal |
+| **Owner** | [[Owner-Nazarii]] | Human final authority | secrets, portals, real-world execution, launch decisions |
+| **AI 1** | [[AI-1-Claude]] | Backend + Docs + Infra Owner | `backend/index.js`, `.github/workflows/**`, technical docs, 5 assigned pages |
+| **AI 2** | [[AI-2-Codex]] | Frontend + UI Owner | `app/**`, `components/**`, `lib/**`, `app/globals.css` except AI 1 page exceptions |
+| **AI 3** | [[AI-3-Verdent]] | Planner + Verifier + QA Gatekeeper | plans, QA scans, runbooks, decision log |
+| **AI 4** | [[AI-4-Phone-AI]] | Emergency Quick-Fixer + Emergency Reviewer | incident response, rollback thinking, unblockers |
+| **AI 5** | [[AI-5-GPT-Chat-Deep-Research]] | External Facts Research Lane | vendor/policy/compliance/source-backed research |
+| **AI 6** | [[AI-6-Product-Strategist]] | Product Strategy Owner | product briefs, roadmap, priorities, user-flow framing |
+| **AI 7** | [[AI-7-Compliance-Executor]] | Compliance-to-Implementation Translator | requirements, control matrix, implementation constraints |
+| **AI 8** | [[AI-8-Growth-Marketing-Operator]] | Growth Engine Owner | funnel, onboarding, positioning, conversion and launch messaging |
 
-## How to use these profiles
+---
 
-1. **Before your own session starts** — read your own profile. Verify: is your scope still what it says? Are your strengths still accurate? Are the "known exceptions" list still the full set?
-2. **Before coordinating with another AI** — read their profile. Do not duplicate work, do not cross scope, do not re-argue decisions already in their "known positions" section.
-3. **When something about you changes** — update your profile in the same commit that changes your behaviour. Profiles drift silently if nobody owns them.
-4. **When a cross-AI rule changes** — update `AI-Core-Manifesto.md` first, then mirror into the affected profiles.
-5. **When AI 4 reviews through GitHub first** — sync the actual review doc into its final local `docs/Tasks/*.md` path before treating it as visible team knowledge.
-6. **When a task needs AI 5** — create one shared `docs/Tasks/AI5-Research-Brief-<slug>.md` file first, let all relevant AI add their questions there, and only then send the brief to AI 5.
+## Standard Profile Template
 
-## Related single source of truth
+Every profile follows the same section order:
 
-- **Rules all AIs follow** → [[AI-Core-Manifesto]]
-- **File ownership table** → [[AI-Work-Split]]
+1. Identity
+2. Primary responsibilities
+3. Ownership boundaries
+4. Activation triggers
+5. Inputs
+6. Outputs
+7. Collaboration rules
+8. Non-goals
+9. Escalation rules
+10. Success criteria
+
+This is intentional. The goal is that any AI can open any profile and orient instantly.
+
+---
+
+## How to Use These Profiles
+
+1. **Read your own profile before working**
+   - verify your scope, constraints, and escalation rules
+
+2. **Read another AI's profile before handing work over**
+   - do not dump ambiguous requests into another lane
+
+3. **Profiles do not replace the manifesto**
+   - global governance lives in [[AI-Core-Manifesto]]
+   - file ownership lives in [[AI-Work-Split]]
+
+4. **For big external/compliance tasks**
+   - AI 6 frames the product problem
+   - AI 5 researches external truth
+   - AI 7 translates requirements
+   - AI 3 plans execution
+
+5. **For docs work**
+   - start from [[Home]]
+   - obey [[Vault Rules]]
+   - write only in the canonical file path
+
+---
+
+## Related Sources of Truth
+
+- **Global rules** → [[AI-Core-Manifesto]]
+- **What changed recently** → [[AI-Rule-Updates]]
+- **File ownership** → [[AI-Work-Split]]
+- **Current active work** → [[Tasks/In Progress|In Progress]]
+- **Current sprint split** → [[Tasks/3-AI-Remaining-Work-Split|8-AI Work Split]]
 - **Session acceptance log** → [[AI-Session-Acceptance-Log]]
-- **Current sprint split** → [[Tasks/3-AI-Remaining-Work-Split]]
-- **Architectural decisions** → [[Architecture/Decision-Log]]

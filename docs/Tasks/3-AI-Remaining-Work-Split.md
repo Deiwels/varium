@@ -1,4 +1,4 @@
-# 5-AI Remaining Work Split
+# 8-AI Remaining Work Split
 
 > [[Home]] > Tasks | Owner: AI 1 (docs) · Last full verification: **2026-04-15** (this pass)
 > ⚠️ **Read [[AI-Rule-Updates]] and [[AI-Core-Manifesto]] first before starting any work.**
@@ -15,7 +15,7 @@
 
 This file is the **authoritative** split for what is open across the project. Every item was verified directly against the live `main` tree on 2026-04-15 — grep, read, or endpoint hit — not just copied from older plans. If something here conflicts with `In Progress.md`, `Production-Plan-AI1.md`, `Production-Plan-AI2.md`, or any of the improvement plans, this file wins.
 
-## Roles (updated — 5 AI system)
+## Roles (updated — 8 AI system)
 
 | Role | Primary scope | Ownership rules |
 |------|---------------|-----------------|
@@ -24,10 +24,20 @@ This file is the **authoritative** split for what is open across the project. Ev
 | **Verdent / AI 3** | Planner + Verifier + QA | Складає детальні плани, перевіряє виконання, веде QA Scans та Runbooks. Не пише продуктовий код без погодженого плану. |
 | **Phone AI / AI 4** | Universal Quick-Fixer | Повний доступ до всього коду — тільки для термінових emergency фіксів коли система падає або інші AI застрягли. GitHub-side reviews count only after the real review doc is synced locally. |
 | **GPT Chat Deep Research / AI 5** | External research lane | Дає точну зовнішню інформацію: vendor docs, telecom/compliance constraints, policy interpretation, market comparisons. Не планує і не комітить код — підживлює AI 3 / AI 1 / AI 2 фактами. |
+| **Product Strategist / AI 6** | Product framing lane | Формулює user problem, MVP, scope boundaries, out-of-scope, priority, and whether AI 5 research is required before planning. Не комітить код. |
+| **Compliance Executor / AI 7** | Compliance translation lane | Перетворює AI 5 findings у системні, UI, backend, monitoring, documentation, and Owner-action requirements. Не комітить код. |
+| **Growth / Marketing Operator / AI 8** | Growth lane | Веде funnel, onboarding, landing pages, conversion ideas, and launch messaging. Будь-які product-impacting зміни маршрутизуються назад у AI 6 → AI 3 flow. |
 | **Owner (Nazarii)** | Telnyx portal, GitHub Secrets, Google Cloud Console, App Store Connect, legal, live runbook execution | Only one who can touch real secrets and third-party accounts |
 
 Full file ownership is in [[AI-Work-Split]]. Core rules in [[AI-Core-Manifesto]].
 Detailed working profiles live in [[AI-Profiles/README|AI Profiles]].
+
+## Strategic lanes now available even when they are not active code lanes
+
+- **AI 6** is the first stop when a new feature or product direction is unclear.
+- **AI 7** becomes mandatory after AI 5 whenever compliance/vendor truth must be translated into implementation constraints.
+- **AI 8** owns growth thinking, onboarding friction, positioning, and landing-page strategy, but routes implementation-impacting work back through the normal planning flow.
+- These three lanes reduce Owner bottleneck; they do not bypass AI 3 planning or AI 1 / AI 2 implementation ownership.
 
 ---
 
