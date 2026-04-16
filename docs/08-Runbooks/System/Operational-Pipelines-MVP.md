@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Operational Pipelines MVP
 
-> Part of [[Home]] > Runbooks | See also: [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]], [[08-Runbooks/Support/Lead-Form-Follow-Up-Workflow|Lead Form Follow-Up Workflow]], [[08-Runbooks/Incidents/Incident-Response-Workflow|Incident Response Workflow]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
+> Part of [[Home]] > Runbooks | See also: [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]], [[08-Runbooks/Support/Lead-Form-Follow-Up-Workflow|Lead Form Follow-Up Workflow]], [[08-Runbooks/Incidents/Incident-Response-Workflow|Incident Response Workflow]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11|n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11]]
 
 ## Purpose
 
@@ -49,6 +49,8 @@ If the team later wants cleaner separation, move to an internal API gateway such
 - `POST /ai/ai8-growth`
 
 Do not block MVP on MCP-style tool routing.
+
+For the first non-inbox automation wave in `n8n`, use [[08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11|n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11]].
 
 ## Architecture
 

@@ -44,6 +44,7 @@
 - [[06-Growth/Growth-Index|Growth Index]] — growth-lane MOC
 - [[07-Research/Research-Index|Research Index]] — external-facts and research-brief MOC
 - [[08-Runbooks/Runbooks-Index|Runbooks Index]] — operational procedures MOC
+- [[08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11|n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11]] — concrete trigger/payload/output contracts for the first non-inbox automation wave
 - [[09-Incidents/Incidents-Index|Incidents Index]] — incidents, hotfixes, and postmortems MOC
 - [[10-Decisions/Decisions-Index|Decisions Index]] — permanent decision history MOC
 - [[10-Decisions/System-Changes/README|System Changes Log]] — approved operating-system changes and self-improvement decisions

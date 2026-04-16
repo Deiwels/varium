@@ -19,6 +19,20 @@ source_of_truth: true
 
 ## Current active updates
 
+### 2026-04-15 — n8n Implementation Pack for AI 3 / 5 / 8 / 10 / 11 is now canonical
+
+- [[08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11|n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11]] is now the canonical implementation-contract doc for the first non-inbox automation wave.
+- Use it for:
+  - trigger definitions
+  - input payload shape
+  - output schema
+  - safe mode rules
+  - escalation rules
+  - writeback targets
+  - common `n8n` wrapper schema and validation rules
+- Use [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]] for trigger routing.
+- Use this new runbook for concrete workflow-building contracts.
+
 ### 2026-04-15 — Automation Routing Reference is now canonical
 
 - [[11-Reference/Automation-Routing-Reference|Automation Routing Reference]] is now the canonical practical routing table for automation triggers.

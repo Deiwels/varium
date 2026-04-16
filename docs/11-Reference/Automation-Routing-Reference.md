@@ -9,13 +9,15 @@ source_of_truth: true
 
 # Automation Routing Reference
 
-> Part of [[Home]] > Reference | See also: [[00-System/AI-Automation-Policy|AI Automation Policy]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[08-Runbooks/System/Operational-Pipelines-MVP|Operational Pipelines MVP]]
+> Part of [[Home]] > Reference | See also: [[00-System/AI-Automation-Policy|AI Automation Policy]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[08-Runbooks/System/Operational-Pipelines-MVP|Operational Pipelines MVP]], [[08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11|n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11]]
 
 ## Purpose
 
 Define which triggers should activate which AI, under what automation mode, and what output each agent must produce.
 
 This is the practical routing reference for the automation layer.
+
+For concrete `n8n` payload contracts, envelopes, validation rules, and per-agent workflow shapes, use [[08-Runbooks/System/n8n-Implementation-Pack-AI3-AI5-AI8-AI10-AI11|n8n Implementation Pack — AI 3 / AI 5 / AI 8 / AI 10 / AI 11]].
 
 ## Automation Modes
 
