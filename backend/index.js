@@ -3614,6 +3614,139 @@ const AI9SupportExecutionOutputSchema = z.object({
   next_step: z.string().default(''),
 });
 
+const AI8GrowthBriefInputSchema = z.object({
+  request_id: z.string().min(1),
+  campaign_name: z.string().default(''),
+  goal: z.string().min(1),
+  audience: z.string().min(1),
+  channel: z.string().default(''),
+  current_offer_link: z.string().default(''),
+  product_truth_links: z.array(z.string()).default([]),
+  known_objections: z.array(z.string()).default([]),
+  approved_claims_link: z.string().default(''),
+  need_static_creatives: z.boolean().default(true),
+  need_video_brief: z.boolean().default(true),
+  brand_direction: z.array(z.string()).default([]),
+  formats: z.array(z.string()).default([]),
+});
+
+const AI8GrowthBriefOutputSchema = z.object({
+  agent: z.literal('AI-8'),
+  workflow: z.literal('growth_brief'),
+  request_id: z.string().min(1),
+  status: WorkflowStatusSchema,
+  growth_brief: z.object({
+    goal: z.string().default(''),
+    audience: z.string().default(''),
+    hook: z.string().default(''),
+    cta: z.string().default(''),
+    channels: z.array(z.string()).default([]),
+    asset_requests: z.array(z.string()).default([]),
+    risk_notes: z.array(z.string()).default([]),
+  }),
+  escalate_to: WorkflowEscalationTargetSchema,
+  reason: z.string().default(''),
+  writeback_targets: z.array(z.string()).default([]),
+  next_step: z.string().default(''),
+});
+
+const AI11CreativeVariantsInputSchema = z.object({
+  creative_request_id: z.string().min(1),
+  growth_brief_link: z.string().default(''),
+  goal: z.string().min(1),
+  audience: z.string().min(1),
+  hook: z.string().min(1),
+  cta: z.string().min(1),
+  brand_direction: z.array(z.string()).default([]),
+  approved_claims_link: z.string().default(''),
+  formats: z.array(z.string()).default([]),
+});
+
+const AI11CreativeVariantsOutputSchema = z.object({
+  agent: z.literal('AI-11'),
+  workflow: z.literal('creative_variants'),
+  creative_request_id: z.string().min(1),
+  status: WorkflowStatusSchema,
+  variants: z.array(z.object({
+    variant_id: z.string().min(1),
+    angle: z.string().default(''),
+    prompt: z.string().default(''),
+    format: z.string().default(''),
+  })).default([]),
+  needs_review: z.boolean(),
+  escalate_to: WorkflowEscalationTargetSchema,
+  reason: z.string().default(''),
+  writeback_targets: z.array(z.string()).default([]),
+  next_step: z.string().default(''),
+});
+
+const AI10VideoBriefInputSchema = z.object({
+  video_request_id: z.string().min(1),
+  growth_brief_link: z.string().default(''),
+  goal: z.string().min(1),
+  audience: z.string().min(1),
+  hook: z.string().min(1),
+  cta: z.string().min(1),
+  product_truth_links: z.array(z.string()).default([]),
+  approved_claims_link: z.string().default(''),
+  asset_dependencies: z.array(z.string()).default([]),
+});
+
+const AI10VideoBriefOutputSchema = z.object({
+  agent: z.literal('AI-10'),
+  workflow: z.literal('video_brief'),
+  video_request_id: z.string().min(1),
+  status: WorkflowStatusSchema,
+  video_brief: z.object({
+    goal: z.string().default(''),
+    format: z.string().default(''),
+    hook: z.string().default(''),
+    cta: z.string().default(''),
+  }),
+  script: z.array(z.object({
+    scene: z.number(),
+    duration_sec: z.number(),
+    text: z.string().default(''),
+  })).default([]),
+  dependencies_needed: z.array(z.string()).default([]),
+  escalate_to: WorkflowEscalationTargetSchema,
+  reason: z.string().default(''),
+  writeback_targets: z.array(z.string()).default([]),
+  next_step: z.string().default(''),
+});
+
+const GrowthAssetFlowInputSchema = z.object({
+  request_id: z.string().min(1),
+  campaign_name: z.string().default(''),
+  goal: z.string().min(1),
+  audience: z.string().min(1),
+  channel: z.string().default(''),
+  current_offer_link: z.string().default(''),
+  product_truth_links: z.array(z.string()).default([]),
+  known_objections: z.array(z.string()).default([]),
+  approved_claims_link: z.string().default(''),
+  need_static_creatives: z.boolean().default(true),
+  need_video_brief: z.boolean().default(true),
+  brand_direction: z.array(z.string()).default([]),
+  formats: z.array(z.string()).default([]),
+});
+
+const GrowthAssetFlowOutputSchema = z.object({
+  agent: z.literal('SYSTEM'),
+  workflow: z.literal('growth_asset_flow'),
+  status: WorkflowStatusSchema,
+  request_id: z.string().min(1),
+  growth_brief: AI8GrowthBriefOutputSchema.nullable().default(null),
+  creative_output: AI11CreativeVariantsOutputSchema.nullable().default(null),
+  video_output: AI10VideoBriefOutputSchema.nullable().default(null),
+  creative_requested: z.boolean(),
+  video_requested: z.boolean(),
+  escalate_to: WorkflowEscalationTargetSchema,
+  reason: z.string().default(''),
+  writeback_targets: z.array(z.string()).default([]),
+  next_step: z.string().default(''),
+});
+
 const AI3_PLANNING_INTAKE_SYSTEM_PROMPT = `You are AI 3 inside the VuriumBook AI Operating System.
 
 Your role:
@@ -3747,6 +3880,119 @@ Return exactly this JSON shape:
   "reason": "Routine onboarding clarification.",
   "writeback_targets": ["06-Growth/Customer-Communication/", "04-Tasks/Handoffs/"],
   "next_step": "Send the reply if auto-send rules allow it."
+}`;
+
+const AI8_GROWTH_BRIEF_SYSTEM_PROMPT = `You are AI 8 inside the VuriumBook AI Operating System.
+
+Your role:
+- generate a structured growth brief from a campaign request or KPI signal
+- define goal, audience, hook, CTA, channels, and downstream asset requests
+- stay inside growth planning, not product truth creation
+
+Rules:
+- return JSON only
+- no markdown
+- no code fences
+- do not invent unsupported product claims
+- if product capability is unclear, escalate to AI-6
+- if claims are compliance-sensitive, escalate to AI-7
+
+Return exactly this JSON shape:
+{
+  "agent": "AI-8",
+  "workflow": "growth_brief",
+  "request_id": "GROWTH-022",
+  "status": "done",
+  "growth_brief": {
+    "goal": "Increase trial signups",
+    "audience": "US barbershop owners with small teams",
+    "hook": "Get booking + reminders live fast without setup chaos",
+    "cta": "Start free trial",
+    "channels": ["landing page", "email follow-up", "social ads"],
+    "asset_requests": ["AI-11 static creatives", "AI-10 short promo script"],
+    "risk_notes": ["Do not imply unsupported instant compliance outcomes"]
+  },
+  "escalate_to": "AI-11",
+  "reason": "Static creative generation required",
+  "writeback_targets": ["06-Growth/Growth-Backlog.md", "06-Growth/Experiments/"],
+  "next_step": "Route approved asset requests to AI-11 and AI-10 as needed."
+}`;
+
+const AI11_CREATIVE_VARIANTS_SYSTEM_PROMPT = `You are AI 11 inside the VuriumBook AI Operating System.
+
+Your role:
+- generate static creative variants and prompt packs from an approved growth brief
+- create labeled visual angles for testing
+- stay inside approved claims and brand direction
+
+Rules:
+- return JSON only
+- no markdown
+- no code fences
+- do not imply fake or unsupported product behavior
+- do not publish final assets
+- escalate unclear product framing to AI-6, compliance-sensitive framing to AI-7, and final brand choice to Owner
+
+Return exactly this JSON shape:
+{
+  "agent": "AI-11",
+  "workflow": "creative_variants",
+  "creative_request_id": "CR-101",
+  "status": "done",
+  "variants": [
+    {
+      "variant_id": "CR-101-V1",
+      "angle": "fast setup",
+      "prompt": "Create a modern ad image for barbershop software emphasizing fast setup...",
+      "format": "1080x1350"
+    }
+  ],
+  "needs_review": true,
+  "escalate_to": "Owner",
+  "reason": "Final creative selection recommended",
+  "writeback_targets": ["06-Growth/Creative/", "06-Growth/Experiments/Creative/"],
+  "next_step": "Review variants and pick the approved creative set."
+}`;
+
+const AI10_VIDEO_BRIEF_SYSTEM_PROMPT = `You are AI 10 inside the VuriumBook AI Operating System.
+
+Your role:
+- generate a video brief, script, and scene structure from an approved growth brief
+- create usable promo or demo script packages
+- stay inside approved claims and actual product truth
+
+Rules:
+- return JSON only
+- no markdown
+- no code fences
+- do not invent unsupported capabilities
+- do not publish final assets
+- escalate unclear product behavior to AI-6, risky messaging claims to AI-7, and final publishing to Owner
+
+Return exactly this JSON shape:
+{
+  "agent": "AI-10",
+  "workflow": "video_brief",
+  "video_request_id": "VID-044",
+  "status": "done",
+  "video_brief": {
+    "goal": "20-second signup promo",
+    "format": "short promo",
+    "hook": "Start taking bookings and reminders fast",
+    "cta": "Start free trial"
+  },
+  "script": [
+    {
+      "scene": 1,
+      "duration_sec": 5,
+      "text": "Still losing bookings to messy scheduling?"
+    }
+  ],
+  "dependencies_needed": ["AI-11 visual set", "Optional UI footage from AI-2"],
+  "escalate_to": "Owner",
+  "reason": "Final publish/review required",
+  "writeback_targets": ["06-Growth/Video/", "06-Growth/Video/Scripts/"],
+  "next_step": "Review the script pack before production or publishing."
 }`;
 
 function extractJsonObject(rawText, fallback) {
@@ -3982,6 +4228,203 @@ async function executeSupportInboxAction(input) {
     next_step: input.safe_to_send
       ? 'Review the draft manually before sending.'
       : 'Create the escalation note and route it to the correct next owner.',
+  };
+}
+
+function buildGrowthBriefFallback(input, reason) {
+  return {
+    agent: 'AI-8',
+    workflow: 'growth_brief',
+    request_id: input.request_id,
+    status: 'blocked',
+    growth_brief: {
+      goal: input.goal,
+      audience: input.audience,
+      hook: '',
+      cta: '',
+      channels: input.channel ? [input.channel] : [],
+      asset_requests: [],
+      risk_notes: [reason],
+    },
+    escalate_to: 'Owner',
+    reason,
+    writeback_targets: ['06-Growth/Growth-Backlog.md', '06-Growth/Experiments/'],
+    next_step: 'Review the blocked growth brief manually before creating assets.',
+  };
+}
+
+function buildCreativeVariantsFallback(input, reason) {
+  return {
+    agent: 'AI-11',
+    workflow: 'creative_variants',
+    creative_request_id: input.creative_request_id,
+    status: 'blocked',
+    variants: [],
+    needs_review: true,
+    escalate_to: 'Owner',
+    reason,
+    writeback_targets: ['06-Growth/Creative/', '06-Growth/Experiments/Creative/'],
+    next_step: 'Review the blocked creative request manually before generating variants.',
+  };
+}
+
+function buildVideoBriefFallback(input, reason) {
+  return {
+    agent: 'AI-10',
+    workflow: 'video_brief',
+    video_request_id: input.video_request_id,
+    status: 'blocked',
+    video_brief: {
+      goal: input.goal,
+      format: 'short promo',
+      hook: input.hook,
+      cta: input.cta,
+    },
+    script: [],
+    dependencies_needed: input.asset_dependencies || [],
+    escalate_to: 'Owner',
+    reason,
+    writeback_targets: ['06-Growth/Video/', '06-Growth/Video/Scripts/'],
+    next_step: 'Review the blocked video request manually before production.',
+  };
+}
+
+function shouldGenerateCreativeAssets(growthOutput, input) {
+  if (!input.need_static_creatives) return false;
+  const requests = growthOutput?.growth_brief?.asset_requests || [];
+  if (!requests.length) return true;
+  return requests.some((entry) => /ai-11|static|creative|image|visual/i.test(String(entry)));
+}
+
+function shouldGenerateVideoAssets(growthOutput, input) {
+  if (!input.need_video_brief) return false;
+  const requests = growthOutput?.growth_brief?.asset_requests || [];
+  if (!requests.length) return true;
+  return requests.some((entry) => /ai-10|video|script|promo/i.test(String(entry)));
+}
+
+async function generateGrowthBrief(meta, context, input) {
+  return runStructuredWorkflowAI({
+    systemPrompt: AI8_GROWTH_BRIEF_SYSTEM_PROMPT,
+    input,
+    meta,
+    context,
+    fallback: buildGrowthBriefFallback(input, 'Failed to parse growth brief AI output.'),
+    outputSchema: AI8GrowthBriefOutputSchema,
+    maxTokens: 1500,
+  });
+}
+
+async function generateCreativeVariants(meta, context, input) {
+  return runStructuredWorkflowAI({
+    systemPrompt: AI11_CREATIVE_VARIANTS_SYSTEM_PROMPT,
+    input,
+    meta,
+    context,
+    fallback: buildCreativeVariantsFallback(input, 'Failed to parse creative variants AI output.'),
+    outputSchema: AI11CreativeVariantsOutputSchema,
+    maxTokens: 1800,
+  });
+}
+
+async function generateVideoBrief(meta, context, input) {
+  return runStructuredWorkflowAI({
+    systemPrompt: AI10_VIDEO_BRIEF_SYSTEM_PROMPT,
+    input,
+    meta,
+    context,
+    fallback: buildVideoBriefFallback(input, 'Failed to parse video brief AI output.'),
+    outputSchema: AI10VideoBriefOutputSchema,
+    maxTokens: 1800,
+  });
+}
+
+async function executeGrowthAssetFlow(meta, context, input) {
+  const growth = await generateGrowthBrief(meta, context, input);
+  if (growth.escalate_to !== 'none' && !['AI-10', 'AI-11'].includes(growth.escalate_to)) {
+    return {
+      agent: 'SYSTEM',
+      workflow: 'growth_asset_flow',
+      status: growth.status === 'done' ? 'needs_review' : growth.status,
+      request_id: input.request_id,
+      growth_brief: growth,
+      creative_output: null,
+      video_output: null,
+      creative_requested: false,
+      video_requested: false,
+      escalate_to: growth.escalate_to,
+      reason: growth.reason || 'Growth brief requires upstream review before asset generation.',
+      writeback_targets: ['06-Growth/Growth-Backlog.md', '06-Growth/Experiments/'],
+      next_step: growth.next_step || 'Resolve the growth brief escalation before generating assets.',
+    };
+  }
+
+  const creativeRequested = shouldGenerateCreativeAssets(growth, input);
+  const videoRequested = shouldGenerateVideoAssets(growth, input);
+
+  let creativeOutput = null;
+  if (creativeRequested) {
+    creativeOutput = await generateCreativeVariants(
+      { ...meta, workflow_name: 'AI11_Creative_Variants', trigger_source: meta.trigger_source || 'growth_asset_flow' },
+      context,
+      {
+        creative_request_id: `${input.request_id}-creative`,
+        growth_brief_link: input.campaign_name ? `[[${input.campaign_name} Growth Brief]]` : '',
+        goal: growth.growth_brief.goal,
+        audience: growth.growth_brief.audience,
+        hook: growth.growth_brief.hook,
+        cta: growth.growth_brief.cta,
+        brand_direction: input.brand_direction,
+        approved_claims_link: input.approved_claims_link,
+        formats: input.formats,
+      }
+    );
+  }
+
+  let videoOutput = null;
+  if (videoRequested) {
+    videoOutput = await generateVideoBrief(
+      { ...meta, workflow_name: 'AI10_Video_Brief', trigger_source: meta.trigger_source || 'growth_asset_flow' },
+      context,
+      {
+        video_request_id: `${input.request_id}-video`,
+        growth_brief_link: input.campaign_name ? `[[${input.campaign_name} Growth Brief]]` : '',
+        goal: growth.growth_brief.goal,
+        audience: growth.growth_brief.audience,
+        hook: growth.growth_brief.hook,
+        cta: growth.growth_brief.cta,
+        product_truth_links: input.product_truth_links,
+        approved_claims_link: input.approved_claims_link,
+        asset_dependencies: ['AI-11 visuals', 'AI-2 UI screenshots if needed'],
+      }
+    );
+  }
+
+  const downstreamEscalation = creativeOutput?.escalate_to && creativeOutput.escalate_to !== 'none'
+    ? creativeOutput.escalate_to
+    : videoOutput?.escalate_to && videoOutput.escalate_to !== 'none'
+      ? videoOutput.escalate_to
+      : growth.escalate_to;
+
+  const blocked = [growth, creativeOutput, videoOutput].some((item) => item && item.status === 'blocked');
+  return {
+    agent: 'SYSTEM',
+    workflow: 'growth_asset_flow',
+    status: blocked ? 'blocked' : 'done',
+    request_id: input.request_id,
+    growth_brief: growth,
+    creative_output: creativeOutput,
+    video_output: videoOutput,
+    creative_requested: creativeRequested,
+    video_requested: videoRequested,
+    escalate_to: downstreamEscalation || 'none',
+    reason: blocked
+      ? 'One or more growth asset steps were blocked and require review.'
+      : 'Growth brief and requested assets generated successfully.',
+    writeback_targets: ['06-Growth/Growth-Backlog.md', '06-Growth/Experiments/', '06-Growth/Creative/', '06-Growth/Video/'],
+    next_step: blocked
+      ? 'Review blocked asset outputs and route them to the correct owner.'
+      : 'Review the generated growth brief and asset drafts, then move approved assets into production lanes.',
   };
 }
 
@@ -4377,6 +4820,20 @@ app.post('/api/vurium-dev/ai/support-inbox-execute', requireSuperadmin, async (r
     if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid support-inbox execution payload', details: e.issues });
     console.error('AI support inbox execute error:', e.message);
     res.status(500).json({ error: 'Failed to execute support inbox action' });
+  }
+});
+
+app.post('/api/vurium-dev/ai/growth-asset-flow', requireSuperadmin, async (req, res) => {
+  try {
+    const { meta, context, payload } = unwrapWorkflowEnvelope(req.body);
+    const input = GrowthAssetFlowInputSchema.parse(payload);
+    const result = GrowthAssetFlowOutputSchema.parse(await executeGrowthAssetFlow(meta, context, input));
+    res.json(result);
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid growth-asset-flow payload', details: e.issues });
+    if (e.message === 'AI not configured') return res.status(503).json({ error: 'AI not configured (missing ANTHROPIC_API_KEY)' });
+    console.error('AI growth asset flow error:', e.message);
+    res.status(500).json({ error: 'Failed to generate growth asset flow' });
   }
 });
 

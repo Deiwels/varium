@@ -21,6 +21,23 @@ source_of_truth: true
 
 ## Current active updates
 
+### 2026-04-16 — AI 8 -> AI 11 / AI 10 growth asset execution lane is now live
+
+- The first execution-ready growth asset lane now exists for `AI 8 -> AI 11 / AI 10`.
+- Live backend route now exists at:
+  - `/api/vurium-dev/ai/growth-asset-flow`
+- Import-adaptable `n8n` workflow artifact now lives in:
+  - `automation/n8n/Growth_Asset_Flow.workflow.json`
+  - `automation/n8n/README.md`
+- The live execution artifact uses one consolidated backend route that internally runs:
+  - `AI 8 growth brief`
+  - `AI 11 creative variants` when static assets are requested
+  - `AI 10 video brief` when video assets are requested
+- This does not bypass governance:
+  - unclear product capability still escalates to `AI-6`
+  - risky claim/compliance angles still escalate to `AI-7`
+  - final brand/publishing decisions still escalate to `Owner`
+
 ### 2026-04-16 — AI 9 support inbox execution artifacts are now live
 
 - The first execution-ready support inbox lane now exists for `AI 9 support / email`.

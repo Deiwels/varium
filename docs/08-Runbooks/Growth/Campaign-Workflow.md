@@ -15,6 +15,20 @@ source_of_truth: true
 
 Define the safe path from campaign request to support/video/creative execution.
 
+## Live Execution Artifacts
+
+Current execution-ready growth asset artifacts:
+
+- `automation/n8n/Growth_Asset_Flow.workflow.json`
+- `automation/n8n/README.md`
+- `POST /api/vurium-dev/ai/growth-asset-flow`
+
+Implementation note:
+
+- the canonical steps below stay role-based for clarity
+- the live MVP execution artifact currently uses one consolidated backend route that internally runs `AI 8 -> AI 11 / AI 10`
+- this keeps the first live asset lane smaller and easier to maintain without changing ownership rules
+
 ## Step-by-step Procedure
 
 1. AI 8 defines goal, audience, hook, CTA, and experiment angle.

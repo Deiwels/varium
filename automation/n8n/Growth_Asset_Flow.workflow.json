@@ -1,0 +1,115 @@
+{
+  "name": "Growth_Asset_Flow",
+  "active": false,
+  "settings": {},
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Growth Asset Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "growth-asset-flow",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "growth-asset-flow",
+        "responseMode": "lastNode"
+      }
+    },
+    {
+      "id": "normalize-input",
+      "name": "Normalize Campaign Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const raw = items[0]?.json || {};\nconst payload = raw.payload && typeof raw.payload === 'object' && !Array.isArray(raw.payload) ? raw.payload : raw;\nconst requestId = payload.request_id || payload.requestId || raw.request_id || raw.requestId;\nconst goal = payload.goal || raw.goal;\nconst audience = payload.audience || raw.audience;\nif (!requestId) throw new Error('Missing request_id / requestId');\nif (!goal) throw new Error('Missing goal');\nif (!audience) throw new Error('Missing audience');\nreturn [{\n  json: {\n    meta: {\n      workflow_name: 'Growth_Asset_Flow',\n      timestamp: new Date().toISOString(),\n      trigger_source: raw.trigger_source || 'campaign_request_webhook',\n      risk_level: raw.risk_level || 'medium'\n    },\n    context: {\n      canonical_links: [\n        '[[08-Runbooks/Growth/Campaign-Workflow|Campaign Workflow]]',\n        '[[Growth/Creative/Approved-Claims-and-Angles|Approved Claims and Angles]]'\n      ],\n      constraints: [\n        'Do not invent unsupported product claims',\n        'Do not publish final assets automatically'\n      ]\n    },\n    payload: {\n      request_id: String(requestId),\n      campaign_name: String(payload.campaign_name || payload.campaignName || raw.campaign_name || raw.campaignName || ''),\n      goal: String(goal),\n      audience: String(audience),\n      channel: String(payload.channel || raw.channel || ''),\n      current_offer_link: String(payload.current_offer_link || payload.currentOfferLink || raw.current_offer_link || raw.currentOfferLink || ''),\n      product_truth_links: Array.isArray(payload.product_truth_links) ? payload.product_truth_links : [],\n      known_objections: Array.isArray(payload.known_objections) ? payload.known_objections : [],\n      approved_claims_link: String(payload.approved_claims_link || payload.approvedClaimsLink || raw.approved_claims_link || raw.approvedClaimsLink || ''),\n      need_static_creatives: Boolean(payload.need_static_creatives ?? payload.needStaticCreatives ?? raw.need_static_creatives ?? raw.needStaticCreatives ?? true),\n      need_video_brief: Boolean(payload.need_video_brief ?? payload.needVideoBrief ?? raw.need_video_brief ?? raw.needVideoBrief ?? true),\n      brand_direction: Array.isArray(payload.brand_direction) ? payload.brand_direction : ['clean', 'modern', 'trustworthy'],\n      formats: Array.isArray(payload.formats) ? payload.formats : ['1080x1350', '1200x628']\n    }\n  }\n}];"
+      }
+    },
+    {
+      "id": "call-backend",
+      "name": "Call Growth Asset Flow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        820,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.VURIUM_API_BASE_URL || 'http://localhost:8080') + '/api/vurium-dev/ai/growth-asset-flow' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.VURIUM_ADMIN_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "validate-output",
+      "name": "Validate Growth Asset Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const item = items[0]?.json || {};\nconst required = ['agent', 'workflow', 'status', 'request_id', 'creative_requested', 'video_requested', 'escalate_to', 'reason', 'next_step'];\nfor (const key of required) {\n  if (!(key in item)) throw new Error(`Missing required key: ${key}`);\n}\nconst allowedStatus = new Set(['done', 'partial', 'blocked', 'needs_review', 'queued']);\nif (!allowedStatus.has(item.status)) throw new Error(`Invalid status: ${item.status}`);\nconst allowedEscalation = new Set(['none', 'AI-1', 'AI-2', 'AI-3', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11', 'Owner']);\nif (!allowedEscalation.has(item.escalate_to)) throw new Error(`Invalid escalate_to: ${item.escalate_to}`);\nitem.execution_summary = {\n  growth_ready: !!item.growth_brief,\n  creative_generated: !!item.creative_output,\n  video_generated: !!item.video_output\n};\nreturn [{ json: item }];"
+      }
+    }
+  ],
+  "connections": {
+    "Growth Asset Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Campaign Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Campaign Request": {
+      "main": [
+        [
+          {
+            "node": "Call Growth Asset Flow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Growth Asset Flow": {
+      "main": [
+        [
+          {
+            "node": "Validate Growth Asset Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

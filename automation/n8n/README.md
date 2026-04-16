@@ -7,6 +7,7 @@ Current phase-1 workflows:
 - `AI3_Planning_Intake.workflow.json`
 - `AI3_QA_Scan.workflow.json`
 - `Gmail_Support_Inbox.workflow.json`
+- `Growth_Asset_Flow.workflow.json`
 
 ## Required Environment
 
@@ -23,6 +24,7 @@ Set these in `n8n` before running the workflows:
 - `POST /api/vurium-dev/ai/qa-scan`
 - `POST /api/vurium-dev/ai/support-inbox-process`
 - `POST /api/vurium-dev/ai/support-inbox-execute`
+- `POST /api/vurium-dev/ai/growth-asset-flow`
 
 Both endpoints accept either:
 
@@ -48,6 +50,8 @@ Both workflows now use real `POST` webhook triggers inside `n8n`:
 The AI 3 workflows are designed to be called by a queue/status bridge when a task changes stage.
 
 The support workflow is designed to be called by a Gmail trigger bridge, inbound email worker, or any upstream inbox normalizer that can emit one normalized email event.
+
+The growth asset workflow is designed to be called by a campaign request bridge, KPI trigger, or any upstream growth intake normalizer that can emit one structured campaign request.
 
 ## Queue Stage Contract
 
@@ -97,6 +101,40 @@ This keeps the `n8n` lane simple:
 
 - AI logic stays in `/api/vurium-dev/ai/support-inbox-process`
 - send/escalate gate stays in `/api/vurium-dev/ai/support-inbox-execute`
+
+## Growth Asset Flow Contract
+
+`Growth_Asset_Flow.workflow.json` expects one campaign request event and calls the consolidated growth asset route.
+
+Minimum payload:
+
+```json
+{
+  "requestId": "GROWTH-022",
+  "campaignName": "Spring Signup Push",
+  "goal": "Increase barbershop trial signups",
+  "audience": "US barbershop owners with small teams",
+  "channel": "landing page + social ads",
+  "currentOfferLink": "[[Current Offer]]",
+  "product_truth_links": [
+    "[[Booking Flow MVP Product Brief]]"
+  ],
+  "approvedClaimsLink": "[[Approved Claims and Angles]]",
+  "known_objections": [
+    "setup takes too long"
+  ],
+  "needStaticCreatives": true,
+  "needVideoBrief": true
+}
+```
+
+It returns one combined result with:
+
+- `growth_brief`
+- optional `creative_output`
+- optional `video_output`
+- one top-level `escalate_to`
+- one top-level `next_step`
 
 ## What These Workflows Do
 
