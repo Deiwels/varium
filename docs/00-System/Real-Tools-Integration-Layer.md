@@ -9,7 +9,7 @@ source_of_truth: true
 
 # Real Tools Integration Layer
 
-> Part of [[Home]] > System | See also: [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[08-Runbooks/Owner/Portal-Only-Actions|Owner Portal-Only Actions]]
+> Part of [[Home]] > System | See also: [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[08-Runbooks/System/Operational-Pipelines-MVP|Operational Pipelines MVP]], [[08-Runbooks/Owner/Portal-Only-Actions|Owner Portal-Only Actions]]
 
 ## Purpose
 
@@ -145,7 +145,7 @@ The following remain Owner-controlled:
 ## Canonical Real-Tool Workflows
 
 - support inbox -> AI 9 first response (see [[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]])
-- lead form -> AI 9 follow-up plus AI 8 insight loop when needed
+- lead form -> AI 9 follow-up plus AI 8 insight loop when needed (see [[08-Runbooks/Support/Lead-Form-Follow-Up-Workflow|Lead Form Follow-Up Workflow]])
 - campaign request -> AI 8 brief -> AI 10 / AI 11 / AI 9 downstream execution
 - Owner feature request -> AI 6 / AI 5 / AI 7 / AI 3 / AI 1-2 path
 - incident alert -> AI 4 -> AI 3 post-hotfix -> AI 1 / AI 2 cleanup
@@ -155,8 +155,10 @@ The following remain Owner-controlled:
 ## Required Operational Docs
 
 - [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
+- [[08-Runbooks/System/Operational-Pipelines-MVP|Operational Pipelines MVP]]
 - [[08-Runbooks/Support/Email-Reply-Workflow|Email Reply Workflow]]
 - [[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]]
+- [[08-Runbooks/Support/Lead-Form-Follow-Up-Workflow|Lead Form Follow-Up Workflow]]
 - [[08-Runbooks/Growth/Campaign-Workflow|Campaign Workflow]]
 - [[08-Runbooks/Product/Feature-Flow|Feature Flow]]
 - [[08-Runbooks/Incidents/Incident-Response-Workflow|Incident Response Workflow]]

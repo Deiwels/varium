@@ -9,7 +9,7 @@ source_of_truth: true
 
 # System Index
 
-> Part of [[Home]] > System | See also: [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[00-System/Self-Improvement-Layer|Self-Improvement Layer]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]], [[AI-Core-Manifesto]], [[AI-Rule-Updates]], [[Vault Rules]]
+> Part of [[Home]] > System | See also: [[AI-Behavior-Protocol]], [[AI-Session-Start-Protocol]], [[00-System/Obsidian-Knowledge-System|Obsidian Knowledge System]], [[00-System/Automation-Workflow-Layer|Automation Workflow Layer]], [[00-System/Real-Tools-Integration-Layer|Real Tools Integration Layer]], [[00-System/Self-Improvement-Layer|Self-Improvement Layer]], [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]], [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]], [[08-Runbooks/System/Operational-Pipelines-MVP|Operational Pipelines MVP]], [[AI-Core-Manifesto]], [[AI-Rule-Updates]], [[Vault Rules]]
 
 ## What Belongs Here
 
@@ -28,6 +28,7 @@ Global team-governance rules, knowledge-system rules, workflow rules, and vault-
 - [[00-System/Self-Improvement-Layer|Self-Improvement Layer]]
 - [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]
 - [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]]
+- [[08-Runbooks/System/Operational-Pipelines-MVP|Operational Pipelines MVP]]
 
 ## Owner Lane
 

@@ -15,6 +15,10 @@ source_of_truth: true
 
 Define the emergency path from alert to stabilization, post-hotfix scan, and permanent cleanup.
 
+## Flow Logic
+
+`Alert -> Classify Severity -> Route to AI 4 -> Stabilize -> AI 3 QA -> Permanent Cleanup -> Log`
+
 ## Step-by-step Procedure
 
 1. Classify severity.
@@ -25,3 +29,51 @@ Define the emergency path from alert to stabilization, post-hotfix scan, and per
 6. AI 3 performs post-hotfix scan.
 7. AI 1 or AI 2 performs permanent cleanup in owned scope.
 8. Update incident/runbook/decision docs if operating behavior changed.
+
+## Trigger Sources
+
+Common triggers:
+
+- uptime alert
+- Stripe failure event
+- Telnyx error event
+- manual production-issue report
+
+## Severity Classifier
+
+Use one of:
+
+- `low`
+- `high`
+- `critical`
+
+Suggested rule:
+
+- `critical` -> production down, compliance risk, or financial risk
+- `high` -> major user-facing breakage or blocked operations
+- `low` -> degraded but not system-threatening
+
+## AI 4 Response Contract
+
+AI 4 should return:
+
+- `action`
+- `risk`
+- `next_step`
+
+with the smallest safe stabilization plan first.
+
+## Execution Rule
+
+The emergency path is for stabilization only.
+
+Do not turn this workflow into architecture redesign during the alert itself.
+
+## Obsidian Writeback
+
+Every serious incident should leave behind:
+
+- incident note
+- hotfix log if applicable
+- handoff to AI 3 / AI 1 / AI 2
+- runbook or decision update if operating behavior changed

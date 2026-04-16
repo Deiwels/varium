@@ -23,10 +23,14 @@ Standardize intake classification so work routes consistently to the right AI la
 - `trigger:compliance-task`
 - `trigger:support-email`
 - `trigger:lead-reply`
+- `trigger:lead-form`
 - `trigger:campaign-request`
 - `trigger:faq-gap`
 - `trigger:onboarding-confusion`
 - `trigger:incident`
+- `trigger:monitoring-alert`
+- `trigger:stripe-event`
+- `trigger:telnyx-event`
 - `trigger:owner-approval`
 
 ## Usage Rule

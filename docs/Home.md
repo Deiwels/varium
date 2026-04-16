@@ -221,9 +221,11 @@ Latest first:
 - [[Tasks/Deploy-Smoke-Test|Deploy Smoke Test]] — 5-min post-deploy sanity check (VR.5)
 - [[08-Runbooks/Support/README|Support Runbooks]] — customer communication and email-reply procedures
 - [[08-Runbooks/Support/Gmail-Support-Inbox-Workflow|Gmail Support Inbox Workflow]] — n8n-ready Gmail intake, AI 9 draft, escalation, and logging schema
+- [[08-Runbooks/Support/Lead-Form-Follow-Up-Workflow|Lead Form Follow-Up Workflow]] — webhook/form intake, AI 9 reply, optional AI 8 scoring, and CRM/log writeback
 - [[08-Runbooks/Growth/README|Growth Runbooks]] — growth-execution and creative/video production procedures
 - [[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]] — who escalates to whom across support, growth, product, incident, billing, and Owner-only flows
 - [[08-Runbooks/System/KPI-Metrics-Layer|KPI & Metrics Layer]] — weekly review, role metrics, and system-health improvement loop
+- [[08-Runbooks/System/Operational-Pipelines-MVP|Operational Pipelines MVP]] — the first three real automation pipelines to build in n8n/Zapier
 - [[08-Runbooks/Growth/Campaign-Workflow|Campaign Workflow]] — growth brief -> support/video/creative execution path
 - [[08-Runbooks/Product/Feature-Flow|Feature Flow]] — product/build request path from framing to Owner verification
 - [[08-Runbooks/Incidents/Incident-Response-Workflow|Incident Response Workflow]] — alert -> hotfix -> QA -> permanent cleanup

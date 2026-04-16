@@ -19,6 +19,16 @@ source_of_truth: true
 
 ## Current active updates
 
+### 2026-04-15 — Operational Pipelines MVP is now canonical
+
+- [[08-Runbooks/System/Operational-Pipelines-MVP|Operational Pipelines MVP]] is now the canonical starting set for real automation build-out.
+- The first build order is:
+  - Gmail support inbox
+  - lead form follow-up
+  - incident alert routing
+- Lead-form intake now has its own canonical implementation doc in [[08-Runbooks/Support/Lead-Form-Follow-Up-Workflow|Lead Form Follow-Up Workflow]].
+- Trigger taxonomy now explicitly includes `lead-form`, `monitoring-alert`, `stripe-event`, and `telnyx-event`.
+
 ### 2026-04-15 — Self-Improvement Layer is now canonical
 
 - [[00-System/Self-Improvement-Layer|Self-Improvement Layer]] is now the canonical controlled-evolution loop for the operating system.
