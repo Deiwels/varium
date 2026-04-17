@@ -280,6 +280,12 @@ function providerLabel(value: string) {
   return value || 'None'
 }
 
+function roleLabelFromResult(result?: { route_target?: string; downstream_workflow?: string }) {
+  if (!result) return 'None'
+  if (result.downstream_workflow === 'Owner_Advisory') return 'Owner Copilot'
+  return routeTargetLabel(result.route_target || 'none')
+}
+
 function runtimeBadgeStyle(state: 'active' | 'working' | 'fallback' | 'blocked' | 'idle' | 'standby') {
   const palette = {
     active: { bg: 'rgba(130,220,170,.14)', fg: 'rgba(130,220,170,.92)' },
@@ -449,10 +455,10 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
         ? `Owner Copilot answered through ${providerLabel(activeProvider)}.`
         : 'Owner Copilot responded in advisory mode without opening execution yet.'
       : hasRealAIResponse
-        ? `${routeTargetLabel(result.route_target)} answered through ${providerLabel(activeProvider)}.`
+        ? `${roleLabelFromResult(result)} answered through ${providerLabel(activeProvider)}.`
         : isProviderFallback
-          ? `${routeTargetLabel(result.route_target)} was routed correctly, but this run fell back because the configured AI provider chain did not complete.`
-          : `${routeTargetLabel(result.route_target)} was routed and queued without a direct AI answer yet.`
+          ? `${roleLabelFromResult(result)} was routed correctly, but this run fell back because the configured AI provider chain did not complete.`
+          : `${roleLabelFromResult(result)} was routed and queued without a direct AI answer yet.`
 
   const downstreamResearchPrompt = typeof downstreamRecord?.deep_research_prompt === 'string'
     ? downstreamRecord.deep_research_prompt.trim()
@@ -480,13 +486,13 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
         ? 'Owner Copilot replied'
         : 'Owner Copilot prepared a draft reply'
       : hasRealAIResponse
-        ? `${routeTargetLabel(result.route_target)} replied`
-        : `${routeTargetLabel(result.route_target)} prepared a draft reply`
+        ? `${roleLabelFromResult(result)} replied`
+        : `${roleLabelFromResult(result)} prepared a draft reply`
     const modeNote = hasRealAIResponse
-      ? `${providerLabel(activeProvider)} answered this run.${activeModel ? ` Model: ${activeModel}.` : ''}`
+      ? `Role lane: ${roleLabelFromResult(result)}. Model provider: ${providerLabel(activeProvider)}.${activeModel ? ` Model: ${activeModel}.` : ''}`
       : isProviderFallback
-        ? 'This run fell back to a draft/structured result because the live AI provider chain did not complete.'
-        : 'The system routed the request and prepared the next lane, but no direct AI answer is attached yet.'
+        ? `Role lane: ${roleLabelFromResult(result)}. This run fell back to a draft/structured result because the live AI provider chain did not complete.`
+        : `Role lane: ${roleLabelFromResult(result)}. The system routed the request and prepared the next lane, but no direct AI answer is attached yet.`
 
     if (result.downstream_workflow === 'AI3_Planning_Intake') {
       const plan = asRecord(downstreamRecord?.plan_skeleton)
@@ -1303,8 +1309,8 @@ function OwnerIntakePageInner() {
                                   <div style={{ fontSize: 13, fontWeight: 600, color: item.result.status === 'done' ? 'rgba(130,220,170,.85)' : item.result.status === 'partial' ? 'rgba(255,210,120,.9)' : 'rgba(255,255,255,.72)' }}>{item.result.status}</div>
                                 </div>
                                 <div style={{ ...card, padding: 12 }}>
-                                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Route target</div>
-                                  <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.72)' }}>{routeTargetLabel(item.result.route_target)}</div>
+                                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>AI role</div>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.72)' }}>{roleLabelFromResult(item.result)}</div>
                                 </div>
                                 <div style={{ ...card, padding: 12 }}>
                                   <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Queue stage</div>
@@ -1314,15 +1320,30 @@ function OwnerIntakePageInner() {
 
                               <div className="owner-intake-result-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                 <div style={{ ...card, padding: 12 }}>
-                                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Provider</div>
+                                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Execution lane</div>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.78)' }}>
+                                    {workflowLabel(item.result.downstream_workflow)}
+                                  </div>
+                                </div>
+                                <div style={{ ...card, padding: 12 }}>
+                                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Model provider</div>
                                   <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.78)' }}>
                                     {info.hasRealAIResponse ? `${providerLabel(info.activeProvider)}${info.activeModel ? ` · ${info.activeModel}` : ''}` : 'No live provider response'}
                                   </div>
                                 </div>
+                              </div>
+
+                              <div className="owner-intake-result-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                 <div style={{ ...card, padding: 12 }}>
                                   <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Created note</div>
                                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,.72)', wordBreak: 'break-word' }}>
                                     {item.result.created_note_relative_path || 'No durable note created yet.'}
+                                  </div>
+                                </div>
+                                <div style={{ ...card, padding: 12 }}>
+                                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Role vs provider</div>
+                                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.72)', lineHeight: 1.6 }}>
+                                    Verdent is the AI-3 planning role. Claude / OpenAI are the model providers underneath that role.
                                   </div>
                                 </div>
                               </div>
