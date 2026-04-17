@@ -108,8 +108,10 @@ Locked product rules:
 - Confirm reminder behavior is:
   - workspace sender when active
   - email-only when workspace SMS is not active
-- Confirm the current `sms_registration_status: 'active'` written by `POST /api/sms/enable-tollfree` is operationally correct for the real Telnyx toll-free lifecycle
-- If provisioning can succeed before reminder delivery is truly live, adjust backend status semantics before launch instead of letting the product overstate readiness
+- Confirm the toll-free lifecycle is truthful:
+  - `configured` after number + profile assignment
+  - `active` only when the sender is actually delivery-ready
+- If provisioning can succeed before reminder delivery is truly live, keep backend status semantics conservative instead of letting the product overstate readiness
 
 ### 4. Protect legacy workspace behavior
 - Confirm `Element Barbershop` still shows the manual / failed-review 10DLC path

@@ -512,6 +512,23 @@ function formatPhone(phone) {
   return null;
 }
 
+const SMS_DELIVERY_READY_STATUSES = new Set(['active', 'verified']);
+const SMS_TOLL_FREE_ASSIGNED_STATUSES = new Set([
+  'configured',
+  'pending_verification',
+  'tfv_pending',
+  'tfv_rejected',
+  'tfv_submit_failed',
+  'active',
+  'verified',
+  'failed',
+  'failed_max_retries',
+]);
+
+function isSmsDeliveryReadyStatus(status) {
+  return SMS_DELIVERY_READY_STATUSES.has(safeStr(status || 'none'));
+}
+
 // Get per-workspace SMS config.
 // New workspaces should use a dedicated toll-free number once the owner enables SMS in Settings.
 // Legacy / grandfathered workspaces may still use their dedicated 10DLC registration path.
@@ -527,7 +544,7 @@ async function getWorkspaceSmsConfig(wsId, opts = {}) {
     const status = safeStr(data.sms_registration_status || 'none');
     const numberType = safeStr(data.sms_number_type || '');
     const hasOwnNumber = !!data.sms_from_number;
-    const isVerified = status === 'active' || status === 'verified';
+    const isVerified = isSmsDeliveryReadyStatus(status);
     const canSend = (hasOwnNumber && isVerified) || (!hasOwnNumber && !!fallbackFrom);
     return {
       fromNumber: hasOwnNumber && isVerified ? safeStr(data.sms_from_number) : fallbackFrom,
@@ -2118,11 +2135,13 @@ async function provisionTollFreeSmsForWorkspace(workspace, opts = {}) {
     throw err;
   }
 
-  if (data.sms_from_number && currentStatus === 'active') {
+  if (data.sms_from_number && safeStr(data.sms_number_type || '') === 'toll-free') {
     return {
       ok: true,
-      already_active: true,
-      status: currentStatus,
+      already_active: isSmsDeliveryReadyStatus(currentStatus),
+      already_configured: true,
+      delivery_ready: isSmsDeliveryReadyStatus(currentStatus),
+      status: currentStatus || 'configured',
       phone_number: data.sms_from_number,
       number_type: safeStr(data.sms_number_type || 'toll-free'),
       messaging_profile_id: data.sms_messaging_profile_id || '',
@@ -2194,7 +2213,7 @@ async function provisionTollFreeSmsForWorkspace(workspace, opts = {}) {
       sms_number_type: 'toll-free',
       sms_messaging_profile_id: profileId,
       sms_brand_name: shopName,
-      sms_registration_status: 'active',
+      sms_registration_status: 'configured',
       sms_registered_at: toIso(new Date()),
       sms_status_updated_at: toIso(new Date()),
       updated_at: toIso(new Date()),
@@ -2224,11 +2243,13 @@ async function provisionTollFreeSmsForWorkspace(workspace, opts = {}) {
 
     return {
       ok: true,
-      status: 'active',
+      status: 'configured',
       phone_number: phoneNumber,
       number_type: 'toll-free',
       messaging_profile_id: profileId,
       already_active: false,
+      already_configured: false,
+      delivery_ready: false,
     };
   } catch (e) {
     await settingsRef.set({
@@ -2282,8 +2303,14 @@ async function autoProvisionSmsOnActivation(workspaceLike, source = 'unknown') {
 
     // Guard 2: already active → nothing to do
     const currentStatus = safeStr(settings.sms_registration_status || 'none');
-    if (currentStatus === 'active' && settings.sms_from_number) {
-      return { ok: true, already_active: true };
+    if (settings.sms_from_number && safeStr(settings.sms_number_type || '') === 'toll-free') {
+      return {
+        ok: true,
+        already_active: isSmsDeliveryReadyStatus(currentStatus),
+        already_configured: true,
+        delivery_ready: isSmsDeliveryReadyStatus(currentStatus),
+        status: currentStatus || 'configured',
+      };
     }
 
     // Guard 3: provisioning in progress (another call fired just now)
@@ -2297,7 +2324,7 @@ async function autoProvisionSmsOnActivation(workspaceLike, source = 'unknown') {
     }
 
     // Only proceed from: none, rejected, failed
-    if (currentStatus && !['none', 'rejected', 'failed'].includes(currentStatus)) {
+    if (currentStatus && !['none', 'rejected', 'failed', 'tfv_rejected', 'tfv_submit_failed'].includes(currentStatus)) {
       return { ok: false, skipped: `status:${currentStatus}` };
     }
 
@@ -2309,7 +2336,7 @@ async function autoProvisionSmsOnActivation(workspaceLike, source = 'unknown') {
         actor_role: 'system',
         actor_uid: 'system',
       });
-      // On success, provisionTollFreeSmsForWorkspace already set status='active' and wrote audit log.
+      // On success, provisionTollFreeSmsForWorkspace already set status='configured' and wrote audit log.
       // Clear any retry metadata.
       await settingsRef.set({
         sms_auto_provision_retry_count: 0,
@@ -14251,7 +14278,7 @@ async function runSmsAutoProvisionRetry() {
           if (!retryAt) continue;
           if (new Date(retryAt).getTime() > nowMs) continue;
           const status = safeStr(data.sms_registration_status || '');
-          if (status === 'active' || status === 'failed_max_retries') continue;
+          if (SMS_TOLL_FREE_ASSIGNED_STATUSES.has(status)) continue;
           // Fire-and-forget; helper handles own errors and updates retry metadata
           const wsData = ws.data() || {};
           autoProvisionSmsOnActivation(

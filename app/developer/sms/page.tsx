@@ -41,6 +41,11 @@ const LEGACY_MANUAL_STATUSES = new Set([
   'pending_approval',
   'pending_vetting',
 ])
+const DELIVERY_READY_SMS_STATUSES = new Set(['active', 'verified'])
+
+function isDeliveryReadyWorkspace(workspace: Workspace) {
+  return DELIVERY_READY_SMS_STATUSES.has((workspace.sms_status || '').trim())
+}
 
 interface ProtectedLegacyWorkspace {
   slug?: string
@@ -77,8 +82,14 @@ function formatSmsStatus(status?: string) {
   const normalized = (status || 'none').trim()
   switch (normalized) {
     case 'none': return 'Not enabled'
-    case 'active': return 'Configured'
+    case 'configured': return 'Configured (not live yet)'
+    case 'active': return 'Active / delivery-ready'
+    case 'verified': return 'Verified / delivery-ready'
+    case 'tfv_pending': return 'TFV pending'
+    case 'tfv_rejected': return 'TFV rejected'
+    case 'tfv_submit_failed': return 'TFV submit failed'
     case 'failed': return 'Failed'
+    case 'failed_max_retries': return 'Failed max retries'
     case 'rejected': return 'Rejected'
     case 'provisioning': return 'Provisioning'
     case 'pending_otp': return 'Pending OTP'
@@ -130,11 +141,15 @@ function SMSPageInner() {
       const result = await devFetch('/api/vurium-dev/sms/provision', {
         method: 'POST',
         body: JSON.stringify({ workspace_id: workspaceId }),
-      }) as { already_active?: boolean }
+      }) as { already_active?: boolean; already_configured?: boolean; delivery_ready?: boolean }
 
-      toast.show(result?.already_active
-        ? `${workspaceName} already has a configured toll-free sender`
-        : `Provisioning started for ${workspaceName}`)
+      toast.show(
+        result?.already_active
+          ? `${workspaceName} already has a delivery-ready toll-free sender`
+          : result?.already_configured
+            ? `${workspaceName} already has a toll-free number assigned; delivery is still gated by verification`
+            : `Provisioning started for ${workspaceName}`,
+      )
       load()
     } catch (error) {
       const message = error instanceof Error ? error.message : `Failed to provision SMS for ${workspaceName}`
@@ -148,9 +163,13 @@ function SMSPageInner() {
     const workspaces = data?.workspaces || []
     const protectedLegacy = data?.protected_legacy_workspace
 
-    const configured = workspaces.filter((workspace) => !!workspace.sms_number).sort(sortByName)
-    const tollFreeConfigured = configured.filter((workspace) => workspace.sms_number_type === 'toll-free')
-    const legacyConfigured = configured.filter((workspace) => isLegacyManualWorkspace(workspace, protectedLegacy))
+    const assigned = workspaces.filter((workspace) => !!workspace.sms_number).sort(sortByName)
+    const deliveryReady = assigned.filter((workspace) => isDeliveryReadyWorkspace(workspace))
+    const tollFreeDeliveryReady = deliveryReady.filter((workspace) => workspace.sms_number_type === 'toll-free')
+    const legacyDeliveryReady = deliveryReady.filter((workspace) => isLegacyManualWorkspace(workspace, protectedLegacy))
+    const tollFreeAwaitingVerification = assigned.filter((workspace) => {
+      return workspace.sms_number_type === 'toll-free' && !isDeliveryReadyWorkspace(workspace)
+    }).sort(sortByName)
     const pendingLegacy = workspaces.filter((workspace) => !workspace.sms_number && isLegacyManualWorkspace(workspace, protectedLegacy)).sort(sortByName)
     const provisioningTollFree = workspaces.filter((workspace) => {
       return !workspace.sms_number
@@ -164,15 +183,17 @@ function SMSPageInner() {
         && ACTIVE_WORKSPACE_STATUSES.has(workspace.status || '')
     }).sort(sortByName)
     const emailOnlyFallback = workspaces.filter((workspace) => {
-      return !workspace.sms_number && ACTIVE_WORKSPACE_STATUSES.has(workspace.status || '')
+      return ACTIVE_WORKSPACE_STATUSES.has(workspace.status || '') && !isDeliveryReadyWorkspace(workspace)
     })
-    const pendingAny = [...provisioningTollFree, ...pendingLegacy].sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id))
+    const pendingAny = [...provisioningTollFree, ...tollFreeAwaitingVerification, ...pendingLegacy].sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id))
 
     return {
       workspaces,
-      configured,
-      tollFreeConfigured,
-      legacyConfigured,
+      assigned,
+      deliveryReady,
+      tollFreeDeliveryReady,
+      legacyDeliveryReady,
+      tollFreeAwaitingVerification,
       pendingLegacy,
       provisioningTollFree,
       needsProvisioning,
@@ -216,10 +237,10 @@ function SMSPageInner() {
         </div>
 
         <div style={card}>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 8 }}>Configured Senders</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: 'rgba(130,220,170,.8)' }}>{summary.configured.length}</div>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 8 }}>Delivery-Ready Senders</div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: 'rgba(130,220,170,.8)' }}>{summary.deliveryReady.length}</div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>
-            {summary.tollFreeConfigured.length} toll-free • {summary.legacyConfigured.length} manual legacy
+            {summary.tollFreeDeliveryReady.length} toll-free active • {summary.legacyDeliveryReady.length} manual legacy active
           </div>
         </div>
 
@@ -228,13 +249,13 @@ function SMSPageInner() {
           <div style={{ fontSize: 28, fontWeight: 700, color: summary.emailOnlyFallback.length > 0 ? 'rgba(220,170,100,.8)' : 'rgba(130,220,170,.8)' }}>
             {summary.emailOnlyFallback.length}
           </div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Active or trialing workspaces without a configured sender</div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>Active or trialing workspaces without a delivery-ready sender</div>
         </div>
 
         <div style={card}>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 8 }}>Legacy / Manual Path</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: summary.pendingLegacy.length > 0 || summary.legacyConfigured.length > 0 ? 'rgba(130,150,220,.8)' : 'rgba(255,255,255,.35)' }}>
-            {summary.pendingLegacy.length + summary.legacyConfigured.length}
+          <div style={{ fontSize: 28, fontWeight: 700, color: summary.pendingLegacy.length > 0 || summary.legacyDeliveryReady.length > 0 ? 'rgba(130,150,220,.8)' : 'rgba(255,255,255,.35)' }}>
+            {summary.pendingLegacy.length + summary.legacyDeliveryReady.length}
           </div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', marginTop: 4 }}>
             Grandfathered 10DLC stays alive for protected or in-review businesses
@@ -355,7 +376,9 @@ function SMSPageInner() {
                             ? 'Protected legacy case — keep current manual review path'
                             : isLegacy
                               ? 'Manual 10DLC state should stay intact'
-                              : 'Keep on email fallback until sender is configured'}
+                              : workspace.sms_number
+                                ? 'Number is assigned, but the workspace stays on email fallback until verification makes it delivery-ready'
+                                : 'Keep on email fallback until a sender is assigned and verified'}
                         </span>
                       </td>
                     </tr>
@@ -368,11 +391,11 @@ function SMSPageInner() {
       )}
 
       <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', fontWeight: 600 }}>
-            Configured Senders ({summary.configured.length})
-          </span>
-        </div>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '.1em', fontWeight: 600 }}>
+            Assigned / Known Senders ({summary.assigned.length})
+            </span>
+          </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={tbl}>
             <thead>
@@ -385,7 +408,7 @@ function SMSPageInner() {
               </tr>
             </thead>
             <tbody>
-              {summary.configured.map((workspace) => {
+              {summary.assigned.map((workspace) => {
                 const isLegacy = isLegacyManualWorkspace(workspace, data?.protected_legacy_workspace)
                 return (
                   <tr key={workspace.id} style={{ transition: 'background .15s' }}>
@@ -406,10 +429,10 @@ function SMSPageInner() {
                   </tr>
                 )
               })}
-              {summary.configured.length === 0 && (
+              {summary.assigned.length === 0 && (
                 <tr>
                   <td style={{ ...td, color: 'rgba(255,255,255,.35)' }} colSpan={5}>
-                    No workspace senders are configured yet.
+                    No workspace senders are assigned yet.
                   </td>
                 </tr>
               )}

@@ -34,11 +34,13 @@ function getSmsUxState(settings: any) {
   const isLegacyManual = smsNumberType === '10dlc' || (!isTollFree && hasLegacyArtifacts)
   const hasAutoRetryScheduled = !!settings?.sms_auto_provision_next_retry_at && smsStatus !== 'failed_max_retries'
 
-  let tollFreeState: 'not_enabled' | 'provisioning' | 'pending' | 'active' | 'failed' = 'not_enabled'
+  let tollFreeState: 'not_enabled' | 'provisioning' | 'configured' | 'tfv_pending' | 'tfv_rejected' | 'active' | 'failed' = 'not_enabled'
   if (isTollFree && (smsStatus === 'active' || smsStatus === 'verified')) tollFreeState = 'active'
+  else if (isTollFree && smsStatus === 'configured') tollFreeState = 'configured'
+  else if (isTollFree && (smsStatus === 'pending_verification' || smsStatus === 'tfv_pending')) tollFreeState = 'tfv_pending'
+  else if (isTollFree && (smsStatus === 'tfv_rejected' || smsStatus === 'tfv_submit_failed')) tollFreeState = 'tfv_rejected'
   else if (smsStatus === 'provisioning') tollFreeState = 'provisioning'
   else if (!isLegacyManual && hasAutoRetryScheduled) tollFreeState = 'provisioning'
-  else if (isTollFree && (smsStatus === 'pending_verification' || smsStatus === 'pending_approval')) tollFreeState = 'pending'
   else if (!isLegacyManual && (smsStatus === 'rejected' || smsStatus === 'failed' || smsStatus === 'failed_max_retries')) tollFreeState = 'failed'
 
   return {
@@ -93,18 +95,37 @@ function TollFreeStatusCard({ settings }: { settings: any }) {
   const { tollFreeState, hasAutoRetryScheduled } = getSmsUxState(settings)
   const isRetry = tollFreeState === 'provisioning' && hasAutoRetryScheduled
   const isTerminalFailure = tollFreeState === 'failed'
+  const isConfigured = tollFreeState === 'configured'
+  const isCarrierPending = tollFreeState === 'tfv_pending'
+  const needsTfvAttention = tollFreeState === 'tfv_rejected'
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center' }}>
       <div style={{ fontSize: 32 }}>&#128172;</div>
       <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.6)' }}>
-        {isRetry ? 'SMS setup is retrying automatically' : isTerminalFailure ? 'SMS setup needs support review' : 'SMS usually turns on automatically'}
+        {isRetry
+          ? 'SMS setup is retrying automatically'
+          : isTerminalFailure
+            ? 'SMS setup needs support review'
+            : isConfigured
+              ? 'Number assigned, delivery not live yet'
+              : isCarrierPending
+                ? 'Carrier verification in progress'
+                : needsTfvAttention
+                  ? 'Carrier verification needs attention'
+                  : 'SMS usually turns on automatically'}
       </div>
       <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.5, maxWidth: 360 }}>
         {isRetry
           ? 'Automatic setup did not finish for this workspace yet. We keep retrying in the background and booking emails stay on while the dedicated toll-free sender is being prepared.'
           : isTerminalFailure
             ? 'Automatic setup did not finish after several attempts. Booking emails still work, and support may need to review this workspace before SMS can go live.'
-          : 'When a trial or paid plan starts, we usually assign a dedicated toll-free number to this workspace automatically. If setup has not finished yet, booking emails keep working while SMS activates in the background.'}
+            : isConfigured
+              ? 'A dedicated toll-free number is assigned, but this workspace should still stay on email-only reminders until carrier verification is submitted and delivery readiness is confirmed.'
+              : isCarrierPending
+                ? 'Carrier verification is in progress. Keep booking emails on and do not treat this sender as live for appointment SMS until the workspace reaches the active state.'
+                : needsTfvAttention
+                  ? 'Carrier verification needs correction or resubmission. Keep the workspace on email-only fallback until the verification issue is fixed.'
+                  : 'When a trial or paid plan starts, we usually assign a dedicated toll-free number to this workspace automatically. If setup has not finished yet, booking emails keep working while SMS activates in the background.'}
       </p>
       <p style={{ fontSize: 10, color: 'rgba(255,255,255,.12)', lineHeight: 1.5, maxWidth: 300 }}>
         No EIN or company registration is required for this default path. SMS activation and retry happen automatically for new workspaces. Msg &amp; data rates may apply to recipients. <a href="/privacy" style={{ color: 'rgba(130,150,220,.3)', textDecoration: 'none' }}>Privacy Policy</a>
@@ -2071,31 +2092,86 @@ export default function SettingsPage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(130,220,170,.8)' }} />
-                            <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(130,220,170,.8)' }}>Configured — dedicated toll-free number assigned</span>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(130,220,170,.8)' }}>Active — delivery-ready toll-free sender</span>
                           </div>
                           <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)' }}>
                             Your number: <span style={{ color: 'rgba(255,255,255,.5)', fontFamily: 'monospace' }}>{settings.sms_from_number}</span>
                           </div>
                           <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>
-                            This workspace is on the new default reminder path. Most new workspaces reach this state automatically after trial or plan activation, and appointment confirmations and reminders use this dedicated toll-free number when SMS delivery is active for the workspace.
+                            This workspace is on the new default reminder path and the dedicated toll-free number is marked delivery-ready. Appointment confirmations and reminders can use this sender when SMS delivery is active for the workspace.
                           </p>
                         </div>
                       )
                     }
 
-                    if (tollFreeState === 'provisioning' || tollFreeState === 'pending') {
+                    if (tollFreeState === 'configured' && isTollFree) {
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(220,190,130,.78)' }} />
+                            <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(220,190,130,.8)' }}>
+                              Configured — number assigned, verification still pending
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)' }}>
+                            Your number: <span style={{ color: 'rgba(255,255,255,.5)', fontFamily: 'monospace' }}>{settings.sms_from_number}</span>
+                          </div>
+                          <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>
+                            A dedicated toll-free number is attached to this workspace, but the sender should not be treated as live yet. Booking emails remain the safe fallback until TFV / carrier readiness is completed.
+                          </p>
+                        </div>
+                      )
+                    }
+
+                    if (tollFreeState === 'tfv_pending' && isTollFree) {
                       return (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(255,180,80,.7)' }} />
                             <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,180,80,.7)' }}>
-                              {tollFreeState === 'provisioning' ? 'Provisioning your toll-free number' : 'Pending toll-free activation'}
+                              Carrier verification in progress
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)' }}>
+                            Your number: <span style={{ color: 'rgba(255,255,255,.5)', fontFamily: 'monospace' }}>{settings.sms_from_number}</span>
+                          </div>
+                          <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>
+                            This sender is still waiting on TFV / carrier confirmation. Keep the workspace on email-only reminders until the status reaches active.
+                          </p>
+                        </div>
+                      )
+                    }
+
+                    if (tollFreeState === 'tfv_rejected' && isTollFree) {
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(255,140,140,.82)' }} />
+                            <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,160,160,.9)' }}>
+                              Verification needs attention before SMS can go live
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)' }}>
+                            Your number: <span style={{ color: 'rgba(255,255,255,.5)', fontFamily: 'monospace' }}>{settings.sms_from_number}</span>
+                          </div>
+                          <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>
+                            The toll-free number is attached, but TFV still needs correction or resubmission. Do not switch this workspace to the legacy 10DLC path by default; keep email-only fallback until the verification issue is resolved.
+                          </p>
+                        </div>
+                      )
+                    }
+
+                    if (tollFreeState === 'provisioning') {
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(255,180,80,.7)' }} />
+                            <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,180,80,.7)' }}>
+                              Provisioning your toll-free number
                             </span>
                           </div>
                           <p style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>
-                            {tollFreeState === 'provisioning'
-                              ? 'We are setting up a dedicated toll-free number for this workspace now. This usually starts automatically after trial or plan activation, and email confirmations stay available while SMS setup finishes.'
-                              : 'Your toll-free reminder path is not fully active yet. The workspace stays on email-only reminders until SMS delivery is confirmed for this workspace.'}
+                            We are setting up a dedicated toll-free number for this workspace now. This usually starts automatically after trial or plan activation, and email confirmations stay available while SMS setup finishes.
                           </p>
                           <div style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(255,180,80,.12)', background: 'rgba(255,180,80,.04)', fontSize: 11, color: 'rgba(255,190,120,.72)', lineHeight: 1.55 }}>
                             No EIN is required for this default path. If support specifically asked you to stay on the older 10DLC path, use the manual fallback below instead.

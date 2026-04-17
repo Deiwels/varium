@@ -50,10 +50,10 @@ If any pre-flight fails, stop and fix before running the rest.
 |---|--------|----------|
 | S1.1 | Create a fresh workspace via `vurium.com/signup` with a never-before-used email | Signup succeeds, lands on dashboard / plan selection |
 | S1.2 | Immediately inspect Cloud Run logs for `[Apple IAP]` / `Telnyx` / `autoProvisionSmsOnActivation` entries within 30 seconds of signup | Log line `provisionTollFreeSmsForWorkspace` or equivalent indicates a Telnyx number-search call was made |
-| S1.3 | In Firestore Console, open `workspaces/{newWsId}/settings/config` | After ~30-90 s: `sms_registration_status === 'active'`, `sms_from_number` set to a `+1800...` / `+1888...` / etc toll-free number, `sms_number_type === 'toll-free'`, `sms_messaging_profile_id` present |
+| S1.3 | In Firestore Console, open `workspaces/{newWsId}/settings/config` | After ~30-90 s: `sms_registration_status === 'configured'`, `sms_from_number` set to a `+1800...` / `+1888...` / etc toll-free number, `sms_number_type === 'toll-free'`, `sms_messaging_profile_id` present |
 | S1.4 | Check Firestore `phone_number_index/{e164digits}` for the new number | Doc exists with `workspace_id === newWsId`, `shop_name`, `from_number`, `updated_at` |
 | S1.5 | Check `workspaces/{newWsId}/audit_logs` for `sms.enable_tollfree` entry | `data.actor === 'auto_provision'` or `data.source === 'auto:signup_trial'` |
-| S1.6 | Open `/settings` → SMS Notifications in the browser signed in as the new workspace | UI shows "Configured — dedicated toll-free number assigned" with the E.164 number visible. No manual "Enable SMS" CTA as primary action |
+| S1.6 | Open `/settings` → SMS Notifications in the browser signed in as the new workspace | UI shows that a dedicated toll-free number is assigned but not yet delivery-ready, with the E.164 number visible. No manual "Enable SMS" CTA as primary action |
 
 ### Pass / fail
 

@@ -28,8 +28,9 @@ The **code path exists** for appointment reminders:
   - `sms_from_number`
   - `sms_number_type: 'toll-free'`
   - `sms_messaging_profile_id`
-  - `sms_registration_status: 'active'`
+  - `sms_registration_status: 'configured'`
 - `getWorkspaceSmsConfig(wsId, { allowGlobalFallback: false })` is used for booking confirmations and reminder sends, so reminder traffic does **not** silently reuse the OTP/global sender
+- only `active` / `verified` should be treated as truly deliverable states for outbound appointment SMS
 
 ### What is still not fully proven
 
@@ -48,7 +49,7 @@ That means the blocker is no longer "missing core code". The blocker is the **la
 
 ### 1. Real Telnyx reminder deliverability not yet proven live
 
-The code marks the workspace `active` immediately after TFN purchase + messaging profile setup. That may be correct — or it may be optimistic. We still need a live proof.
+The code now marks a new toll-free sender `configured` immediately after TFN purchase + messaging profile setup, not `active`. That is intentionally conservative. We still need live proof before any sender is treated as actually ready.
 
 ### 2. Toll-free verification / carrier readiness is now confirmed as the main blocker
 
