@@ -3980,6 +3980,7 @@ const AI3ImplementationPacketOutputSchema = z.object({
   status: WorkflowStatusSchema,
   target_ai: ImplementationTargetSchema,
   implementation_kind: ImplementationKindSchema,
+  execution_mode: z.literal('external_ai').default('external_ai'),
   objective: z.string().default(''),
   source_of_truth_stack: z.array(z.string()).default([]),
   file_targets: z.array(z.string()).default([]),
@@ -3987,6 +3988,9 @@ const AI3ImplementationPacketOutputSchema = z.object({
   verification_steps: z.array(z.string()).default([]),
   coordination_notes: z.array(z.string()).default([]),
   ready_to_paste_prompt: z.string().default(''),
+  codex_prompt: z.string().default(''),
+  claude_prompt: z.string().default(''),
+  return_to_system_prompt: z.string().default(''),
   escalate_to: WorkflowEscalationTargetSchema,
   reason: z.string().default(''),
   writeback_targets: z.array(z.string()).default([]),
@@ -4524,7 +4528,7 @@ const AI3_IMPLEMENTATION_PACKET_SYSTEM_PROMPT = `You are AI 3 inside the VuriumB
 Your role:
 - convert an already-active task and its current plan/checklist into a code-ready implementation packet
 - target either AI-1 (backend) or AI-2 (frontend)
-- prepare a practical handoff that can immediately start coding work
+- prepare a practical handoff that can immediately start coding work in an external coding AI such as Codex or Claude
 - do not invent new product scope when the current plan/checklist already exists
 
 Rules:
@@ -4536,7 +4540,7 @@ Rules:
 - if missing_inputs still contain unresolved external/product/compliance blockers, do not pretend coding can start safely
 - pick one primary target_ai (AI-1 or AI-2) and keep file_targets inside that lane's ownership as much as possible
 - if partner-lane coordination is needed, put it in coordination_notes instead of blurring ownership
-- the ready_to_paste_prompt must be strong enough that a coding AI can start implementation from it immediately
+- the ready_to_paste_prompt must be strong enough that an external coding AI can start implementation from it immediately
 
 Return exactly this JSON shape:
 {
@@ -5570,7 +5574,7 @@ function buildOwnerIntakeOperatorReply({ intakeKind, title, note, downstreamResu
           : `The next required lane is AI-5 research before planning can continue safely.`
         : '',
       followOnResult?.workflow === 'implementation_packet'
-        ? `I also prepared a coding handoff for ${safeStr(followOnResult.target_ai || 'the implementation lane')} with file targets and a ready-to-paste coding prompt, so this can move from planning into code work immediately.`
+        ? `I also prepared an external coding handoff for ${safeStr(followOnResult.target_ai || 'the implementation lane')} with file targets plus separate Codex and Claude prompts, so this can move from planning into real code work immediately.`
         : '',
       safeStr(followOnResult?.next_step || downstreamResult?.next_step || '').trim(),
     ].filter(Boolean);
@@ -6393,6 +6397,83 @@ function buildImplementationCodingPrompt(packet) {
   ].join('\n');
 }
 
+function buildCodexExecutionPrompt(packet) {
+  const basePrompt = buildImplementationCodingPrompt(packet);
+  return [
+    `You are Codex acting as ${safeStr(packet.target_ai || 'AI-1')} for VuriumBook.`,
+    '',
+    'This packet came from the Vurium owner operating system. Treat it as an execution handoff, not a fresh planning task.',
+    '',
+    basePrompt,
+    '',
+    'Codex-specific execution rules:',
+    '- inspect the current code before editing',
+    '- use the existing source-of-truth stack and do not restate product scope from scratch',
+    '- make the smallest correct patch that resolves the owned implementation target',
+    '- preserve unrelated user changes in the worktree',
+    '- after coding, report: summary, changed files, checks run, residual blockers',
+  ].join('\n');
+}
+
+function buildClaudeExecutionPrompt(packet) {
+  const basePrompt = buildImplementationCodingPrompt(packet);
+  return [
+    `You are Claude acting as ${safeStr(packet.target_ai || 'AI-1')} for VuriumBook.`,
+    '',
+    'This is an external execution handoff from the Vurium owner system. Continue from the existing plan/checklist and do not restart planning.',
+    '',
+    basePrompt,
+    '',
+    'Claude-specific execution rules:',
+    '- read the relevant files and source-of-truth notes first',
+    '- stay in the owned implementation lane',
+    '- if a partner lane is needed, call it out explicitly instead of blending scopes',
+    '- after coding, return: summary, changed files, verification, blockers, next action',
+  ].join('\n');
+}
+
+function buildReturnToSystemPrompt(packet) {
+  return [
+    'Paste this back into Owner Copilot after external coding is done.',
+    '',
+    `Task: ${safeStr(packet.task_id)}`,
+    `Execution lane: ${safeStr(packet.target_ai || 'AI-1')}`,
+    '',
+    'Use exactly this structure:',
+    'Summary:',
+    '- ...',
+    '',
+    'Changed files:',
+    '- ...',
+    '',
+    'Checks run:',
+    '- ...',
+    '',
+    'Docs or checklists updated:',
+    '- ...',
+    '',
+    'Open blockers:',
+    '- ...',
+    '',
+    'Recommended next step:',
+    '- ...',
+  ].join('\n');
+}
+
+function attachExternalExecutionPrompts(packet) {
+  const codexPrompt = safeStr(packet.codex_prompt || '').trim() || buildCodexExecutionPrompt(packet);
+  const claudePrompt = safeStr(packet.claude_prompt || '').trim() || buildClaudeExecutionPrompt(packet);
+  const returnToSystemPrompt = safeStr(packet.return_to_system_prompt || '').trim() || buildReturnToSystemPrompt(packet);
+  return {
+    ...packet,
+    execution_mode: 'external_ai',
+    ready_to_paste_prompt: safeStr(packet.ready_to_paste_prompt || '').trim() || codexPrompt,
+    codex_prompt: codexPrompt,
+    claude_prompt: claudePrompt,
+    return_to_system_prompt: returnToSystemPrompt,
+  };
+}
+
 function buildImplementationPacketFallback(input, reason) {
   const targetAi = inferImplementationPrimaryTarget(input);
   const implementationKind = inferImplementationKind(input, targetAi);
@@ -6424,6 +6505,7 @@ function buildImplementationPacketFallback(input, reason) {
     status: 'partial',
     target_ai: targetAi,
     implementation_kind: implementationKind,
+    execution_mode: 'external_ai',
     objective: safeStr(input.plan_objective || input.description || input.title).trim(),
     source_of_truth_stack: sourceOfTruthStack,
     file_targets: fileTargets,
@@ -6431,18 +6513,18 @@ function buildImplementationPacketFallback(input, reason) {
     verification_steps: verificationSteps,
     coordination_notes: coordinationNotes,
     ready_to_paste_prompt: '',
+    codex_prompt: '',
+    claude_prompt: '',
+    return_to_system_prompt: '',
     escalate_to: targetAi,
     reason,
     writeback_targets: ['04-Tasks/Handoffs/', '04-Tasks/Workflow-Queue.md'],
     writeback: null,
     owner_notification: null,
-    next_step: `Open the implementation packet for ${targetAi} and start code changes inside the owned file targets.`,
+    next_step: `Copy the external execution packet for ${targetAi} into Codex or Claude, then return the implementation result back into Owner Copilot.`,
   };
 
-  return {
-    ...result,
-    ready_to_paste_prompt: buildImplementationCodingPrompt(result),
-  };
+  return attachExternalExecutionPrompts(result);
 }
 
 function inferQATarget(changedAreas = []) {
@@ -6863,11 +6945,21 @@ function buildImplementationPacketWritebackInput(result) {
     '- non-blocking',
     '',
     '## Recommended Action',
-    `Start implementation in ${targetAi}'s owned scope and return a self-check summary after coding.`,
+    `Run implementation through external Codex or Claude in ${targetAi}'s owned scope, then return the result to Owner Copilot.`,
     '',
-    '## Ready-to-Paste Coding Prompt',
+    '## Codex Execution Prompt',
     '```text',
-    safeStr(result.ready_to_paste_prompt || '').trim() || 'No coding prompt generated.',
+    safeStr(result.codex_prompt || result.ready_to_paste_prompt || '').trim() || 'No Codex prompt generated.',
+    '```',
+    '',
+    '## Claude Execution Prompt',
+    '```text',
+    safeStr(result.claude_prompt || '').trim() || 'No Claude prompt generated.',
+    '```',
+    '',
+    '## Return-to-System Prompt',
+    '```text',
+    safeStr(result.return_to_system_prompt || '').trim() || 'No return prompt generated.',
     '```',
   ].join('\n');
 
@@ -7997,15 +8089,15 @@ async function executeImplementationPacketWorkflow(meta, context, input, { notif
 
   const finalizedResult = {
     ...result,
-    ready_to_paste_prompt: safeStr(result.ready_to_paste_prompt || '').trim()
-      || buildImplementationCodingPrompt(result),
     writeback_targets: result.writeback_targets?.length
       ? result.writeback_targets
       : ['04-Tasks/Handoffs/', '04-Tasks/Workflow-Queue.md'],
-    next_step: result.next_step || `Open the implementation packet for ${result.target_ai} and start coding in the owned files.`,
+    next_step: result.next_step || `Copy the external execution packet for ${result.target_ai} into Codex or Claude, then return the implementation result back into Owner Copilot.`,
   };
 
-  return AI3ImplementationPacketOutputSchema.parse(await finalizeWorkflowResult(finalizedResult, {
+  const withPrompts = attachExternalExecutionPrompts(finalizedResult);
+
+  return AI3ImplementationPacketOutputSchema.parse(await finalizeWorkflowResult(withPrompts, {
     writebackBuilder: buildImplementationPacketWritebackInput,
     ownerBuilder: notifyOwner
       ? (finalResult) => buildGenericOwnerNotificationInput(

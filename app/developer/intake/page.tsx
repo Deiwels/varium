@@ -463,7 +463,11 @@ interface IntakeRuntimeInfo {
   deepResearchPrompt: string
   deepResearchPromptSource: string
   deepResearchProvider: string
+  externalExecutionMode: string
   codingPrompt: string
+  codexPrompt: string
+  claudePrompt: string
+  returnToSystemPrompt: string
   codingPromptSource: string
   codingPromptTarget: string
 }
@@ -547,6 +551,27 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
     ? downstreamRecord.ready_to_paste_prompt.trim()
     : ''
   const codingPrompt = followOnCodingPrompt || downstreamCodingPrompt
+  const followOnCodexPrompt = typeof followOnRecord?.codex_prompt === 'string'
+    ? followOnRecord.codex_prompt.trim()
+    : ''
+  const downstreamCodexPrompt = typeof downstreamRecord?.codex_prompt === 'string'
+    ? downstreamRecord.codex_prompt.trim()
+    : ''
+  const codexPrompt = followOnCodexPrompt || downstreamCodexPrompt || codingPrompt
+  const followOnClaudePrompt = typeof followOnRecord?.claude_prompt === 'string'
+    ? followOnRecord.claude_prompt.trim()
+    : ''
+  const downstreamClaudePrompt = typeof downstreamRecord?.claude_prompt === 'string'
+    ? downstreamRecord.claude_prompt.trim()
+    : ''
+  const claudePrompt = followOnClaudePrompt || downstreamClaudePrompt || codingPrompt
+  const followOnReturnPrompt = typeof followOnRecord?.return_to_system_prompt === 'string'
+    ? followOnRecord.return_to_system_prompt.trim()
+    : ''
+  const downstreamReturnPrompt = typeof downstreamRecord?.return_to_system_prompt === 'string'
+    ? downstreamRecord.return_to_system_prompt.trim()
+    : ''
+  const returnToSystemPrompt = followOnReturnPrompt || downstreamReturnPrompt
   const codingPromptSource = followOnCodingPrompt
     ? workflowLabel(result?.follow_on_workflow || 'Implementation_Packet')
     : downstreamCodingPrompt
@@ -556,6 +581,11 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
     ? followOnRecord.target_ai.trim()
     : typeof downstreamRecord?.target_ai === 'string'
       ? downstreamRecord.target_ai.trim()
+      : ''
+  const externalExecutionMode = typeof followOnRecord?.execution_mode === 'string'
+    ? followOnRecord.execution_mode.trim()
+    : typeof downstreamRecord?.execution_mode === 'string'
+      ? downstreamRecord.execution_mode.trim()
       : ''
 
   const replyCard = (() => {
@@ -659,15 +689,17 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
       const changeSummary = toStringList(downstreamRecord?.change_summary)
       const verificationSteps = toStringList(downstreamRecord?.verification_steps)
       const targetAi = typeof downstreamRecord?.target_ai === 'string' ? downstreamRecord.target_ai.trim() : ''
+      const executionMode = typeof downstreamRecord?.execution_mode === 'string' ? downstreamRecord.execution_mode.trim() : ''
 
       return {
         header,
         body: typeof downstreamRecord?.objective === 'string' && downstreamRecord.objective.trim()
           ? downstreamRecord.objective.trim()
-          : 'The system prepared a coding packet for implementation.',
+          : 'The system prepared an external coding packet for implementation.',
         modeNote,
         sections: [
           { label: 'Target lane', items: targetAi ? [targetAi] : [] },
+          { label: 'Execution mode', items: executionMode ? [executionMode.replace(/_/g, ' ')] : ['external ai'] },
           { label: 'File targets', items: fileTargets.slice(0, 6) },
           { label: 'Required changes', items: changeSummary.slice(0, 6) },
           { label: 'Verification', items: verificationSteps.slice(0, 5) },
@@ -724,7 +756,11 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
     deepResearchPrompt,
     deepResearchPromptSource,
     deepResearchProvider,
+    externalExecutionMode,
     codingPrompt,
+    codexPrompt,
+    claudePrompt,
+    returnToSystemPrompt,
     codingPromptSource,
     codingPromptTarget,
   }
@@ -1018,7 +1054,7 @@ function OwnerIntakePageInner() {
   }
 
   async function forkExecutionThread(item: IntakeHistoryItem, info: IntakeRuntimeInfo) {
-    if (!info.codingPrompt) {
+    if (!info.codexPrompt && !info.codingPrompt) {
       toast.show('There is no coding prompt to open yet.', 'error')
       return
     }
@@ -1029,7 +1065,7 @@ function OwnerIntakePageInner() {
       source_thread_id: item.result.thread_id || activeThreadId,
       title: `${routeTargetLabel(targetAi)} · ${item.result.title || item.message}`,
       target_ai: targetAi,
-      coding_prompt: info.codingPrompt,
+      coding_prompt: info.codexPrompt || info.codingPrompt,
       source_workflow: item.result.follow_on_workflow !== 'none'
         ? item.result.follow_on_workflow
         : item.result.downstream_workflow,
@@ -1070,7 +1106,7 @@ function OwnerIntakePageInner() {
       setMessage('')
       setTitle('')
       setIntakeKind('auto')
-      toast.show(`Opened ${routeTargetLabel(targetAi)} execution thread.`)
+      toast.show(`Opened ${routeTargetLabel(targetAi)} execution memory thread.`)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not open execution thread'
       toast.show(message, 'error')
@@ -1411,20 +1447,20 @@ function OwnerIntakePageInner() {
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
                                 <div style={{ display: 'grid', gap: 4 }}>
                                   <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.86)' }}>
-                                    AI-1 / AI-2 Coding Prompt
+                                    External Coding Handoff
                                   </div>
                                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,.78)', lineHeight: 1.6 }}>
-                                    Ready for {info.codingPromptTarget ? routeTargetLabel(info.codingPromptTarget) : 'the implementation lane'}. Source: {info.codingPromptSource || 'Implementation Packet'}.
+                                    Ready for {info.codingPromptTarget ? routeTargetLabel(info.codingPromptTarget) : 'the implementation lane'} through external Codex or Claude. Source: {info.codingPromptSource || 'Implementation Packet'}.
                                   </div>
                                 </div>
                                 <button
                                   type="button"
                                   onClick={async () => {
                                     try {
-                                      await navigator.clipboard.writeText(info.codingPrompt)
-                                      toast.show('Copied coding prompt.')
+                                      await navigator.clipboard.writeText(info.codexPrompt || info.codingPrompt)
+                                      toast.show('Copied Codex prompt.')
                                     } catch {
-                                      toast.show('Could not copy the coding prompt.', 'error')
+                                      toast.show('Could not copy the Codex prompt.', 'error')
                                     }
                                   }}
                                   style={{
@@ -1439,7 +1475,55 @@ function OwnerIntakePageInner() {
                                     color: 'rgba(130,220,170,.98)',
                                   }}
                                 >
-                                  Copy coding prompt
+                                  Copy for Codex
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      await navigator.clipboard.writeText(info.claudePrompt || info.codingPrompt)
+                                      toast.show('Copied Claude prompt.')
+                                    } catch {
+                                      toast.show('Could not copy the Claude prompt.', 'error')
+                                    }
+                                  }}
+                                  style={{
+                                    padding: '8px 12px',
+                                    borderRadius: 999,
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    fontFamily: 'inherit',
+                                    background: 'rgba(130,150,220,.16)',
+                                    color: 'rgba(130,150,220,.98)',
+                                  }}
+                                >
+                                  Copy for Claude
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      await navigator.clipboard.writeText(info.returnToSystemPrompt || 'Paste the implementation result back into Owner Copilot with changed files, checks run, blockers, and next step.')
+                                      toast.show('Copied return prompt.')
+                                    } catch {
+                                      toast.show('Could not copy the return prompt.', 'error')
+                                    }
+                                  }}
+                                  style={{
+                                    padding: '8px 12px',
+                                    borderRadius: 999,
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    fontFamily: 'inherit',
+                                    background: 'rgba(255,255,255,.08)',
+                                    color: 'rgba(255,255,255,.9)',
+                                  }}
+                                >
+                                  Copy return prompt
                                 </button>
                                 <button
                                   type="button"
@@ -1458,27 +1542,72 @@ function OwnerIntakePageInner() {
                                     opacity: forkingThreadId === item.id ? 0.72 : 1,
                                   }}
                                 >
-                                  {forkingThreadId === item.id ? 'Opening…' : 'Open code thread'}
+                                  {forkingThreadId === item.id ? 'Opening…' : 'Open execution memory'}
                                 </button>
                               </div>
 
                               <details style={{ marginTop: 12 }}>
                                 <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(130,220,170,.92)' }}>
-                                  Preview coding prompt
+                                  Preview external prompts
                                 </summary>
-                                <pre style={{
-                                  margin: '10px 0 0',
-                                  padding: 12,
-                                  borderRadius: 12,
-                                  overflow: 'auto',
-                                  background: 'rgba(0,0,0,.22)',
-                                  border: '1px solid rgba(255,255,255,.06)',
-                                  color: 'rgba(255,255,255,.78)',
-                                  fontSize: 11,
-                                  lineHeight: 1.65,
-                                  whiteSpace: 'pre-wrap',
-                                  wordBreak: 'break-word',
-                                }}>{info.codingPrompt}</pre>
+                                <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
+                                  <div>
+                                    <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
+                                      Codex
+                                    </div>
+                                    <pre style={{
+                                      margin: 0,
+                                      padding: 12,
+                                      borderRadius: 12,
+                                      overflow: 'auto',
+                                      background: 'rgba(0,0,0,.22)',
+                                      border: '1px solid rgba(255,255,255,.06)',
+                                      color: 'rgba(255,255,255,.78)',
+                                      fontSize: 11,
+                                      lineHeight: 1.65,
+                                      whiteSpace: 'pre-wrap',
+                                      wordBreak: 'break-word',
+                                    }}>{info.codexPrompt || info.codingPrompt}</pre>
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,150,220,.72)', marginBottom: 6 }}>
+                                      Claude
+                                    </div>
+                                    <pre style={{
+                                      margin: 0,
+                                      padding: 12,
+                                      borderRadius: 12,
+                                      overflow: 'auto',
+                                      background: 'rgba(0,0,0,.22)',
+                                      border: '1px solid rgba(255,255,255,.06)',
+                                      color: 'rgba(255,255,255,.78)',
+                                      fontSize: 11,
+                                      lineHeight: 1.65,
+                                      whiteSpace: 'pre-wrap',
+                                      wordBreak: 'break-word',
+                                    }}>{info.claudePrompt || info.codingPrompt}</pre>
+                                  </div>
+                                  {info.returnToSystemPrompt && (
+                                    <div>
+                                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.62)', marginBottom: 6 }}>
+                                        Return to system
+                                      </div>
+                                      <pre style={{
+                                        margin: 0,
+                                        padding: 12,
+                                        borderRadius: 12,
+                                        overflow: 'auto',
+                                        background: 'rgba(0,0,0,.22)',
+                                        border: '1px solid rgba(255,255,255,.06)',
+                                        color: 'rgba(255,255,255,.78)',
+                                        fontSize: 11,
+                                        lineHeight: 1.65,
+                                        whiteSpace: 'pre-wrap',
+                                        wordBreak: 'break-word',
+                                      }}>{info.returnToSystemPrompt}</pre>
+                                    </div>
+                                  )}
+                                </div>
                               </details>
                             </div>
                           )}
