@@ -91,6 +91,17 @@ interface ExecutionThreadForkResult {
   chat_memory: { status?: string; thread_id?: string; transcript_path?: string; summary_path?: string; reason?: string } | null
 }
 
+interface ExecutionContract {
+  status: string
+  contract_note_relative_path: string
+  contract_note_absolute_path: string
+  read_from: string[]
+  write_progress_to: string[]
+  report_back_to: string[]
+  starter_prompt: string
+  reason: string
+}
+
 interface AIExecutionMeta {
   provider?: string
   model?: string
@@ -464,6 +475,8 @@ interface IntakeRuntimeInfo {
   deepResearchPromptSource: string
   deepResearchProvider: string
   externalExecutionMode: string
+  executionContract: ExecutionContract | null
+  starterPrompt: string
   codingPrompt: string
   codexPrompt: string
   claudePrompt: string
@@ -572,6 +585,28 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
     ? downstreamRecord.return_to_system_prompt.trim()
     : ''
   const returnToSystemPrompt = followOnReturnPrompt || downstreamReturnPrompt
+  const followOnExecutionContract = asRecord(followOnRecord?.execution_contract)
+  const downstreamExecutionContract = asRecord(downstreamRecord?.execution_contract)
+  const rawExecutionContract = followOnExecutionContract || downstreamExecutionContract
+  const executionContract = rawExecutionContract
+    ? {
+        status: typeof rawExecutionContract.status === 'string' ? rawExecutionContract.status.trim() : '',
+        contract_note_relative_path: typeof rawExecutionContract.contract_note_relative_path === 'string' ? rawExecutionContract.contract_note_relative_path.trim() : '',
+        contract_note_absolute_path: typeof rawExecutionContract.contract_note_absolute_path === 'string' ? rawExecutionContract.contract_note_absolute_path.trim() : '',
+        read_from: toStringList(rawExecutionContract.read_from),
+        write_progress_to: toStringList(rawExecutionContract.write_progress_to),
+        report_back_to: toStringList(rawExecutionContract.report_back_to),
+        starter_prompt: typeof rawExecutionContract.starter_prompt === 'string' ? rawExecutionContract.starter_prompt.trim() : '',
+        reason: typeof rawExecutionContract.reason === 'string' ? rawExecutionContract.reason.trim() : '',
+      }
+    : null
+  const followOnStarterPrompt = typeof followOnRecord?.starter_prompt === 'string'
+    ? followOnRecord.starter_prompt.trim()
+    : ''
+  const downstreamStarterPrompt = typeof downstreamRecord?.starter_prompt === 'string'
+    ? downstreamRecord.starter_prompt.trim()
+    : ''
+  const starterPrompt = followOnStarterPrompt || downstreamStarterPrompt || executionContract?.starter_prompt || ''
   const codingPromptSource = followOnCodingPrompt
     ? workflowLabel(result?.follow_on_workflow || 'Implementation_Packet')
     : downstreamCodingPrompt
@@ -757,6 +792,8 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
     deepResearchPromptSource,
     deepResearchProvider,
     externalExecutionMode,
+    executionContract,
+    starterPrompt,
     codingPrompt,
     codexPrompt,
     claudePrompt,
@@ -1054,7 +1091,7 @@ function OwnerIntakePageInner() {
   }
 
   async function forkExecutionThread(item: IntakeHistoryItem, info: IntakeRuntimeInfo) {
-    if (!info.codexPrompt && !info.codingPrompt) {
+    if (!info.starterPrompt && !info.codexPrompt && !info.codingPrompt) {
       toast.show('There is no coding prompt to open yet.', 'error')
       return
     }
@@ -1065,11 +1102,12 @@ function OwnerIntakePageInner() {
       source_thread_id: item.result.thread_id || activeThreadId,
       title: `${routeTargetLabel(targetAi)} · ${item.result.title || item.message}`,
       target_ai: targetAi,
-      coding_prompt: info.codexPrompt || info.codingPrompt,
+      coding_prompt: info.starterPrompt || info.codexPrompt || info.codingPrompt,
       source_workflow: item.result.follow_on_workflow !== 'none'
         ? item.result.follow_on_workflow
         : item.result.downstream_workflow,
       source_note_paths: dedupeStrings([
+        info.executionContract?.contract_note_relative_path,
         item.result.created_note_relative_path,
         item.result.downstream_reference,
         item.result.follow_on_reference,
@@ -1436,7 +1474,7 @@ function OwnerIntakePageInner() {
                             </div>
                           )}
 
-                          {info.codingPrompt && (
+                          {(info.starterPrompt || info.codingPrompt) && (
                             <div style={{
                               ...card,
                               marginTop: 14,
@@ -1447,20 +1485,20 @@ function OwnerIntakePageInner() {
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
                                 <div style={{ display: 'grid', gap: 4 }}>
                                   <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.86)' }}>
-                                    External Coding Handoff
+                                    Execution Contract
                                   </div>
                                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,.78)', lineHeight: 1.6 }}>
-                                    Ready for {info.codingPromptTarget ? routeTargetLabel(info.codingPromptTarget) : 'the implementation lane'} through external Codex or Claude. Source: {info.codingPromptSource || 'Implementation Packet'}.
+                                    Ready for {info.codingPromptTarget ? routeTargetLabel(info.codingPromptTarget) : 'the implementation lane'} through one shared memory contract. Source: {info.codingPromptSource || 'Implementation Packet'}.
                                   </div>
                                 </div>
                                 <button
                                   type="button"
                                   onClick={async () => {
                                     try {
-                                      await navigator.clipboard.writeText(info.codexPrompt || info.codingPrompt)
-                                      toast.show('Copied Codex prompt.')
+                                      await navigator.clipboard.writeText(info.starterPrompt || info.codexPrompt || info.codingPrompt)
+                                      toast.show('Copied starter prompt.')
                                     } catch {
-                                      toast.show('Could not copy the Codex prompt.', 'error')
+                                      toast.show('Could not copy the starter prompt.', 'error')
                                     }
                                   }}
                                   style={{
@@ -1475,7 +1513,7 @@ function OwnerIntakePageInner() {
                                     color: 'rgba(130,220,170,.98)',
                                   }}
                                 >
-                                  Copy for Codex
+                                  Copy starter prompt
                                 </button>
                                 <button
                                   type="button"
@@ -1499,7 +1537,7 @@ function OwnerIntakePageInner() {
                                     color: 'rgba(130,150,220,.98)',
                                   }}
                                 >
-                                  Copy for Claude
+                                  Copy Claude variant
                                 </button>
                                 <button
                                   type="button"
@@ -1546,11 +1584,77 @@ function OwnerIntakePageInner() {
                                 </button>
                               </div>
 
+                              {info.executionContract && (
+                                <div style={{
+                                  marginTop: 12,
+                                  padding: 12,
+                                  borderRadius: 12,
+                                  background: 'rgba(255,255,255,.04)',
+                                  border: '1px solid rgba(255,255,255,.06)',
+                                  display: 'grid',
+                                  gap: 12,
+                                }}>
+                                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.62)' }}>
+                                    Memory contract
+                                  </div>
+                                  <div style={{ display: 'grid', gap: 10 }}>
+                                    <div>
+                                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
+                                        Read from
+                                      </div>
+                                      <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, color: 'rgba(255,255,255,.78)', fontSize: 12.5, lineHeight: 1.6 }}>
+                                        {info.executionContract.read_from.map((entry) => (
+                                          <li key={entry} style={{ wordBreak: 'break-word' }}>{entry}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                    <div>
+                                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
+                                        Write progress to
+                                      </div>
+                                      <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, color: 'rgba(255,255,255,.78)', fontSize: 12.5, lineHeight: 1.6 }}>
+                                        {info.executionContract.write_progress_to.map((entry) => (
+                                          <li key={entry} style={{ wordBreak: 'break-word' }}>{entry}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                    <div>
+                                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
+                                        Report back to
+                                      </div>
+                                      <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, color: 'rgba(255,255,255,.78)', fontSize: 12.5, lineHeight: 1.6 }}>
+                                        {info.executionContract.report_back_to.map((entry) => (
+                                          <li key={entry} style={{ wordBreak: 'break-word' }}>{entry}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
                               <details style={{ marginTop: 12 }}>
                                 <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(130,220,170,.92)' }}>
-                                  Preview external prompts
+                                  Preview contract + provider variants
                                 </summary>
                                 <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
+                                  <div>
+                                    <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
+                                      Starter prompt
+                                    </div>
+                                    <pre style={{
+                                      margin: 0,
+                                      padding: 12,
+                                      borderRadius: 12,
+                                      overflow: 'auto',
+                                      background: 'rgba(0,0,0,.22)',
+                                      border: '1px solid rgba(255,255,255,.06)',
+                                      color: 'rgba(255,255,255,.78)',
+                                      fontSize: 11,
+                                      lineHeight: 1.65,
+                                      whiteSpace: 'pre-wrap',
+                                      wordBreak: 'break-word',
+                                    }}>{info.starterPrompt || info.codexPrompt || info.codingPrompt}</pre>
+                                  </div>
                                   <div>
                                     <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
                                       Codex
@@ -1567,7 +1671,7 @@ function OwnerIntakePageInner() {
                                       lineHeight: 1.65,
                                       whiteSpace: 'pre-wrap',
                                       wordBreak: 'break-word',
-                                    }}>{info.codexPrompt || info.codingPrompt}</pre>
+                                    }}>{info.codexPrompt || info.starterPrompt || info.codingPrompt}</pre>
                                   </div>
                                   <div>
                                     <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,150,220,.72)', marginBottom: 6 }}>
@@ -1585,7 +1689,7 @@ function OwnerIntakePageInner() {
                                       lineHeight: 1.65,
                                       whiteSpace: 'pre-wrap',
                                       wordBreak: 'break-word',
-                                    }}>{info.claudePrompt || info.codingPrompt}</pre>
+                                    }}>{info.claudePrompt || info.starterPrompt || info.codingPrompt}</pre>
                                   </div>
                                   {info.returnToSystemPrompt && (
                                     <div>

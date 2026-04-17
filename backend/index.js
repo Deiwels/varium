@@ -3988,9 +3988,29 @@ const AI3ImplementationPacketOutputSchema = z.object({
   verification_steps: z.array(z.string()).default([]),
   coordination_notes: z.array(z.string()).default([]),
   ready_to_paste_prompt: z.string().default(''),
+  starter_prompt: z.string().default(''),
   codex_prompt: z.string().default(''),
   claude_prompt: z.string().default(''),
   return_to_system_prompt: z.string().default(''),
+  execution_contract: z.object({
+    status: WorkflowStatusSchema,
+    contract_note_relative_path: z.string().default(''),
+    contract_note_absolute_path: z.string().default(''),
+    read_from: z.array(z.string()).default([]),
+    write_progress_to: z.array(z.string()).default([]),
+    report_back_to: z.array(z.string()).default([]),
+    starter_prompt: z.string().default(''),
+    reason: z.string().default(''),
+  }).default({
+    status: 'blocked',
+    contract_note_relative_path: '',
+    contract_note_absolute_path: '',
+    read_from: [],
+    write_progress_to: [],
+    report_back_to: [],
+    starter_prompt: '',
+    reason: '',
+  }),
   escalate_to: WorkflowEscalationTargetSchema,
   reason: z.string().default(''),
   writeback_targets: z.array(z.string()).default([]),
@@ -5574,7 +5594,7 @@ function buildOwnerIntakeOperatorReply({ intakeKind, title, note, downstreamResu
           : `The next required lane is AI-5 research before planning can continue safely.`
         : '',
       followOnResult?.workflow === 'implementation_packet'
-        ? `I also prepared an external coding handoff for ${safeStr(followOnResult.target_ai || 'the implementation lane')} with file targets plus separate Codex and Claude prompts, so this can move from planning into real code work immediately.`
+        ? `I also prepared one shared execution contract for ${safeStr(followOnResult.target_ai || 'the implementation lane')} that tells the external AI exactly what to read, where to write progress, and how to report back into memory.`
         : '',
       safeStr(followOnResult?.next_step || downstreamResult?.next_step || '').trim(),
     ].filter(Boolean);
@@ -6415,6 +6435,70 @@ function buildCodexExecutionPrompt(packet) {
   ].join('\n');
 }
 
+function buildImplementationHandoffRelativePath(packet) {
+  const taskId = safeWorkflowSlug(packet.task_id, 'task');
+  const targetAi = safeStr(packet.target_ai || 'AI-1').trim() || 'AI-1';
+  return `04-Tasks/Handoffs/${taskId}-to-${safeWorkflowSlug(targetAi, 'AI-1')}.md`;
+}
+
+function buildImplementationContractRelativePath(packet) {
+  const taskId = safeWorkflowSlug(packet.task_id, 'task');
+  const targetAi = safeStr(packet.target_ai || 'AI-1').trim() || 'AI-1';
+  return `Projects/VuriumBook/Handoffs/${taskId}-to-${safeWorkflowSlug(targetAi, 'AI-1')}-Execution-Contract.md`;
+}
+
+function toWorkspaceKnowledgeAbsolutePath(relativePath) {
+  const cleaned = safeStr(relativePath).replace(/\\/g, '/').replace(/^\/+/, '').trim();
+  if (!cleaned) return '';
+  if (cleaned.startsWith('Projects/')) return path.join(getWorkspaceBrainRoot(), cleaned).replace(/\\/g, '/');
+  return path.join(getObsidianRoot(), cleaned).replace(/\\/g, '/');
+}
+
+function buildImplementationMemoryReadPaths(packet) {
+  const handoffRelativePath = safeStr(packet.writeback?.relative_path || '').trim() || buildImplementationHandoffRelativePath(packet);
+  return uniqueList([
+    buildImplementationContractRelativePath(packet),
+    handoffRelativePath,
+    ...(Array.isArray(packet.source_of_truth_stack) ? packet.source_of_truth_stack : []),
+  ])
+    .map((entry) => toWorkspaceKnowledgeAbsolutePath(entry))
+    .filter(Boolean);
+}
+
+function buildImplementationMemoryWritePaths(packet) {
+  const handoffRelativePath = safeStr(packet.writeback?.relative_path || '').trim() || buildImplementationHandoffRelativePath(packet);
+  return uniqueList([
+    buildImplementationContractRelativePath(packet),
+    handoffRelativePath,
+  ])
+    .map((entry) => toWorkspaceKnowledgeAbsolutePath(entry))
+    .filter(Boolean);
+}
+
+function buildImplementationMemoryReportTargets(packet) {
+  return uniqueList([
+    'Owner Copilot: http://127.0.0.1:3000/developer/intake',
+    toWorkspaceKnowledgeAbsolutePath(buildImplementationContractRelativePath(packet)),
+    toWorkspaceKnowledgeAbsolutePath(safeStr(packet.writeback?.relative_path || '').trim() || buildImplementationHandoffRelativePath(packet)),
+  ]).filter(Boolean);
+}
+
+function buildImplementationStarterPrompt(packet, executionContract) {
+  const targetAi = safeStr(packet.target_ai || 'AI-1').trim() || 'AI-1';
+  return [
+    `You are the external execution agent for ${targetAi} on VuriumBook.`,
+    '',
+    `Read the execution contract first: ${safeStr(executionContract.contract_note_absolute_path)}`,
+    '',
+    'Use that contract as the memory protocol:',
+    '- Read context only from the notes listed under "Read From".',
+    '- Write short work-log updates into the execution contract note under "Work Log".',
+    '- When coding is done, use the "Return-to-System" block from the contract note and report back into Owner Copilot.',
+    '',
+    'Do not restart planning. Stay inside the owned implementation scope and preserve unrelated changes.',
+  ].join('\n');
+}
+
 function buildClaudeExecutionPrompt(packet) {
   const basePrompt = buildImplementationCodingPrompt(packet);
   return [
@@ -6468,10 +6552,127 @@ function attachExternalExecutionPrompts(packet) {
     ...packet,
     execution_mode: 'external_ai',
     ready_to_paste_prompt: safeStr(packet.ready_to_paste_prompt || '').trim() || codexPrompt,
+    starter_prompt: safeStr(packet.starter_prompt || '').trim() || '',
     codex_prompt: codexPrompt,
     claude_prompt: claudePrompt,
     return_to_system_prompt: returnToSystemPrompt,
+    execution_contract: packet.execution_contract || {
+      status: 'blocked',
+      contract_note_relative_path: '',
+      contract_note_absolute_path: '',
+      read_from: [],
+      write_progress_to: [],
+      report_back_to: [],
+      starter_prompt: '',
+      reason: '',
+    },
   };
+}
+
+async function attachImplementationExecutionContract(packet) {
+  const contractRelativePath = buildImplementationContractRelativePath(packet);
+  const contractAbsolutePath = toWorkspaceKnowledgeAbsolutePath(contractRelativePath);
+  const readFrom = buildImplementationMemoryReadPaths(packet);
+  const writeProgressTo = buildImplementationMemoryWritePaths(packet);
+  const reportBackTo = buildImplementationMemoryReportTargets(packet);
+  const returnPrompt = safeStr(packet.return_to_system_prompt || '').trim() || buildReturnToSystemPrompt(packet);
+
+  const provisionalContract = {
+    status: 'done',
+    contract_note_relative_path: contractRelativePath,
+    contract_note_absolute_path: contractAbsolutePath,
+    read_from: readFrom,
+    write_progress_to: writeProgressTo,
+    report_back_to: reportBackTo,
+    starter_prompt: '',
+    reason: 'Execution contract is ready.',
+  };
+  const starterPrompt = buildImplementationStarterPrompt(packet, provisionalContract);
+
+  const targetAi = safeStr(packet.target_ai || 'AI-1').trim() || 'AI-1';
+  const sourceOfTruth = uniqueList(Array.isArray(packet.source_of_truth_stack) ? packet.source_of_truth_stack : []).filter(Boolean);
+  const fileTargets = uniqueList(Array.isArray(packet.file_targets) ? packet.file_targets : []).filter(Boolean);
+  const changeSummary = uniqueList(Array.isArray(packet.change_summary) ? packet.change_summary : []).filter(Boolean);
+  const verificationSteps = uniqueList(Array.isArray(packet.verification_steps) ? packet.verification_steps : []).filter(Boolean);
+
+  const contractBody = [
+    '---',
+    'type: execution-contract',
+    'status: active',
+    `task_id: ${safeStr(packet.task_id)}`,
+    `target_ai: ${targetAi}`,
+    `created: ${toIso(new Date())}`,
+    '---',
+    '',
+    `# Execution Contract — ${safeStr(packet.task_id)} → ${targetAi}`,
+    '',
+    '## Read From',
+    ...(readFrom.length ? readFrom.map((entry) => `- ${entry}`) : ['- pending']),
+    '',
+    '## Write Progress To',
+    ...(writeProgressTo.length ? writeProgressTo.map((entry) => `- ${entry}`) : ['- pending']),
+    '',
+    '## Report Back To',
+    ...(reportBackTo.length ? reportBackTo.map((entry) => `- ${entry}`) : ['- pending']),
+    '',
+    '## Objective',
+    safeStr(packet.objective || '').trim() || 'Continue the approved implementation task.',
+    '',
+    '## Source of Truth Stack',
+    ...(sourceOfTruth.length ? sourceOfTruth.map((entry) => `- ${entry}`) : ['- pending']),
+    '',
+    '## File Targets',
+    ...(fileTargets.length ? fileTargets.map((entry) => `- ${entry}`) : ['- identify the owned files first']),
+    '',
+    '## Change Summary',
+    ...(changeSummary.length ? changeSummary.map((entry) => `- ${entry}`) : ['- implement the approved change set']),
+    '',
+    '## Verification Steps',
+    ...(verificationSteps.length ? verificationSteps.map((entry) => `- ${entry}`) : ['- run the relevant checks after coding']),
+    '',
+    '## Starter Prompt',
+    '```text',
+    starterPrompt,
+    '```',
+    '',
+    '## Return-to-System',
+    '```text',
+    returnPrompt,
+    '```',
+    '',
+    '## Work Log',
+    '- pending',
+  ].join('\n');
+
+  try {
+    await writeWorkspaceBrainNote(contractRelativePath, contractBody);
+    return {
+      ...packet,
+      ready_to_paste_prompt: starterPrompt,
+      starter_prompt: starterPrompt,
+      codex_prompt: `${starterPrompt}\n\nCodex-specific note: inspect the current code first and make the smallest correct patch in the owned file scope.`,
+      claude_prompt: `${starterPrompt}\n\nClaude-specific note: keep the execution scoped to the owned lane and call out partner-lane needs explicitly instead of widening the task.`,
+      execution_contract: {
+        ...provisionalContract,
+        starter_prompt: starterPrompt,
+        reason: 'Execution contract saved to the local workspace brain.',
+      },
+    };
+  } catch (error) {
+    return {
+      ...packet,
+      ready_to_paste_prompt: starterPrompt,
+      starter_prompt: starterPrompt,
+      codex_prompt: `${starterPrompt}\n\nCodex-specific note: inspect the current code first and make the smallest correct patch in the owned file scope.`,
+      claude_prompt: `${starterPrompt}\n\nClaude-specific note: keep the execution scoped to the owned lane and call out partner-lane needs explicitly instead of widening the task.`,
+      execution_contract: {
+        ...provisionalContract,
+        status: 'blocked',
+        starter_prompt: starterPrompt,
+        reason: `Execution contract write failed: ${safeStr(error?.message || 'unknown error')}`,
+      },
+    };
+  }
 }
 
 function buildImplementationPacketFallback(input, reason) {
@@ -6521,7 +6722,7 @@ function buildImplementationPacketFallback(input, reason) {
     writeback_targets: ['04-Tasks/Handoffs/', '04-Tasks/Workflow-Queue.md'],
     writeback: null,
     owner_notification: null,
-    next_step: `Copy the external execution packet for ${targetAi} into Codex or Claude, then return the implementation result back into Owner Copilot.`,
+    next_step: `Use the shared execution contract for ${targetAi}, let the external AI read/write through that memory path, then return the implementation result back into Owner Copilot.`,
   };
 
   return attachExternalExecutionPrompts(result);
@@ -6896,9 +7097,12 @@ function buildPlanningWritebackInput(result) {
 }
 
 function buildImplementationPacketWritebackInput(result) {
-  const taskId = safeWorkflowSlug(result.task_id, 'task');
   const targetAi = safeStr(result.target_ai || 'AI-1').trim() || 'AI-1';
-  const notePath = `04-Tasks/Handoffs/${taskId}-to-${safeWorkflowSlug(targetAi, 'AI-1')}.md`;
+  const notePath = buildImplementationHandoffRelativePath(result);
+  const contractNotePath = buildImplementationContractRelativePath(result);
+  const starterPrompt = safeStr(result.starter_prompt || '').trim() || buildImplementationStarterPrompt(result, {
+    contract_note_absolute_path: toWorkspaceKnowledgeAbsolutePath(contractNotePath),
+  });
   const sourceOfTruth = uniqueList(Array.isArray(result.source_of_truth_stack) ? result.source_of_truth_stack : []).filter(Boolean);
   const fileTargets = uniqueList(Array.isArray(result.file_targets) ? result.file_targets : []).filter(Boolean);
   const changeSummary = uniqueList(Array.isArray(result.change_summary) ? result.change_summary : []).filter(Boolean);
@@ -6946,6 +7150,16 @@ function buildImplementationPacketWritebackInput(result) {
     '',
     '## Recommended Action',
     `Run implementation through external Codex or Claude in ${targetAi}'s owned scope, then return the result to Owner Copilot.`,
+    '',
+    '## Memory Protocol',
+    `- Read first: ${contractNotePath}`,
+    `- Write progress: ${contractNotePath}`,
+    '- Report back: Owner Copilot in /developer/intake using the return prompt below.',
+    '',
+    '## Starter Prompt',
+    '```text',
+    starterPrompt || 'No starter prompt generated.',
+    '```',
     '',
     '## Codex Execution Prompt',
     '```text',
@@ -8092,12 +8306,11 @@ async function executeImplementationPacketWorkflow(meta, context, input, { notif
     writeback_targets: result.writeback_targets?.length
       ? result.writeback_targets
       : ['04-Tasks/Handoffs/', '04-Tasks/Workflow-Queue.md'],
-    next_step: result.next_step || `Copy the external execution packet for ${result.target_ai} into Codex or Claude, then return the implementation result back into Owner Copilot.`,
+    next_step: result.next_step || `Use the shared execution contract for ${result.target_ai}, let the external AI read/write through that memory path, then return the implementation result back into Owner Copilot.`,
   };
 
   const withPrompts = attachExternalExecutionPrompts(finalizedResult);
-
-  return AI3ImplementationPacketOutputSchema.parse(await finalizeWorkflowResult(withPrompts, {
+  const finalizedWithWriteback = await finalizeWorkflowResult(withPrompts, {
     writebackBuilder: buildImplementationPacketWritebackInput,
     ownerBuilder: notifyOwner
       ? (finalResult) => buildGenericOwnerNotificationInput(
@@ -8108,7 +8321,9 @@ async function executeImplementationPacketWorkflow(meta, context, input, { notif
         ['[[04-Tasks/Handoffs|Handoffs]]']
       )
       : null,
-  }));
+  });
+  const withExecutionContract = await attachImplementationExecutionContract(finalizedWithWriteback);
+  return AI3ImplementationPacketOutputSchema.parse(withExecutionContract);
 }
 
 async function executeQAScanWorkflow(meta, context, input, { notifyOwner = true } = {}) {
