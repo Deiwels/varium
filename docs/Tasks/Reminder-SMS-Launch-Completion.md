@@ -1,3 +1,10 @@
+---
+doc_class: canonical
+topic: sms-notifications
+brain_link: /Users/nazarii/Obsidian/Vurium-Brain/Projects/VuriumBook/Topics/SMS-Notifications-Brain.md
+brain_execution_checklist: /Users/nazarii/Obsidian/Vurium-Brain/Projects/VuriumBook/Topics/SMS-Notifications-Execution-Checklist.md
+---
+
 # Reminder SMS — Launch Completion Path
 
 > [[Home]] > Tasks | Related: [[Features/SMS & 10DLC]], [[Tasks/Live-SMS-Verification-Checklist]], [[Tasks/Launch-Verification-Runbook]], [[Tasks/Telnyx-Integration-Plan]], [[Tasks/3-AI-Remaining-Work-Split|8-AI Work Split]], [[Tasks/AI5-Research-Brief-Reminder-SMS]]

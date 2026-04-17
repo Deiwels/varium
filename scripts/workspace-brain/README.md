@@ -52,6 +52,7 @@ The export map lives at:
 - `Projects/VuriumBook/Current-State.md`
 - `Projects/VuriumBook/Execution-Checklist.md`
 - `Projects/VuriumBook/Topics/SMS-Notifications-Brain.md`
+- `Projects/VuriumBook/Topics/SMS-Notifications-Migration-Review.md`
 - `Projects/VuriumBook/Topics/Onboarding-Brain.md`
 - `Projects/VuriumBook/Topics/Billing-Brain.md`
 

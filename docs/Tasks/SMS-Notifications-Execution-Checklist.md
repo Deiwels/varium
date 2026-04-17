@@ -4,18 +4,16 @@ status: active
 updated: 2026-04-17
 brain_source: Projects/VuriumBook/Topics/SMS-Notifications-Execution-Checklist.md
 doc_class: canonical
----
-
-> Auto-exported from the local workspace brain. Edit the local brain note first, then rerun the export sync.
----
-type: execution-checklist
-status: active
+brain_note_type: execution-checklist
+brain_status: active
 project: VuriumBook
 topic: sms-notifications
 created: 2026-04-17
-updated: 2026-04-17
+brain_updated: 2026-04-17
 working_memory: true
 ---
+
+> Auto-exported from the local workspace brain. Edit the local brain note first, then rerun the export sync.
 
 # SMS / Notifications Execution Checklist
 

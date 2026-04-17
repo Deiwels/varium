@@ -4,17 +4,15 @@ status: active
 updated: 2026-04-17
 brain_source: Projects/VuriumBook/Project-Brain.md
 doc_class: canonical
+brain_note_type: project-brain
+brain_status: active
+project: VuriumBook
+created: 2026-04-17
+brain_updated: 2026-04-17
+working_memory: true
 ---
 
 > Auto-exported from the local workspace brain. Edit the local brain note first, then rerun the export sync.
----
-type: project-brain
-status: active
-project: VuriumBook
-created: 2026-04-17
-updated: 2026-04-17
-working_memory: true
----
 
 # VuriumBook Project Brain
 

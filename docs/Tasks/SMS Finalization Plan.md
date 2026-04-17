@@ -1,3 +1,10 @@
+---
+doc_class: canonical
+topic: sms-notifications
+brain_link: /Users/nazarii/Obsidian/Vurium-Brain/Projects/VuriumBook/Topics/SMS-Notifications-Brain.md
+brain_execution_checklist: /Users/nazarii/Obsidian/Vurium-Brain/Projects/VuriumBook/Topics/SMS-Notifications-Execution-Checklist.md
+---
+
 # SMS Finalization Plan
 
 > [[Home]] > Tasks | Related: [[SMS & 10DLC]], [[Tasks/SMS-Strategy-Review|SMS Strategy Review]], [[Tasks/In Progress|In Progress]]

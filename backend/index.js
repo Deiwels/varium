@@ -3998,6 +3998,9 @@ Rules:
 - when context.owner_conversation_history or context.active_focus is present, use that thread context to resolve references like "this", "that problem", or "continue"
 - when context.thread_memory.summary_note is provided, treat it as durable memory from the same chat thread before asking the owner to restate context
 - do not force the owner to restate the same problem if the recent conversation already identifies the active issue
+- when context.project_snapshot.local_topic_execution_checklist is provided, treat it as the current execution scaffold for that topic before inventing any new top-level plan
+- if the topic already has a canonical execution checklist, only create a new planning shell when the owner is clearly changing scope or asking for a materially different workstream
+- for SMS / notifications / TFV work, prefer the existing checklist and canonical plan stack over inventing another parallel SMS plan
 
 Return exactly this JSON shape:
 {
@@ -4041,6 +4044,7 @@ Rules:
 - when context.project_snapshot.local_current_state is provided, treat it as the freshest operational snapshot before relying on older queue items
 - when context.project_snapshot.local_execution_checklist is provided, use it to explain the next practical build step
 - when context.project_snapshot.brain_note is provided, treat that note as the central working-memory summary for the current topic and answer from it first
+- when context.project_snapshot.local_topic_execution_checklist is provided, treat it as the single operational checklist for the topic and prefer it over scattered historical plans
 - when context.project_snapshot.canonical_topic_notes is provided, treat those notes as the source-of-truth stack for the topic before relying on recent ad-hoc task notes
 - when context.project_snapshot.topic_notes is provided, treat those notes as the primary history for the current topic before suggesting any new planning
 - when context.owner_conversation_history or context.active_focus is provided, continue the same thread instead of acting like this is a brand new conversation
@@ -4049,6 +4053,8 @@ Rules:
 - for internal project status / overview requests, summarize what is already visible in queue, notes, and recent writebacks before recommending any execution mode
 - do not ask for AI-5 or external source URLs when the request is only about internal project status and the answer can be formed from internal context
 - if relevant internal plans already exist for the current topic, summarize those plans first and explain the current blocker before proposing any new task
+- if a topic execution checklist exists, name it explicitly as the one checklist to use instead of telling the owner to read many competing plans
+- prefer one grounded answer with one checklist, one blocker summary, and one next step over a scattered list of old notes
 
 Return exactly this JSON shape:
 {

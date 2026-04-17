@@ -6,6 +6,10 @@ owner: AI 7
 created: 2026-04-15
 updated: 2026-04-15
 source_of_truth: true
+doc_class: canonical
+topic: sms-notifications
+brain_link: /Users/nazarii/Obsidian/Vurium-Brain/Projects/VuriumBook/Topics/SMS-Notifications-Brain.md
+brain_execution_checklist: /Users/nazarii/Obsidian/Vurium-Brain/Projects/VuriumBook/Topics/SMS-Notifications-Execution-Checklist.md
 sources:
   - "[[Tasks/AI5-Research-Brief-Reminder-SMS]]"
   - "[[Tasks/TFV-Inspection-Result-2026-04-15]]"

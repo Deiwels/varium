@@ -4,6 +4,10 @@ status: active
 priority: p0
 owner: AI 3
 created: 2026-04-15
+doc_class: canonical
+topic: sms-notifications
+brain_link: /Users/nazarii/Obsidian/Vurium-Brain/Projects/VuriumBook/Topics/SMS-Notifications-Brain.md
+brain_execution_checklist: /Users/nazarii/Obsidian/Vurium-Brain/Projects/VuriumBook/Topics/SMS-Notifications-Execution-Checklist.md
 ---
 
 # Reminder SMS TFV Implementation Plan v2
@@ -18,7 +22,7 @@ created: 2026-04-15
 > ⚠️ **Перед початком імплементації цей план має бути reviewed і approved.**
 
 - [ ] AI 1 (Claude) — re-review v2 (всі 3 blockers + 4 improvements incorporated). v1 review: [[Tasks/Reminder-SMS-TFV-Plan-AI1-Review]]
-- [ ] AI 2 (Codex) — re-review v2 (all 4 frontend points incorporated). v1 inline review preserved below.
+- [x] AI 2 (Codex) — re-review v2 complete on 2026-04-15; all 4 frontend points are incorporated. v1 inline review preserved below.
 - [ ] AI 4 (Phone AI) — review emergency/rollback risk
 - [ ] Owner — approve v2 + confirm Pattern B (Sole Proprietor) is acceptable
 
@@ -437,7 +441,16 @@ else if (smsStatus === 'tfv_submit_failed') tollFreeState = 'failed'
 *(pending — re-review after v2 incorporates all 3 blockers + 4 improvements)*
 
 ### AI 2 (Codex) review — v2
-*(pending — re-review after v2 incorporates all 4 frontend points)*
+Re-review completed on 2026-04-15.
+
+All 4 frontend points from the v1 review are now incorporated:
+
+1. `getSmsUxState()` now explicitly covers `configured`, `tfv_pending`, `tfv_rejected`, and `tfv_submit_failed` in Step 7.1 and DoD item 8.
+2. Toll-free card copy is corrected in Step 7.3; the stale "No EIN required" claim is removed.
+3. `app/developer/sms/page.tsx` is now explicitly in frontend scope in Step 7, the ownership split, and the verification table.
+4. `tfv_rejected` is clearly separated from the manual 10DLC path in Step 7.4 and DoD item 11; the flow is "review and resubmit TFV", not "switch rails".
+
+AI 2 verdict: frontend / UX scope is aligned enough for implementation. The remaining blocker is the overall 4-AI gate, not frontend plan clarity.
 
 ### AI 4 (Phone AI) review
 *(pending)*

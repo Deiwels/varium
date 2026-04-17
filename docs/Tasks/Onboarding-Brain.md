@@ -4,18 +4,16 @@ status: active
 updated: 2026-04-17
 brain_source: Projects/VuriumBook/Topics/Onboarding-Brain.md
 doc_class: canonical
----
-
-> Auto-exported from the local workspace brain. Edit the local brain note first, then rerun the export sync.
----
-type: brain
-status: active
+brain_note_type: brain
+brain_status: active
 project: VuriumBook
 topic: onboarding
 created: 2026-04-17
-updated: 2026-04-17
+brain_updated: 2026-04-17
 working_memory: true
 ---
+
+> Auto-exported from the local workspace brain. Edit the local brain note first, then rerun the export sync.
 
 # Onboarding Brain
 

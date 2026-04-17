@@ -4,19 +4,17 @@ status: active
 updated: 2026-04-17
 brain_source: Projects/VuriumBook/Topics/SMS-Notifications-Brain.md
 doc_class: canonical
----
-
-> Auto-exported from the local workspace brain. Edit the local brain note first, then rerun the export sync.
----
-type: brain
-status: active
+brain_note_type: brain
+brain_status: active
 project: VuriumBook
 topic: sms-notifications
 created: 2026-04-17
-updated: 2026-04-17
+brain_updated: 2026-04-17
 working_memory: true
 repo_source: /Users/nazarii/Downloads/varium/docs/Tasks/SMS-Notifications-Brain.md
 ---
+
+> Auto-exported from the local workspace brain. Edit the local brain note first, then rerun the export sync.
 
 # SMS / Notifications Brain
 
@@ -68,3 +66,4 @@ repo_source: /Users/nazarii/Downloads/varium/docs/Tasks/SMS-Notifications-Brain.
 - execute against the single SMS execution checklist in the local brain
 - finish TFV / status / send-guard work
 - run one real pilot
+- use `~/Obsidian/Vurium-Brain/Projects/VuriumBook/Topics/SMS-Notifications-Migration-Review.md` to clean old SMS notes without breaking links

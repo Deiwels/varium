@@ -1,3 +1,10 @@
+---
+doc_class: canonical
+topic: sms-notifications
+brain_link: /Users/nazarii/Obsidian/Vurium-Brain/Projects/VuriumBook/Topics/SMS-Notifications-Brain.md
+brain_execution_checklist: /Users/nazarii/Obsidian/Vurium-Brain/Projects/VuriumBook/Topics/SMS-Notifications-Execution-Checklist.md
+---
+
 # Live SMS Verification Checklist (BE.3)
 
 > [[Home]] > Tasks | Owner: AI 1 (backend) — runbook executed by owner
