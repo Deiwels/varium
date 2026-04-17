@@ -4372,6 +4372,34 @@ const OwnerAdvisoryOutputSchema = z.object({
   next_step: z.string().default(''),
 });
 
+const OwnerThreadExecutionForkInputSchema = z.object({
+  source_thread_id: z.string().default(''),
+  new_thread_id: z.string().default(''),
+  title: z.string().default(''),
+  target_ai: ImplementationTargetSchema,
+  coding_prompt: z.string().min(1),
+  source_workflow: z.string().default('Implementation_Packet'),
+  source_note_paths: z.array(z.string()).default([]),
+  file_targets: z.array(z.string()).default([]),
+  change_summary: z.array(z.string()).default([]),
+  verification_steps: z.array(z.string()).default([]),
+});
+
+const OwnerThreadExecutionForkOutputSchema = z.object({
+  agent: z.literal('SYSTEM'),
+  workflow: z.literal('fork_execution_thread'),
+  status: WorkflowStatusSchema,
+  thread_id: z.string().min(1),
+  title: z.string().min(1),
+  target_ai: ImplementationTargetSchema,
+  source_workflow: z.string().default('Implementation_Packet'),
+  operator_reply: z.string().default(''),
+  reason: z.string().default(''),
+  next_step: z.string().default(''),
+  referenced_notes: z.array(z.string()).default([]),
+  chat_memory: OwnerThreadMemoryStateSchema.nullable().default(null),
+});
+
 const AI3_PLANNING_INTAKE_SYSTEM_PROMPT = `You are AI 3 inside the VuriumBook AI Operating System.
 
 Your role:
@@ -5711,19 +5739,23 @@ function extractOwnerMemoryReferencedNotes(result) {
   ]).filter(Boolean);
 }
 
-function buildOwnerThreadTranscriptHeader(threadId, title, createdAtIso) {
+function buildOwnerThreadTranscriptHeader(threadId, title, createdAtIso, options = {}) {
   const created = safeStr(createdAtIso || toIso(new Date()));
+  const mode = safeStr(options.mode || 'owner-copilot') || 'owner-copilot';
+  const provider = safeStr(options.provider || 'mixed') || 'mixed';
+  const linkedTasks = uniqueList(Array.isArray(options.linkedTasks) ? options.linkedTasks.map((entry) => safeStr(entry)) : []).filter(Boolean);
+  const linkedPlans = uniqueList(Array.isArray(options.linkedPlans) ? options.linkedPlans.map((entry) => safeStr(entry)) : []).filter(Boolean);
   return [
     '---',
     'type: chat-transcript',
     `thread_id: ${sanitizeOwnerThreadId(threadId)}`,
     'project: VuriumBook',
-    'mode: owner-copilot',
-    'provider: mixed',
+    `mode: ${mode}`,
+    `provider: ${provider}`,
     `created: ${created}`,
     `updated: ${created}`,
-    'linked_tasks: []',
-    'linked_plans: []',
+    `linked_tasks: ${JSON.stringify(linkedTasks)}`,
+    `linked_plans: ${JSON.stringify(linkedPlans)}`,
     '---',
     '',
     `# ${safeStr(title || `Copilot Thread ${sanitizeOwnerThreadId(threadId)}`)}`,
@@ -5807,7 +5839,7 @@ async function readWorkspaceBrainThreadSummary(threadId) {
   return note ? { ...note, thread_id: sanitizeOwnerThreadId(threadId) } : null;
 }
 
-async function persistOwnerThreadMemory({ threadId, title, input, result }) {
+async function persistOwnerThreadMemory({ threadId, title, input, result, mode = 'owner-copilot', provider = 'mixed', linkedTasks = [], linkedPlans = [] }) {
   try {
     const sanitizedThreadId = sanitizeOwnerThreadId(threadId);
     const transcriptPath = buildOwnerThreadTranscriptRelativePath(sanitizedThreadId);
@@ -5816,7 +5848,12 @@ async function persistOwnerThreadMemory({ threadId, title, input, result }) {
     const existingTranscript = await readWorkspaceBrainRawNote(transcriptPath);
     const transcriptBase = existingTranscript
       ? existingTranscript.replace(/\s+$/, '')
-      : buildOwnerThreadTranscriptHeader(sanitizedThreadId, title, nowIso);
+      : buildOwnerThreadTranscriptHeader(sanitizedThreadId, title, nowIso, {
+        mode,
+        provider,
+        linkedTasks,
+        linkedPlans,
+      });
     const transcriptContent = `${transcriptBase}${buildOwnerThreadTranscriptTurn({
       timestampIso: nowIso,
       ownerMessage: safeStr(input?.message).trim(),
@@ -5852,6 +5889,80 @@ async function persistOwnerThreadMemory({ threadId, title, input, result }) {
       reason: `Chat memory persistence failed: ${safeStr(error?.message || 'unknown error')}`,
     };
   }
+}
+
+function buildForkedExecutionThreadId(title, targetAi) {
+  const target = safeStr(targetAi || 'execution').toLowerCase();
+  const cleanedTitle = safeStr(title || 'execution thread')
+    .replace(/^AI-[12]\s*[·:-]\s*/i, '')
+    .replace(/^AI-[12]-/i, '')
+    .toLowerCase();
+  const base = safeWorkflowSlug(
+    `${target} ${cleanedTitle}`,
+    `${target}-execution-thread`
+  ).toLowerCase();
+  return sanitizeOwnerThreadId(`${base}-${Date.now()}`);
+}
+
+async function forkOwnerExecutionThread(input) {
+  const targetAi = input.target_ai;
+  const title = safeStr(input.title || `${targetAi} Execution Thread`).trim() || `${targetAi} Execution Thread`;
+  const threadId = sanitizeOwnerThreadId(input.new_thread_id || buildForkedExecutionThreadId(title, targetAi));
+  const referencedNotes = uniqueList((input.source_note_paths || []).map((entry) => safeStr(entry))).filter(Boolean);
+  const linkedTasks = referencedNotes.filter((entry) => /\/Tasks\/|^04-Tasks\//.test(entry));
+  const linkedPlans = referencedNotes.filter((entry) => /Plan|Checklist|Brain/i.test(entry));
+  const operatorReply = safeStr(input.coding_prompt).trim();
+  const reason = `Forked a dedicated execution thread from ${safeStr(input.source_workflow || 'Implementation_Packet')} for ${targetAi}.`;
+  const nextStep = `Continue in this thread and turn the implementation packet into concrete code changes for ${targetAi}.`;
+
+  const chatMemory = await persistOwnerThreadMemory({
+    threadId,
+    title,
+    input: {
+      message: `Fork execution thread from ${safeStr(input.source_workflow || 'Implementation_Packet')} for ${targetAi}.`,
+    },
+    result: {
+      intake_kind: 'task',
+      title,
+      route_target: targetAi,
+      downstream_workflow: 'Implementation_Packet',
+      created_note_relative_path: referencedNotes[0] || '',
+      downstream_reference: referencedNotes[1] || referencedNotes[0] || '',
+      follow_on_reference: '',
+      downstream_result: {
+        target_ai: targetAi,
+        source_workflow: safeStr(input.source_workflow || 'Implementation_Packet'),
+        file_targets: uniqueList((input.file_targets || []).map((entry) => safeStr(entry))).filter(Boolean),
+        change_summary: uniqueList((input.change_summary || []).map((entry) => safeStr(entry))).filter(Boolean),
+        verification_steps: uniqueList((input.verification_steps || []).map((entry) => safeStr(entry))).filter(Boolean),
+        ready_to_paste_prompt: operatorReply,
+      },
+      next_step: nextStep,
+      reason,
+      operator_reply: operatorReply,
+    },
+    mode: `execution-${safeStr(targetAi).toLowerCase()}`,
+    provider: 'mixed',
+    linkedTasks,
+    linkedPlans,
+  });
+
+  return OwnerThreadExecutionForkOutputSchema.parse({
+    agent: 'SYSTEM',
+    workflow: 'fork_execution_thread',
+    status: chatMemory?.status === 'done' ? 'done' : 'blocked',
+    thread_id: threadId,
+    title,
+    target_ai: targetAi,
+    source_workflow: safeStr(input.source_workflow || 'Implementation_Packet'),
+    operator_reply: operatorReply,
+    reason: chatMemory?.status === 'done'
+      ? reason
+      : safeStr(chatMemory?.reason || reason),
+    next_step: nextStep,
+    referenced_notes: referencedNotes,
+    chat_memory: chatMemory,
+  });
 }
 
 async function listRecentAdvisoryNotes(relativeDir, limit = 5) {
@@ -8814,6 +8925,18 @@ app.get('/api/vurium-dev/ai/owner-threads/:threadId', requireSuperadmin, async (
   } catch (e) {
     console.error('Owner thread snapshot error:', e.message);
     res.status(500).json({ error: 'Failed to load owner thread snapshot' });
+  }
+});
+
+app.post('/api/vurium-dev/ai/owner-threads/fork-execution', requireSuperadmin, async (req, res) => {
+  try {
+    const { payload } = unwrapWorkflowEnvelope(req.body);
+    const input = OwnerThreadExecutionForkInputSchema.parse(payload);
+    res.json(await forkOwnerExecutionThread(input));
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid fork-execution payload', details: e.issues });
+    console.error('Fork execution thread error:', e.message);
+    res.status(500).json({ error: 'Failed to fork execution thread' });
   }
 });
 

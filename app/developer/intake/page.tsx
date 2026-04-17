@@ -76,6 +76,21 @@ interface OwnerThreadSnapshot {
   transcript_preview: string
 }
 
+interface ExecutionThreadForkResult {
+  agent: 'SYSTEM'
+  workflow: 'fork_execution_thread'
+  status: string
+  thread_id: string
+  title: string
+  target_ai: string
+  source_workflow: string
+  operator_reply: string
+  reason: string
+  next_step: string
+  referenced_notes: string[]
+  chat_memory: { status?: string; thread_id?: string; transcript_path?: string; summary_path?: string; reason?: string } | null
+}
+
 interface AIExecutionMeta {
   provider?: string
   model?: string
@@ -202,6 +217,46 @@ function buildHistoryItemFromThreadSnapshot(snapshot: OwnerThreadSnapshot): Inta
   }
 }
 
+function buildHistoryItemFromExecutionThreadFork(result: ExecutionThreadForkResult): IntakeHistoryItem {
+  return {
+    id: `fork-${result.thread_id}`,
+    createdAt: new Date().toISOString(),
+    message: `Opened execution thread for ${routeTargetLabel(result.target_ai)}.`,
+    result: {
+      agent: 'SYSTEM',
+      workflow: 'owner_intake',
+      status: result.status,
+      intake_id: `fork-${result.thread_id}`,
+      intake_kind: 'task',
+      thread_id: result.thread_id,
+      title: result.title,
+      queue_stage: 'Execution Thread',
+      route_target: result.target_ai,
+      created_note_relative_path: result.chat_memory?.transcript_path || '',
+      downstream_workflow: 'Implementation_Packet',
+      downstream_status: result.status,
+      downstream_reference: result.chat_memory?.summary_path || '',
+      downstream_result: {
+        target_ai: result.target_ai,
+        ready_to_paste_prompt: result.operator_reply,
+        referenced_notes: result.referenced_notes,
+      },
+      escalate_to: 'none',
+      reason: result.reason,
+      writeback_targets: result.referenced_notes,
+      writeback: null,
+      owner_notification: null,
+      operator_reply: result.operator_reply,
+      chat_memory: result.chat_memory,
+      follow_on_workflow: 'none',
+      follow_on_status: 'none',
+      follow_on_reference: '',
+      follow_on_result: null,
+      next_step: result.next_step,
+    },
+  }
+}
+
 const card: React.CSSProperties = {
   borderRadius: 18,
   border: '1px solid rgba(255,255,255,.06)',
@@ -235,6 +290,10 @@ function parseLines(value: string) {
     .split('\n')
     .map((entry) => entry.trim())
     .filter(Boolean)
+}
+
+function dedupeStrings(values: Array<string | undefined | null>) {
+  return [...new Set(values.map((entry) => String(entry || '').trim()).filter(Boolean))]
 }
 
 function relTime(iso: string) {
@@ -694,6 +753,7 @@ function OwnerIntakePageInner() {
   const [needVideoBrief, setNeedVideoBrief] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [forkingThreadId, setForkingThreadId] = useState('')
   const [latestResult, setLatestResult] = useState<OwnerIntakeResult | null>(null)
   const [threads, setThreads] = useState<OwnerThread[]>([])
   const [activeThreadId, setActiveThreadId] = useState(DEFAULT_THREAD_ID)
@@ -955,6 +1015,68 @@ function OwnerIntakePageInner() {
     setTitle('')
     setIntakeKind('auto')
     toast.show('Started a new chat thread.')
+  }
+
+  async function forkExecutionThread(item: IntakeHistoryItem, info: IntakeRuntimeInfo) {
+    if (!info.codingPrompt) {
+      toast.show('There is no coding prompt to open yet.', 'error')
+      return
+    }
+
+    const targetAi = info.codingPromptTarget || 'AI-1'
+    const sourceRecord = info.followOnRecord || info.downstreamRecord
+    const payload = {
+      source_thread_id: item.result.thread_id || activeThreadId,
+      title: `${routeTargetLabel(targetAi)} · ${item.result.title || item.message}`,
+      target_ai: targetAi,
+      coding_prompt: info.codingPrompt,
+      source_workflow: item.result.follow_on_workflow !== 'none'
+        ? item.result.follow_on_workflow
+        : item.result.downstream_workflow,
+      source_note_paths: dedupeStrings([
+        item.result.created_note_relative_path,
+        item.result.downstream_reference,
+        item.result.follow_on_reference,
+        item.result.chat_memory?.summary_path,
+      ]),
+      file_targets: toStringList(sourceRecord?.file_targets),
+      change_summary: toStringList(sourceRecord?.change_summary),
+      verification_steps: toStringList(sourceRecord?.verification_steps),
+    }
+
+    setForkingThreadId(item.id)
+    try {
+      const response = await devFetch('/api/vurium-dev/ai/owner-threads/fork-execution', {
+        method: 'POST',
+        body: JSON.stringify({ payload }),
+      }) as ExecutionThreadForkResult
+      const nowIso = new Date().toISOString()
+      const nextThread: OwnerThread = {
+        id: response.thread_id,
+        title: response.title,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      }
+      const seededHistory = [buildHistoryItemFromExecutionThreadFork(response)]
+      try {
+        localStorage.setItem(historyStorageKey(response.thread_id), JSON.stringify(seededHistory))
+        localStorage.setItem(ACTIVE_THREAD_KEY, response.thread_id)
+      } catch {}
+      setThreads((prev) => mergeThreads([nextThread], prev))
+      setActiveThreadId(response.thread_id)
+      setHistory(seededHistory)
+      setLatestResult(seededHistory[0].result)
+      setHydratedThreadId(response.thread_id)
+      setMessage('')
+      setTitle('')
+      setIntakeKind('auto')
+      toast.show(`Opened ${routeTargetLabel(targetAi)} execution thread.`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not open execution thread'
+      toast.show(message, 'error')
+    } finally {
+      setForkingThreadId('')
+    }
   }
 
   function handleComposerKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -1318,6 +1440,25 @@ function OwnerIntakePageInner() {
                                   }}
                                 >
                                   Copy coding prompt
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { void forkExecutionThread(item, info) }}
+                                  disabled={forkingThreadId === item.id}
+                                  style={{
+                                    padding: '8px 12px',
+                                    borderRadius: 999,
+                                    border: 'none',
+                                    cursor: forkingThreadId === item.id ? 'wait' : 'pointer',
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    fontFamily: 'inherit',
+                                    background: 'rgba(255,255,255,.08)',
+                                    color: 'rgba(255,255,255,.9)',
+                                    opacity: forkingThreadId === item.id ? 0.72 : 1,
+                                  }}
+                                >
+                                  {forkingThreadId === item.id ? 'Opening…' : 'Open code thread'}
                                 </button>
                               </div>
 
