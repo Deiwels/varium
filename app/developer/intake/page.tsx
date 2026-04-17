@@ -102,6 +102,16 @@ interface ExecutionContract {
   reason: string
 }
 
+interface ParallelExecutionBundle {
+  status: string
+  bundle_note_relative_path: string
+  bundle_note_absolute_path: string
+  lane_targets: string[]
+  launch_prompt: string
+  return_to_system_prompt: string
+  reason: string
+}
+
 interface ExecutionLaneInfo {
   targetAi: string
   sourceLabel: string
@@ -544,6 +554,7 @@ interface IntakeRuntimeInfo {
   externalExecutionMode: string
   executionLanes: ExecutionLaneInfo[]
   executionContract: ExecutionContract | null
+  parallelExecutionBundle: ParallelExecutionBundle | null
   starterPrompt: string
   codingPrompt: string
   codexPrompt: string
@@ -684,6 +695,18 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
   const rawParallelPackets = Array.isArray(sourcePacketRecord?.parallel_packets)
     ? sourcePacketRecord.parallel_packets.map((entry) => asRecord(entry)).filter(Boolean)
     : []
+  const rawParallelBundle = asRecord(sourcePacketRecord?.parallel_bundle)
+  const parallelExecutionBundle = rawParallelBundle
+    ? {
+        status: typeof rawParallelBundle.status === 'string' ? rawParallelBundle.status.trim() : '',
+        bundle_note_relative_path: typeof rawParallelBundle.bundle_note_relative_path === 'string' ? rawParallelBundle.bundle_note_relative_path.trim() : '',
+        bundle_note_absolute_path: typeof rawParallelBundle.bundle_note_absolute_path === 'string' ? rawParallelBundle.bundle_note_absolute_path.trim() : '',
+        lane_targets: toStringList(rawParallelBundle.lane_targets),
+        launch_prompt: typeof rawParallelBundle.launch_prompt === 'string' ? rawParallelBundle.launch_prompt.trim() : '',
+        return_to_system_prompt: typeof rawParallelBundle.return_to_system_prompt === 'string' ? rawParallelBundle.return_to_system_prompt.trim() : '',
+        reason: typeof rawParallelBundle.reason === 'string' ? rawParallelBundle.reason.trim() : '',
+      }
+    : null
   const executionLanes = (rawParallelPackets.length
     ? rawParallelPackets
     : sourcePacketRecord && (typeof sourcePacketRecord?.target_ai === 'string' || typeof sourcePacketRecord?.starter_prompt === 'string' || typeof sourcePacketRecord?.ready_to_paste_prompt === 'string')
@@ -811,6 +834,10 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
       const targetAi = typeof downstreamRecord?.target_ai === 'string' ? downstreamRecord.target_ai.trim() : ''
       const executionMode = typeof downstreamRecord?.execution_mode === 'string' ? downstreamRecord.execution_mode.trim() : ''
       const parallelTargets = toStringList(downstreamRecord?.parallel_targets)
+      const rawParallelBundle = asRecord(downstreamRecord?.parallel_bundle)
+      const parallelBundlePath = typeof rawParallelBundle?.bundle_note_relative_path === 'string'
+        ? rawParallelBundle.bundle_note_relative_path.trim()
+        : ''
 
       return {
         header,
@@ -821,6 +848,7 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
         sections: [
           { label: 'Target lane', items: targetAi ? [targetAi] : [] },
           { label: 'Parallel lanes', items: parallelTargets.length > 1 ? parallelTargets : [] },
+          { label: 'Parallel bundle', items: parallelBundlePath ? [parallelBundlePath] : [] },
           { label: 'Execution mode', items: executionMode ? [executionMode.replace(/_/g, ' ')] : ['external ai'] },
           { label: 'File targets', items: fileTargets.slice(0, 6) },
           { label: 'Required changes', items: changeSummary.slice(0, 6) },
@@ -881,6 +909,7 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
     externalExecutionMode,
     executionLanes,
     executionContract,
+    parallelExecutionBundle,
     starterPrompt,
     codingPrompt,
     codexPrompt,
@@ -914,7 +943,7 @@ function OwnerIntakePageInner() {
   const [needVideoBrief, setNeedVideoBrief] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [forkingThreadId, setForkingThreadId] = useState('')
+  const [forkingExecutionKey, setForkingExecutionKey] = useState('')
   const [latestResult, setLatestResult] = useState<OwnerIntakeResult | null>(null)
   const [threads, setThreads] = useState<OwnerThread[]>([])
   const [activeThreadId, setActiveThreadId] = useState(DEFAULT_THREAD_ID)
@@ -1178,13 +1207,21 @@ function OwnerIntakePageInner() {
     toast.show('Started a new chat thread.')
   }
 
-  async function forkExecutionThread(item: IntakeHistoryItem, lane: ExecutionLaneInfo) {
+  async function forkExecutionThread(item: IntakeHistoryItem, lane: ExecutionLaneInfo, options?: { silent?: boolean; key?: string }) {
     if (!lane.starterPrompt && !lane.codexPrompt) {
-      toast.show('There is no coding prompt to open yet.', 'error')
+      if (!options?.silent) {
+        toast.show('There is no coding prompt to open yet.', 'error')
+      }
       return
     }
 
     const targetAi = lane.targetAi || 'AI-1'
+    const followOnBundle = asRecord(item.result.follow_on_result)?.parallel_bundle
+    const downstreamBundle = asRecord(item.result.downstream_result)?.parallel_bundle
+    const bundleRecord = asRecord(followOnBundle) || asRecord(downstreamBundle)
+    const bundlePath = typeof bundleRecord?.bundle_note_relative_path === 'string'
+      ? bundleRecord.bundle_note_relative_path.trim()
+      : ''
     const payload = {
       source_thread_id: item.result.thread_id || activeThreadId,
       title: `${routeTargetLabel(targetAi)} · ${item.result.title || item.message}`,
@@ -1194,6 +1231,7 @@ function OwnerIntakePageInner() {
         ? item.result.follow_on_workflow
         : item.result.downstream_workflow,
       source_note_paths: dedupeStrings([
+        bundlePath,
         lane.executionContract?.contract_note_relative_path,
         item.result.created_note_relative_path,
         item.result.downstream_reference,
@@ -1205,7 +1243,7 @@ function OwnerIntakePageInner() {
       verification_steps: lane.verificationSteps,
     }
 
-    setForkingThreadId(item.id)
+    setForkingExecutionKey(options?.key || `${item.id}:${targetAi}`)
     try {
       const response = await devFetch('/api/vurium-dev/ai/owner-threads/fork-execution', {
         method: 'POST',
@@ -1231,12 +1269,38 @@ function OwnerIntakePageInner() {
       setMessage('')
       setTitle('')
       setIntakeKind('auto')
-      toast.show(`Opened ${routeTargetLabel(targetAi)} execution memory thread.`)
+      if (!options?.silent) {
+        toast.show(`Opened ${routeTargetLabel(targetAi)} execution memory thread.`)
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not open execution thread'
+      if (!options?.silent) {
+        toast.show(message, 'error')
+      }
+      throw error
+    } finally {
+      setForkingExecutionKey('')
+    }
+  }
+
+  async function openParallelExecutionThreads(item: IntakeHistoryItem, lanes: ExecutionLaneInfo[]) {
+    const runnableLanes = lanes.filter((lane) => lane.starterPrompt || lane.codexPrompt || lane.claudePrompt)
+    if (!runnableLanes.length) {
+      toast.show('There are no execution lanes ready to open yet.', 'error')
+      return
+    }
+
+    setForkingExecutionKey(`${item.id}:all`)
+    try {
+      for (const lane of runnableLanes) {
+        await forkExecutionThread(item, lane, { silent: true, key: `${item.id}:${lane.targetAi}` })
+      }
+      toast.show(`Opened ${runnableLanes.length} execution memory threads.`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not open all execution threads'
       toast.show(message, 'error')
     } finally {
-      setForkingThreadId('')
+      setForkingExecutionKey('')
     }
   }
 
@@ -1563,6 +1627,117 @@ function OwnerIntakePageInner() {
 
                           {info.executionLanes.length > 0 && (
                             <div style={{ display: 'grid', gap: 14, marginTop: 14 }}>
+                              {info.parallelExecutionBundle && info.executionLanes.length > 1 && (
+                                <div style={{
+                                  ...card,
+                                  padding: 14,
+                                  background: 'rgba(255,205,120,.08)',
+                                  borderColor: 'rgba(255,205,120,.18)',
+                                }}>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <div style={{ display: 'grid', gap: 4 }}>
+                                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,205,120,.9)' }}>
+                                        Parallel Execution Bundle
+                                      </div>
+                                      <div style={{ fontSize: 13, color: 'rgba(255,255,255,.82)', lineHeight: 1.6 }}>
+                                        {`Run ${info.parallelExecutionBundle.lane_targets.join(' + ')} at the same time. The shared bundle note keeps the launch order and unified return flow in one place.`}
+                                      </div>
+                                      {info.parallelExecutionBundle.bundle_note_absolute_path && (
+                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.52)', wordBreak: 'break-word' }}>
+                                          {info.parallelExecutionBundle.bundle_note_absolute_path}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        try {
+                                          await navigator.clipboard.writeText(info.parallelExecutionBundle?.launch_prompt || '')
+                                          toast.show('Copied parallel launch bundle.')
+                                        } catch {
+                                          toast.show('Could not copy the launch bundle.', 'error')
+                                        }
+                                      }}
+                                      style={{
+                                        padding: '8px 12px',
+                                        borderRadius: 999,
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                        fontFamily: 'inherit',
+                                        background: 'rgba(255,205,120,.18)',
+                                        color: 'rgba(255,205,120,.98)',
+                                      }}
+                                    >
+                                      Copy launch bundle
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        try {
+                                          await navigator.clipboard.writeText(info.parallelExecutionBundle?.return_to_system_prompt || '')
+                                          toast.show('Copied combined return prompt.')
+                                        } catch {
+                                          toast.show('Could not copy the combined return prompt.', 'error')
+                                        }
+                                      }}
+                                      style={{
+                                        padding: '8px 12px',
+                                        borderRadius: 999,
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                        fontFamily: 'inherit',
+                                        background: 'rgba(255,255,255,.08)',
+                                        color: 'rgba(255,255,255,.9)',
+                                      }}
+                                    >
+                                      Copy combined return prompt
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => { void openParallelExecutionThreads(item, info.executionLanes) }}
+                                      disabled={forkingExecutionKey === `${item.id}:all`}
+                                      style={{
+                                        padding: '8px 12px',
+                                        borderRadius: 999,
+                                        border: 'none',
+                                        cursor: forkingExecutionKey === `${item.id}:all` ? 'wait' : 'pointer',
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                        fontFamily: 'inherit',
+                                        background: 'rgba(255,255,255,.08)',
+                                        color: 'rgba(255,255,255,.9)',
+                                        opacity: forkingExecutionKey === `${item.id}:all` ? 0.72 : 1,
+                                      }}
+                                    >
+                                      {forkingExecutionKey === `${item.id}:all` ? 'Opening…' : 'Open all execution memories'}
+                                    </button>
+                                  </div>
+
+                                  <details style={{ marginTop: 12 }}>
+                                    <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(255,205,120,.92)' }}>
+                                      Preview parallel launch instructions
+                                    </summary>
+                                    <pre style={{
+                                      margin: '10px 0 0',
+                                      padding: 12,
+                                      borderRadius: 12,
+                                      overflow: 'auto',
+                                      background: 'rgba(0,0,0,.22)',
+                                      border: '1px solid rgba(255,255,255,.06)',
+                                      color: 'rgba(255,255,255,.78)',
+                                      fontSize: 11,
+                                      lineHeight: 1.65,
+                                      whiteSpace: 'pre-wrap',
+                                      wordBreak: 'break-word',
+                                    }}>{info.parallelExecutionBundle.launch_prompt}</pre>
+                                  </details>
+                                </div>
+                              )}
+
                               {info.executionLanes.map((lane) => {
                                 const preferredProvider = preferredExecutionProviderForTarget(lane.targetAi)
                                 const primaryPrompt = preferredProvider === 'codex'
@@ -1571,6 +1746,8 @@ function OwnerIntakePageInner() {
                                 const alternatePrompt = preferredProvider === 'codex'
                                   ? (lane.claudePrompt || lane.starterPrompt)
                                   : (lane.codexPrompt || lane.starterPrompt)
+                                const laneExecutionKey = `${item.id}:${lane.targetAi}`
+                                const laneBusy = forkingExecutionKey === laneExecutionKey || forkingExecutionKey === `${item.id}:all`
 
                                 return (
                                   <div key={`${item.id}-${lane.targetAi}`} style={{
@@ -1663,21 +1840,21 @@ function OwnerIntakePageInner() {
                                       <button
                                         type="button"
                                         onClick={() => { void forkExecutionThread(item, lane) }}
-                                        disabled={forkingThreadId === item.id}
+                                        disabled={laneBusy}
                                         style={{
                                           padding: '8px 12px',
                                           borderRadius: 999,
                                           border: 'none',
-                                          cursor: forkingThreadId === item.id ? 'wait' : 'pointer',
+                                          cursor: laneBusy ? 'wait' : 'pointer',
                                           fontSize: 12,
                                           fontWeight: 700,
                                           fontFamily: 'inherit',
                                           background: 'rgba(255,255,255,.08)',
                                           color: 'rgba(255,255,255,.9)',
-                                          opacity: forkingThreadId === item.id ? 0.72 : 1,
+                                          opacity: laneBusy ? 0.72 : 1,
                                         }}
                                       >
-                                        {forkingThreadId === item.id ? 'Opening…' : 'Open execution memory'}
+                                        {laneBusy ? 'Opening…' : 'Open execution memory'}
                                       </button>
                                     </div>
 

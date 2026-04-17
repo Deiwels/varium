@@ -3984,6 +3984,16 @@ const ExecutionContractSchema = z.object({
   reason: z.string().default(''),
 });
 
+const ParallelExecutionBundleSchema = z.object({
+  status: WorkflowStatusSchema,
+  bundle_note_relative_path: z.string().default(''),
+  bundle_note_absolute_path: z.string().default(''),
+  lane_targets: z.array(ImplementationTargetSchema).default([]),
+  launch_prompt: z.string().default(''),
+  return_to_system_prompt: z.string().default(''),
+  reason: z.string().default(''),
+});
+
 const EXECUTION_CONTRACT_DEFAULT = {
   status: 'blocked',
   contract_note_relative_path: '',
@@ -3992,6 +4002,16 @@ const EXECUTION_CONTRACT_DEFAULT = {
   write_progress_to: [],
   report_back_to: [],
   starter_prompt: '',
+  reason: '',
+};
+
+const PARALLEL_EXECUTION_BUNDLE_DEFAULT = {
+  status: 'blocked',
+  bundle_note_relative_path: '',
+  bundle_note_absolute_path: '',
+  lane_targets: [],
+  launch_prompt: '',
+  return_to_system_prompt: '',
   reason: '',
 };
 
@@ -4015,6 +4035,7 @@ const ImplementationPacketBaseSchema = z.object({
   claude_prompt: z.string().default(''),
   return_to_system_prompt: z.string().default(''),
   execution_contract: ExecutionContractSchema.default(EXECUTION_CONTRACT_DEFAULT),
+  parallel_bundle: ParallelExecutionBundleSchema.default(PARALLEL_EXECUTION_BUNDLE_DEFAULT),
   escalate_to: WorkflowEscalationTargetSchema,
   reason: z.string().default(''),
   writeback_targets: z.array(z.string()).default([]),
@@ -5604,7 +5625,7 @@ function buildOwnerIntakeOperatorReply({ intakeKind, title, note, downstreamResu
         : '',
       followOnResult?.workflow === 'implementation_packet'
         ? Array.isArray(followOnResult.parallel_targets) && followOnResult.parallel_targets.length > 1
-          ? `I also prepared parallel execution contracts for ${followOnResult.parallel_targets.join(' and ')} so ${preferredExecutionProviderLabel('AI-1')} and ${preferredExecutionProviderLabel('AI-2')} can work at the same time with separate memory contracts and report back into the same system.`
+          ? `I also prepared parallel execution contracts for ${followOnResult.parallel_targets.join(' and ')} so ${preferredExecutionProviderLabel('AI-1')} and ${preferredExecutionProviderLabel('AI-2')} can work at the same time with separate memory contracts and report back into the same system. A shared parallel execution bundle note ties both lanes together.`
           : `I also prepared one shared execution contract for ${safeStr(followOnResult.target_ai || 'the implementation lane')} that tells the external AI exactly what to read, where to write progress, and how to report back into memory. The preferred executor for this lane is ${preferredExecutionProviderLabel(followOnResult.target_ai || '')}.`
         : '',
       safeStr(followOnResult?.next_step || downstreamResult?.next_step || '').trim(),
@@ -6488,6 +6509,11 @@ function buildImplementationContractRelativePath(packet) {
   return `Projects/VuriumBook/Handoffs/${taskId}-to-${safeWorkflowSlug(targetAi, 'AI-1')}-Execution-Contract.md`;
 }
 
+function buildParallelExecutionBundleRelativePath(packet) {
+  const taskId = safeWorkflowSlug(packet.task_id, 'task');
+  return `Projects/VuriumBook/Handoffs/${taskId}-Parallel-Execution-Bundle.md`;
+}
+
 function toWorkspaceKnowledgeAbsolutePath(relativePath) {
   const cleaned = safeStr(relativePath).replace(/\\/g, '/').replace(/^\/+/, '').trim();
   if (!cleaned) return '';
@@ -6522,6 +6548,60 @@ function buildImplementationMemoryReportTargets(packet) {
     toWorkspaceKnowledgeAbsolutePath(buildImplementationContractRelativePath(packet)),
     toWorkspaceKnowledgeAbsolutePath(safeStr(packet.writeback?.relative_path || '').trim() || buildImplementationHandoffRelativePath(packet)),
   ]).filter(Boolean);
+}
+
+function buildParallelExecutionLaunchPrompt(packet, orderedPackets, bundleAbsolutePath) {
+  const laneLines = orderedPackets.map((entry) => {
+    const targetAi = safeStr(entry.target_ai || 'AI-1').trim() || 'AI-1';
+    const provider = preferredExecutionProviderLabel(targetAi);
+    const contractPath = safeStr(entry.execution_contract?.contract_note_absolute_path || '').trim();
+    return `- ${targetAi} -> ${provider}: ${contractPath || 'contract note pending'}`;
+  });
+
+  return [
+    `Run the external implementation lanes for ${safeStr(packet.task_id)} in parallel.`,
+    '',
+    `Shared bundle note: ${bundleAbsolutePath}`,
+    '',
+    'Launch these lanes at the same time:',
+    ...(laneLines.length ? laneLines : ['- pending']),
+    '',
+    'Execution rules:',
+    '- do not restart planning',
+    '- each lane must stay inside its owned scope',
+    '- each lane writes short progress updates into its own execution contract note',
+    '- once both lanes finish, paste a combined report back into Owner Copilot',
+  ].join('\n');
+}
+
+function buildParallelExecutionReturnPrompt(packet, orderedPackets) {
+  return [
+    `Paste this back into Owner Copilot once the parallel execution for ${safeStr(packet.task_id)} is complete.`,
+    '',
+    'Use exactly this structure:',
+    'Parallel summary:',
+    '- overall outcome',
+    '',
+    ...orderedPackets.flatMap((entry) => {
+      const targetAi = safeStr(entry.target_ai || 'AI-1').trim() || 'AI-1';
+      return [
+        `${targetAi} summary:`,
+        '- ...',
+        '',
+        `${targetAi} changed files:`,
+        '- ...',
+        '',
+        `${targetAi} checks run:`,
+        '- ...',
+        '',
+        `${targetAi} blockers:`,
+        '- ...',
+        '',
+      ];
+    }),
+    'Integrated next step:',
+    '- ...',
+  ].join('\n');
 }
 
 function buildImplementationStarterPrompt(packet, executionContract) {
@@ -6724,6 +6804,102 @@ async function attachImplementationExecutionContract(packet) {
         status: 'blocked',
         starter_prompt: preferredPrompt,
         reason: `Execution contract write failed: ${safeStr(error?.message || 'unknown error')}. Preferred executor: ${preferredProviderLabel}.`,
+      },
+    };
+  }
+}
+
+async function attachParallelExecutionBundle(packet) {
+  const orderedPackets = Array.isArray(packet.parallel_packets)
+    ? packet.parallel_packets.filter(Boolean)
+    : [];
+  const laneTargets = uniqueList(orderedPackets.map((entry) => safeStr(entry.target_ai))).filter(Boolean);
+
+  if (laneTargets.length <= 1) {
+    return {
+      ...packet,
+      parallel_bundle: packet.parallel_bundle || PARALLEL_EXECUTION_BUNDLE_DEFAULT,
+    };
+  }
+
+  const bundleRelativePath = buildParallelExecutionBundleRelativePath(packet);
+  const bundleAbsolutePath = toWorkspaceKnowledgeAbsolutePath(bundleRelativePath);
+  const launchPrompt = buildParallelExecutionLaunchPrompt(packet, orderedPackets, bundleAbsolutePath);
+  const returnPrompt = buildParallelExecutionReturnPrompt(packet, orderedPackets);
+  const laneLines = orderedPackets.map((entry) => {
+    const targetAi = safeStr(entry.target_ai || 'AI-1').trim() || 'AI-1';
+    const provider = preferredExecutionProviderLabel(targetAi);
+    const contractPath = safeStr(entry.execution_contract?.contract_note_absolute_path || '').trim();
+    return { targetAi, provider, contractPath };
+  });
+
+  const bundleBody = [
+    '---',
+    'type: parallel-execution-bundle',
+    'status: active',
+    `task_id: ${safeStr(packet.task_id)}`,
+    `created: ${toIso(new Date())}`,
+    '---',
+    '',
+    `# Parallel Execution Bundle — ${safeStr(packet.task_id)}`,
+    '',
+    '## Shared Objective',
+    safeStr(packet.objective || '').trim() || 'Coordinate the current mixed backend/frontend execution without restarting planning.',
+    '',
+    '## Lane Map',
+    ...(laneLines.length
+      ? laneLines.flatMap((entry) => [
+          `### ${entry.targetAi}`,
+          `- Preferred executor: ${entry.provider}`,
+          `- Execution contract: ${entry.contractPath || 'pending'}`,
+          '',
+        ])
+      : ['- pending']),
+    '## Launch Prompt',
+    '```text',
+    launchPrompt,
+    '```',
+    '',
+    '## Combined Return-to-System Prompt',
+    '```text',
+    returnPrompt,
+    '```',
+    '',
+    '## Coordination Rules',
+    '- launch the listed lanes at the same time when possible',
+    '- keep each lane inside its owned implementation scope',
+    '- write progress into the lane-specific execution contract notes',
+    '- after both lanes finish, return one integrated report to Owner Copilot',
+    '',
+    '## Status',
+    '- pending',
+  ].join('\n');
+
+  try {
+    await writeWorkspaceBrainNote(bundleRelativePath, bundleBody);
+    return {
+      ...packet,
+      parallel_bundle: {
+        status: 'done',
+        bundle_note_relative_path: bundleRelativePath,
+        bundle_note_absolute_path: bundleAbsolutePath,
+        lane_targets: laneTargets,
+        launch_prompt: launchPrompt,
+        return_to_system_prompt: returnPrompt,
+        reason: `Parallel execution bundle saved to the local workspace brain for ${laneTargets.join(' + ')}.`,
+      },
+    };
+  } catch (error) {
+    return {
+      ...packet,
+      parallel_bundle: {
+        status: 'blocked',
+        bundle_note_relative_path: bundleRelativePath,
+        bundle_note_absolute_path: bundleAbsolutePath,
+        lane_targets: laneTargets,
+        launch_prompt: launchPrompt,
+        return_to_system_prompt: returnPrompt,
+        reason: `Parallel execution bundle write failed: ${safeStr(error?.message || 'unknown error')}`,
       },
     };
   }
@@ -8417,7 +8593,7 @@ async function executeImplementationPacketWorkflow(meta, context, input, { notif
   const status = summarizeParallelImplementationStatus(orderedPackets);
   const writebackTargets = uniqueList(orderedPackets.flatMap((packet) => Array.isArray(packet.writeback_targets) ? packet.writeback_targets : []));
 
-  return AI3ImplementationPacketOutputSchema.parse({
+  const aggregatedPacket = {
     ...primaryPacket,
     status,
     implementation_kind: 'fullstack',
@@ -8426,7 +8602,9 @@ async function executeImplementationPacketWorkflow(meta, context, input, { notif
     writeback_targets: writebackTargets,
     parallel_targets: targetSet,
     parallel_packets: orderedPackets,
-  });
+  };
+  const bundledPacket = await attachParallelExecutionBundle(aggregatedPacket);
+  return AI3ImplementationPacketOutputSchema.parse(bundledPacket);
 }
 
 async function executeQAScanWorkflow(meta, context, input, { notifyOwner = true } = {}) {
