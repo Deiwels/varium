@@ -5809,12 +5809,18 @@ function buildOwnerIntakeOperatorReply({ intakeKind, title, note, downstreamResu
     const workstreams = Array.isArray(downstreamResult?.plan_skeleton?.workstreams)
       ? downstreamResult.plan_skeleton.workstreams.filter(Boolean)
       : [];
+    const verdentBridge = downstreamResult && typeof downstreamResult === 'object' && downstreamResult.verdent_external_bridge && typeof downstreamResult.verdent_external_bridge === 'object'
+      ? downstreamResult.verdent_external_bridge
+      : null;
     const parts = [
       `I understood this as a delivery task and created ${note.relative_path}.`,
       downstreamResult
         ? `Verdent created a planning response for "${objective}".`
         : 'I routed the request into Verdent planning.',
       workstreams.length ? `Current workstreams: ${workstreams.join(', ')}.` : '',
+      verdentBridge?.status === 'done'
+        ? `I also prepared a ready-to-paste external Verdent prompt. If you want the full Verdent plan, use the prompt, then paste the returned markdown back into Owner Copilot so it gets imported into ${safeStr(verdentBridge.target_plan_relative_path || '').trim()}.`
+        : '',
       shouldAutoContinueOwnerIntakeResearch(intakeKind, downstreamResult)
         ? followOnResult
           ? `I also opened AI-5 research automatically so the missing context can be gathered before planning continues. I prepared a ready-to-paste AI-5 Deep Research prompt for the current research provider chain as well.`
@@ -8448,6 +8454,366 @@ function buildGenericOwnerNotificationInput(workflowSource, summarySubject, summ
   };
 }
 
+function buildPlanningNoteRelativePath(taskId) {
+  return `04-Tasks/${safeWorkflowSlug(taskId, 'task')}-Plan.md`;
+}
+
+function buildPlanningTaskNoteRelativePath(taskId, productContextLinks = []) {
+  const normalizedTaskId = safeWorkflowSlug(taskId, 'task');
+  const candidates = Array.isArray(productContextLinks) ? productContextLinks : [];
+  const explicit = candidates.find((entry) => {
+    const cleaned = safeStr(entry).trim();
+    return cleaned.startsWith('04-Tasks/')
+      && cleaned.endsWith('.md')
+      && !cleaned.endsWith('-Plan.md')
+      && cleaned.includes(normalizedTaskId);
+  });
+  return safeStr(explicit || '').trim();
+}
+
+function buildExternalVerdentBridgeRelativePath(taskId) {
+  return `Projects/VuriumBook/Handoffs/${safeWorkflowSlug(taskId, 'task')}-Verdent-External-Planning-Bridge.md`;
+}
+
+function buildExternalVerdentPlanningSourceStack(result, input, context = {}) {
+  const projectSnapshot = context && typeof context === 'object' && context.project_snapshot && typeof context.project_snapshot === 'object'
+    ? context.project_snapshot
+    : {};
+  const taskNoteRelativePath = buildPlanningTaskNoteRelativePath(result.task_id, input.product_context_links);
+  const planningNoteRelativePath = safeStr(result?.writeback?.relative_path || '').trim() || buildPlanningNoteRelativePath(result.task_id);
+  const topicNotePaths = Array.isArray(projectSnapshot.topic_notes)
+    ? projectSnapshot.topic_notes.map((entry) => safeStr(entry?.path || '').trim()).filter(Boolean)
+    : [];
+  const prioritizedTopicNotes = uniqueList([
+    ...topicNotePaths.filter((entry) => !entry.startsWith('04-Tasks/')),
+    ...topicNotePaths.filter((entry) => entry.startsWith('04-Tasks/')),
+  ]).slice(0, 8);
+  const productContextPaths = uniqueList((Array.isArray(input.product_context_links) ? input.product_context_links : []).map((entry) => safeStr(entry).trim()).filter(Boolean))
+    .slice(0, 6);
+  const candidatePaths = uniqueList([
+    taskNoteRelativePath,
+    planningNoteRelativePath,
+    safeStr(projectSnapshot.local_project_brain?.path || '').trim(),
+    safeStr(projectSnapshot.local_current_state?.path || '').trim(),
+    safeStr(projectSnapshot.local_daily_review?.path || '').trim(),
+    safeStr(projectSnapshot.local_codebase_snapshot?.path || '').trim(),
+    safeStr(projectSnapshot.brain_note?.path || '').trim(),
+    safeStr(projectSnapshot.local_topic_execution_checklist?.path || '').trim(),
+    ...prioritizedTopicNotes,
+    ...productContextPaths,
+  ]).filter(Boolean).slice(0, 16);
+  return candidatePaths.map((entry) => toWorkspaceKnowledgeAbsolutePath(entry)).filter(Boolean);
+}
+
+function buildExternalVerdentPlanningPrompt(result, input, bridge, context = {}) {
+  const objective = safeStr(result?.plan_skeleton?.objective || input.description || input.title || result.task_id).trim();
+  const workstreams = Array.isArray(result?.plan_skeleton?.workstreams) && result.plan_skeleton.workstreams.length
+    ? result.plan_skeleton.workstreams
+    : inferPlanningWorkstreams(input);
+  const missingInputs = Array.isArray(result?.plan_skeleton?.missing_inputs) ? result.plan_skeleton.missing_inputs : [];
+  const acceptanceCriteria = Array.isArray(result?.plan_skeleton?.acceptance_criteria_seed)
+    ? result.plan_skeleton.acceptance_criteria_seed
+    : inferPlanningAcceptanceCriteria(input);
+  const sources = buildExternalVerdentPlanningSourceStack(result, input, context);
+
+  return [
+    'You are Verdent planning for VuriumBook.',
+    '',
+    'Create a full implementation plan, not a short planning shell.',
+    '',
+    `Task ID: ${safeStr(result.task_id)}`,
+    `Title: ${safeStr(input.title || objective)}`,
+    `Objective: ${objective}`,
+    '',
+    'Read these files first:',
+    ...(sources.length ? sources.map((entry) => `- ${entry}`) : ['- No source files were attached; state that clearly and plan conservatively.']),
+    '',
+    'Planning rules:',
+    '- ground the plan in the files above before inventing anything new',
+    '- if there is already a checklist or active execution path, continue it instead of creating a parallel plan',
+    '- call out blockers, exact next steps, and ownership clearly',
+    '- if external truth is still missing, say exactly what AI-5 / research still needs',
+    '',
+    'Return markdown only.',
+    '',
+    'Required sections:',
+    '1. Current verdict',
+    '2. What already exists',
+    '3. What still blocks completion',
+    '4. Execution phases',
+    '5. Exact file and surface map',
+    '6. Risks and verification',
+    '7. Handoffs / supporting AI lanes',
+    '8. Immediate next action',
+    '',
+    'Use these current planning seeds if helpful:',
+    `- Workstreams: ${(workstreams || []).join(', ') || 'none listed'}`,
+    `- Missing inputs: ${(missingInputs || []).join(', ') || 'none listed'}`,
+    `- Acceptance criteria seed: ${(acceptanceCriteria || []).join(', ') || 'none listed'}`,
+    '',
+    'Important:',
+    `- The canonical target in our system is: ${bridge.target_plan_absolute_path}`,
+    '- Do not invent a different target file path.',
+    '- The owner will paste your full markdown plan back into the system for import.',
+  ].join('\n');
+}
+
+function buildExternalVerdentPlanningReturnPrompt(result, bridge) {
+  return [
+    'Paste the full external Verdent plan back into Owner Copilot exactly like this:',
+    '',
+    'VERDENT_PLAN_IMPORT',
+    `Task ID: ${safeStr(result.task_id)}`,
+    `Target Plan Note: ${bridge.target_plan_relative_path}`,
+    'BEGIN_VERDENT_PLAN',
+    '[paste the full Verdent markdown plan here]',
+    'END_VERDENT_PLAN',
+    '',
+    'Do not add extra commentary outside that block.',
+  ].join('\n');
+}
+
+async function attachExternalVerdentPlanningBridge(result, input, context = {}) {
+  const targetPlanRelativePath = safeStr(result?.writeback?.relative_path || '').trim() || buildPlanningNoteRelativePath(result.task_id);
+  const targetPlanAbsolutePath = toWorkspaceKnowledgeAbsolutePath(targetPlanRelativePath);
+  const bridgeRelativePath = buildExternalVerdentBridgeRelativePath(result.task_id);
+  const bridgeAbsolutePath = toWorkspaceKnowledgeAbsolutePath(bridgeRelativePath);
+  const prompt = buildExternalVerdentPlanningPrompt(result, input, {
+    target_plan_relative_path: targetPlanRelativePath,
+    target_plan_absolute_path: targetPlanAbsolutePath,
+  }, context);
+  const returnToSystemPrompt = buildExternalVerdentPlanningReturnPrompt(result, {
+    target_plan_relative_path: targetPlanRelativePath,
+    target_plan_absolute_path: targetPlanAbsolutePath,
+  });
+  const readFrom = buildExternalVerdentPlanningSourceStack(result, input, context);
+
+  const bridgeBody = [
+    '---',
+    'type: external-verdent-planning-bridge',
+    'status: active',
+    `task_id: ${safeStr(result.task_id)}`,
+    `created: ${toIso(new Date())}`,
+    '---',
+    '',
+    `# External Verdent Planning Bridge — ${safeStr(result.task_id)}`,
+    '',
+    '## Read First',
+    ...(readFrom.length ? readFrom.map((entry) => `- ${entry}`) : ['- none']),
+    '',
+    '## Canonical Target Plan Note',
+    `- Relative: ${targetPlanRelativePath}`,
+    `- Absolute: ${targetPlanAbsolutePath}`,
+    '',
+    '## Prompt For External Verdent',
+    '```text',
+    prompt,
+    '```',
+    '',
+    '## Return Prompt',
+    '```text',
+    returnToSystemPrompt,
+    '```',
+  ].join('\n');
+
+  try {
+    await writeWorkspaceBrainNote(bridgeRelativePath, bridgeBody);
+    return {
+      ...result,
+      verdent_external_bridge: {
+        status: 'done',
+        bridge_note_relative_path: bridgeRelativePath,
+        bridge_note_absolute_path: bridgeAbsolutePath,
+        target_plan_relative_path: targetPlanRelativePath,
+        target_plan_absolute_path: targetPlanAbsolutePath,
+        verdent_prompt: prompt,
+        return_to_system_prompt: returnToSystemPrompt,
+        read_from: readFrom,
+        reason: 'Ready-to-paste external Verdent planning bridge prepared.',
+      },
+    };
+  } catch (error) {
+    return {
+      ...result,
+      verdent_external_bridge: {
+        status: 'blocked',
+        bridge_note_relative_path: bridgeRelativePath,
+        bridge_note_absolute_path: bridgeAbsolutePath,
+        target_plan_relative_path: targetPlanRelativePath,
+        target_plan_absolute_path: targetPlanAbsolutePath,
+        verdent_prompt: prompt,
+        return_to_system_prompt: returnToSystemPrompt,
+        read_from: readFrom,
+        reason: `Could not save the external Verdent bridge note: ${safeStr(error?.message || 'unknown error')}`,
+      },
+    };
+  }
+}
+
+const VERDENT_PLAN_IMPORT_START = 'VERDENT_PLAN_IMPORT';
+const VERDENT_PLAN_IMPORT_BODY_START = 'BEGIN_VERDENT_PLAN';
+const VERDENT_PLAN_IMPORT_BODY_END = 'END_VERDENT_PLAN';
+
+function stripCodeFenceWrapper(content) {
+  const text = safeStr(content).trim();
+  if (!text.startsWith('```')) return text;
+  const lines = text.split('\n');
+  if (lines.length < 3) return text;
+  if (!lines[0].startsWith('```') || !lines[lines.length - 1].startsWith('```')) return text;
+  return lines.slice(1, -1).join('\n').trim();
+}
+
+function parseVerdentPlanImportMessage(message) {
+  const text = safeStr(message).replace(/\r/g, '').trim();
+  if (!text.includes(VERDENT_PLAN_IMPORT_START)) return null;
+
+  const taskMatch = text.match(/Task ID:\s*([^\n]+)/i);
+  const targetMatch = text.match(/Target Plan Note:\s*([^\n]+)/i);
+  const bodyStart = text.indexOf(VERDENT_PLAN_IMPORT_BODY_START);
+  const bodyEnd = text.lastIndexOf(VERDENT_PLAN_IMPORT_BODY_END);
+
+  if (bodyStart === -1 || bodyEnd === -1 || bodyEnd <= bodyStart) return null;
+
+  const rawPlanBody = text.slice(bodyStart + VERDENT_PLAN_IMPORT_BODY_START.length, bodyEnd).trim();
+  const planMarkdown = stripCodeFenceWrapper(rawPlanBody);
+  const targetPlanRelativePath = safeStr(targetMatch?.[1] || '').trim().replace(/^\/+/, '');
+  const rawTaskId = safeStr(taskMatch?.[1] || '').trim();
+  const inferredTaskId = targetPlanRelativePath
+    ? safeStr(path.basename(targetPlanRelativePath).replace(/-Plan\.md$/i, '')).trim()
+    : '';
+  const taskId = rawTaskId || inferredTaskId;
+
+  if (!taskId || !planMarkdown || !targetPlanRelativePath) return null;
+  if (!targetPlanRelativePath.startsWith('04-Tasks/') || !targetPlanRelativePath.endsWith('.md')) return null;
+
+  return {
+    task_id: taskId,
+    target_plan_relative_path: targetPlanRelativePath,
+    target_plan_absolute_path: toWorkspaceKnowledgeAbsolutePath(targetPlanRelativePath),
+    plan_markdown: planMarkdown,
+  };
+}
+
+function buildImportedVerdentPlanNoteContent(importPayload) {
+  const importedAt = toIso(new Date());
+  const cleanedPlanMarkdown = stripMarkdownFrontmatter(stripCodeFenceWrapper(importPayload.plan_markdown)).trim();
+  return [
+    '---',
+    'type: task-plan',
+    'status: imported_external_plan',
+    `task_id: ${safeStr(importPayload.task_id)}`,
+    `planner: external_verdent`,
+    `updated: ${importedAt}`,
+    '---',
+    '',
+    `# Plan: ${safeStr(importPayload.task_id)}`,
+    '',
+    '## Import Metadata',
+    '- Source: external Verdent',
+    `- Imported: ${importedAt}`,
+    `- Canonical target: ${safeStr(importPayload.target_plan_relative_path)}`,
+    '',
+    '## External Verdent Full Plan',
+    '',
+    cleanedPlanMarkdown || 'No plan body was provided.',
+    '',
+    '## Next Step',
+    'Review this imported full plan in Owner Copilot, then continue the approved execution path without opening a parallel planning thread.',
+  ].join('\n');
+}
+
+async function executeVerdentPlanImport(meta, context, input, importPayload) {
+  const threadId = sanitizeOwnerThreadId(input.thread_id);
+  const writebackResult = await writeObsidianNote({
+    relative_path: importPayload.target_plan_relative_path,
+    content: buildImportedVerdentPlanNoteContent(importPayload),
+    mode: 'replace',
+    dry_run: false,
+  });
+
+  const downstreamResult = {
+    agent: 'AI-3',
+    workflow: 'verdent_external_import',
+    task_id: importPayload.task_id,
+    status: writebackResult.status,
+    planner: 'external_verdent',
+    imported_plan_target_relative_path: writebackResult.relative_path,
+    imported_plan_target_absolute_path: writebackResult.absolute_path,
+    writeback_targets: [writebackResult.relative_path],
+    writeback: {
+      status: writebackResult.status,
+      relative_path: writebackResult.relative_path,
+      reason: writebackResult.reason,
+    },
+    owner_notification: null,
+    reason: writebackResult.status === 'done'
+      ? 'Imported the external Verdent full plan into the canonical planning note.'
+      : writebackResult.reason,
+    next_step: writebackResult.status === 'done'
+      ? 'Open the imported planning note and continue execution from this full Verdent plan.'
+      : 'Repair the import payload and retry the Verdent plan import.',
+  };
+
+  const operatorReply = downstreamResult.status === 'done'
+    ? `Imported the full external Verdent plan into ${writebackResult.relative_path}. AI-3 should now continue from that canonical plan note instead of the earlier planning shell.`
+    : `I recognized this as a Verdent plan import, but the writeback failed: ${safeStr(writebackResult.reason)}.`;
+
+  const chatMemory = await persistOwnerThreadMemory({
+    threadId,
+    title: `Import Verdent plan for ${safeStr(importPayload.task_id)}`,
+    input,
+    result: {
+      intake_kind: 'task',
+      title: `Import Verdent plan for ${safeStr(importPayload.task_id)}`,
+      route_target: 'AI-3',
+      downstream_workflow: 'Verdent_External_Import',
+      created_note_relative_path: writebackResult.relative_path,
+      downstream_reference: writebackResult.relative_path,
+      follow_on_reference: '',
+      downstream_result: downstreamResult,
+      next_step: downstreamResult.next_step,
+      reason: downstreamResult.reason,
+      operator_reply: operatorReply,
+    },
+    mode: 'owner-copilot',
+    provider: 'mixed',
+    linkedPlans: [writebackResult.relative_path],
+  });
+
+  return OwnerIntakeOutputSchema.parse({
+    agent: 'SYSTEM',
+    workflow: 'owner_intake',
+    status: writebackResult.status === 'done' ? 'done' : 'blocked',
+    intake_id: `verdent-import-${safeWorkflowSlug(importPayload.task_id, 'task')}`,
+    intake_kind: 'task',
+    thread_id: threadId,
+    title: `Import Verdent plan for ${safeStr(importPayload.task_id)}`,
+    queue_stage: 'Planning Imported',
+    route_target: 'AI-3',
+    created_note_relative_path: writebackResult.relative_path,
+    downstream_workflow: 'Verdent_External_Import',
+    downstream_status: writebackResult.status,
+    downstream_reference: writebackResult.relative_path,
+    downstream_result: downstreamResult,
+    escalate_to: 'AI-3',
+    reason: downstreamResult.reason,
+    writeback_targets: [writebackResult.relative_path],
+    writeback: {
+      status: writebackResult.status,
+      relative_path: writebackResult.relative_path,
+      reason: writebackResult.reason,
+    },
+    owner_notification: null,
+    operator_reply: operatorReply,
+    chat_memory: chatMemory,
+    follow_on_workflow: 'none',
+    follow_on_status: writebackResult.status,
+    follow_on_reference: '',
+    follow_on_result: null,
+    next_step: downstreamResult.next_step,
+  });
+}
+
 function shouldNotifyOwner(result) {
   return result.escalate_to === 'Owner';
 }
@@ -9405,7 +9771,7 @@ async function executePlanningIntakeWorkflow(meta, context, input, { notifyOwner
     maxTokens: 1400,
   });
 
-  return AI3PlanningIntakeOutputSchema.parse(await finalizeWorkflowResult(result, {
+  const finalized = AI3PlanningIntakeOutputSchema.parse(await finalizeWorkflowResult(result, {
     writebackBuilder: buildPlanningWritebackInput,
     ownerBuilder: notifyOwner
       ? (finalResult) => buildGenericOwnerNotificationInput(
@@ -9417,6 +9783,8 @@ async function executePlanningIntakeWorkflow(meta, context, input, { notifyOwner
       )
       : null,
   }));
+
+  return attachExternalVerdentPlanningBridge(finalized, input, planningContext);
 }
 
 async function executeSingleImplementationPacketWorkflow(meta, context, input, { notifyOwner = true } = {}) {
@@ -9797,6 +10165,11 @@ async function readWorkspaceBrainThreadSnapshot(threadId, project = 'VuriumBook'
 }
 
 async function executeOwnerIntake(meta, context, input) {
+  const verdentImport = parseVerdentPlanImportMessage(input.message);
+  if (verdentImport) {
+    return executeVerdentPlanImport(meta, context, input, verdentImport);
+  }
+
   const title = deriveOwnerIntakeTitle(input);
   const intakeKind = shouldForceOwnerAdvisoryFollowUp(input, context)
     ? 'advisory'

@@ -112,6 +112,18 @@ interface ExecutionContract {
   reason: string
 }
 
+interface VerdentExternalBridge {
+  status: string
+  bridge_note_relative_path: string
+  bridge_note_absolute_path: string
+  target_plan_relative_path: string
+  target_plan_absolute_path: string
+  verdent_prompt: string
+  return_to_system_prompt: string
+  read_from: string[]
+  reason: string
+}
+
 interface ParallelExecutionBundle {
   status: string
   bundle_note_relative_path: string
@@ -211,6 +223,7 @@ const AI_TEAM_LANES: AiTeamLane[] = [
 const WORKFLOW_LABELS: Record<string, string> = {
   Owner_Advisory: 'Owner Copilot',
   AI3_Planning_Intake: 'AI-3 Planning Intake (Verdent)',
+  Verdent_External_Import: 'External Verdent Plan Import',
   AI3_QA_Scan: 'AI-3 QA Scan (Verdent)',
   Implementation_Packet: 'AI-3 → AI-1 / AI-2 Implementation Packet',
   Growth_Asset_Flow: 'AI-8 → AI-11 / AI-10 Growth Asset Flow',
@@ -615,6 +628,7 @@ interface IntakeRuntimeInfo {
   executionLanes: ExecutionLaneInfo[]
   executionContract: ExecutionContract | null
   parallelExecutionBundle: ParallelExecutionBundle | null
+  verdentExternalBridge: VerdentExternalBridge | null
   starterPrompt: string
   codingPrompt: string
   codexPrompt: string
@@ -696,6 +710,20 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
     : downstreamResearchPrompt
       ? workflowLabel(result?.downstream_workflow || 'Research_Brief')
       : ''
+  const rawVerdentBridge = asRecord(downstreamRecord?.verdent_external_bridge)
+  const verdentExternalBridge: VerdentExternalBridge | null = rawVerdentBridge
+    ? {
+        status: typeof rawVerdentBridge.status === 'string' ? rawVerdentBridge.status.trim() : '',
+        bridge_note_relative_path: typeof rawVerdentBridge.bridge_note_relative_path === 'string' ? rawVerdentBridge.bridge_note_relative_path.trim() : '',
+        bridge_note_absolute_path: typeof rawVerdentBridge.bridge_note_absolute_path === 'string' ? rawVerdentBridge.bridge_note_absolute_path.trim() : '',
+        target_plan_relative_path: typeof rawVerdentBridge.target_plan_relative_path === 'string' ? rawVerdentBridge.target_plan_relative_path.trim() : '',
+        target_plan_absolute_path: typeof rawVerdentBridge.target_plan_absolute_path === 'string' ? rawVerdentBridge.target_plan_absolute_path.trim() : '',
+        verdent_prompt: typeof rawVerdentBridge.verdent_prompt === 'string' ? rawVerdentBridge.verdent_prompt.trim() : '',
+        return_to_system_prompt: typeof rawVerdentBridge.return_to_system_prompt === 'string' ? rawVerdentBridge.return_to_system_prompt.trim() : '',
+        read_from: toStringList(rawVerdentBridge.read_from),
+        reason: typeof rawVerdentBridge.reason === 'string' ? rawVerdentBridge.reason.trim() : '',
+      }
+    : null
   const followOnCodingPrompt = typeof followOnRecord?.ready_to_paste_prompt === 'string'
     ? followOnRecord.ready_to_paste_prompt.trim()
     : ''
@@ -919,6 +947,24 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
       }
     }
 
+    if (result.downstream_workflow === 'Verdent_External_Import') {
+      const importedPath = typeof downstreamRecord?.imported_plan_target_relative_path === 'string'
+        ? downstreamRecord.imported_plan_target_relative_path.trim()
+        : ''
+
+      return {
+        header,
+        body: importedPath
+          ? `Imported the external Verdent full plan into ${importedPath}.`
+          : 'Imported the external Verdent full plan into the canonical planning note.',
+        modeNote,
+        sections: [
+          { label: 'Imported plan', items: importedPath ? [importedPath] : [] },
+          { label: 'Next step', items: result.next_step ? [result.next_step] : [] },
+        ].filter((section) => section.items.length > 0),
+      }
+    }
+
     if (result.intake_kind === 'handoff') {
       return {
         header,
@@ -972,6 +1018,7 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
     executionLanes,
     executionContract,
     parallelExecutionBundle,
+    verdentExternalBridge,
     starterPrompt,
     codingPrompt,
     codexPrompt,
@@ -1987,6 +2034,123 @@ function OwnerIntakePageInner() {
                                   </div>
                                 )}
                               </div>
+                            </div>
+                          )}
+
+                          {item.result.downstream_workflow === 'AI3_Planning_Intake' && info.verdentExternalBridge?.verdent_prompt && (
+                            <div style={{
+                              ...card,
+                              marginTop: 14,
+                              padding: 14,
+                              background: 'rgba(173,140,255,.07)',
+                              borderColor: 'rgba(173,140,255,.16)',
+                            }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+                                <div style={{ display: 'grid', gap: 4 }}>
+                                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(188,166,255,.92)' }}>
+                                    External Verdent Full Plan
+                                  </div>
+                                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.78)', lineHeight: 1.6 }}>
+                                    Use the real external Verdent planner for a full plan, then paste the returned markdown back here and the system will import it into the canonical planning note automatically.
+                                  </div>
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      try {
+                                        await navigator.clipboard.writeText(info.verdentExternalBridge?.verdent_prompt || '')
+                                        toast.show('Copied prompt for external Verdent.')
+                                      } catch {
+                                        toast.show('Could not copy the Verdent prompt.', 'error')
+                                      }
+                                    }}
+                                    style={{
+                                      padding: '8px 12px',
+                                      borderRadius: 999,
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      fontFamily: 'inherit',
+                                      background: 'rgba(173,140,255,.2)',
+                                      color: 'rgba(231,224,255,.98)',
+                                    }}
+                                  >
+                                    Copy for Verdent
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      try {
+                                        await navigator.clipboard.writeText(info.verdentExternalBridge?.return_to_system_prompt || '')
+                                        toast.show('Copied the Verdent import format.')
+                                      } catch {
+                                        toast.show('Could not copy the Verdent import format.', 'error')
+                                      }
+                                    }}
+                                    style={{
+                                      padding: '8px 12px',
+                                      borderRadius: 999,
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      fontFamily: 'inherit',
+                                      background: 'rgba(255,255,255,.08)',
+                                      color: 'rgba(255,255,255,.92)',
+                                    }}
+                                  >
+                                    Copy import prompt
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+                                <div>
+                                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.08em' }}>
+                                    Canonical target
+                                  </div>
+                                  <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.88)', wordBreak: 'break-word' }}>
+                                    {info.verdentExternalBridge.target_plan_relative_path}
+                                  </div>
+                                  {info.verdentExternalBridge.target_plan_absolute_path && (
+                                    <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.46)', wordBreak: 'break-word', marginTop: 4 }}>
+                                      {info.verdentExternalBridge.target_plan_absolute_path}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {info.verdentExternalBridge.bridge_note_relative_path && (
+                                  <div>
+                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.08em' }}>
+                                      Bridge note
+                                    </div>
+                                    <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.74)', wordBreak: 'break-word' }}>
+                                      {info.verdentExternalBridge.bridge_note_relative_path}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              <details style={{ marginTop: 12 }}>
+                                <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(188,166,255,.92)' }}>
+                                  Preview Verdent prompt
+                                </summary>
+                                <pre style={{
+                                  margin: '10px 0 0',
+                                  padding: 12,
+                                  borderRadius: 12,
+                                  overflow: 'auto',
+                                  background: 'rgba(0,0,0,.22)',
+                                  border: '1px solid rgba(255,255,255,.06)',
+                                  color: 'rgba(255,255,255,.78)',
+                                  fontSize: 11,
+                                  lineHeight: 1.65,
+                                  whiteSpace: 'pre-wrap',
+                                  wordBreak: 'break-word',
+                                }}>{info.verdentExternalBridge.verdent_prompt}</pre>
+                              </details>
                             </div>
                           )}
 
