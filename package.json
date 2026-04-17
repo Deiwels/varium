@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "NEXT_TEST_WASM_DIR=\"$PWD/node_modules/@next/swc-wasm-nodejs\" next dev",
     "build": "next build",
     "start": "next start"
   },
@@ -16,6 +16,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@next/swc-wasm-nodejs": "^15.5.14",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

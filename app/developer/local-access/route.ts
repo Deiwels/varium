@@ -1,5 +1,3 @@
-import { API } from '@/lib/api'
-
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, '&amp;')
@@ -13,10 +11,14 @@ function localBackendBase() {
   return 'http://127.0.0.1:8080'
 }
 
+function remoteBackendBase() {
+  return process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vuriumbook-api-431945333485.us-central1.run.app'
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url)
   const isLocalRequest = url.hostname === '127.0.0.1' || url.hostname === 'localhost'
-  const backendBase = isLocalRequest ? localBackendBase() : API
+  const backendBase = isLocalRequest ? localBackendBase() : remoteBackendBase()
 
   try {
     const response = await fetch(`${backendBase}/api/vurium-dev/auth/local`, {
