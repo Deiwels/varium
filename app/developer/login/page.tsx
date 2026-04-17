@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getDevApiBase } from '../_lib/dev-fetch'
 
@@ -10,8 +10,14 @@ export default function DevLoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [localLoading, setLocalLoading] = useState(false)
+  const [isLocalDev, setIsLocalDev] = useState(false)
   const devApiBase = getDevApiBase()
-  const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const host = window.location.hostname
+    setIsLocalDev(host === '127.0.0.1' || host === 'localhost')
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -88,7 +94,7 @@ export default function DevLoginPage() {
           </div>
         )}
 
-        {sent ? (
+        {!isLocalDev && sent ? (
           <div style={{
             padding: '20px 16px', borderRadius: 14,
             background: 'rgba(130,220,170,.06)', border: '1px solid rgba(130,220,170,.12)',
@@ -98,7 +104,7 @@ export default function DevLoginPage() {
               If the email is authorized, you will receive a sign-in link. It expires in 15 minutes.
             </p>
           </div>
-        ) : (
+        ) : !isLocalDev ? (
           <form onSubmit={handleSubmit}>
             <input
               type="email" value={email} onChange={e => setEmail(e.target.value)}
@@ -121,6 +127,17 @@ export default function DevLoginPage() {
               {loading ? 'Sending...' : 'Send magic link'}
             </button>
           </form>
+        ) : (
+          <div style={{
+            padding: '16px 14px',
+            borderRadius: 14,
+            background: 'rgba(255,255,255,.03)',
+            border: '1px solid rgba(255,255,255,.06)',
+          }}>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,.38)', margin: 0, lineHeight: 1.6 }}>
+              Magic-link login is hidden on localhost to keep the local operator panel clean. Use the local owner button above.
+            </p>
+          </div>
         )}
       </div>
     </div>
