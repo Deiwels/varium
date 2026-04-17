@@ -4572,6 +4572,11 @@ function buildOwnerIntakeNote(kind, intakeId, title, input, metadata) {
     ...normalizeResearchSourceUrls(input.source_urls),
     ...extractUrlsFromText(input.message),
   ]);
+  const baseSystemLinks = [
+    '[[04-Tasks/Workflow-Queue|Workflow Queue]]',
+    '[[04-Tasks/Tasks-Index|Tasks Index]]',
+    '[[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]',
+  ];
   const baseFrontmatter = [
     '---',
     `type: ${kind === 'task' ? 'task' : kind === 'growth' ? 'growth-request' : kind === 'research' ? 'research-request' : kind === 'handoff' ? 'handoff' : 'truth-update-draft'}`,
@@ -4622,6 +4627,12 @@ function buildOwnerIntakeNote(kind, intakeId, title, input, metadata) {
   }
 
   if (kind === 'research') {
+    const researchSystemLinks = uniqueList([
+      '[[07-Research/Research-Index|Research Index]]',
+      '[[AI-Profiles/AI-5-GPT-Chat-Deep-Research|AI-5 Research]]',
+      ...(safeStr(input.related_task_id).trim() ? [`[[04-Tasks/${safeStr(input.related_task_id).trim()}-Plan|Related Planning Note]]`] : []),
+      ...baseSystemLinks,
+    ]);
     return {
       relative_path: `07-Research/${intakeId}-${slug}.md`,
       content: [
@@ -4642,6 +4653,9 @@ function buildOwnerIntakeNote(kind, intakeId, title, input, metadata) {
         '',
         '## Source URLs',
         ...markdownList(sourceUrls, '- explicit official source URLs still needed'),
+        '',
+        '## System Links',
+        ...markdownList(researchSystemLinks, '- pending'),
         '',
         '## Related Links',
         ...markdownList(input.related_links.concat(input.product_context_links), '- none'),
@@ -4727,6 +4741,14 @@ function buildOwnerIntakeNote(kind, intakeId, title, input, metadata) {
       '- Type: product',
       '- Complexity: non-trivial',
       `- External dependency: ${sourceUrls.length ? 'yes' : 'no'}`,
+      '',
+      '## System Links',
+      ...markdownList(uniqueList([
+        '[[AI-Profiles/AI-3-Verdent|AI-3 Verdent]]',
+        `[[04-Tasks/${intakeId}-Plan|Planning Note]]`,
+        ...(sourceUrls.length ? ['[[07-Research/Research-Index|Research Index]]'] : []),
+        ...baseSystemLinks,
+      ]), '- pending'),
       '',
       '## Context',
       '- Relevant docs:',
@@ -5285,6 +5307,13 @@ function safeWorkflowSlug(value, fallback = 'item') {
 function buildPlanningWritebackInput(result) {
   const taskId = safeWorkflowSlug(result.task_id, 'task');
   const notePath = `04-Tasks/${taskId}-Plan.md`;
+  const systemLinks = uniqueList([
+    '[[04-Tasks/Workflow-Queue|Workflow Queue]]',
+    '[[04-Tasks/Tasks-Index|Tasks Index]]',
+    '[[AI-Profiles/AI-3-Verdent|AI-3 Verdent]]',
+    '[[08-Runbooks/System/Escalation-Matrix|Escalation Matrix]]',
+    ...(result.requires_ai5 ? [`[[07-Research/AI5-Research-Brief-R-${taskId}|AI-5 Research Brief]]`, '[[07-Research/Research-Index|Research Index]]'] : []),
+  ]);
   const body = [
     '---',
     'type: task-plan',
@@ -5305,6 +5334,9 @@ function buildPlanningWritebackInput(result) {
     '',
     '## Acceptance Criteria Seed',
     ...(result.plan_skeleton?.acceptance_criteria_seed?.length ? result.plan_skeleton.acceptance_criteria_seed.map((entry) => `- ${entry}`) : ['- pending']),
+    '',
+    '## System Links',
+    ...systemLinks.map((entry) => `- ${entry}`),
     '',
     '## Routing',
     `- Requires AI 5: ${result.requires_ai5 ? 'yes' : 'no'}`,
@@ -5404,6 +5436,14 @@ function buildGrowthWritebackInput(result) {
 function buildResearchWritebackInput(result) {
   const researchId = safeWorkflowSlug(result.research_id, 'research');
   const notePath = `07-Research/AI5-Research-Brief-${researchId}.md`;
+  const taskId = safeWorkflowSlug(result.task_id, 'task');
+  const systemLinks = uniqueList([
+    '[[07-Research/Research-Index|Research Index]]',
+    '[[AI-Profiles/AI-5-GPT-Chat-Deep-Research|AI-5 Research]]',
+    `[[04-Tasks/${taskId}-Plan|Planning Note]]`,
+    '[[AI-Profiles/AI-3-Verdent|AI-3 Verdent]]',
+    '[[04-Tasks/Workflow-Queue|Workflow Queue]]',
+  ]);
   const body = [
     '---',
     'type: research',
@@ -5424,6 +5464,9 @@ function buildResearchWritebackInput(result) {
     '',
     '## Sources',
     ...(result.source_summary?.length ? result.source_summary.map((entry) => `- [${entry.status}] ${entry.url || entry.title || entry.source_type}`) : ['- none']),
+    '',
+    '## System Links',
+    ...systemLinks.map((entry) => `- ${entry}`),
     '',
     '## Ready-to-Paste Deep Research Prompt',
     '```text',
