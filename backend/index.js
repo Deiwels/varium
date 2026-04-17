@@ -3535,6 +3535,12 @@ const WorkflowOwnerNotificationStateSchema = z.object({
   recipient: z.string().default(''),
   reason: z.string().default(''),
 }).nullable().default(null);
+const WorkflowAIExecutionMetaSchema = z.object({
+  provider: z.string().default(''),
+  model: z.string().default(''),
+  input_tokens: z.number().optional(),
+  output_tokens: z.number().optional(),
+}).nullable().default(null);
 
 const AI3PlanningIntakeInputSchema = z.object({
   task_id: z.string().min(1),
@@ -3568,6 +3574,7 @@ const AI3PlanningIntakeOutputSchema = z.object({
   writeback_targets: z.array(z.string()).default([]),
   writeback: WorkflowWritebackStateSchema,
   owner_notification: WorkflowOwnerNotificationStateSchema,
+  ai_meta: WorkflowAIExecutionMetaSchema,
   next_step: z.string().default(''),
 });
 
@@ -3593,6 +3600,7 @@ const AI3QAScanOutputSchema = z.object({
   writeback_targets: z.array(z.string()).default([]),
   writeback: WorkflowWritebackStateSchema,
   owner_notification: WorkflowOwnerNotificationStateSchema,
+  ai_meta: WorkflowAIExecutionMetaSchema,
   next_step: z.string().default(''),
 });
 
@@ -3635,6 +3643,7 @@ const AI9SupportInboxOutputSchema = z.object({
   faq_candidate: z.boolean(),
   reason: z.string().default(''),
   writeback_targets: z.array(z.string()).default([]),
+  ai_meta: WorkflowAIExecutionMetaSchema,
   next_step: z.string().default(''),
 });
 
@@ -3699,6 +3708,7 @@ const AI8GrowthBriefOutputSchema = z.object({
   escalate_to: WorkflowEscalationTargetSchema,
   reason: z.string().default(''),
   writeback_targets: z.array(z.string()).default([]),
+  ai_meta: WorkflowAIExecutionMetaSchema,
   next_step: z.string().default(''),
 });
 
@@ -3729,6 +3739,7 @@ const AI11CreativeVariantsOutputSchema = z.object({
   escalate_to: WorkflowEscalationTargetSchema,
   reason: z.string().default(''),
   writeback_targets: z.array(z.string()).default([]),
+  ai_meta: WorkflowAIExecutionMetaSchema,
   next_step: z.string().default(''),
 });
 
@@ -3798,6 +3809,7 @@ const GrowthAssetFlowOutputSchema = z.object({
   writeback_targets: z.array(z.string()).default([]),
   writeback: WorkflowWritebackStateSchema,
   owner_notification: WorkflowOwnerNotificationStateSchema,
+  ai_meta: WorkflowAIExecutionMetaSchema,
   next_step: z.string().default(''),
 });
 
@@ -3837,6 +3849,7 @@ const AI5ResearchBriefOutputSchema = z.object({
   writeback_targets: z.array(z.string()).default([]),
   writeback: WorkflowWritebackStateSchema,
   owner_notification: WorkflowOwnerNotificationStateSchema,
+  ai_meta: WorkflowAIExecutionMetaSchema,
   next_step: z.string().default(''),
 });
 
@@ -5926,6 +5939,7 @@ async function executeGrowthAssetFlow(meta, context, input) {
     writeback_targets: ['06-Growth/Growth-Backlog.md', '06-Growth/Experiments/', '06-Growth/Creative/', '06-Growth/Video/'],
     writeback: null,
     owner_notification: null,
+    ai_meta: growth.ai_meta || creativeOutput?.ai_meta || videoOutput?.ai_meta || null,
     next_step: blocked
       ? 'Review blocked asset outputs and route them to the correct owner.'
       : 'Review the generated growth brief and asset drafts, then move approved assets into production lanes.',
