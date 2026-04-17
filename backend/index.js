@@ -4019,6 +4019,9 @@ Rules:
 - do not create fake certainty
 - if the user is asking for understanding, advice, analysis, or status, keep it advisory first
 - if the user clearly asks to start or execute work, suggest the correct next mode instead of forcing a task automatically
+- when context.project_snapshot is provided, ground the answer in that internal context first
+- for internal project status / overview requests, summarize what is already visible in queue, notes, and recent writebacks before recommending any execution mode
+- do not ask for AI-5 or external source URLs when the request is only about internal project status and the answer can be formed from internal context
 
 Return exactly this JSON shape:
 {
@@ -4841,6 +4844,89 @@ function buildOwnerAdvisoryFallback(input, reason) {
     reason,
     ai_meta: null,
     next_step: 'If you want execution to start, say explicitly: start the project, create the task, or plan this now.',
+  };
+}
+
+function stripMarkdownFrontmatter(content) {
+  const text = String(content || '');
+  if (!text.startsWith('---')) return text;
+  const secondFence = text.indexOf('\n---', 3);
+  if (secondFence === -1) return text;
+  return text.slice(secondFence + 4);
+}
+
+function compactMarkdownForAdvisory(content, maxChars = 1600) {
+  const stripped = stripMarkdownFrontmatter(content)
+    .replace(/\r/g, '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 20)
+    .join('\n');
+  return stripped.length > maxChars ? `${stripped.slice(0, maxChars).trim()}…` : stripped;
+}
+
+async function readAdvisoryMarkdownNote(relativePath, maxChars = 1600) {
+  try {
+    const { cleaned, absolute } = resolveObsidianTargetPath(relativePath);
+    const content = await fsPromises.readFile(absolute, 'utf8');
+    return {
+      path: cleaned,
+      excerpt: compactMarkdownForAdvisory(content, maxChars),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function listRecentAdvisoryNotes(relativeDir, limit = 5) {
+  try {
+    const root = getObsidianRoot();
+    const absoluteDir = path.resolve(root, relativeDir);
+    if (!(absoluteDir === root || absoluteDir.startsWith(root + path.sep))) return [];
+    const entries = await fsPromises.readdir(absoluteDir, { withFileTypes: true });
+    const files = entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+      .map((entry) => entry.name);
+
+    const enriched = await Promise.all(files.map(async (fileName) => {
+      const absolute = path.join(absoluteDir, fileName);
+      const stat = await fsPromises.stat(absolute);
+      return {
+        relativePath: path.posix.join(relativeDir.replace(/\\/g, '/'), fileName),
+        mtimeMs: stat.mtimeMs,
+      };
+    }));
+
+    const sorted = enriched.sort((a, b) => b.mtimeMs - a.mtimeMs).slice(0, limit);
+    const notes = await Promise.all(sorted.map(async (entry) => {
+      const note = await readAdvisoryMarkdownNote(entry.relativePath, 900);
+      return note ? { ...note, modified_at: new Date(entry.mtimeMs).toISOString() } : null;
+    }));
+    return notes.filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+async function buildOwnerAdvisoryContext(context = {}) {
+  const [queueNote, rulesNote, inProgressNote, recentTasks, recentResearch] = await Promise.all([
+    readAdvisoryMarkdownNote('04-Tasks/Workflow-Queue.md', 2200),
+    readAdvisoryMarkdownNote('AI-Rule-Updates.md', 1200),
+    readAdvisoryMarkdownNote('Tasks/In Progress.md', 1200),
+    listRecentAdvisoryNotes('04-Tasks', 5),
+    listRecentAdvisoryNotes('07-Research', 4),
+  ]);
+
+  return {
+    ...context,
+    project_snapshot: {
+      queue_note: queueNote,
+      rule_updates: rulesNote,
+      in_progress_note: inProgressNote,
+      recent_task_notes: recentTasks,
+      recent_research_notes: recentResearch,
+    },
   };
 }
 
@@ -6232,6 +6318,7 @@ async function executeResearchBriefWorkflow(meta, context, input, { notifyOwner 
 }
 
 async function executeOwnerAdvisory(meta, context, input) {
+  const advisoryContext = await buildOwnerAdvisoryContext(context);
   return OwnerAdvisoryOutputSchema.parse(await runStructuredWorkflowAI({
     workflowName: 'owner_advisory',
     systemPrompt: OWNER_ADVISORY_SYSTEM_PROMPT,
@@ -6244,7 +6331,7 @@ async function executeOwnerAdvisory(meta, context, input) {
       known_constraints: uniqueList(input.known_constraints || []),
     },
     meta,
-    context,
+    context: advisoryContext,
     fallback: buildOwnerAdvisoryFallback(input, anthropic || openai
       ? 'The advisory response fell back to a safer draft because parsing did not complete.'
       : AI_NOT_CONFIGURED_REASON),
