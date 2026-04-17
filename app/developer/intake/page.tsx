@@ -177,6 +177,35 @@ function runtimeBadgeStyle(state: 'active' | 'working' | 'fallback' | 'blocked' 
   } satisfies React.CSSProperties
 }
 
+function renderRichText(text: string) {
+  const blocks = text
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+
+  return blocks.map((block, index) => {
+    const lines = block.split('\n').map((line) => line.trim()).filter(Boolean)
+    const bulletLines = lines.filter((line) => /^[-•*]\s+/.test(line))
+    const isBulletBlock = bulletLines.length === lines.length && lines.length > 0
+
+    if (isBulletBlock) {
+      return (
+        <ul key={`${block}-${index}`} style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 6 }}>
+          {lines.map((line) => (
+            <li key={line} style={{ color: 'inherit' }}>{line.replace(/^[-•*]\s+/, '')}</li>
+          ))}
+        </ul>
+      )
+    }
+
+    return (
+      <p key={`${block}-${index}`} style={{ margin: 0, color: 'inherit' }}>
+        {lines.join(' ')}
+      </p>
+    )
+  })
+}
+
 type RuntimeBadgeState = 'active' | 'working' | 'fallback' | 'blocked' | 'idle' | 'standby'
 
 interface ReplyCardData {
@@ -405,6 +434,7 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
 function OwnerIntakePageInner() {
   const toast = useToast()
   const conversationEndRef = useRef<HTMLDivElement | null>(null)
+  const composerRef = useRef<HTMLTextAreaElement | null>(null)
   const [message, setMessage] = useState('')
   const [title, setTitle] = useState('')
   const [intakeKind, setIntakeKind] = useState<IntakeKind>('auto')
@@ -448,9 +478,10 @@ function OwnerIntakePageInner() {
     conversationEndRef.current.scrollIntoView({ behavior: history.length > 0 ? 'smooth' : 'auto', block: 'end' })
   }, [history.length, latestResult?.intake_id, isSubmitting])
 
-  async function submitIntake(event: React.FormEvent) {
-    event.preventDefault()
-    if (!message.trim()) {
+  async function sendIntake(overrides?: { message?: string; intakeKind?: IntakeKind }) {
+    const nextMessage = overrides?.message ?? message
+    const nextKind = overrides?.intakeKind ?? intakeKind
+    if (!nextMessage.trim()) {
       toast.show('Write the request first.', 'error')
       return
     }
@@ -471,9 +502,9 @@ function OwnerIntakePageInner() {
             constraints: parseLines(knownConstraints),
           },
           payload: {
-            message: message.trim(),
+            message: nextMessage.trim(),
             title: title.trim(),
-            intake_kind: intakeKind,
+            intake_kind: nextKind,
             requested_by: 'Owner',
             priority,
             product_context_links: parseLines(productContextLinks),
@@ -498,7 +529,7 @@ function OwnerIntakePageInner() {
         {
           id: response.intake_id,
           createdAt: new Date().toISOString(),
-          message: message.trim(),
+          message: nextMessage.trim(),
           result: response,
         },
         ...prev.filter((item) => item.id !== response.intake_id),
@@ -529,11 +560,31 @@ function OwnerIntakePageInner() {
     }
   }
 
+  async function submitIntake(event: React.FormEvent) {
+    event.preventDefault()
+    await sendIntake()
+  }
+
   function loadHistoryItem(item: IntakeHistoryItem) {
     setLatestResult(item.result)
     setMessage(item.message)
     setTitle(item.result.title)
     setIntakeKind(item.result.intake_kind)
+  }
+
+  function stageQuickAction(nextMessage: string, nextKind: IntakeKind = 'auto') {
+    setMessage(nextMessage)
+    setIntakeKind(nextKind)
+    composerRef.current?.focus()
+    toast.show('Prepared the next step in the composer.')
+  }
+
+  function handleComposerKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
+    event.preventDefault()
+    if (!isSubmitting) {
+      void sendIntake()
+    }
   }
 
   const latestInfo = deriveRuntimeInfo(latestResult)
@@ -624,7 +675,7 @@ function OwnerIntakePageInner() {
                           type="button"
                           onClick={() => loadHistoryItem(item)}
                           style={{
-                            maxWidth: 'min(720px, 92%)',
+                            maxWidth: 'min(760px, 92%)',
                             border: 'none',
                             cursor: 'pointer',
                             borderRadius: '22px 22px 8px 22px',
@@ -645,7 +696,7 @@ function OwnerIntakePageInner() {
                       <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                         <div
                           style={{
-                            maxWidth: 'min(840px, 96%)',
+                            maxWidth: 'min(940px, 98%)',
                             borderRadius: '22px 22px 22px 8px',
                             background: 'rgba(255,255,255,.04)',
                             border: '1px solid rgba(255,255,255,.06)',
@@ -664,8 +715,8 @@ function OwnerIntakePageInner() {
                             </span>
                           </div>
 
-                          <div style={{ fontSize: 15, color: 'rgba(255,255,255,.9)', lineHeight: 1.78, whiteSpace: 'pre-wrap' }}>
-                            {primaryAssistantText}
+                          <div style={{ fontSize: 15, color: 'rgba(255,255,255,.9)', lineHeight: 1.78, display: 'grid', gap: 12 }}>
+                            {renderRichText(primaryAssistantText)}
                           </div>
 
                           {secondaryReply && (
@@ -679,8 +730,8 @@ function OwnerIntakePageInner() {
                               <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,150,220,.8)', marginBottom: 6 }}>
                                 AI detail
                               </div>
-                              <div style={{ fontSize: 13, color: 'rgba(255,255,255,.8)', lineHeight: 1.7 }}>
-                                {secondaryReply}
+                              <div style={{ fontSize: 13, color: 'rgba(255,255,255,.8)', lineHeight: 1.7, display: 'grid', gap: 10 }}>
+                                {renderRichText(secondaryReply)}
                               </div>
                             </div>
                           )}
@@ -726,6 +777,67 @@ function OwnerIntakePageInner() {
                               )}
                             </div>
                           )}
+
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
+                            {item.result.next_step && (
+                              <button
+                                type="button"
+                                onClick={() => stageQuickAction(item.result.next_step, item.result.intake_kind === 'advisory' ? 'auto' : item.result.intake_kind)}
+                                style={{
+                                  padding: '8px 12px',
+                                  borderRadius: 999,
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  fontFamily: 'inherit',
+                                  background: 'rgba(130,150,220,.16)',
+                                  color: 'rgba(130,150,220,.95)',
+                                }}
+                              >
+                                Use next step
+                              </button>
+                            )}
+                            {item.result.intake_kind === 'advisory' && info.replyCard?.sections.some((section) => section.label === 'Suggested next mode' && section.items[0]) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const suggested = info.replyCard?.sections.find((section) => section.label === 'Suggested next mode')?.items[0] as IntakeKind | undefined
+                                  stageQuickAction(item.result.next_step || item.message, suggested || 'auto')
+                                }}
+                                style={{
+                                  padding: '8px 12px',
+                                  borderRadius: 999,
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  fontFamily: 'inherit',
+                                  background: 'rgba(130,220,170,.14)',
+                                  color: 'rgba(130,220,170,.94)',
+                                }}
+                              >
+                                Continue in suggested mode
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => stageQuickAction(item.message, item.result.intake_kind)}
+                              style={{
+                                padding: '8px 12px',
+                                borderRadius: 999,
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontSize: 12,
+                                fontWeight: 700,
+                                fontFamily: 'inherit',
+                                background: 'rgba(255,255,255,.06)',
+                                color: 'rgba(255,255,255,.62)',
+                              }}
+                            >
+                              Edit and resend
+                            </button>
+                          </div>
 
                           <details style={{ marginTop: 14 }}>
                             <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(130,150,220,.88)' }}>
@@ -895,8 +1007,10 @@ function OwnerIntakePageInner() {
 
             <div style={{ ...card, padding: 12, background: 'rgba(255,255,255,.025)' }}>
               <textarea
+                ref={composerRef}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={handleComposerKeyDown}
                 placeholder="Ask about project status, think through an idea, or say clearly when you want to start work."
                 style={{ ...inputBase, minHeight: 104, padding: '14px 16px', resize: 'vertical', lineHeight: 1.7, border: 'none', background: 'transparent' }}
               />
@@ -921,7 +1035,7 @@ function OwnerIntakePageInner() {
                     {advancedOpen ? 'Hide details' : 'Show details'}
                   </button>
                   <span style={{ fontSize: 12, color: 'rgba(255,255,255,.3)' }}>
-                    Auto is best most of the time. Ask naturally; the system will decide whether to stay conversational or start execution.
+                    Auto is best most of the time. Press `Enter` to send, `Shift + Enter` for a new line.
                   </span>
                 </div>
 
