@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "NEXT_TEST_WASM_DIR=\"$PWD/node_modules/@next/swc-wasm-nodejs\" next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "brain:inventory": "node scripts/workspace-brain/build-migration-inventory.mjs",
+    "brain:export": "node scripts/workspace-brain/export-to-repo.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^3.1.0",
