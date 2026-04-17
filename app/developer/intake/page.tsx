@@ -25,6 +25,11 @@ interface OwnerIntakeResult {
   writeback_targets: string[]
   writeback: { status?: string; relative_path?: string; reason?: string } | null
   owner_notification: { status?: string; reason?: string } | null
+  operator_reply: string
+  follow_on_workflow: string
+  follow_on_status: string
+  follow_on_reference: string
+  follow_on_result: unknown
   next_step: string
 }
 
@@ -65,6 +70,7 @@ const WORKFLOW_LABELS: Record<string, string> = {
   AI3_QA_Scan: 'AI-3 QA Scan (Verdent)',
   Growth_Asset_Flow: 'AI-8 → AI-11 / AI-10 Growth Asset Flow',
   Research_Brief: 'AI-5 Research Brief',
+  research_brief: 'AI-5 Research Brief',
   none: 'No downstream workflow',
 }
 
@@ -296,6 +302,9 @@ function OwnerIntakePageInner() {
   const latestDownstream = latestResult?.downstream_result ? prettyJson(latestResult.downstream_result) : ''
   const downstreamRecord = asRecord(latestResult?.downstream_result)
   const downstreamAiMeta = asRecord(downstreamRecord?.ai_meta) as AIExecutionMeta | null
+  const latestFollowOn = latestResult?.follow_on_result ? prettyJson(latestResult.follow_on_result) : ''
+  const followOnRecord = asRecord(latestResult?.follow_on_result)
+  const followOnAiMeta = asRecord(followOnRecord?.ai_meta) as AIExecutionMeta | null
   const effectiveReason = String(
     (typeof downstreamRecord?.reason === 'string' && downstreamRecord.reason)
       || latestResult?.reason
@@ -645,6 +654,22 @@ function OwnerIntakePageInner() {
                   </div>
                 )}
 
+                {latestResult.operator_reply && (
+                  <div style={{
+                    ...card,
+                    padding: 16,
+                    background: 'rgba(130,220,170,.05)',
+                    borderColor: 'rgba(130,220,170,.12)',
+                  }}>
+                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(130,220,170,.8)', marginBottom: 8 }}>
+                      System reply
+                    </div>
+                    <div style={{ fontSize: 14, color: 'rgba(255,255,255,.86)', lineHeight: 1.75 }}>
+                      {latestResult.operator_reply}
+                    </div>
+                  </div>
+                )}
+
                 <div className="owner-intake-result-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div style={{ ...card, padding: 12 }}>
                     <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Kind</div>
@@ -706,6 +731,23 @@ function OwnerIntakePageInner() {
                   )}
                 </div>
 
+                {latestResult.follow_on_workflow && latestResult.follow_on_workflow !== 'none' && (
+                  <div>
+                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Automatic continuation</div>
+                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,.78)', lineHeight: 1.6 }}>
+                      {workflowLabel(latestResult.follow_on_workflow)} · {latestResult.follow_on_status}
+                      {followOnAiMeta?.provider
+                        ? ` · ${providerLabel(String(followOnAiMeta.provider))}${followOnAiMeta?.model ? ` (${String(followOnAiMeta.model)})` : ''}`
+                        : ''}
+                    </div>
+                    {latestResult.follow_on_reference && (
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,.38)', marginTop: 4, wordBreak: 'break-word' }}>
+                        {latestResult.follow_on_reference}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Reason</div>
                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,.6)', lineHeight: 1.6 }}>{latestResult.reason}</div>
@@ -732,6 +774,25 @@ function OwnerIntakePageInner() {
                       whiteSpace: 'pre-wrap',
                       wordBreak: 'break-word',
                     }}>{latestDownstream}</pre>
+                  </details>
+                )}
+
+                {latestFollowOn && latestResult.follow_on_workflow !== 'none' && (
+                  <details style={{ marginTop: 2 }}>
+                    <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(130,220,170,.88)' }}>Show follow-on payload</summary>
+                    <pre style={{
+                      margin: '10px 0 0',
+                      padding: 12,
+                      borderRadius: 12,
+                      overflow: 'auto',
+                      background: 'rgba(0,0,0,.25)',
+                      border: '1px solid rgba(255,255,255,.06)',
+                      color: 'rgba(255,255,255,.72)',
+                      fontSize: 11,
+                      lineHeight: 1.6,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}>{latestFollowOn}</pre>
                   </details>
                 )}
               </div>

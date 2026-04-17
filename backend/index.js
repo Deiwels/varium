@@ -3947,6 +3947,11 @@ const OwnerIntakeOutputSchema = z.object({
   writeback_targets: z.array(z.string()).default([]),
   writeback: WorkflowWritebackStateSchema,
   owner_notification: WorkflowOwnerNotificationStateSchema,
+  operator_reply: z.string().default(''),
+  follow_on_workflow: z.string().default('none'),
+  follow_on_status: WorkflowStatusSchema,
+  follow_on_reference: z.string().default(''),
+  follow_on_result: z.any().nullable().default(null),
   next_step: z.string().default(''),
 });
 
@@ -4641,6 +4646,82 @@ function inferOwnerIntakeCreativeNeed(input) {
   if (typeof input.need_static_creatives === 'boolean') return input.need_static_creatives;
   if (inferOwnerIntakeVideoNeed(input)) return true;
   return /(landing|ad|ads|creative|креатив|image|visual|banner|promo)/i.test(`${safeStr(input.title)}\n${safeStr(input.message)}`);
+}
+
+function shouldAutoContinueOwnerIntakeResearch(intakeKind, downstreamResult) {
+  if (intakeKind !== 'task') return false;
+  if (!downstreamResult || downstreamResult.workflow !== 'planning_intake') return false;
+  return downstreamResult.escalate_to === 'AI-5' || !!downstreamResult.requires_ai5;
+}
+
+function buildOwnerIntakeResearchFollowOnInput(intakeId, title, input, note, downstreamResult) {
+  const plan = downstreamResult?.plan_skeleton || {};
+  const sourceUrls = normalizeResearchSourceUrls([
+    ...normalizeResearchSourceUrls(input.source_urls),
+    ...extractUrlsFromText(input.message),
+  ]);
+  const questions = uniqueList([
+    ...(input.questions || []),
+    `What project context is still missing before structured planning can continue for "${title}"?`,
+    ...(Array.isArray(plan.missing_inputs) ? plan.missing_inputs.map((entry) => `Clarify this missing input: ${entry}`) : []),
+    safeStr(downstreamResult?.reason || ''),
+  ]);
+
+  return {
+    research_id: `R-${safeWorkflowSlug(intakeId, 'owner-intake')}`,
+    task_id: intakeId,
+    topic: `Research follow-up for ${title}`,
+    questions,
+    target_sources: uniqueList([
+      ...(input.target_sources || []),
+      sourceUrls.length ? 'official_source' : '',
+      'project_context',
+    ]),
+    related_links: uniqueList([
+      note.relative_path,
+      ...(input.related_links || []),
+      ...(input.product_context_links || []),
+      safeStr(downstreamResult?.writeback?.relative_path || ''),
+    ]),
+    source_urls: sourceUrls,
+  };
+}
+
+function buildOwnerIntakeOperatorReply({ intakeKind, title, note, downstreamResult, followOnResult }) {
+  if (intakeKind === 'task') {
+    const objective = safeStr(downstreamResult?.plan_skeleton?.objective || title || 'the task').trim();
+    const workstreams = Array.isArray(downstreamResult?.plan_skeleton?.workstreams)
+      ? downstreamResult.plan_skeleton.workstreams.filter(Boolean)
+      : [];
+    const parts = [
+      `I understood this as a delivery task and created ${note.relative_path}.`,
+      downstreamResult
+        ? `Verdent created a planning response for "${objective}".`
+        : 'I routed the request into Verdent planning.',
+      workstreams.length ? `Current workstreams: ${workstreams.join(', ')}.` : '',
+      shouldAutoContinueOwnerIntakeResearch(intakeKind, downstreamResult)
+        ? followOnResult
+          ? `I also opened AI-5 research automatically so the missing context can be gathered before planning continues.`
+          : `The next required lane is AI-5 research before planning can continue safely.`
+        : '',
+      safeStr(followOnResult?.next_step || downstreamResult?.next_step || '').trim(),
+    ].filter(Boolean);
+    return parts.join(' ');
+  }
+
+  if (intakeKind === 'growth') {
+    return `I understood this as a growth request, created ${note.relative_path}, and routed it through the growth asset flow so AI-8, AI-11, and AI-10 can prepare the brief and assets.`;
+  }
+
+  if (intakeKind === 'research') {
+    return `I understood this as a research request, created ${note.relative_path}, and opened the AI-5 research lane to gather facts, inferences, and open questions.`;
+  }
+
+  if (intakeKind === 'handoff') {
+    return `I created a structured handoff note at ${note.relative_path} so the next owner can pick it up without losing context.`;
+  }
+
+  return `I created a truth-update draft at ${note.relative_path}. It stays draft-only until someone reviews and manually updates canonical truth.`;
 }
 
 function inferPlanningWorkstreams(input) {
@@ -6059,6 +6140,7 @@ async function executeOwnerIntake(meta, context, input) {
   }
 
   let downstreamResult = null;
+  let followOnResult = null;
   if (intakeKind === 'task') {
     downstreamResult = await executePlanningIntakeWorkflow(
       { ...meta, workflow_name: 'AI3_Planning_Intake', trigger_source: meta.trigger_source || 'owner_intake' },
@@ -6082,6 +6164,19 @@ async function executeOwnerIntake(meta, context, input) {
       },
       { notifyOwner: false }
     );
+
+    if (shouldAutoContinueOwnerIntakeResearch(intakeKind, downstreamResult)) {
+      followOnResult = await executeResearchBriefWorkflow(
+        { ...meta, workflow_name: 'Research_Brief', trigger_source: meta.trigger_source || 'owner_intake_follow_on' },
+        {
+          ...context,
+          owner_intake_note: note.relative_path,
+          planning_note: safeStr(downstreamResult?.writeback?.relative_path || ''),
+        },
+        buildOwnerIntakeResearchFollowOnInput(intakeId, title, input, note, downstreamResult),
+        { notifyOwner: false }
+      );
+    }
   } else if (intakeKind === 'growth') {
     downstreamResult = await executeGrowthAssetFlowWorkflow(
       { ...meta, workflow_name: 'Growth_Asset_Flow', trigger_source: meta.trigger_source || 'owner_intake' },
@@ -6130,20 +6225,31 @@ async function executeOwnerIntake(meta, context, input) {
   }
 
   const downstreamStatus = downstreamResult?.status || (writeback?.status || 'queued');
+  const followOnStatus = followOnResult?.status || downstreamStatus;
   let status = downstreamStatus;
   if (!downstreamResult) {
     status = writeback?.status === 'done' ? 'done' : writeback?.status || 'queued';
   } else if (writeback && writeback.status !== 'done' && downstreamStatus === 'done') {
     status = 'partial';
+  } else if (followOnResult && ['blocked', 'needs_review', 'partial'].includes(followOnStatus) && status === 'done') {
+    status = followOnStatus === 'partial' ? 'partial' : 'needs_review';
   }
 
-  const overallEscalation = downstreamResult?.escalate_to || metadata.route_target;
-  const reason = downstreamResult?.reason
+  const overallEscalation = followOnResult?.escalate_to || downstreamResult?.escalate_to || metadata.route_target;
+  const reason = followOnResult?.reason
+    || downstreamResult?.reason
     || (intakeKind === 'truth_update_draft'
       ? 'Truth updates from Owner Intake must remain draft-only until manually approved.'
       : intakeKind === 'handoff'
         ? 'Handoff note created from Owner Intake.'
         : 'Owner intake created successfully.');
+  const operatorReply = buildOwnerIntakeOperatorReply({
+    intakeKind,
+    title,
+    note,
+    downstreamResult,
+    followOnResult,
+  });
 
   return OwnerIntakeOutputSchema.parse({
     agent: 'SYSTEM',
@@ -6164,10 +6270,17 @@ async function executeOwnerIntake(meta, context, input) {
     writeback_targets: uniqueList([
       note.relative_path,
       ...(downstreamResult?.writeback_targets || []),
+      ...(followOnResult?.writeback_targets || []),
     ]),
     writeback,
     owner_notification: downstreamResult?.owner_notification || null,
-    next_step: downstreamResult?.next_step
+    operator_reply: operatorReply,
+    follow_on_workflow: followOnResult?.workflow === 'research_brief' ? 'Research_Brief' : 'none',
+    follow_on_status: followOnStatus,
+    follow_on_reference: followOnResult?.writeback?.relative_path || '',
+    follow_on_result: followOnResult,
+    next_step: followOnResult?.next_step
+      || downstreamResult?.next_step
       || (intakeKind === 'truth_update_draft'
         ? 'Review the draft and manually update canonical truth only after approval.'
         : intakeKind === 'handoff'
