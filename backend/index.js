@@ -3980,6 +3980,7 @@ const ExecutionContractSchema = z.object({
   read_from: z.array(z.string()).default([]),
   write_progress_to: z.array(z.string()).default([]),
   report_back_to: z.array(z.string()).default([]),
+  quick_start_prompt: z.string().default(''),
   starter_prompt: z.string().default(''),
   reason: z.string().default(''),
 });
@@ -4001,6 +4002,7 @@ const EXECUTION_CONTRACT_DEFAULT = {
   read_from: [],
   write_progress_to: [],
   report_back_to: [],
+  quick_start_prompt: '',
   starter_prompt: '',
   reason: '',
 };
@@ -4030,6 +4032,7 @@ const ImplementationPacketBaseSchema = z.object({
   verification_steps: z.array(z.string()).default([]),
   coordination_notes: z.array(z.string()).default([]),
   ready_to_paste_prompt: z.string().default(''),
+  quick_start_prompt: z.string().default(''),
   starter_prompt: z.string().default(''),
   codex_prompt: z.string().default(''),
   claude_prompt: z.string().default(''),
@@ -6622,6 +6625,17 @@ function buildImplementationStarterPrompt(packet, executionContract) {
   ].join('\n');
 }
 
+function buildImplementationQuickStartPrompt(packet, executionContract) {
+  const targetAi = safeStr(packet.target_ai || 'AI-1').trim() || 'AI-1';
+  const preferredProviderLabel = preferredExecutionProviderLabel(targetAi);
+  return [
+    `You are ${targetAi} for VuriumBook.`,
+    `Use ${preferredProviderLabel} as your executor.`,
+    `Read this file first: ${safeStr(executionContract.contract_note_absolute_path)}`,
+    'Follow the execution contract, write progress back into that note, and then report the result to Owner Copilot.',
+  ].join('\n');
+}
+
 function buildClaudeExecutionPrompt(packet) {
   const basePrompt = buildImplementationCodingPrompt(packet);
   return [
@@ -6675,6 +6689,7 @@ function attachExternalExecutionPrompts(packet) {
     ...packet,
     execution_mode: 'external_ai',
     ready_to_paste_prompt: safeStr(packet.ready_to_paste_prompt || '').trim() || codexPrompt,
+    quick_start_prompt: safeStr(packet.quick_start_prompt || '').trim() || '',
     starter_prompt: safeStr(packet.starter_prompt || '').trim() || '',
     codex_prompt: codexPrompt,
     claude_prompt: claudePrompt,
@@ -6686,6 +6701,7 @@ function attachExternalExecutionPrompts(packet) {
       read_from: [],
       write_progress_to: [],
       report_back_to: [],
+      quick_start_prompt: '',
       starter_prompt: '',
       reason: '',
     },
@@ -6707,9 +6723,11 @@ async function attachImplementationExecutionContract(packet) {
     read_from: readFrom,
     write_progress_to: writeProgressTo,
     report_back_to: reportBackTo,
+    quick_start_prompt: '',
     starter_prompt: '',
     reason: 'Execution contract is ready.',
   };
+  const quickStartPrompt = buildImplementationQuickStartPrompt(packet, provisionalContract);
   const starterPrompt = buildImplementationStarterPrompt(packet, provisionalContract);
 
   const targetAi = safeStr(packet.target_ai || 'AI-1').trim() || 'AI-1';
@@ -6758,6 +6776,11 @@ async function attachImplementationExecutionContract(packet) {
     '## Verification Steps',
     ...(verificationSteps.length ? verificationSteps.map((entry) => `- ${entry}`) : ['- run the relevant checks after coding']),
     '',
+    '## Quick Start Prompt',
+    '```text',
+    quickStartPrompt,
+    '```',
+    '',
     '## Starter Prompt',
     '```text',
     starterPrompt,
@@ -6780,11 +6803,13 @@ async function attachImplementationExecutionContract(packet) {
     return {
       ...packet,
       ready_to_paste_prompt: preferredPrompt,
+      quick_start_prompt: quickStartPrompt,
       starter_prompt: preferredPrompt,
       codex_prompt: codexVariant,
       claude_prompt: claudeVariant,
       execution_contract: {
         ...provisionalContract,
+        quick_start_prompt: quickStartPrompt,
         starter_prompt: preferredPrompt,
         reason: `Execution contract saved to the local workspace brain. Preferred executor: ${preferredProviderLabel}.`,
       },
@@ -6796,12 +6821,14 @@ async function attachImplementationExecutionContract(packet) {
     return {
       ...packet,
       ready_to_paste_prompt: preferredPrompt,
+      quick_start_prompt: quickStartPrompt,
       starter_prompt: preferredPrompt,
       codex_prompt: codexVariant,
       claude_prompt: claudeVariant,
       execution_contract: {
         ...provisionalContract,
         status: 'blocked',
+        quick_start_prompt: quickStartPrompt,
         starter_prompt: preferredPrompt,
         reason: `Execution contract write failed: ${safeStr(error?.message || 'unknown error')}. Preferred executor: ${preferredProviderLabel}.`,
       },
@@ -7330,6 +7357,11 @@ function buildImplementationPacketWritebackInput(result) {
   const targetAi = safeStr(result.target_ai || 'AI-1').trim() || 'AI-1';
   const notePath = buildImplementationHandoffRelativePath(result);
   const contractNotePath = buildImplementationContractRelativePath(result);
+  const quickStartPrompt = safeStr(result.quick_start_prompt || '').trim()
+    || safeStr(result.execution_contract?.quick_start_prompt || '').trim()
+    || buildImplementationQuickStartPrompt(result, {
+      contract_note_absolute_path: toWorkspaceKnowledgeAbsolutePath(contractNotePath),
+    });
   const starterPrompt = safeStr(result.starter_prompt || '').trim() || buildImplementationStarterPrompt(result, {
     contract_note_absolute_path: toWorkspaceKnowledgeAbsolutePath(contractNotePath),
   });
@@ -7385,6 +7417,11 @@ function buildImplementationPacketWritebackInput(result) {
     `- Read first: ${contractNotePath}`,
     `- Write progress: ${contractNotePath}`,
     '- Report back: Owner Copilot in /developer/intake using the return prompt below.',
+    '',
+    '## Quick Start Prompt',
+    '```text',
+    quickStartPrompt || 'No quick start prompt generated.',
+    '```',
     '',
     '## Starter Prompt',
     '```text',

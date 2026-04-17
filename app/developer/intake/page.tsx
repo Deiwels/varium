@@ -98,6 +98,7 @@ interface ExecutionContract {
   read_from: string[]
   write_progress_to: string[]
   report_back_to: string[]
+  quick_start_prompt: string
   starter_prompt: string
   reason: string
 }
@@ -115,6 +116,7 @@ interface ParallelExecutionBundle {
 interface ExecutionLaneInfo {
   targetAi: string
   sourceLabel: string
+  quickStartPrompt: string
   starterPrompt: string
   codexPrompt: string
   claudePrompt: string
@@ -383,6 +385,9 @@ function buildExecutionLaneInfoFromRecord(record: Record<string, unknown>, sourc
     : typeof record?.ready_to_paste_prompt === 'string'
       ? record.ready_to_paste_prompt.trim()
       : ''
+  const quickStartPrompt = typeof record?.quick_start_prompt === 'string'
+    ? record.quick_start_prompt.trim()
+    : ''
   const codexPrompt = typeof record?.codex_prompt === 'string' ? record.codex_prompt.trim() : starterPrompt
   const claudePrompt = typeof record?.claude_prompt === 'string' ? record.claude_prompt.trim() : starterPrompt
   const returnToSystemPrompt = typeof record?.return_to_system_prompt === 'string'
@@ -397,16 +402,18 @@ function buildExecutionLaneInfoFromRecord(record: Record<string, unknown>, sourc
         read_from: toStringList(rawExecutionContract.read_from),
         write_progress_to: toStringList(rawExecutionContract.write_progress_to),
         report_back_to: toStringList(rawExecutionContract.report_back_to),
+        quick_start_prompt: typeof rawExecutionContract.quick_start_prompt === 'string' ? rawExecutionContract.quick_start_prompt.trim() : '',
         starter_prompt: typeof rawExecutionContract.starter_prompt === 'string' ? rawExecutionContract.starter_prompt.trim() : '',
         reason: typeof rawExecutionContract.reason === 'string' ? rawExecutionContract.reason.trim() : '',
       }
     : null
 
-  if (!targetAi && !starterPrompt && !executionContract) return null
+  if (!targetAi && !starterPrompt && !quickStartPrompt && !executionContract) return null
 
   return {
     targetAi,
     sourceLabel,
+    quickStartPrompt: quickStartPrompt || executionContract?.quick_start_prompt || '',
     starterPrompt: starterPrompt || executionContract?.starter_prompt || '',
     codexPrompt,
     claudePrompt,
@@ -675,6 +682,7 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
         read_from: toStringList(rawExecutionContract.read_from),
         write_progress_to: toStringList(rawExecutionContract.write_progress_to),
         report_back_to: toStringList(rawExecutionContract.report_back_to),
+        quick_start_prompt: typeof rawExecutionContract.quick_start_prompt === 'string' ? rawExecutionContract.quick_start_prompt.trim() : '',
         starter_prompt: typeof rawExecutionContract.starter_prompt === 'string' ? rawExecutionContract.starter_prompt.trim() : '',
         reason: typeof rawExecutionContract.reason === 'string' ? rawExecutionContract.reason.trim() : '',
       }
@@ -1740,6 +1748,9 @@ function OwnerIntakePageInner() {
 
                               {info.executionLanes.map((lane) => {
                                 const preferredProvider = preferredExecutionProviderForTarget(lane.targetAi)
+                                const quickStartPrompt = lane.quickStartPrompt || (preferredProvider === 'codex'
+                                  ? (lane.codexPrompt || lane.starterPrompt)
+                                  : (lane.claudePrompt || lane.starterPrompt))
                                 const primaryPrompt = preferredProvider === 'codex'
                                   ? (lane.codexPrompt || lane.starterPrompt)
                                   : (lane.claudePrompt || lane.starterPrompt)
@@ -1769,10 +1780,10 @@ function OwnerIntakePageInner() {
                                         type="button"
                                         onClick={async () => {
                                           try {
-                                            await navigator.clipboard.writeText(primaryPrompt)
-                                            toast.show(`Copied ${preferredExecutionProviderLabel(lane.targetAi)} prompt.`)
+                                            await navigator.clipboard.writeText(quickStartPrompt)
+                                            toast.show(`Copied ${routeTargetLabel(lane.targetAi)} quick start.`)
                                           } catch {
-                                            toast.show('Could not copy the preferred prompt.', 'error')
+                                            toast.show('Could not copy the quick start prompt.', 'error')
                                           }
                                         }}
                                         style={{
@@ -1787,7 +1798,7 @@ function OwnerIntakePageInner() {
                                           color: 'rgba(130,220,170,.98)',
                                         }}
                                       >
-                                        {`Copy for ${preferredExecutionProviderLabel(lane.targetAi)}`}
+                                        {`Copy quick start for ${preferredExecutionProviderLabel(lane.targetAi)}`}
                                       </button>
                                       <button
                                         type="button"
@@ -1906,11 +1917,29 @@ function OwnerIntakePageInner() {
                                       </div>
                                     )}
 
-                                    <details style={{ marginTop: 12 }}>
-                                      <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(130,220,170,.92)' }}>
-                                        Preview contract + provider variants
-                                      </summary>
+                                      <details style={{ marginTop: 12 }}>
+                                        <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(130,220,170,.92)' }}>
+                                          Preview contract + provider variants
+                                        </summary>
                                       <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
+                                        <div>
+                                          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
+                                            Quick start
+                                          </div>
+                                          <pre style={{
+                                            margin: 0,
+                                            padding: 12,
+                                            borderRadius: 12,
+                                            overflow: 'auto',
+                                            background: 'rgba(0,0,0,.22)',
+                                            border: '1px solid rgba(255,255,255,.06)',
+                                            color: 'rgba(255,255,255,.78)',
+                                            fontSize: 11,
+                                            lineHeight: 1.65,
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                          }}>{quickStartPrompt}</pre>
+                                        </div>
                                         <div>
                                           <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
                                             {`Preferred starter (${preferredExecutionProviderLabel(lane.targetAi)})`}
