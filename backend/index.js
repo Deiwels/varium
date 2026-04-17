@@ -3973,7 +3973,29 @@ const AI3ImplementationPacketInputSchema = z.object({
   explicit_target_ai: z.enum(['none', ...IMPLEMENTATION_TARGET_VALUES]).default('none'),
 });
 
-const AI3ImplementationPacketOutputSchema = z.object({
+const ExecutionContractSchema = z.object({
+  status: WorkflowStatusSchema,
+  contract_note_relative_path: z.string().default(''),
+  contract_note_absolute_path: z.string().default(''),
+  read_from: z.array(z.string()).default([]),
+  write_progress_to: z.array(z.string()).default([]),
+  report_back_to: z.array(z.string()).default([]),
+  starter_prompt: z.string().default(''),
+  reason: z.string().default(''),
+});
+
+const EXECUTION_CONTRACT_DEFAULT = {
+  status: 'blocked',
+  contract_note_relative_path: '',
+  contract_note_absolute_path: '',
+  read_from: [],
+  write_progress_to: [],
+  report_back_to: [],
+  starter_prompt: '',
+  reason: '',
+};
+
+const ImplementationPacketBaseSchema = z.object({
   agent: z.literal('AI-3'),
   workflow: z.literal('implementation_packet'),
   task_id: z.string().min(1),
@@ -3992,25 +4014,7 @@ const AI3ImplementationPacketOutputSchema = z.object({
   codex_prompt: z.string().default(''),
   claude_prompt: z.string().default(''),
   return_to_system_prompt: z.string().default(''),
-  execution_contract: z.object({
-    status: WorkflowStatusSchema,
-    contract_note_relative_path: z.string().default(''),
-    contract_note_absolute_path: z.string().default(''),
-    read_from: z.array(z.string()).default([]),
-    write_progress_to: z.array(z.string()).default([]),
-    report_back_to: z.array(z.string()).default([]),
-    starter_prompt: z.string().default(''),
-    reason: z.string().default(''),
-  }).default({
-    status: 'blocked',
-    contract_note_relative_path: '',
-    contract_note_absolute_path: '',
-    read_from: [],
-    write_progress_to: [],
-    report_back_to: [],
-    starter_prompt: '',
-    reason: '',
-  }),
+  execution_contract: ExecutionContractSchema.default(EXECUTION_CONTRACT_DEFAULT),
   escalate_to: WorkflowEscalationTargetSchema,
   reason: z.string().default(''),
   writeback_targets: z.array(z.string()).default([]),
@@ -4018,6 +4022,11 @@ const AI3ImplementationPacketOutputSchema = z.object({
   owner_notification: WorkflowOwnerNotificationStateSchema,
   ai_meta: WorkflowAIExecutionMetaSchema,
   next_step: z.string().default(''),
+});
+
+const AI3ImplementationPacketOutputSchema = ImplementationPacketBaseSchema.extend({
+  parallel_targets: z.array(ImplementationTargetSchema).default([]),
+  parallel_packets: z.array(ImplementationPacketBaseSchema).default([]),
 });
 
 const SUPPORT_EMAIL_LABEL_VALUES = ['support', 'lead', 'onboarding', 'technical', 'billing', 'compliance_risk'];
@@ -5594,7 +5603,9 @@ function buildOwnerIntakeOperatorReply({ intakeKind, title, note, downstreamResu
           : `The next required lane is AI-5 research before planning can continue safely.`
         : '',
       followOnResult?.workflow === 'implementation_packet'
-        ? `I also prepared one shared execution contract for ${safeStr(followOnResult.target_ai || 'the implementation lane')} that tells the external AI exactly what to read, where to write progress, and how to report back into memory. The preferred executor for this lane is ${preferredExecutionProviderLabel(followOnResult.target_ai || '')}.`
+        ? Array.isArray(followOnResult.parallel_targets) && followOnResult.parallel_targets.length > 1
+          ? `I also prepared parallel execution contracts for ${followOnResult.parallel_targets.join(' and ')} so ${preferredExecutionProviderLabel('AI-1')} and ${preferredExecutionProviderLabel('AI-2')} can work at the same time with separate memory contracts and report back into the same system.`
+          : `I also prepared one shared execution contract for ${safeStr(followOnResult.target_ai || 'the implementation lane')} that tells the external AI exactly what to read, where to write progress, and how to report back into memory. The preferred executor for this lane is ${preferredExecutionProviderLabel(followOnResult.target_ai || '')}.`
         : '',
       safeStr(followOnResult?.next_step || downstreamResult?.next_step || '').trim(),
     ].filter(Boolean);
@@ -6338,6 +6349,24 @@ function inferImplementationPrimaryTarget(input = {}) {
   if (/(sms|notification|reminder|provider|send|provision|verify)/.test(normalized)) backendScore += 2;
 
   return frontendScore > backendScore ? 'AI-2' : 'AI-1';
+}
+
+function inferImplementationTargetSet(input = {}) {
+  if (input.explicit_target_ai === 'AI-1' || input.explicit_target_ai === 'AI-2') return [input.explicit_target_ai];
+
+  const normalized = [
+    safeStr(input.title),
+    safeStr(input.description),
+    safeStr(input.plan_objective),
+    ...(Array.isArray(input.plan_workstreams) ? input.plan_workstreams : []),
+    ...(Array.isArray(input.product_context_links) ? input.product_context_links : []),
+  ].join('\n').toLowerCase().replace(/\s+/g, ' ').trim();
+
+  const wantsFrontend = /(frontend|ui|screen|page|layout|component|responsive|mobile|css|button|copy|render|visual|status visibility|dashboard|settings page|developer\/sms)/.test(normalized);
+  const wantsBackend = /(backend|api|server|webhook|database|delivery|tfv|10dlc|telnyx|cron|queue|status|integration|persist|validation|sms|notification|reminder|provider|send|provision|verify)/.test(normalized);
+
+  if (wantsFrontend && wantsBackend) return ['AI-1', 'AI-2'];
+  return [inferImplementationPrimaryTarget(input)];
 }
 
 function inferImplementationKind(input = {}, targetAi = 'AI-1') {
@@ -8312,7 +8341,7 @@ async function executePlanningIntakeWorkflow(meta, context, input, { notifyOwner
   }));
 }
 
-async function executeImplementationPacketWorkflow(meta, context, input, { notifyOwner = true } = {}) {
+async function executeSingleImplementationPacketWorkflow(meta, context, input, { notifyOwner = true } = {}) {
   const result = await runStructuredWorkflowAI({
     workflowName: 'implementation_packet',
     systemPrompt: AI3_IMPLEMENTATION_PACKET_SYSTEM_PROMPT,
@@ -8348,7 +8377,56 @@ async function executeImplementationPacketWorkflow(meta, context, input, { notif
       : null,
   });
   const withExecutionContract = await attachImplementationExecutionContract(finalizedWithWriteback);
-  return AI3ImplementationPacketOutputSchema.parse(withExecutionContract);
+  return ImplementationPacketBaseSchema.parse(withExecutionContract);
+}
+
+function summarizeParallelImplementationStatus(packets) {
+  const statuses = packets.map((packet) => safeStr(packet.status || 'blocked'));
+  if (statuses.every((status) => status === 'done')) return 'done';
+  if (statuses.every((status) => status === 'blocked')) return 'blocked';
+  return 'partial';
+}
+
+async function executeImplementationPacketWorkflow(meta, context, input, { notifyOwner = true } = {}) {
+  const targetSet = inferImplementationTargetSet(input);
+  const primaryTarget = targetSet[0] || inferImplementationPrimaryTarget(input);
+
+  if (targetSet.length <= 1) {
+    const single = await executeSingleImplementationPacketWorkflow(meta, context, {
+      ...input,
+      explicit_target_ai: primaryTarget,
+    }, { notifyOwner });
+    return AI3ImplementationPacketOutputSchema.parse({
+      ...single,
+      parallel_targets: [primaryTarget],
+      parallel_packets: [],
+    });
+  }
+
+  const packets = await Promise.all(targetSet.map((targetAi) => executeSingleImplementationPacketWorkflow(
+    { ...meta, workflow_name: 'Implementation_Packet', trigger_source: `${meta.trigger_source || 'implementation_packet'}_${safeWorkflowSlug(targetAi, 'ai')}` },
+    context,
+    { ...input, explicit_target_ai: targetAi },
+    { notifyOwner: false }
+  )));
+
+  const orderedPackets = targetSet
+    .map((targetAi) => packets.find((packet) => safeStr(packet.target_ai) === targetAi))
+    .filter(Boolean);
+  const primaryPacket = orderedPackets[0] || packets[0];
+  const status = summarizeParallelImplementationStatus(orderedPackets);
+  const writebackTargets = uniqueList(orderedPackets.flatMap((packet) => Array.isArray(packet.writeback_targets) ? packet.writeback_targets : []));
+
+  return AI3ImplementationPacketOutputSchema.parse({
+    ...primaryPacket,
+    status,
+    implementation_kind: 'fullstack',
+    reason: `Prepared parallel implementation contracts for ${targetSet.join(' + ')}.`,
+    next_step: `Run ${preferredExecutionProviderLabel('AI-1')} for AI-1 and ${preferredExecutionProviderLabel('AI-2')} for AI-2 in parallel using their separate execution contracts, then report both results back into Owner Copilot.`,
+    writeback_targets: writebackTargets,
+    parallel_targets: targetSet,
+    parallel_packets: orderedPackets,
+  });
 }
 
 async function executeQAScanWorkflow(meta, context, input, { notifyOwner = true } = {}) {

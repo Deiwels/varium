@@ -102,6 +102,19 @@ interface ExecutionContract {
   reason: string
 }
 
+interface ExecutionLaneInfo {
+  targetAi: string
+  sourceLabel: string
+  starterPrompt: string
+  codexPrompt: string
+  claudePrompt: string
+  returnToSystemPrompt: string
+  executionContract: ExecutionContract | null
+  fileTargets: string[]
+  changeSummary: string[]
+  verificationSteps: string[]
+}
+
 interface AIExecutionMeta {
   provider?: string
   model?: string
@@ -353,6 +366,48 @@ function preferredExecutionProviderLabel(value: string) {
   return provider === 'codex' ? 'Codex' : 'Claude'
 }
 
+function buildExecutionLaneInfoFromRecord(record: Record<string, unknown>, sourceLabel: string): ExecutionLaneInfo | null {
+  const targetAi = typeof record?.target_ai === 'string' ? record.target_ai.trim() : ''
+  const starterPrompt = typeof record?.starter_prompt === 'string'
+    ? record.starter_prompt.trim()
+    : typeof record?.ready_to_paste_prompt === 'string'
+      ? record.ready_to_paste_prompt.trim()
+      : ''
+  const codexPrompt = typeof record?.codex_prompt === 'string' ? record.codex_prompt.trim() : starterPrompt
+  const claudePrompt = typeof record?.claude_prompt === 'string' ? record.claude_prompt.trim() : starterPrompt
+  const returnToSystemPrompt = typeof record?.return_to_system_prompt === 'string'
+    ? record.return_to_system_prompt.trim()
+    : ''
+  const rawExecutionContract = asRecord(record?.execution_contract)
+  const executionContract = rawExecutionContract
+    ? {
+        status: typeof rawExecutionContract.status === 'string' ? rawExecutionContract.status.trim() : '',
+        contract_note_relative_path: typeof rawExecutionContract.contract_note_relative_path === 'string' ? rawExecutionContract.contract_note_relative_path.trim() : '',
+        contract_note_absolute_path: typeof rawExecutionContract.contract_note_absolute_path === 'string' ? rawExecutionContract.contract_note_absolute_path.trim() : '',
+        read_from: toStringList(rawExecutionContract.read_from),
+        write_progress_to: toStringList(rawExecutionContract.write_progress_to),
+        report_back_to: toStringList(rawExecutionContract.report_back_to),
+        starter_prompt: typeof rawExecutionContract.starter_prompt === 'string' ? rawExecutionContract.starter_prompt.trim() : '',
+        reason: typeof rawExecutionContract.reason === 'string' ? rawExecutionContract.reason.trim() : '',
+      }
+    : null
+
+  if (!targetAi && !starterPrompt && !executionContract) return null
+
+  return {
+    targetAi,
+    sourceLabel,
+    starterPrompt: starterPrompt || executionContract?.starter_prompt || '',
+    codexPrompt,
+    claudePrompt,
+    returnToSystemPrompt,
+    executionContract,
+    fileTargets: toStringList(record?.file_targets),
+    changeSummary: toStringList(record?.change_summary),
+    verificationSteps: toStringList(record?.verification_steps),
+  }
+}
+
 function workflowLabel(value: string) {
   return WORKFLOW_LABELS[value] || value
 }
@@ -487,6 +542,7 @@ interface IntakeRuntimeInfo {
   deepResearchPromptSource: string
   deepResearchProvider: string
   externalExecutionMode: string
+  executionLanes: ExecutionLaneInfo[]
   executionContract: ExecutionContract | null
   starterPrompt: string
   codingPrompt: string
@@ -619,6 +675,23 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
     ? downstreamRecord.starter_prompt.trim()
     : ''
   const starterPrompt = followOnStarterPrompt || downstreamStarterPrompt || executionContract?.starter_prompt || ''
+  const packetSourceLabel = followOnRecord
+    ? workflowLabel(result?.follow_on_workflow || 'Implementation_Packet')
+    : workflowLabel(result?.downstream_workflow || 'Implementation_Packet')
+  const sourcePacketRecord = followOnRecord && (result?.follow_on_workflow === 'Implementation_Packet' || typeof followOnRecord?.target_ai === 'string' || Array.isArray((followOnRecord as Record<string, unknown>)?.parallel_packets))
+    ? followOnRecord
+    : downstreamRecord
+  const rawParallelPackets = Array.isArray(sourcePacketRecord?.parallel_packets)
+    ? sourcePacketRecord.parallel_packets.map((entry) => asRecord(entry)).filter(Boolean)
+    : []
+  const executionLanes = (rawParallelPackets.length
+    ? rawParallelPackets
+    : sourcePacketRecord && (typeof sourcePacketRecord?.target_ai === 'string' || typeof sourcePacketRecord?.starter_prompt === 'string' || typeof sourcePacketRecord?.ready_to_paste_prompt === 'string')
+      ? [sourcePacketRecord]
+      : []
+  )
+    .map((record) => buildExecutionLaneInfoFromRecord(record as Record<string, unknown>, packetSourceLabel))
+    .filter((entry): entry is ExecutionLaneInfo => Boolean(entry))
   const codingPromptSource = followOnCodingPrompt
     ? workflowLabel(result?.follow_on_workflow || 'Implementation_Packet')
     : downstreamCodingPrompt
@@ -737,6 +810,7 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
       const verificationSteps = toStringList(downstreamRecord?.verification_steps)
       const targetAi = typeof downstreamRecord?.target_ai === 'string' ? downstreamRecord.target_ai.trim() : ''
       const executionMode = typeof downstreamRecord?.execution_mode === 'string' ? downstreamRecord.execution_mode.trim() : ''
+      const parallelTargets = toStringList(downstreamRecord?.parallel_targets)
 
       return {
         header,
@@ -746,6 +820,7 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
         modeNote,
         sections: [
           { label: 'Target lane', items: targetAi ? [targetAi] : [] },
+          { label: 'Parallel lanes', items: parallelTargets.length > 1 ? parallelTargets : [] },
           { label: 'Execution mode', items: executionMode ? [executionMode.replace(/_/g, ' ')] : ['external ai'] },
           { label: 'File targets', items: fileTargets.slice(0, 6) },
           { label: 'Required changes', items: changeSummary.slice(0, 6) },
@@ -804,6 +879,7 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
     deepResearchPromptSource,
     deepResearchProvider,
     externalExecutionMode,
+    executionLanes,
     executionContract,
     starterPrompt,
     codingPrompt,
@@ -1102,32 +1178,31 @@ function OwnerIntakePageInner() {
     toast.show('Started a new chat thread.')
   }
 
-  async function forkExecutionThread(item: IntakeHistoryItem, info: IntakeRuntimeInfo) {
-    if (!info.starterPrompt && !info.codexPrompt && !info.codingPrompt) {
+  async function forkExecutionThread(item: IntakeHistoryItem, lane: ExecutionLaneInfo) {
+    if (!lane.starterPrompt && !lane.codexPrompt) {
       toast.show('There is no coding prompt to open yet.', 'error')
       return
     }
 
-    const targetAi = info.codingPromptTarget || 'AI-1'
-    const sourceRecord = info.followOnRecord || info.downstreamRecord
+    const targetAi = lane.targetAi || 'AI-1'
     const payload = {
       source_thread_id: item.result.thread_id || activeThreadId,
       title: `${routeTargetLabel(targetAi)} · ${item.result.title || item.message}`,
       target_ai: targetAi,
-      coding_prompt: info.starterPrompt || info.codexPrompt || info.codingPrompt,
+      coding_prompt: lane.starterPrompt || lane.codexPrompt,
       source_workflow: item.result.follow_on_workflow !== 'none'
         ? item.result.follow_on_workflow
         : item.result.downstream_workflow,
       source_note_paths: dedupeStrings([
-        info.executionContract?.contract_note_relative_path,
+        lane.executionContract?.contract_note_relative_path,
         item.result.created_note_relative_path,
         item.result.downstream_reference,
         item.result.follow_on_reference,
         item.result.chat_memory?.summary_path,
       ]),
-      file_targets: toStringList(sourceRecord?.file_targets),
-      change_summary: toStringList(sourceRecord?.change_summary),
-      verification_steps: toStringList(sourceRecord?.verification_steps),
+      file_targets: lane.fileTargets,
+      change_summary: lane.changeSummary,
+      verification_steps: lane.verificationSteps,
     }
 
     setForkingThreadId(item.id)
@@ -1486,255 +1561,258 @@ function OwnerIntakePageInner() {
                             </div>
                           )}
 
-                          {(info.starterPrompt || info.codingPrompt) && (
-                            <div style={{
-                              ...card,
-                              marginTop: 14,
-                              padding: 14,
-                              background: 'rgba(130,220,170,.07)',
-                              borderColor: 'rgba(130,220,170,.16)',
-                            }}>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
-                                <div style={{ display: 'grid', gap: 4 }}>
-                                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.86)' }}>
-                                    Execution Contract
-                                  </div>
-                                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.78)', lineHeight: 1.6 }}>
-                                    Ready for {info.codingPromptTarget ? routeTargetLabel(info.codingPromptTarget) : 'the implementation lane'} through one shared memory contract. Preferred executor: {preferredExecutionProviderLabel(info.codingPromptTarget)}. Source: {info.codingPromptSource || 'Implementation Packet'}.
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    const preferredProvider = preferredExecutionProviderForTarget(info.codingPromptTarget)
-                                    const primaryPrompt = preferredProvider === 'codex'
-                                      ? (info.codexPrompt || info.starterPrompt || info.codingPrompt)
-                                      : (info.claudePrompt || info.starterPrompt || info.codingPrompt)
-                                    try {
-                                      await navigator.clipboard.writeText(primaryPrompt)
-                                      toast.show(`Copied ${preferredExecutionProviderLabel(info.codingPromptTarget)} starter prompt.`)
-                                    } catch {
-                                      toast.show('Could not copy the starter prompt.', 'error')
-                                    }
-                                  }}
-                                  style={{
-                                    padding: '8px 12px',
-                                    borderRadius: 999,
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontSize: 12,
-                                    fontWeight: 700,
-                                    fontFamily: 'inherit',
-                                    background: 'rgba(130,220,170,.18)',
-                                    color: 'rgba(130,220,170,.98)',
-                                  }}
-                                >
-                                  {`Copy for ${preferredExecutionProviderLabel(info.codingPromptTarget)}`}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    const preferredProvider = preferredExecutionProviderForTarget(info.codingPromptTarget)
-                                    const alternatePrompt = preferredProvider === 'codex'
-                                      ? (info.claudePrompt || info.starterPrompt || info.codingPrompt)
-                                      : (info.codexPrompt || info.starterPrompt || info.codingPrompt)
-                                    try {
-                                      await navigator.clipboard.writeText(alternatePrompt)
-                                      toast.show(`Copied ${preferredProvider === 'codex' ? 'Claude' : 'Codex'} alternate prompt.`)
-                                    } catch {
-                                      toast.show('Could not copy the alternate prompt.', 'error')
-                                    }
-                                  }}
-                                  style={{
-                                    padding: '8px 12px',
-                                    borderRadius: 999,
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontSize: 12,
-                                    fontWeight: 700,
-                                    fontFamily: 'inherit',
-                                    background: 'rgba(130,150,220,.16)',
-                                    color: 'rgba(130,150,220,.98)',
-                                  }}
-                                >
-                                  {`Copy ${preferredExecutionProviderForTarget(info.codingPromptTarget) === 'codex' ? 'Claude' : 'Codex'} variant`}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    try {
-                                      await navigator.clipboard.writeText(info.returnToSystemPrompt || 'Paste the implementation result back into Owner Copilot with changed files, checks run, blockers, and next step.')
-                                      toast.show('Copied return prompt.')
-                                    } catch {
-                                      toast.show('Could not copy the return prompt.', 'error')
-                                    }
-                                  }}
-                                  style={{
-                                    padding: '8px 12px',
-                                    borderRadius: 999,
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontSize: 12,
-                                    fontWeight: 700,
-                                    fontFamily: 'inherit',
-                                    background: 'rgba(255,255,255,.08)',
-                                    color: 'rgba(255,255,255,.9)',
-                                  }}
-                                >
-                                  Copy return prompt
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => { void forkExecutionThread(item, info) }}
-                                  disabled={forkingThreadId === item.id}
-                                  style={{
-                                    padding: '8px 12px',
-                                    borderRadius: 999,
-                                    border: 'none',
-                                    cursor: forkingThreadId === item.id ? 'wait' : 'pointer',
-                                    fontSize: 12,
-                                    fontWeight: 700,
-                                    fontFamily: 'inherit',
-                                    background: 'rgba(255,255,255,.08)',
-                                    color: 'rgba(255,255,255,.9)',
-                                    opacity: forkingThreadId === item.id ? 0.72 : 1,
-                                  }}
-                                >
-                                  {forkingThreadId === item.id ? 'Opening…' : 'Open execution memory'}
-                                </button>
-                              </div>
+                          {info.executionLanes.length > 0 && (
+                            <div style={{ display: 'grid', gap: 14, marginTop: 14 }}>
+                              {info.executionLanes.map((lane) => {
+                                const preferredProvider = preferredExecutionProviderForTarget(lane.targetAi)
+                                const primaryPrompt = preferredProvider === 'codex'
+                                  ? (lane.codexPrompt || lane.starterPrompt)
+                                  : (lane.claudePrompt || lane.starterPrompt)
+                                const alternatePrompt = preferredProvider === 'codex'
+                                  ? (lane.claudePrompt || lane.starterPrompt)
+                                  : (lane.codexPrompt || lane.starterPrompt)
 
-                              {info.executionContract && (
-                                <div style={{
-                                  marginTop: 12,
-                                  padding: 12,
-                                  borderRadius: 12,
-                                  background: 'rgba(255,255,255,.04)',
-                                  border: '1px solid rgba(255,255,255,.06)',
-                                  display: 'grid',
-                                  gap: 12,
-                                }}>
-                                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.62)' }}>
-                                    Memory contract
-                                  </div>
-                                  <div style={{ display: 'grid', gap: 10 }}>
-                                    <div>
-                                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
-                                        Read from
+                                return (
+                                  <div key={`${item.id}-${lane.targetAi}`} style={{
+                                    ...card,
+                                    padding: 14,
+                                    background: 'rgba(130,220,170,.07)',
+                                    borderColor: 'rgba(130,220,170,.16)',
+                                  }}>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+                                      <div style={{ display: 'grid', gap: 4 }}>
+                                        <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.86)' }}>
+                                          {`Execution Contract · ${routeTargetLabel(lane.targetAi)}`}
+                                        </div>
+                                        <div style={{ fontSize: 13, color: 'rgba(255,255,255,.78)', lineHeight: 1.6 }}>
+                                          {`Preferred executor: ${preferredExecutionProviderLabel(lane.targetAi)}. Source: ${lane.sourceLabel}.`}
+                                        </div>
                                       </div>
-                                      <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, color: 'rgba(255,255,255,.78)', fontSize: 12.5, lineHeight: 1.6 }}>
-                                        {info.executionContract.read_from.map((entry) => (
-                                          <li key={entry} style={{ wordBreak: 'break-word' }}>{entry}</li>
-                                        ))}
-                                      </ul>
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          try {
+                                            await navigator.clipboard.writeText(primaryPrompt)
+                                            toast.show(`Copied ${preferredExecutionProviderLabel(lane.targetAi)} prompt.`)
+                                          } catch {
+                                            toast.show('Could not copy the preferred prompt.', 'error')
+                                          }
+                                        }}
+                                        style={{
+                                          padding: '8px 12px',
+                                          borderRadius: 999,
+                                          border: 'none',
+                                          cursor: 'pointer',
+                                          fontSize: 12,
+                                          fontWeight: 700,
+                                          fontFamily: 'inherit',
+                                          background: 'rgba(130,220,170,.18)',
+                                          color: 'rgba(130,220,170,.98)',
+                                        }}
+                                      >
+                                        {`Copy for ${preferredExecutionProviderLabel(lane.targetAi)}`}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          try {
+                                            await navigator.clipboard.writeText(alternatePrompt)
+                                            toast.show(`Copied ${preferredProvider === 'codex' ? 'Claude' : 'Codex'} alternate prompt.`)
+                                          } catch {
+                                            toast.show('Could not copy the alternate prompt.', 'error')
+                                          }
+                                        }}
+                                        style={{
+                                          padding: '8px 12px',
+                                          borderRadius: 999,
+                                          border: 'none',
+                                          cursor: 'pointer',
+                                          fontSize: 12,
+                                          fontWeight: 700,
+                                          fontFamily: 'inherit',
+                                          background: 'rgba(130,150,220,.16)',
+                                          color: 'rgba(130,150,220,.98)',
+                                        }}
+                                      >
+                                        {`Copy ${preferredProvider === 'codex' ? 'Claude' : 'Codex'} variant`}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          try {
+                                            await navigator.clipboard.writeText(lane.returnToSystemPrompt || 'Paste the implementation result back into Owner Copilot with changed files, checks run, blockers, and next step.')
+                                            toast.show('Copied return prompt.')
+                                          } catch {
+                                            toast.show('Could not copy the return prompt.', 'error')
+                                          }
+                                        }}
+                                        style={{
+                                          padding: '8px 12px',
+                                          borderRadius: 999,
+                                          border: 'none',
+                                          cursor: 'pointer',
+                                          fontSize: 12,
+                                          fontWeight: 700,
+                                          fontFamily: 'inherit',
+                                          background: 'rgba(255,255,255,.08)',
+                                          color: 'rgba(255,255,255,.9)',
+                                        }}
+                                      >
+                                        Copy return prompt
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => { void forkExecutionThread(item, lane) }}
+                                        disabled={forkingThreadId === item.id}
+                                        style={{
+                                          padding: '8px 12px',
+                                          borderRadius: 999,
+                                          border: 'none',
+                                          cursor: forkingThreadId === item.id ? 'wait' : 'pointer',
+                                          fontSize: 12,
+                                          fontWeight: 700,
+                                          fontFamily: 'inherit',
+                                          background: 'rgba(255,255,255,.08)',
+                                          color: 'rgba(255,255,255,.9)',
+                                          opacity: forkingThreadId === item.id ? 0.72 : 1,
+                                        }}
+                                      >
+                                        {forkingThreadId === item.id ? 'Opening…' : 'Open execution memory'}
+                                      </button>
                                     </div>
-                                    <div>
-                                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
-                                        Write progress to
-                                      </div>
-                                      <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, color: 'rgba(255,255,255,.78)', fontSize: 12.5, lineHeight: 1.6 }}>
-                                        {info.executionContract.write_progress_to.map((entry) => (
-                                          <li key={entry} style={{ wordBreak: 'break-word' }}>{entry}</li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                    <div>
-                                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
-                                        Report back to
-                                      </div>
-                                      <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, color: 'rgba(255,255,255,.78)', fontSize: 12.5, lineHeight: 1.6 }}>
-                                        {info.executionContract.report_back_to.map((entry) => (
-                                          <li key={entry} style={{ wordBreak: 'break-word' }}>{entry}</li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
 
-                              <details style={{ marginTop: 12 }}>
-                                <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(130,220,170,.92)' }}>
-                                  Preview contract + provider variants
-                                </summary>
-                                <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
-                                  <div>
-                                    <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
-                                      {`Preferred starter (${preferredExecutionProviderLabel(info.codingPromptTarget)})`}
-                                    </div>
-                                    <pre style={{
-                                      margin: 0,
-                                      padding: 12,
-                                      borderRadius: 12,
-                                      overflow: 'auto',
-                                      background: 'rgba(0,0,0,.22)',
-                                      border: '1px solid rgba(255,255,255,.06)',
-                                      color: 'rgba(255,255,255,.78)',
-                                      fontSize: 11,
-                                      lineHeight: 1.65,
-                                      whiteSpace: 'pre-wrap',
-                                      wordBreak: 'break-word',
-                                    }}>{preferredExecutionProviderForTarget(info.codingPromptTarget) === 'codex'
-                                      ? (info.codexPrompt || info.starterPrompt || info.codingPrompt)
-                                      : (info.claudePrompt || info.starterPrompt || info.codingPrompt)}</pre>
-                                  </div>
-                                  <div>
-                                    <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
-                                      Codex
-                                    </div>
-                                    <pre style={{
-                                      margin: 0,
-                                      padding: 12,
-                                      borderRadius: 12,
-                                      overflow: 'auto',
-                                      background: 'rgba(0,0,0,.22)',
-                                      border: '1px solid rgba(255,255,255,.06)',
-                                      color: 'rgba(255,255,255,.78)',
-                                      fontSize: 11,
-                                      lineHeight: 1.65,
-                                      whiteSpace: 'pre-wrap',
-                                      wordBreak: 'break-word',
-                                    }}>{info.codexPrompt || info.starterPrompt || info.codingPrompt}</pre>
-                                  </div>
-                                  <div>
-                                    <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,150,220,.72)', marginBottom: 6 }}>
-                                      Claude
-                                    </div>
-                                    <pre style={{
-                                      margin: 0,
-                                      padding: 12,
-                                      borderRadius: 12,
-                                      overflow: 'auto',
-                                      background: 'rgba(0,0,0,.22)',
-                                      border: '1px solid rgba(255,255,255,.06)',
-                                      color: 'rgba(255,255,255,.78)',
-                                      fontSize: 11,
-                                      lineHeight: 1.65,
-                                      whiteSpace: 'pre-wrap',
-                                      wordBreak: 'break-word',
-                                    }}>{info.claudePrompt || info.starterPrompt || info.codingPrompt}</pre>
-                                  </div>
-                                  {info.returnToSystemPrompt && (
-                                    <div>
-                                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.62)', marginBottom: 6 }}>
-                                        Return to system
-                                      </div>
-                                      <pre style={{
-                                        margin: 0,
+                                    {lane.executionContract && (
+                                      <div style={{
+                                        marginTop: 12,
                                         padding: 12,
                                         borderRadius: 12,
-                                        overflow: 'auto',
-                                        background: 'rgba(0,0,0,.22)',
+                                        background: 'rgba(255,255,255,.04)',
                                         border: '1px solid rgba(255,255,255,.06)',
-                                        color: 'rgba(255,255,255,.78)',
-                                        fontSize: 11,
-                                        lineHeight: 1.65,
-                                        whiteSpace: 'pre-wrap',
-                                        wordBreak: 'break-word',
-                                      }}>{info.returnToSystemPrompt}</pre>
-                                    </div>
-                                  )}
-                                </div>
-                              </details>
+                                        display: 'grid',
+                                        gap: 12,
+                                      }}>
+                                        <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.62)' }}>
+                                          Memory contract
+                                        </div>
+                                        <div style={{ display: 'grid', gap: 10 }}>
+                                          <div>
+                                            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
+                                              Read from
+                                            </div>
+                                            <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, color: 'rgba(255,255,255,.78)', fontSize: 12.5, lineHeight: 1.6 }}>
+                                              {lane.executionContract.read_from.map((entry) => (
+                                                <li key={entry} style={{ wordBreak: 'break-word' }}>{entry}</li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                          <div>
+                                            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
+                                              Write progress to
+                                            </div>
+                                            <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, color: 'rgba(255,255,255,.78)', fontSize: 12.5, lineHeight: 1.6 }}>
+                                              {lane.executionContract.write_progress_to.map((entry) => (
+                                                <li key={entry} style={{ wordBreak: 'break-word' }}>{entry}</li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                          <div>
+                                            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
+                                              Report back to
+                                            </div>
+                                            <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, color: 'rgba(255,255,255,.78)', fontSize: 12.5, lineHeight: 1.6 }}>
+                                              {lane.executionContract.report_back_to.map((entry) => (
+                                                <li key={entry} style={{ wordBreak: 'break-word' }}>{entry}</li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    <details style={{ marginTop: 12 }}>
+                                      <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(130,220,170,.92)' }}>
+                                        Preview contract + provider variants
+                                      </summary>
+                                      <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
+                                        <div>
+                                          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
+                                            {`Preferred starter (${preferredExecutionProviderLabel(lane.targetAi)})`}
+                                          </div>
+                                          <pre style={{
+                                            margin: 0,
+                                            padding: 12,
+                                            borderRadius: 12,
+                                            overflow: 'auto',
+                                            background: 'rgba(0,0,0,.22)',
+                                            border: '1px solid rgba(255,255,255,.06)',
+                                            color: 'rgba(255,255,255,.78)',
+                                            fontSize: 11,
+                                            lineHeight: 1.65,
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                          }}>{primaryPrompt}</pre>
+                                        </div>
+                                        <div>
+                                          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
+                                            Codex
+                                          </div>
+                                          <pre style={{
+                                            margin: 0,
+                                            padding: 12,
+                                            borderRadius: 12,
+                                            overflow: 'auto',
+                                            background: 'rgba(0,0,0,.22)',
+                                            border: '1px solid rgba(255,255,255,.06)',
+                                            color: 'rgba(255,255,255,.78)',
+                                            fontSize: 11,
+                                            lineHeight: 1.65,
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                          }}>{lane.codexPrompt || lane.starterPrompt}</pre>
+                                        </div>
+                                        <div>
+                                          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,150,220,.72)', marginBottom: 6 }}>
+                                            Claude
+                                          </div>
+                                          <pre style={{
+                                            margin: 0,
+                                            padding: 12,
+                                            borderRadius: 12,
+                                            overflow: 'auto',
+                                            background: 'rgba(0,0,0,.22)',
+                                            border: '1px solid rgba(255,255,255,.06)',
+                                            color: 'rgba(255,255,255,.78)',
+                                            fontSize: 11,
+                                            lineHeight: 1.65,
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                          }}>{lane.claudePrompt || lane.starterPrompt}</pre>
+                                        </div>
+                                        {lane.returnToSystemPrompt && (
+                                          <div>
+                                            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.62)', marginBottom: 6 }}>
+                                              Return to system
+                                            </div>
+                                            <pre style={{
+                                              margin: 0,
+                                              padding: 12,
+                                              borderRadius: 12,
+                                              overflow: 'auto',
+                                              background: 'rgba(0,0,0,.22)',
+                                              border: '1px solid rgba(255,255,255,.06)',
+                                              color: 'rgba(255,255,255,.78)',
+                                              fontSize: 11,
+                                              lineHeight: 1.65,
+                                              whiteSpace: 'pre-wrap',
+                                              wordBreak: 'break-word',
+                                            }}>{lane.returnToSystemPrompt}</pre>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </details>
+                                  </div>
+                                )
+                              })}
                             </div>
                           )}
 
