@@ -4,6 +4,16 @@ export function getDevToken(): string {
   try { return localStorage.getItem('vurium_dev_token') || '' } catch { return '' }
 }
 
+export function getDevApiBase(): string {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    if (host === '127.0.0.1' || host === 'localhost') {
+      return 'http://127.0.0.1:8080'
+    }
+  }
+  return API
+}
+
 export function devHeaders(extra?: Record<string, string>): Record<string, string> {
   const token = getDevToken()
   const h: Record<string, string> = { 'Content-Type': 'application/json', ...extra }
@@ -13,7 +23,7 @@ export function devHeaders(extra?: Record<string, string>): Record<string, strin
 
 export function devFetch(path: string, opts?: RequestInit): Promise<unknown> {
   const headers = devHeaders(opts?.headers as Record<string, string> | undefined)
-  return fetch(`${API}${path}`, { credentials: 'include', ...opts, headers }).then(async (response) => {
+  return fetch(`${getDevApiBase()}${path}`, { credentials: 'include', ...opts, headers }).then(async (response) => {
     const raw = await response.text()
     let data: unknown = null
     try {

@@ -2416,6 +2416,31 @@ app.post('/api/vurium-dev/auth/request', express.json(), (req, res) => {
     .catch((e) => { console.error('[DEV-AUTH] Magic link send error:', e?.message); res.json({ ok: true }); });
 });
 
+app.post('/api/vurium-dev/auth/local', express.json(), (req, res) => {
+  const host = safeStr(req.hostname || '').toLowerCase();
+  const ip = getClientIp(req);
+  const isLoopbackHost = host === '127.0.0.1' || host === 'localhost';
+  const isLoopbackIp = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+
+  if (process.env.NODE_ENV === 'production' || (!isLoopbackHost && !isLoopbackIp)) {
+    return res.status(403).json({ error: 'Local owner access is available only on localhost.' });
+  }
+
+  const email = ADMIN_EMAIL || 'owner@local.dev';
+  const sessionToken = jwt.sign({ email, role: 'superadmin', purpose: 'local_dev' }, ADMIN_JWT_SECRET, { expiresIn: '24h' });
+  console.log(`[DEV-AUTH] Local owner access: ${email} from ${ip} at ${new Date().toISOString()}`);
+
+  res.cookie('vurium_admin_token', sessionToken, {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 86400000,
+  });
+
+  res.json({ ok: true, token: sessionToken, email });
+});
+
 // Magic link: verify token → set HttpOnly cookie
 app.post('/api/vurium-dev/auth/verify', express.json(), (req, res) => {
   const token = safeStr(req.body?.token || '');

@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { API } from '@/lib/api'
+import { getDevApiBase } from '../_lib/dev-fetch'
 
 export default function DevVerifyPage() {
   const router = useRouter()
@@ -13,7 +13,7 @@ export default function DevVerifyPage() {
     const token = searchParams.get('token')
     if (!token) { setStatus('error'); setErrorMsg('Missing token'); return }
 
-    fetch(`${API}/api/vurium-dev/auth/verify`, {
+    fetch(`${getDevApiBase()}/api/vurium-dev/auth/verify`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },

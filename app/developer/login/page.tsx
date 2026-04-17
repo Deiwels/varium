@@ -1,20 +1,26 @@
 'use client'
 import { useState } from 'react'
-import { API } from '@/lib/api'
+import { useRouter } from 'next/navigation'
+import { getDevApiBase } from '../_lib/dev-fetch'
 
 export default function DevLoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [localLoading, setLocalLoading] = useState(false)
+  const devApiBase = getDevApiBase()
+  const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!email) return
     setLoading(true); setError('')
     try {
-      await fetch(`${API}/api/vurium-dev/auth/request`, {
+      await fetch(`${devApiBase}/api/vurium-dev/auth/request`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       })
@@ -23,6 +29,27 @@ export default function DevLoginPage() {
       setError('Something went wrong')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleLocalAccess() {
+    setLocalLoading(true)
+    setError('')
+    try {
+      const response = await fetch(`${devApiBase}/api/vurium-dev/auth/local`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Local access failed')
+      if (data.token) try { localStorage.setItem('vurium_dev_token', data.token) } catch {}
+      router.replace('/developer/intake')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Local access failed')
+    } finally {
+      setLocalLoading(false)
     }
   }
 
@@ -36,7 +63,30 @@ export default function DevLoginPage() {
       }}>
         <img src="/logo.jpg" alt="Vurium" style={{ width: 48, height: 48, borderRadius: 12, marginBottom: 16 }} />
         <h1 style={{ fontSize: 20, fontWeight: 600, color: 'rgba(255,255,255,.85)', margin: '0 0 6px' }}>Developer</h1>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', margin: '0 0 28px' }}>Sign in with a magic link</p>
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', margin: '0 0 28px' }}>
+          {isLocalDev ? 'Use local owner access or request a magic link.' : 'Sign in with a magic link'}
+        </p>
+
+        {isLocalDev && !sent && (
+          <div style={{ marginBottom: 16 }}>
+            <button
+              type="button"
+              onClick={handleLocalAccess}
+              disabled={localLoading}
+              style={{
+                width: '100%', height: 44, borderRadius: 12, border: 'none',
+                background: 'rgba(130,220,170,.15)', color: 'rgba(130,220,170,.95)',
+                fontSize: 14, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+                opacity: localLoading ? 0.5 : 1,
+              }}
+            >
+              {localLoading ? 'Opening local access...' : 'Continue as local owner'}
+            </button>
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,.28)', margin: '10px 0 0', lineHeight: 1.5 }}>
+              Localhost mode uses the local backend directly, so you do not have to wait for a magic-link email just to use the operator panel.
+            </p>
+          </div>
+        )}
 
         {sent ? (
           <div style={{

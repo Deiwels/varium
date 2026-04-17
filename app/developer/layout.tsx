@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { devFetch, devHeaders } from './_lib/dev-fetch'
+import { devFetch, devHeaders, getDevApiBase } from './_lib/dev-fetch'
 import { ToastProvider } from './_components/Toast'
 
 function IconOverview() {
@@ -130,7 +130,7 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
               <IconBack /> VuriumBook
             </a>
             <button onClick={async () => {
-              await fetch('/api/vurium-dev/auth/logout', { method: 'POST', credentials: 'include', headers: devHeaders() }).catch(() => {})
+              await fetch(`${getDevApiBase()}/api/vurium-dev/auth/logout`, { method: 'POST', credentials: 'include', headers: devHeaders() }).catch(() => {})
               try { localStorage.removeItem('vurium_dev_token') } catch {}
               router.replace('/developer/login')
             }} style={{
