@@ -35,7 +35,38 @@ interface IntakeHistoryItem {
   result: OwnerIntakeResult
 }
 
+interface AIExecutionMeta {
+  provider?: string
+  model?: string
+  input_tokens?: number
+  output_tokens?: number
+}
+
 const HISTORY_KEY = 'vurium_owner_intake_history'
+
+const ROUTE_TARGET_LABELS: Record<string, string> = {
+  'AI-1': 'AI-1 Backend',
+  'AI-2': 'AI-2 Frontend',
+  'AI-3': 'AI-3 (Verdent)',
+  'AI-4': 'AI-4 Emergency',
+  'AI-5': 'AI-5 Research',
+  'AI-6': 'AI-6 Product',
+  'AI-7': 'AI-7 Compliance',
+  'AI-8': 'AI-8 Growth',
+  'AI-9': 'AI-9 Support',
+  'AI-10': 'AI-10 Video',
+  'AI-11': 'AI-11 Creative',
+  Owner: 'Owner',
+  none: 'None',
+}
+
+const WORKFLOW_LABELS: Record<string, string> = {
+  AI3_Planning_Intake: 'AI-3 Planning Intake (Verdent)',
+  AI3_QA_Scan: 'AI-3 QA Scan (Verdent)',
+  Growth_Asset_Flow: 'AI-8 → AI-11 / AI-10 Growth Asset Flow',
+  Research_Brief: 'AI-5 Research Brief',
+  none: 'No downstream workflow',
+}
 
 const card: React.CSSProperties = {
   borderRadius: 18,
@@ -85,6 +116,49 @@ function prettyJson(value: unknown) {
   } catch {
     return String(value)
   }
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+}
+
+function routeTargetLabel(value: string) {
+  return ROUTE_TARGET_LABELS[value] || value
+}
+
+function workflowLabel(value: string) {
+  return WORKFLOW_LABELS[value] || value
+}
+
+function providerLabel(value: string) {
+  if (value === 'anthropic') return 'Claude'
+  if (value === 'openai') return 'OpenAI'
+  return value || 'None'
+}
+
+function runtimeBadgeStyle(state: 'active' | 'working' | 'fallback' | 'blocked' | 'idle' | 'standby') {
+  const palette = {
+    active: { bg: 'rgba(130,220,170,.14)', fg: 'rgba(130,220,170,.92)' },
+    working: { bg: 'rgba(130,220,170,.14)', fg: 'rgba(130,220,170,.92)' },
+    fallback: { bg: 'rgba(255,210,120,.14)', fg: 'rgba(255,210,120,.92)' },
+    blocked: { bg: 'rgba(255,120,120,.14)', fg: 'rgba(255,140,140,.92)' },
+    idle: { bg: 'rgba(255,255,255,.06)', fg: 'rgba(255,255,255,.56)' },
+    standby: { bg: 'rgba(130,150,220,.12)', fg: 'rgba(130,150,220,.92)' },
+  }[state]
+
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '6px 10px',
+    borderRadius: 999,
+    background: palette.bg,
+    color: palette.fg,
+    fontSize: 12,
+    fontWeight: 700,
+  } satisfies React.CSSProperties
 }
 
 function OwnerIntakePageInner() {
@@ -212,6 +286,47 @@ function OwnerIntakePageInner() {
   }
 
   const latestDownstream = latestResult?.downstream_result ? prettyJson(latestResult.downstream_result) : ''
+  const downstreamRecord = asRecord(latestResult?.downstream_result)
+  const downstreamAiMeta = asRecord(downstreamRecord?.ai_meta) as AIExecutionMeta | null
+  const effectiveReason = String(
+    (typeof downstreamRecord?.reason === 'string' && downstreamRecord.reason)
+      || latestResult?.reason
+      || ''
+  )
+  const activeProvider = typeof downstreamAiMeta?.provider === 'string' ? downstreamAiMeta.provider : ''
+  const activeModel = typeof downstreamAiMeta?.model === 'string' ? downstreamAiMeta.model : ''
+  const hasRealAIResponse = Boolean(activeProvider)
+  const isProviderFallback = !hasRealAIResponse && /AI provider error|AI not configured/i.test(effectiveReason)
+  const systemWritebackOk = latestResult?.writeback?.status === 'done'
+  const systemWorking = Boolean(latestResult && systemWritebackOk && latestResult.created_note_relative_path)
+  const executionModeLabel = hasRealAIResponse
+    ? 'Real AI response'
+    : isProviderFallback
+      ? 'Fallback / draft mode'
+      : 'Structured routing only'
+  const anthropicState: 'active' | 'blocked' | 'standby' =
+    activeProvider === 'anthropic'
+      ? 'active'
+      : /anthropic: .*credit balance is too low|anthropic: Anthropic API key not configured/i.test(effectiveReason)
+        ? 'blocked'
+        : 'standby'
+  const openaiState: 'active' | 'blocked' | 'standby' =
+    activeProvider === 'openai'
+      ? 'active'
+      : /openai: OpenAI API key not configured/i.test(effectiveReason)
+        ? 'blocked'
+        : 'standby'
+  const verdentState: 'active' | 'idle' =
+    latestResult?.route_target === 'AI-3' || latestResult?.downstream_workflow === 'AI3_Planning_Intake' || latestResult?.downstream_workflow === 'AI3_QA_Scan'
+      ? 'active'
+      : 'idle'
+  const operatorSummary = !latestResult
+    ? ''
+    : hasRealAIResponse
+      ? `${routeTargetLabel(latestResult.route_target)} answered through ${providerLabel(activeProvider)}.`
+      : isProviderFallback
+        ? `${routeTargetLabel(latestResult.route_target)} was routed correctly, but this run fell back because the configured AI provider chain did not complete.`
+        : `${routeTargetLabel(latestResult.route_target)} was routed and queued without a direct AI answer yet.`
 
   return (
     <>
@@ -368,6 +483,25 @@ function OwnerIntakePageInner() {
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{
+                  ...card,
+                  padding: 14,
+                  background: systemWorking ? 'rgba(130,220,170,.06)' : 'rgba(255,210,120,.06)',
+                  borderColor: systemWorking ? 'rgba(130,220,170,.12)' : 'rgba(255,210,120,.12)',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.84)' }}>
+                      {systemWorking ? 'System worked' : 'System needs attention'}
+                    </div>
+                    <span style={runtimeBadgeStyle(systemWorking ? 'working' : isProviderFallback ? 'fallback' : 'blocked')}>
+                      {executionModeLabel}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.58)', lineHeight: 1.6 }}>
+                    {operatorSummary}
+                  </div>
+                </div>
+
                 <div className="owner-intake-result-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div style={{ ...card, padding: 12 }}>
                     <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Kind</div>
@@ -375,15 +509,40 @@ function OwnerIntakePageInner() {
                   </div>
                   <div style={{ ...card, padding: 12 }}>
                     <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Status</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(130,220,170,.85)' }}>{latestResult.status}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: latestResult.status === 'done' ? 'rgba(130,220,170,.85)' : latestResult.status === 'partial' ? 'rgba(255,210,120,.9)' : 'rgba(255,255,255,.72)' }}>{latestResult.status}</div>
                   </div>
                   <div style={{ ...card, padding: 12 }}>
                     <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Route target</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.72)' }}>{latestResult.route_target}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.72)' }}>{routeTargetLabel(latestResult.route_target)}</div>
                   </div>
                   <div style={{ ...card, padding: 12 }}>
                     <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Queue stage</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.72)' }}>{latestResult.queue_stage}</div>
+                  </div>
+                </div>
+
+                <div className="owner-intake-result-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div style={{ ...card, padding: 12 }}>
+                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Who answered</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.78)' }}>
+                      {workflowLabel(latestResult.downstream_workflow)}
+                    </div>
+                  </div>
+                  <div style={{ ...card, padding: 12 }}>
+                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Provider</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.78)' }}>
+                      {hasRealAIResponse ? `${providerLabel(activeProvider)}${activeModel ? ` · ${activeModel}` : ''}` : 'No live provider response'}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 8 }}>AI runtime</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    <span style={runtimeBadgeStyle(verdentState)}>Verdent · {verdentState}</span>
+                    <span style={runtimeBadgeStyle(anthropicState)}>{activeProvider === 'anthropic' ? 'Claude · active' : anthropicState === 'blocked' ? 'Claude · blocked' : 'Claude · standby'}</span>
+                    <span style={runtimeBadgeStyle(openaiState)}>{activeProvider === 'openai' ? 'OpenAI · active' : openaiState === 'blocked' ? 'OpenAI · blocked' : 'OpenAI · standby'}</span>
+                    <span style={runtimeBadgeStyle(systemWritebackOk ? 'working' : 'blocked')}>Writeback · {systemWritebackOk ? 'done' : (latestResult.writeback?.status || 'unknown')}</span>
                   </div>
                 </div>
 
@@ -395,7 +554,7 @@ function OwnerIntakePageInner() {
                 <div>
                   <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Downstream</div>
                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,.7)' }}>
-                    {latestResult.downstream_workflow} · {latestResult.downstream_status}
+                    {workflowLabel(latestResult.downstream_workflow)} · {latestResult.downstream_status}
                   </div>
                   {latestResult.downstream_reference && (
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,.38)', marginTop: 4, wordBreak: 'break-word' }}>
@@ -479,7 +638,7 @@ function OwnerIntakePageInner() {
                       <span style={{ fontSize: 11, color: 'rgba(255,255,255,.28)', flexShrink: 0 }}>{relTime(item.createdAt)}</span>
                     </div>
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,.42)', marginBottom: 6 }}>
-                      {item.result.intake_kind} → {item.result.route_target} · {item.result.status}
+                      {item.result.intake_kind} → {routeTargetLabel(item.result.route_target)} · {item.result.status}
                     </div>
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {item.message}
