@@ -10,6 +10,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const https = require('https');
 const http2 = require('http2');
+const os = require('os');
 const path = require('path');
 const fsPromises = require('fs').promises;
 const { z } = require('zod');
@@ -4024,6 +4025,9 @@ Rules:
 - if the user is asking for understanding, advice, analysis, or status, keep it advisory first
 - if the user clearly asks to start or execute work, suggest the correct next mode instead of forcing a task automatically
 - when context.project_snapshot is provided, ground the answer in that internal context first
+- when context.project_snapshot.local_project_brain is provided, treat it as the top-level project memory for broad project status questions
+- when context.project_snapshot.local_current_state is provided, treat it as the freshest operational snapshot before relying on older queue items
+- when context.project_snapshot.local_execution_checklist is provided, use it to explain the next practical build step
 - when context.project_snapshot.brain_note is provided, treat that note as the central working-memory summary for the current topic and answer from it first
 - when context.project_snapshot.canonical_topic_notes is provided, treat those notes as the source-of-truth stack for the topic before relying on recent ad-hoc task notes
 - when context.project_snapshot.topic_notes is provided, treat those notes as the primary history for the current topic before suggesting any new planning
@@ -4932,16 +4936,20 @@ function buildOwnerAdvisoryFallback(input, reason) {
 }
 
 function buildOwnerAdvisoryFallbackWithContext(input, reason, advisoryContext = {}) {
+  const projectBrainPath = safeStr(advisoryContext?.project_snapshot?.local_project_brain?.path || '').trim();
+  const currentStatePath = safeStr(advisoryContext?.project_snapshot?.local_current_state?.path || '').trim();
   const brainNotePath = safeStr(advisoryContext?.project_snapshot?.brain_note?.path || '').trim();
   const topicNotes = Array.isArray(advisoryContext?.project_snapshot?.topic_notes)
     ? advisoryContext.project_snapshot.topic_notes
     : [];
   const referencedNotes = uniqueList([
+    projectBrainPath,
+    currentStatePath,
     brainNotePath,
     ...topicNotes.map((entry) => safeStr(entry?.path).trim()),
   ]).filter(Boolean).slice(0, 8);
   const brainLead = brainNotePath
-    ? ` I grounded this in ${brainNotePath} and the existing topic notes.`
+    ? ` I grounded this in the local brain and ${brainNotePath}.`
     : '';
 
   return {
@@ -4981,6 +4989,27 @@ function compactMarkdownForAdvisory(content, maxChars = 1600) {
 async function readAdvisoryMarkdownNote(relativePath, maxChars = 1600) {
   try {
     const { cleaned, absolute } = resolveObsidianTargetPath(relativePath);
+    const content = await fsPromises.readFile(absolute, 'utf8');
+    return {
+      path: cleaned,
+      excerpt: compactMarkdownForAdvisory(content, maxChars),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getWorkspaceBrainRoot() {
+  return path.resolve(process.env.VURIUM_BRAIN_ROOT || path.join(os.homedir(), 'Obsidian', 'Vurium-Brain'));
+}
+
+async function readWorkspaceBrainMarkdownNote(relativePath, maxChars = 1600) {
+  try {
+    const cleaned = safeStr(relativePath).replace(/\\/g, '/').replace(/^\/+/, '');
+    if (!cleaned || !cleaned.endsWith('.md')) return null;
+    const root = getWorkspaceBrainRoot();
+    const absolute = path.resolve(root, cleaned);
+    if (!(absolute === root || absolute.startsWith(root + path.sep))) return null;
     const content = await fsPromises.readFile(absolute, 'utf8');
     return {
       path: cleaned,
@@ -5084,6 +5113,14 @@ function advisoryTopicLooksLikeSms(keywords = []) {
   return keywords.some((keyword) => /sms|notification|reminder|tfv|10dlc|telnyx/.test(String(keyword || '').toLowerCase()));
 }
 
+function advisoryTopicLooksLikeOnboarding(keywords = []) {
+  return keywords.some((keyword) => /onboarding|signup|sign-up|registration|register|welcome|setup/.test(String(keyword || '').toLowerCase()));
+}
+
+function advisoryTopicLooksLikeBilling(keywords = []) {
+  return keywords.some((keyword) => /billing|payment|payments|stripe|apple|subscription|plan|plans|checkout/.test(String(keyword || '').toLowerCase()));
+}
+
 function getCanonicalTopicReferencePaths(context = {}, input = {}) {
   const keywords = extractAdvisoryTopicKeywords(context, input);
   if (!keywords.length) return [];
@@ -5111,11 +5148,17 @@ async function readTopicBrainNote(context = {}, input = {}) {
 
   const candidates = [];
   if (advisoryTopicLooksLikeSms(keywords)) {
-    candidates.push('Tasks/SMS-Notifications-Brain.md');
+    candidates.push('Projects/VuriumBook/Topics/SMS-Notifications-Brain.md');
+  }
+  if (advisoryTopicLooksLikeOnboarding(keywords)) {
+    candidates.push('Projects/VuriumBook/Topics/Onboarding-Brain.md');
+  }
+  if (advisoryTopicLooksLikeBilling(keywords)) {
+    candidates.push('Projects/VuriumBook/Topics/Billing-Brain.md');
   }
 
   for (const candidate of candidates) {
-    const note = await readAdvisoryMarkdownNote(candidate, 2200);
+    const note = await readWorkspaceBrainMarkdownNote(candidate, 2200);
     if (note) return note;
   }
   return null;
@@ -5175,7 +5218,10 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
     ? activeFocusPath.replace(/\.md$/, '-Plan.md')
     : '';
   const canonicalTopicReferencePaths = getCanonicalTopicReferencePaths(context, input);
-  const [activeFocusNote, activeFocusPlan, topicBrainNote, topicNotes, canonicalTopicNotes] = await Promise.all([
+  const [localProjectBrain, localCurrentState, localExecutionChecklist, activeFocusNote, activeFocusPlan, topicBrainNote, topicNotes, canonicalTopicNotes] = await Promise.all([
+    readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Project-Brain.md', 2200),
+    readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Current-State.md', 2200),
+    readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Execution-Checklist.md', 2200),
     activeFocusPath ? readAdvisoryMarkdownNote(activeFocusPath, 1800) : Promise.resolve(null),
     activeFocusPlanPath ? readAdvisoryMarkdownNote(activeFocusPlanPath, 1800) : Promise.resolve(null),
     readTopicBrainNote(context, input),
@@ -5200,6 +5246,9 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
       queue_note: queueNote,
       rule_updates: rulesNote,
       in_progress_note: inProgressNote,
+      local_project_brain: localProjectBrain,
+      local_current_state: localCurrentState,
+      local_execution_checklist: localExecutionChecklist,
       recent_task_notes: recentTasks,
       recent_research_notes: recentResearch,
       active_focus_note: activeFocusNote,
@@ -6778,6 +6827,9 @@ async function executeOwnerAdvisory(meta, context, input) {
   });
 
   const referencedNotes = uniqueList([
+    safeStr(advisoryContext?.project_snapshot?.local_project_brain?.path || ''),
+    safeStr(advisoryContext?.project_snapshot?.local_current_state?.path || ''),
+    safeStr(advisoryContext?.project_snapshot?.local_execution_checklist?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.brain_note?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.active_focus_note?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.active_focus_plan_note?.path || ''),

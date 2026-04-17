@@ -47,3 +47,7 @@ Every approved system improvement should leave behind a decision note here that 
 - **AI 3** for structure and review coordination
 - **Owner** for major/risky approval
 - relevant owning lane for the actual content of the change
+
+## Approved Changes
+
+- [[10-Decisions/System-Changes/Workspace-Brain-Architecture-Adoption-2026-04-17|Workspace Brain Architecture Adoption — 2026-04-17]]

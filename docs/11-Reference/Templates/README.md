@@ -44,6 +44,10 @@ Short version:
 - [[11-Reference/Templates/Decision-Template|Decision Template]]
 - [[11-Reference/Templates/Improvement-Proposal-Template|Improvement Proposal Template]]
 - [[11-Reference/Templates/Short-Fast-Task-Template|Short Fast Task Template]]
+- [[11-Reference/Templates/Brain-Project-Brain-Template|Brain Project Brain Template]]
+- [[11-Reference/Templates/Brain-Topic-Brain-Template|Brain Topic Brain Template]]
+- [[11-Reference/Templates/Brain-Chat-Transcript-Template|Brain Chat Transcript Template]]
+- [[11-Reference/Templates/Brain-Thread-Summary-Template|Brain Thread Summary Template]]
 
 ## Related Startup Templates
 

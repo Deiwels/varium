@@ -24,6 +24,7 @@ The main canonical decision register is still [[Architecture/Decision-Log|Decisi
 - [[Architecture/Decision-Log|Decision Log]]
 - [[Tasks/Platform-Sender-Pivot-Decision|Platform Sender Pivot Decision]]
 - [[10-Decisions/System-Changes/README|System Changes Log]]
+- [[10-Decisions/System-Changes/Workspace-Brain-Architecture-Adoption-2026-04-17|Workspace Brain Architecture Adoption — 2026-04-17]]
 
 ## Owner Lane
 
