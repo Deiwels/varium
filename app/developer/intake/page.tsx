@@ -12,6 +12,7 @@ interface OwnerIntakeResult {
   status: string
   intake_id: string
   intake_kind: IntakeKind
+  thread_id: string
   title: string
   queue_stage: string
   route_target: string
@@ -26,6 +27,7 @@ interface OwnerIntakeResult {
   writeback: { status?: string; relative_path?: string; reason?: string } | null
   owner_notification: { status?: string; reason?: string } | null
   operator_reply: string
+  chat_memory: { status?: string; thread_id?: string; transcript_path?: string; summary_path?: string; reason?: string } | null
   follow_on_workflow: string
   follow_on_status: string
   follow_on_reference: string
@@ -53,6 +55,13 @@ interface ConversationContextItem {
   created_note_relative_path: string
 }
 
+interface OwnerThread {
+  id: string
+  title: string
+  createdAt: string
+  updatedAt: string
+}
+
 interface AIExecutionMeta {
   provider?: string
   model?: string
@@ -61,6 +70,9 @@ interface AIExecutionMeta {
 }
 
 const HISTORY_KEY = 'vurium_owner_intake_history'
+const THREADS_KEY = 'vurium_owner_threads'
+const ACTIVE_THREAD_KEY = 'vurium_owner_active_thread'
+const DEFAULT_THREAD_ID = 'copilot-01'
 
 const ROUTE_TARGET_LABELS: Record<string, string> = {
   'AI-1': 'AI-1 Backend',
@@ -86,6 +98,22 @@ const WORKFLOW_LABELS: Record<string, string> = {
   Research_Brief: 'AI-5 Research Brief',
   research_brief: 'AI-5 Research Brief',
   none: 'No downstream workflow',
+}
+
+function historyStorageKey(threadId: string) {
+  return `${HISTORY_KEY}:${threadId}`
+}
+
+function buildThreadId() {
+  return `copilot-${Date.now()}`
+}
+
+function buildThreadTitle(message: string, fallback = 'New chat') {
+  const normalized = message
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 72)
+  return normalized || fallback
 }
 
 const card: React.CSSProperties = {
@@ -524,23 +552,62 @@ function OwnerIntakePageInner() {
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [latestResult, setLatestResult] = useState<OwnerIntakeResult | null>(null)
+  const [threads, setThreads] = useState<OwnerThread[]>([])
+  const [activeThreadId, setActiveThreadId] = useState(DEFAULT_THREAD_ID)
+  const [hydratedThreadId, setHydratedThreadId] = useState('')
   const [history, setHistory] = useState<IntakeHistoryItem[]>([])
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(HISTORY_KEY)
-      if (!raw) return
-      const parsed = JSON.parse(raw) as IntakeHistoryItem[]
-      setHistory(Array.isArray(parsed) ? parsed : [])
-      if (Array.isArray(parsed) && parsed[0]?.result) setLatestResult(parsed[0].result)
+      const rawThreads = localStorage.getItem(THREADS_KEY)
+      const parsedThreads = rawThreads ? JSON.parse(rawThreads) as OwnerThread[] : []
+      const initialThreads = Array.isArray(parsedThreads) && parsedThreads.length
+        ? parsedThreads
+        : [{
+            id: DEFAULT_THREAD_ID,
+            title: 'VuriumBook Copilot',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }]
+      setThreads(initialThreads)
+
+      const storedActive = localStorage.getItem(ACTIVE_THREAD_KEY)
+      const nextActive = initialThreads.some((thread) => thread.id === storedActive)
+        ? String(storedActive)
+        : initialThreads[0].id
+      setActiveThreadId(nextActive)
     } catch {}
   }, [])
 
   useEffect(() => {
     try {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 12)))
+      if (!threads.length) return
+      localStorage.setItem(THREADS_KEY, JSON.stringify(threads))
+      localStorage.setItem(ACTIVE_THREAD_KEY, activeThreadId)
     } catch {}
-  }, [history])
+  }, [threads, activeThreadId])
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(historyStorageKey(activeThreadId))
+      const parsed = raw ? JSON.parse(raw) as IntakeHistoryItem[] : []
+      const safeHistory = Array.isArray(parsed) ? parsed : []
+      setHistory(safeHistory)
+      setLatestResult(safeHistory[0]?.result || null)
+      setHydratedThreadId(activeThreadId)
+    } catch {
+      setHistory([])
+      setLatestResult(null)
+      setHydratedThreadId(activeThreadId)
+    }
+  }, [activeThreadId])
+
+  useEffect(() => {
+    try {
+      if (!activeThreadId || hydratedThreadId !== activeThreadId) return
+      localStorage.setItem(historyStorageKey(activeThreadId), JSON.stringify(history.slice(0, 20)))
+    } catch {}
+  }, [history, activeThreadId, hydratedThreadId])
 
   useEffect(() => {
     if (!conversationEndRef.current) return
@@ -576,6 +643,7 @@ function OwnerIntakePageInner() {
             message: nextMessage.trim(),
             title: title.trim(),
             intake_kind: nextKind,
+            thread_id: activeThreadId,
             requested_by: 'Owner',
             priority,
             product_context_links: parseLines(productContextLinks),
@@ -605,6 +673,25 @@ function OwnerIntakePageInner() {
         },
         ...prev.filter((item) => item.id !== response.intake_id),
       ].slice(0, 12))
+      setThreads((prev) => {
+        const nextTitle = buildThreadTitle(title.trim() || response.title || nextMessage.trim(), 'New chat')
+        const nowIso = new Date().toISOString()
+        const exists = prev.some((thread) => thread.id === activeThreadId)
+        if (!exists) {
+          return [{ id: activeThreadId, title: nextTitle, createdAt: nowIso, updatedAt: nowIso }, ...prev]
+        }
+        return prev.map((thread) => (
+          thread.id === activeThreadId
+            ? {
+                ...thread,
+                title: thread.title === 'New chat' || thread.title === 'VuriumBook Copilot'
+                  ? nextTitle
+                  : thread.title,
+                updatedAt: nowIso,
+              }
+            : thread
+        )).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      })
       toast.show(
         response.intake_kind === 'advisory'
           ? 'Owner Copilot replied.'
@@ -654,6 +741,25 @@ function OwnerIntakePageInner() {
     toast.show('Prepared the next step in the composer.')
   }
 
+  function createNewThread() {
+    const id = buildThreadId()
+    const nowIso = new Date().toISOString()
+    const nextThread: OwnerThread = {
+      id,
+      title: 'New chat',
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    }
+    setThreads((prev) => [nextThread, ...prev])
+    setActiveThreadId(id)
+    setHistory([])
+    setLatestResult(null)
+    setMessage('')
+    setTitle('')
+    setIntakeKind('auto')
+    toast.show('Started a new chat thread.')
+  }
+
   function handleComposerKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
     event.preventDefault()
@@ -688,6 +794,55 @@ function OwnerIntakePageInner() {
       </div>
 
       <div style={{ display: 'grid', gap: 16 }}>
+        <section style={{ ...card, padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          {threads.map((thread) => {
+            const active = thread.id === activeThreadId
+            return (
+              <button
+                key={thread.id}
+                type="button"
+                onClick={() => setActiveThreadId(thread.id)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 999,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  fontFamily: 'inherit',
+                  background: active ? 'rgba(130,150,220,.18)' : 'rgba(255,255,255,.06)',
+                  color: active ? 'rgba(130,150,220,.96)' : 'rgba(255,255,255,.54)',
+                  maxWidth: 220,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+                title={thread.title}
+              >
+                {thread.title}
+              </button>
+            )
+          })}
+          <button
+            type="button"
+            onClick={createNewThread}
+            style={{
+              marginLeft: 'auto',
+              padding: '8px 12px',
+              borderRadius: 999,
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 700,
+              fontFamily: 'inherit',
+              background: 'rgba(130,220,170,.14)',
+              color: 'rgba(130,220,170,.94)',
+            }}
+          >
+            + New chat
+          </button>
+        </section>
+
         <section style={{ ...card, padding: 16, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'grid', gap: 4 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.82)' }}>
@@ -695,6 +850,9 @@ function OwnerIntakePageInner() {
             </div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,.42)', lineHeight: 1.6 }}>
               Broad questions stay conversational first. Explicit start/build/plan requests open execution lanes automatically. Recent turns and current focus are now carried forward automatically.
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.28)', lineHeight: 1.6 }}>
+              Active thread: {threads.find((thread) => thread.id === activeThreadId)?.title || activeThreadId}
             </div>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -1022,6 +1180,18 @@ function OwnerIntakePageInner() {
                                   </div>
                                 </div>
                               </div>
+
+                              {item.result.chat_memory && (
+                                <div style={{ ...card, padding: 12 }}>
+                                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 6 }}>Chat memory</div>
+                                  <div style={{ display: 'grid', gap: 4, fontSize: 13, color: 'rgba(255,255,255,.72)' }}>
+                                    <div>Status: {item.result.chat_memory.status || 'unknown'}</div>
+                                    <div>Thread: {item.result.chat_memory.thread_id || item.result.thread_id || activeThreadId}</div>
+                                    {item.result.chat_memory.transcript_path && <div style={{ wordBreak: 'break-word' }}>Transcript: {item.result.chat_memory.transcript_path}</div>}
+                                    {item.result.chat_memory.summary_path && <div style={{ wordBreak: 'break-word' }}>Summary: {item.result.chat_memory.summary_path}</div>}
+                                  </div>
+                                </div>
+                              )}
 
                               <div style={{ fontSize: 13, color: 'rgba(255,255,255,.84)', lineHeight: 1.7 }}>
                                 <strong style={{ color: 'rgba(255,255,255,.92)' }}>Next step:</strong> {item.result.next_step}

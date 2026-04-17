@@ -3913,6 +3913,7 @@ const OwnerIntakeInputSchema = z.object({
   message: z.string().min(1),
   title: z.string().default(''),
   intake_kind: OwnerIntakeInputKindSchema.default('auto'),
+  thread_id: z.string().default('copilot-01'),
   requested_by: z.string().default('Owner'),
   priority: z.string().default('medium'),
   product_context_links: z.array(z.string()).default([]),
@@ -3930,12 +3931,21 @@ const OwnerIntakeInputSchema = z.object({
   need_video_brief: z.boolean().optional(),
 });
 
+const OwnerThreadMemoryStateSchema = z.object({
+  status: WorkflowStatusSchema,
+  thread_id: z.string().default(''),
+  transcript_path: z.string().default(''),
+  summary_path: z.string().default(''),
+  reason: z.string().default(''),
+});
+
 const OwnerIntakeOutputSchema = z.object({
   agent: z.literal('SYSTEM'),
   workflow: z.literal('owner_intake'),
   status: WorkflowStatusSchema,
   intake_id: z.string().min(1),
   intake_kind: OwnerIntakeKindSchema,
+  thread_id: z.string().default(''),
   title: z.string().min(1),
   queue_stage: z.string().default(''),
   route_target: WorkflowEscalationTargetSchema,
@@ -3950,6 +3960,7 @@ const OwnerIntakeOutputSchema = z.object({
   writeback: WorkflowWritebackStateSchema,
   owner_notification: WorkflowOwnerNotificationStateSchema,
   operator_reply: z.string().default(''),
+  chat_memory: OwnerThreadMemoryStateSchema.nullable().default(null),
   follow_on_workflow: z.string().default('none'),
   follow_on_status: WorkflowStatusSchema,
   follow_on_reference: z.string().default(''),
@@ -3985,6 +3996,7 @@ Rules:
 - if critical information is missing, block or escalate instead of guessing
 - keep recommended_sequence realistic and ownership-based
 - when context.owner_conversation_history or context.active_focus is present, use that thread context to resolve references like "this", "that problem", or "continue"
+- when context.thread_memory.summary_note is provided, treat it as durable memory from the same chat thread before asking the owner to restate context
 - do not force the owner to restate the same problem if the recent conversation already identifies the active issue
 
 Return exactly this JSON shape:
@@ -4032,6 +4044,7 @@ Rules:
 - when context.project_snapshot.canonical_topic_notes is provided, treat those notes as the source-of-truth stack for the topic before relying on recent ad-hoc task notes
 - when context.project_snapshot.topic_notes is provided, treat those notes as the primary history for the current topic before suggesting any new planning
 - when context.owner_conversation_history or context.active_focus is provided, continue the same thread instead of acting like this is a brand new conversation
+- when context.thread_memory.summary_note is provided, use it as durable chat memory before relying only on the in-browser recent turns
 - if the owner says "continue", "this issue", or "that problem", infer the most recent relevant focus from conversation context before asking them to restate it
 - for internal project status / overview requests, summarize what is already visible in queue, notes, and recent writebacks before recommending any execution mode
 - do not ask for AI-5 or external source URLs when the request is only about internal project status and the answer can be formed from internal context
@@ -4938,6 +4951,7 @@ function buildOwnerAdvisoryFallback(input, reason) {
 function buildOwnerAdvisoryFallbackWithContext(input, reason, advisoryContext = {}) {
   const projectBrainPath = safeStr(advisoryContext?.project_snapshot?.local_project_brain?.path || '').trim();
   const currentStatePath = safeStr(advisoryContext?.project_snapshot?.local_current_state?.path || '').trim();
+  const threadSummaryPath = safeStr(advisoryContext?.thread_memory?.summary_note?.path || '').trim();
   const brainNotePath = safeStr(advisoryContext?.project_snapshot?.brain_note?.path || '').trim();
   const topicNotes = Array.isArray(advisoryContext?.project_snapshot?.topic_notes)
     ? advisoryContext.project_snapshot.topic_notes
@@ -4945,6 +4959,7 @@ function buildOwnerAdvisoryFallbackWithContext(input, reason, advisoryContext = 
   const referencedNotes = uniqueList([
     projectBrainPath,
     currentStatePath,
+    threadSummaryPath,
     brainNotePath,
     ...topicNotes.map((entry) => safeStr(entry?.path).trim()),
   ]).filter(Boolean).slice(0, 8);
@@ -5017,6 +5032,205 @@ async function readWorkspaceBrainMarkdownNote(relativePath, maxChars = 1600) {
     };
   } catch {
     return null;
+  }
+}
+
+async function readWorkspaceBrainRawNote(relativePath) {
+  try {
+    const cleaned = safeStr(relativePath).replace(/\\/g, '/').replace(/^\/+/, '');
+    if (!cleaned || !cleaned.endsWith('.md')) return '';
+    const root = getWorkspaceBrainRoot();
+    const absolute = path.resolve(root, cleaned);
+    if (!(absolute === root || absolute.startsWith(root + path.sep))) return '';
+    return await fsPromises.readFile(absolute, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+async function writeWorkspaceBrainNote(relativePath, content) {
+  const cleaned = safeStr(relativePath).replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!cleaned || !cleaned.endsWith('.md')) {
+    throw new Error('Workspace brain path must be a markdown file.');
+  }
+  const root = getWorkspaceBrainRoot();
+  const absolute = path.resolve(root, cleaned);
+  if (!(absolute === root || absolute.startsWith(root + path.sep))) {
+    throw new Error('Workspace brain path escapes the configured root.');
+  }
+  await fsPromises.mkdir(path.dirname(absolute), { recursive: true });
+  await fsPromises.writeFile(absolute, safeStr(content), 'utf8');
+  return { path: cleaned, absolute };
+}
+
+function sanitizeOwnerThreadId(value) {
+  return safeWorkflowSlug(safeStr(value).trim() || 'copilot-01', 'copilot-01');
+}
+
+function buildWorkspaceBrainWikiLink(relativePath, label = '') {
+  const cleaned = safeStr(relativePath).replace(/\\/g, '/').replace(/^\/+/, '').replace(/\.md$/i, '');
+  if (!cleaned) return '';
+  return label ? `[[${cleaned}|${label}]]` : `[[${cleaned}]]`;
+}
+
+function buildOwnerThreadTranscriptRelativePath(threadId) {
+  return `Projects/VuriumBook/Chats/${sanitizeOwnerThreadId(threadId)}.md`;
+}
+
+function buildOwnerThreadSummaryRelativePath(threadId) {
+  return `Projects/VuriumBook/Chats/Thread-Memory/${sanitizeOwnerThreadId(threadId)}-summary.md`;
+}
+
+function extractOwnerMemoryReferencedNotes(result) {
+  return uniqueList([
+    safeStr(result?.created_note_relative_path || ''),
+    safeStr(result?.downstream_reference || ''),
+    safeStr(result?.follow_on_reference || ''),
+    ...((Array.isArray(result?.downstream_result?.referenced_notes) ? result.downstream_result.referenced_notes : [])
+      .map((entry) => safeStr(entry).trim())),
+  ]).filter(Boolean);
+}
+
+function buildOwnerThreadTranscriptHeader(threadId, title, createdAtIso) {
+  const created = safeStr(createdAtIso || toIso(new Date()));
+  return [
+    '---',
+    'type: chat-transcript',
+    `thread_id: ${sanitizeOwnerThreadId(threadId)}`,
+    'project: VuriumBook',
+    'mode: owner-copilot',
+    'provider: mixed',
+    `created: ${created}`,
+    `updated: ${created}`,
+    'linked_tasks: []',
+    'linked_plans: []',
+    '---',
+    '',
+    `# ${safeStr(title || `Copilot Thread ${sanitizeOwnerThreadId(threadId)}`)}`,
+    '',
+    '## Messages',
+  ].join('\n');
+}
+
+function buildOwnerThreadTranscriptTurn({ timestampIso, ownerMessage, operatorReply, result }) {
+  const turnTime = safeStr(timestampIso || toIso(new Date()));
+  const headerTime = turnTime.replace('T', ' ').replace(/\.\d+Z$/, ' UTC').replace(/Z$/, ' UTC');
+  const workflow = safeStr(result?.downstream_workflow || result?.workflow || 'Owner_Advisory');
+  const routeTarget = safeStr(result?.route_target || 'none');
+  const nextStep = safeStr(result?.next_step || '').trim();
+  const createdNote = safeStr(result?.created_note_relative_path || '').trim();
+
+  return [
+    '',
+    `## ${headerTime}`,
+    '',
+    '### Owner',
+    safeStr(ownerMessage).trim(),
+    '',
+    '### Copilot',
+    safeStr(operatorReply).trim() || safeStr(result?.reason || 'No operator reply generated.').trim(),
+    '',
+    '### System',
+    `- Intake kind: ${safeStr(result?.intake_kind || 'advisory')}`,
+    `- Workflow: ${workflow}`,
+    `- Route target: ${routeTarget}`,
+    ...(createdNote ? [`- Created note: ${createdNote}`] : []),
+    ...(nextStep ? [`- Next step: ${nextStep}`] : []),
+  ].join('\n');
+}
+
+function buildOwnerThreadSummaryContent({ threadId, title, result, referencedNotes, updatedAtIso }) {
+  const updated = safeStr(updatedAtIso || toIso(new Date()));
+  const sanitizedThreadId = sanitizeOwnerThreadId(threadId);
+  const operatorReply = safeStr(result?.operator_reply || result?.downstream_result?.reply || result?.next_step || result?.reason || '').trim();
+  const localBrainNotes = referencedNotes.filter((entry) => entry.startsWith('Projects/VuriumBook/'));
+  const repoNotes = referencedNotes
+    .filter((entry) => !entry.startsWith('Projects/VuriumBook/'))
+    .map((entry) => path.join(getObsidianRoot(), entry).replace(/\\/g, '/'));
+  const hasProjectBrainLink = localBrainNotes.includes('Projects/VuriumBook/Project-Brain.md');
+  const hasCurrentStateLink = localBrainNotes.includes('Projects/VuriumBook/Current-State.md');
+  const projectLinks = uniqueList([
+    hasProjectBrainLink ? '' : buildWorkspaceBrainWikiLink('Projects/VuriumBook/Project-Brain.md', 'Project Brain'),
+    hasCurrentStateLink ? '' : buildWorkspaceBrainWikiLink('Projects/VuriumBook/Current-State.md', 'Current State'),
+    ...localBrainNotes.map((entry) => buildWorkspaceBrainWikiLink(entry)),
+  ]).filter(Boolean);
+
+  return [
+    '---',
+    'type: thread-summary',
+    `thread_id: ${sanitizedThreadId}`,
+    'project: VuriumBook',
+    `updated: ${updated}`,
+    '---',
+    '',
+    `# Thread Summary — ${sanitizedThreadId}`,
+    '',
+    `- **About:** ${safeStr(title || result?.title || 'Owner Copilot thread')}`,
+    `- **Current issue:** ${safeStr(result?.reason || result?.title || 'working context in progress')}`,
+    `- **Last decision:** ${safeStr(result?.downstream_workflow || 'Owner_Advisory')} -> ${safeStr(result?.route_target || 'none')}`,
+    `- **Next step:** ${safeStr(result?.next_step || 'Continue the thread or explicitly start execution.')}`,
+    '',
+    '## Linked Local Brain',
+    ...(projectLinks.length ? projectLinks.map((entry) => `- ${entry}`) : ['- pending']),
+    '',
+    '## Linked Repo Notes',
+    ...(repoNotes.length ? repoNotes.map((entry) => `- ${entry}`) : ['- none']),
+    '',
+    '## Last Copilot Reply',
+    operatorReply || 'No operator reply recorded yet.',
+  ].join('\n');
+}
+
+async function readWorkspaceBrainThreadSummary(threadId) {
+  const relativePath = buildOwnerThreadSummaryRelativePath(threadId);
+  const note = await readWorkspaceBrainMarkdownNote(relativePath, 1800);
+  return note ? { ...note, thread_id: sanitizeOwnerThreadId(threadId) } : null;
+}
+
+async function persistOwnerThreadMemory({ threadId, title, input, result }) {
+  try {
+    const sanitizedThreadId = sanitizeOwnerThreadId(threadId);
+    const transcriptPath = buildOwnerThreadTranscriptRelativePath(sanitizedThreadId);
+    const summaryPath = buildOwnerThreadSummaryRelativePath(sanitizedThreadId);
+    const nowIso = toIso(new Date());
+    const existingTranscript = await readWorkspaceBrainRawNote(transcriptPath);
+    const transcriptBase = existingTranscript
+      ? existingTranscript.replace(/\s+$/, '')
+      : buildOwnerThreadTranscriptHeader(sanitizedThreadId, title, nowIso);
+    const transcriptContent = `${transcriptBase}${buildOwnerThreadTranscriptTurn({
+      timestampIso: nowIso,
+      ownerMessage: safeStr(input?.message).trim(),
+      operatorReply: safeStr(result?.operator_reply || result?.downstream_result?.reply || ''),
+      result,
+    })}\n`;
+
+    const referencedNotes = extractOwnerMemoryReferencedNotes(result);
+    const summaryContent = buildOwnerThreadSummaryContent({
+      threadId: sanitizedThreadId,
+      title,
+      result,
+      referencedNotes,
+      updatedAtIso: nowIso,
+    });
+
+    await writeWorkspaceBrainNote(transcriptPath, transcriptContent);
+    await writeWorkspaceBrainNote(summaryPath, summaryContent);
+
+    return {
+      status: 'done',
+      thread_id: sanitizedThreadId,
+      transcript_path: transcriptPath,
+      summary_path: summaryPath,
+      reason: 'Chat transcript and thread summary saved to the local workspace brain.',
+    };
+  } catch (error) {
+    return {
+      status: 'blocked',
+      thread_id: sanitizeOwnerThreadId(threadId),
+      transcript_path: '',
+      summary_path: '',
+      reason: `Chat memory persistence failed: ${safeStr(error?.message || 'unknown error')}`,
+    };
   }
 }
 
@@ -5217,11 +5431,13 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
   const activeFocusPlanPath = activeFocusPath.startsWith('04-Tasks/TASK-')
     ? activeFocusPath.replace(/\.md$/, '-Plan.md')
     : '';
+  const threadId = safeStr(input?.thread_id).trim();
   const canonicalTopicReferencePaths = getCanonicalTopicReferencePaths(context, input);
-  const [localProjectBrain, localCurrentState, localExecutionChecklist, activeFocusNote, activeFocusPlan, topicBrainNote, topicNotes, canonicalTopicNotes] = await Promise.all([
+  const [localProjectBrain, localCurrentState, localExecutionChecklist, threadSummaryNote, activeFocusNote, activeFocusPlan, topicBrainNote, topicNotes, canonicalTopicNotes] = await Promise.all([
     readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Project-Brain.md', 2200),
     readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Current-State.md', 2200),
     readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Execution-Checklist.md', 2200),
+    threadId ? readWorkspaceBrainThreadSummary(threadId) : Promise.resolve(null),
     activeFocusPath ? readAdvisoryMarkdownNote(activeFocusPath, 1800) : Promise.resolve(null),
     activeFocusPlanPath ? readAdvisoryMarkdownNote(activeFocusPlanPath, 1800) : Promise.resolve(null),
     readTopicBrainNote(context, input),
@@ -5256,6 +5472,10 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
       brain_note: topicBrainNote,
       canonical_topic_notes: canonicalTopicNotes.filter(Boolean),
       topic_notes: normalizedTopicNotes,
+    },
+    thread_memory: {
+      thread_id: threadId,
+      summary_note: threadSummaryNote,
     },
   };
 }
@@ -6830,6 +7050,7 @@ async function executeOwnerAdvisory(meta, context, input) {
     safeStr(advisoryContext?.project_snapshot?.local_project_brain?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.local_current_state?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.local_execution_checklist?.path || ''),
+    safeStr(advisoryContext?.thread_memory?.summary_note?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.brain_note?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.active_focus_note?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.active_focus_plan_note?.path || ''),
@@ -6849,10 +7070,21 @@ async function executeOwnerIntake(meta, context, input) {
     ? 'advisory'
     : detectOwnerIntakeKind(input);
   const intakeId = buildOwnerIntakeId(intakeKind);
+  const threadId = sanitizeOwnerThreadId(input.thread_id);
   const metadata = buildOwnerIntakeMetadata(intakeKind);
   const note = intakeKind === 'advisory'
     ? { relative_path: '', content: '' }
     : buildOwnerIntakeNote(intakeKind, intakeId, title, input, metadata);
+  const threadSummaryNote = threadId
+    ? await readWorkspaceBrainThreadSummary(threadId)
+    : null;
+  const threadedContext = {
+    ...context,
+    thread_memory: {
+      thread_id: threadId,
+      summary_note: threadSummaryNote,
+    },
+  };
 
   let writeback = null;
   if (intakeKind !== 'advisory') {
@@ -6882,14 +7114,14 @@ async function executeOwnerIntake(meta, context, input) {
   if (intakeKind === 'advisory') {
     downstreamResult = await executeOwnerAdvisory(
       { ...meta, workflow_name: 'Owner_Advisory', trigger_source: meta.trigger_source || 'owner_intake' },
-      context,
-      input
+      threadedContext,
+      { ...input, thread_id: threadId }
     );
   } else if (intakeKind === 'task') {
     downstreamResult = await executePlanningIntakeWorkflow(
       { ...meta, workflow_name: 'AI3_Planning_Intake', trigger_source: meta.trigger_source || 'owner_intake' },
       {
-        ...context,
+        ...threadedContext,
         owner_intake_note: note.relative_path,
       },
       {
@@ -6913,7 +7145,7 @@ async function executeOwnerIntake(meta, context, input) {
       followOnResult = await executeResearchBriefWorkflow(
         { ...meta, workflow_name: 'Research_Brief', trigger_source: meta.trigger_source || 'owner_intake_follow_on' },
         {
-          ...context,
+          ...threadedContext,
           owner_intake_note: note.relative_path,
           planning_note: safeStr(downstreamResult?.writeback?.relative_path || ''),
         },
@@ -6925,7 +7157,7 @@ async function executeOwnerIntake(meta, context, input) {
     downstreamResult = await executeGrowthAssetFlowWorkflow(
       { ...meta, workflow_name: 'Growth_Asset_Flow', trigger_source: meta.trigger_source || 'owner_intake' },
       {
-        ...context,
+        ...threadedContext,
         owner_intake_note: note.relative_path,
       },
       {
@@ -6949,7 +7181,7 @@ async function executeOwnerIntake(meta, context, input) {
     downstreamResult = await executeResearchBriefWorkflow(
       { ...meta, workflow_name: 'Research_Brief', trigger_source: meta.trigger_source || 'owner_intake' },
       {
-        ...context,
+        ...threadedContext,
         owner_intake_note: note.relative_path,
       },
       {
@@ -6994,6 +7226,24 @@ async function executeOwnerIntake(meta, context, input) {
     downstreamResult,
     followOnResult,
   });
+  const chatMemory = await persistOwnerThreadMemory({
+    threadId,
+    title,
+    input,
+    result: {
+      intake_kind: intakeKind,
+      title,
+      route_target: metadata.route_target,
+      downstream_workflow: metadata.downstream_workflow,
+      created_note_relative_path: writeback?.relative_path || note.relative_path,
+      downstream_reference: downstreamResult?.writeback?.relative_path || '',
+      follow_on_reference: followOnResult?.writeback?.relative_path || '',
+      downstream_result: downstreamResult,
+      next_step: followOnResult?.next_step || downstreamResult?.next_step || '',
+      reason,
+      operator_reply: operatorReply,
+    },
+  });
 
   return OwnerIntakeOutputSchema.parse({
     agent: 'SYSTEM',
@@ -7001,6 +7251,7 @@ async function executeOwnerIntake(meta, context, input) {
     status,
     intake_id: intakeId,
     intake_kind: intakeKind,
+    thread_id: threadId,
     title,
     queue_stage: metadata.queue_stage,
     route_target: metadata.route_target,
@@ -7019,6 +7270,7 @@ async function executeOwnerIntake(meta, context, input) {
     writeback,
     owner_notification: downstreamResult?.owner_notification || null,
     operator_reply: operatorReply,
+    chat_memory: chatMemory,
     follow_on_workflow: followOnResult?.workflow === 'research_brief' ? 'Research_Brief' : 'none',
     follow_on_status: followOnStatus,
     follow_on_reference: followOnResult?.writeback?.relative_path || '',
