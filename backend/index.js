@@ -4522,6 +4522,7 @@ Rules:
 - when context.owner_conversation_history or context.active_focus is present, use that thread context to resolve references like "this", "that problem", or "continue"
 - when context.thread_memory.summary_note is provided, treat it as durable memory from the same chat thread before asking the owner to restate context
 - when context.project_snapshot.local_daily_review is provided, treat it as the freshest whole-project scan before inventing new planning work
+- when context.project_snapshot.local_codebase_snapshot is provided, treat it as the current codebase surface map before inventing architecture or ownership from memory
 - do not force the owner to restate the same problem if the recent conversation already identifies the active issue
 - when context.project_snapshot.local_topic_execution_checklist is provided, treat it as the current execution scaffold for that topic before inventing any new top-level plan
 - if the topic already has a canonical execution checklist, only create a new planning shell when the owner is clearly changing scope or asking for a materially different workstream
@@ -4568,6 +4569,7 @@ Rules:
 - when context.project_snapshot.local_project_brain is provided, treat it as the top-level project memory for broad project status questions
 - when context.project_snapshot.local_current_state is provided, treat it as the freshest operational snapshot before relying on older queue items
 - when context.project_snapshot.local_daily_review is provided, treat it as the freshest whole-project daily scan and use it before older thread/task noise
+- when context.project_snapshot.local_codebase_snapshot is provided, treat it as the current codebase surface map for the whole project before assuming the system only knows notes or chat
 - when context.project_snapshot.local_execution_checklist is provided, use it to explain the next practical build step
 - when context.project_snapshot.brain_note is provided, treat that note as the central working-memory summary for the current topic and answer from it first
 - when context.project_snapshot.local_topic_execution_checklist is provided, treat it as the single operational checklist for the topic and prefer it over scattered historical plans
@@ -4698,6 +4700,7 @@ Rules:
 - do not write the implementation code itself
 - prefer the current canonical checklist / plan stack over creating a parallel plan
 - when context.project_snapshot.local_daily_review is provided, treat it as the freshest execution-wide snapshot before widening scope
+- when context.project_snapshot.local_codebase_snapshot is provided, use it to anchor file ownership and project surfaces before inventing new file targets
 - if missing_inputs still contain unresolved external/product/compliance blockers, do not pretend coding can start safely
 - pick one primary target_ai (AI-1 or AI-2) and keep file_targets inside that lane's ownership as much as possible
 - if partner-lane coordination is needed, put it in coordination_notes instead of blurring ownership
@@ -5853,6 +5856,7 @@ function buildOwnerAdvisoryFallbackWithContext(input, reason, advisoryContext = 
   const projectBrainPath = safeStr(advisoryContext?.project_snapshot?.local_project_brain?.path || '').trim();
   const currentStatePath = safeStr(advisoryContext?.project_snapshot?.local_current_state?.path || '').trim();
   const dailyReviewPath = safeStr(advisoryContext?.project_snapshot?.local_daily_review?.path || '').trim();
+  const codebaseSnapshotPath = safeStr(advisoryContext?.project_snapshot?.local_codebase_snapshot?.path || '').trim();
   const threadSummaryPath = safeStr(advisoryContext?.thread_memory?.summary_note?.path || '').trim();
   const brainNotePath = safeStr(advisoryContext?.project_snapshot?.brain_note?.path || '').trim();
   const topicNotes = Array.isArray(advisoryContext?.project_snapshot?.topic_notes)
@@ -5862,6 +5866,7 @@ function buildOwnerAdvisoryFallbackWithContext(input, reason, advisoryContext = 
     projectBrainPath,
     currentStatePath,
     dailyReviewPath,
+    codebaseSnapshotPath,
     threadSummaryPath,
     brainNotePath,
     ...topicNotes.map((entry) => safeStr(entry?.path).trim()),
@@ -6051,12 +6056,230 @@ async function readLatestWorkspaceBrainDailyReview(project = 'VuriumBook') {
   };
 }
 
+function buildProjectCodebaseSnapshotRelativePath(project = 'VuriumBook') {
+  return `Projects/${safeWorkflowSlug(project, 'project')}/Codebase-Snapshot.md`;
+}
+
+async function statWorkspaceBrainNote(relativePath) {
+  try {
+    const cleaned = safeStr(relativePath).replace(/\\/g, '/').replace(/^\/+/, '');
+    if (!cleaned || !cleaned.endsWith('.md')) return null;
+    const root = getWorkspaceBrainRoot();
+    const absolute = path.resolve(root, cleaned);
+    if (!(absolute === root || absolute.startsWith(root + path.sep))) return null;
+    return await fsPromises.stat(absolute);
+  } catch {
+    return null;
+  }
+}
+
+async function collectRepoRelativeFiles(relativeDir, {
+  maxDepth = 4,
+  limit = 40,
+  fileFilter = () => true,
+} = {}) {
+  const repoRoot = process.cwd();
+  const start = path.join(repoRoot, safeStr(relativeDir).replace(/^\/+/, ''));
+  const results = [];
+
+  async function walk(currentDir, depth) {
+    if (depth > maxDepth || results.length >= limit) return;
+    let entries = [];
+    try {
+      entries = await fsPromises.readdir(currentDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      if (results.length >= limit) break;
+      if (entry.name.startsWith('.')) continue;
+      const absolute = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(absolute, depth + 1);
+        continue;
+      }
+      const relative = path.relative(repoRoot, absolute).replace(/\\/g, '/');
+      if (fileFilter(relative, entry)) results.push(relative);
+    }
+  }
+
+  await walk(start, 0);
+  return results.slice(0, limit);
+}
+
+function formatAppRouteFromPage(relativePath) {
+  const normalized = safeStr(relativePath).replace(/\\/g, '/').trim();
+  if (!normalized.startsWith('app/') || !normalized.endsWith('/page.tsx')) return '';
+  const route = normalized
+    .replace(/^app/, '')
+    .replace(/\/page\.tsx$/, '')
+    .replace(/\/index$/, '')
+    .replace(/\/+/g, '/');
+  return route || '/';
+}
+
+async function listProjectAppRoutes(limit = 24) {
+  const pages = await collectRepoRelativeFiles('app', {
+    maxDepth: 4,
+    limit: limit * 2,
+    fileFilter: (relative) => relative.endsWith('/page.tsx'),
+  });
+  return uniqueList(pages.map((relative) => formatAppRouteFromPage(relative))).filter(Boolean).slice(0, limit);
+}
+
+async function listDeveloperSurfaces(limit = 12) {
+  return collectRepoRelativeFiles('app/developer', {
+    maxDepth: 3,
+    limit,
+    fileFilter: (relative) => relative.endsWith('.tsx'),
+  });
+}
+
+async function listWorkspaceBrainScriptSurfaces(limit = 12) {
+  return collectRepoRelativeFiles('scripts/workspace-brain', {
+    maxDepth: 2,
+    limit,
+    fileFilter: (relative) => relative.endsWith('.mjs') || relative.endsWith('.js') || relative.endsWith('.sh'),
+  });
+}
+
+async function readProjectPackageSummary() {
+  try {
+    const raw = await fsPromises.readFile(path.join(process.cwd(), 'package.json'), 'utf8');
+    const pkg = JSON.parse(raw);
+    return {
+      name: safeStr(pkg.name || 'vurium'),
+      scripts: Object.keys(pkg.scripts || {}).sort().slice(0, 20),
+      dependencies: Object.keys(pkg.dependencies || {}).sort().slice(0, 20),
+      devDependencies: Object.keys(pkg.devDependencies || {}).sort().slice(0, 20),
+    };
+  } catch {
+    return {
+      name: 'vurium',
+      scripts: [],
+      dependencies: [],
+      devDependencies: [],
+    };
+  }
+}
+
+async function listBackendApiRoutes(limit = 40) {
+  try {
+    const raw = await fsPromises.readFile(path.join(process.cwd(), 'backend', 'index.js'), 'utf8');
+    const matches = [];
+    const pattern = /app\.(get|post|put|patch|delete)\(\s*['"`]([^'"`]+)['"`]/g;
+    let match;
+    while ((match = pattern.exec(raw)) !== null && matches.length < limit * 2) {
+      const method = safeStr(match[1]).toUpperCase();
+      const route = safeStr(match[2]).trim();
+      if (!route) continue;
+      matches.push(`${method} ${route}`);
+    }
+    return uniqueList(matches).slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+function summarizeCodebaseFocusAreas({ appRoutes = [], backendRoutes = [], developerSurfaces = [], scripts = [] }) {
+  const focus = [];
+  if (appRoutes.some((entry) => /\/developer\b/.test(entry))) focus.push('developer operator panel');
+  if (appRoutes.some((entry) => /\/settings\b/.test(entry))) focus.push('workspace settings and SMS status UI');
+  if (backendRoutes.some((entry) => /\/api\/sms\//.test(entry))) focus.push('owner SMS + TFV endpoints');
+  if (backendRoutes.some((entry) => /\/api\/vurium-dev\/ai\//.test(entry))) focus.push('AI operating system backend routes');
+  if (scripts.some((entry) => /workspace-brain/.test(entry))) focus.push('workspace-brain export / inventory scripts');
+  if (developerSurfaces.some((entry) => /developer\/intake/.test(entry))) focus.push('owner copilot intake UI');
+  return uniqueList(focus);
+}
+
+async function buildProjectCodebaseSnapshot(project = 'VuriumBook') {
+  const [packageSummary, appRoutes, backendRoutes, developerSurfaces, workspaceBrainScripts] = await Promise.all([
+    readProjectPackageSummary(),
+    listProjectAppRoutes(28),
+    listBackendApiRoutes(36),
+    listDeveloperSurfaces(12),
+    listWorkspaceBrainScriptSurfaces(12),
+  ]);
+
+  const focusAreas = summarizeCodebaseFocusAreas({
+    appRoutes,
+    backendRoutes,
+    developerSurfaces,
+    scripts: workspaceBrainScripts,
+  });
+  const relativePath = buildProjectCodebaseSnapshotRelativePath(project);
+  const content = [
+    '---',
+    'type: codebase-snapshot',
+    `project: ${safeWorkflowSlug(project, 'VuriumBook')}`,
+    `updated: ${toIso(new Date())}`,
+    `package_name: ${safeStr(packageSummary.name || 'vurium')}`,
+    `focus_areas_json: ${stringifyFrontmatterJson(focusAreas, '[]')}`,
+    `app_routes_json: ${stringifyFrontmatterJson(appRoutes, '[]')}`,
+    `backend_routes_json: ${stringifyFrontmatterJson(backendRoutes, '[]')}`,
+    `developer_surfaces_json: ${stringifyFrontmatterJson(developerSurfaces, '[]')}`,
+    `workspace_brain_scripts_json: ${stringifyFrontmatterJson(workspaceBrainScripts, '[]')}`,
+    '---',
+    '',
+    `# Codebase Snapshot — ${safeStr(project || 'VuriumBook')}`,
+    '',
+    '## What this covers',
+    '- app router surfaces in `app/`',
+    '- backend API and webhook routes from `backend/index.js`',
+    '- developer/operator surfaces',
+    '- workspace-brain scripts used to inventory/export project memory',
+    '',
+    '## Package Summary',
+    `- Name: ${safeStr(packageSummary.name || 'vurium')}`,
+    `- Scripts: ${packageSummary.scripts.join(', ') || 'none'}`,
+    `- Core deps: ${packageSummary.dependencies.slice(0, 10).join(', ') || 'none'}`,
+    '',
+    '## Focus Areas',
+    ...markdownList(focusAreas, '- no focus areas detected'),
+    '',
+    '## App Routes',
+    ...markdownList(appRoutes, '- none'),
+    '',
+    '## Backend API Surface',
+    ...markdownList(backendRoutes, '- none'),
+    '',
+    '## Developer Surfaces',
+    ...markdownList(developerSurfaces, '- none'),
+    '',
+    '## Workspace-Brain Scripts',
+    ...markdownList(workspaceBrainScripts, '- none'),
+    '',
+    '## Interpretation Rule',
+    'Use this snapshot as the current codebase surface map before claiming the system only knows chat history or scattered notes.',
+  ].join('\n');
+
+  return { relativePath, content };
+}
+
+async function ensureWorkspaceBrainProjectCodebaseSnapshot(project = 'VuriumBook', { maxAgeMinutes = 30, force = false } = {}) {
+  const relativePath = buildProjectCodebaseSnapshotRelativePath(project);
+  const existingStat = await statWorkspaceBrainNote(relativePath);
+  if (!force && existingStat) {
+    const ageMs = Date.now() - existingStat.mtimeMs;
+    if (ageMs <= maxAgeMinutes * 60 * 1000) {
+      const existingNote = await readWorkspaceBrainMarkdownNote(relativePath, 2200);
+      if (existingNote) return existingNote;
+    }
+  }
+
+  const snapshot = await buildProjectCodebaseSnapshot(project);
+  await writeWorkspaceBrainNote(snapshot.relativePath, snapshot.content);
+  return readWorkspaceBrainMarkdownNote(snapshot.relativePath, 2200);
+}
+
 function buildDailyProjectReviewFallback(input, reviewContext = {}, reason = '') {
   const referencedNotes = uniqueList([
     safeStr(reviewContext?.project_snapshot?.local_project_brain?.path || ''),
     safeStr(reviewContext?.project_snapshot?.local_current_state?.path || ''),
     safeStr(reviewContext?.project_snapshot?.local_execution_checklist?.path || ''),
     safeStr(reviewContext?.project_snapshot?.local_daily_review?.path || ''),
+    safeStr(reviewContext?.project_snapshot?.local_codebase_snapshot?.path || ''),
     ...((Array.isArray(reviewContext?.project_snapshot?.topic_notes) ? reviewContext.project_snapshot.topic_notes : [])
       .map((entry) => safeStr(entry?.path || '').trim())),
   ]).filter(Boolean);
@@ -6698,11 +6921,12 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
     : '';
   const threadId = safeStr(input?.thread_id).trim();
   const canonicalTopicReferencePaths = getCanonicalTopicReferencePaths(context, input);
-  const [localProjectBrain, localCurrentState, localExecutionChecklist, localDailyReview, threadSummaryNote, activeFocusNote, activeFocusPlan, topicBrainNote, topicExecutionChecklistNote, topicNotes, canonicalTopicNotes] = await Promise.all([
+  const [localProjectBrain, localCurrentState, localExecutionChecklist, localDailyReview, localCodebaseSnapshot, threadSummaryNote, activeFocusNote, activeFocusPlan, topicBrainNote, topicExecutionChecklistNote, topicNotes, canonicalTopicNotes] = await Promise.all([
     readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Project-Brain.md', 2200),
     readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Current-State.md', 2200),
     readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Execution-Checklist.md', 2200),
     readLatestWorkspaceBrainDailyReview('VuriumBook'),
+    ensureWorkspaceBrainProjectCodebaseSnapshot('VuriumBook'),
     threadId ? readWorkspaceBrainThreadSummary(threadId) : Promise.resolve(null),
     activeFocusPath ? readAdvisoryMarkdownNote(activeFocusPath, 1800) : Promise.resolve(null),
     activeFocusPlanPath ? readAdvisoryMarkdownNote(activeFocusPlanPath, 1800) : Promise.resolve(null),
@@ -6736,6 +6960,7 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
       local_current_state: localCurrentState,
       local_execution_checklist: localExecutionChecklist,
       local_daily_review: localDailyReview,
+      local_codebase_snapshot: localCodebaseSnapshot,
       local_topic_execution_checklist: topicExecutionChecklistNote,
       recent_task_notes: recentTasks,
       recent_research_notes: recentResearch,
@@ -6754,11 +6979,12 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
 
 async function buildDailyProjectReviewContext(project = 'VuriumBook') {
   const projectSlug = safeWorkflowSlug(project, 'VuriumBook');
-  const [localProjectBrain, localCurrentState, localExecutionChecklist, localDailyReview, topicNotes, recentTasks, recentResearch, recentThreads] = await Promise.all([
+  const [localProjectBrain, localCurrentState, localExecutionChecklist, localDailyReview, localCodebaseSnapshot, topicNotes, recentTasks, recentResearch, recentThreads] = await Promise.all([
     readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Project-Brain.md`, 2200),
     readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Current-State.md`, 2200),
     readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Execution-Checklist.md`, 2200),
     readLatestWorkspaceBrainDailyReview(projectSlug),
+    ensureWorkspaceBrainProjectCodebaseSnapshot(projectSlug),
     listWorkspaceBrainMarkdownNotes(`Projects/${projectSlug}/Topics`, 8, 1800),
     listRecentAdvisoryNotes('04-Tasks', 6),
     listRecentAdvisoryNotes('07-Research', 5),
@@ -6777,6 +7003,7 @@ async function buildDailyProjectReviewContext(project = 'VuriumBook') {
       local_current_state: localCurrentState,
       local_execution_checklist: localExecutionChecklist,
       local_daily_review: localDailyReview,
+      local_codebase_snapshot: localCodebaseSnapshot,
       topic_notes: topicNotes,
       recent_task_notes: recentTasks,
       recent_research_notes: recentResearch,
@@ -9156,6 +9383,7 @@ async function executeGrowthAssetFlow(meta, context, input) {
 
 async function executePlanningIntakeWorkflow(meta, context, input, { notifyOwner = true } = {}) {
   const latestDailyReview = await readLatestWorkspaceBrainDailyReview('VuriumBook');
+  const latestCodebaseSnapshot = await ensureWorkspaceBrainProjectCodebaseSnapshot('VuriumBook');
   const planningContext = {
     ...context,
     project_snapshot: {
@@ -9163,6 +9391,7 @@ async function executePlanningIntakeWorkflow(meta, context, input, { notifyOwner
         ? context.project_snapshot
         : {}),
       local_daily_review: latestDailyReview,
+      local_codebase_snapshot: latestCodebaseSnapshot,
     },
   };
   const result = await runStructuredWorkflowAI({
@@ -9192,6 +9421,7 @@ async function executePlanningIntakeWorkflow(meta, context, input, { notifyOwner
 
 async function executeSingleImplementationPacketWorkflow(meta, context, input, { notifyOwner = true } = {}) {
   const latestDailyReview = await readLatestWorkspaceBrainDailyReview('VuriumBook');
+  const latestCodebaseSnapshot = await ensureWorkspaceBrainProjectCodebaseSnapshot('VuriumBook');
   const executionContext = {
     ...context,
     project_snapshot: {
@@ -9199,6 +9429,7 @@ async function executeSingleImplementationPacketWorkflow(meta, context, input, {
         ? context.project_snapshot
         : {}),
       local_daily_review: latestDailyReview,
+      local_codebase_snapshot: latestCodebaseSnapshot,
     },
   };
   const result = await runStructuredWorkflowAI({
@@ -9216,10 +9447,13 @@ async function executeSingleImplementationPacketWorkflow(meta, context, input, {
 
   const finalizedResult = {
     ...result,
-    source_of_truth_stack: appendLatestDailyReviewPath(
-      Array.isArray(result.source_of_truth_stack) ? result.source_of_truth_stack : [],
-      latestDailyReview
-    ),
+    source_of_truth_stack: uniqueList([
+      ...appendLatestDailyReviewPath(
+        Array.isArray(result.source_of_truth_stack) ? result.source_of_truth_stack : [],
+        latestDailyReview
+      ),
+      safeStr(latestCodebaseSnapshot?.path || '').trim(),
+    ]).filter(Boolean),
     file_targets: normalizeImplementationFileTargets(
       input,
       Array.isArray(result.file_targets) ? result.file_targets : [],
@@ -9388,6 +9622,7 @@ async function executeDailyProjectReviewWorkflow(meta, context, input) {
     safeStr(reviewContext?.project_snapshot?.local_current_state?.path || ''),
     safeStr(reviewContext?.project_snapshot?.local_execution_checklist?.path || ''),
     safeStr(reviewContext?.project_snapshot?.local_daily_review?.path || ''),
+    safeStr(reviewContext?.project_snapshot?.local_codebase_snapshot?.path || ''),
     ...((Array.isArray(reviewContext?.project_snapshot?.topic_notes) ? reviewContext.project_snapshot.topic_notes : [])
       .map((entry) => safeStr(entry?.path || '').trim())),
     ...((Array.isArray(reviewContext?.thread_memory?.recent_thread_summaries) ? reviewContext.thread_memory.recent_thread_summaries : [])
@@ -9453,6 +9688,7 @@ async function executeOwnerAdvisory(meta, context, input) {
     safeStr(advisoryContext?.project_snapshot?.local_project_brain?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.local_current_state?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.local_daily_review?.path || ''),
+    safeStr(advisoryContext?.project_snapshot?.local_codebase_snapshot?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.local_execution_checklist?.path || ''),
     safeStr(advisoryContext?.thread_memory?.summary_note?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.brain_note?.path || ''),
