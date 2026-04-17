@@ -1783,6 +1783,13 @@ function OwnerIntakePageInner() {
                   const secondaryReply = info.replyCard?.body && info.replyCard.body !== primaryAssistantText
                     ? info.replyCard.body
                     : ''
+                  const planningTaskNotePath = item.result.downstream_workflow === 'AI3_Planning_Intake'
+                    ? (item.result.created_note_relative_path || '').trim()
+                    : ''
+                  const planningNotePath = item.result.downstream_workflow === 'AI3_Planning_Intake'
+                    ? ((item.result.downstream_reference || '').trim()
+                      || (planningTaskNotePath ? planningTaskNotePath.replace(/\.md$/, '-Plan.md') : ''))
+                    : ''
                   return (
                     <div key={item.id} style={{ display: 'grid', gap: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -1867,6 +1874,121 @@ function OwnerIntakePageInner() {
                               ))}
                             </div>
                           ) : null}
+
+                          {item.result.downstream_workflow === 'AI3_Planning_Intake' && (planningTaskNotePath || planningNotePath) && (
+                            <div style={{
+                              ...card,
+                              marginTop: 14,
+                              padding: 14,
+                              background: 'rgba(130,220,170,.06)',
+                              borderColor: 'rgba(130,220,170,.14)',
+                            }}>
+                              <div style={{ display: 'grid', gap: 10 }}>
+                                <div style={{ display: 'grid', gap: 4 }}>
+                                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.86)' }}>
+                                    Verdent plan
+                                  </div>
+                                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.8)', lineHeight: 1.65 }}>
+                                    Verdent already created the task shell and planning note for this thread. You should not need to go hunting for them in execution details.
+                                  </div>
+                                </div>
+
+                                {planningTaskNotePath && (
+                                  <div style={{ display: 'grid', gap: 6 }}>
+                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.08em' }}>
+                                      Task note
+                                    </div>
+                                    <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.74)', wordBreak: 'break-word' }}>
+                                      {planningTaskNotePath}
+                                    </div>
+                                    <div>
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          try {
+                                            await navigator.clipboard.writeText(planningTaskNotePath)
+                                            toast.show('Copied task note path.')
+                                          } catch {
+                                            toast.show('Could not copy the task note path.', 'error')
+                                          }
+                                        }}
+                                        style={{
+                                          padding: '8px 12px',
+                                          borderRadius: 999,
+                                          border: 'none',
+                                          cursor: 'pointer',
+                                          fontSize: 12,
+                                          fontWeight: 700,
+                                          fontFamily: 'inherit',
+                                          background: 'rgba(255,255,255,.08)',
+                                          color: 'rgba(255,255,255,.92)',
+                                        }}
+                                      >
+                                        Copy task path
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {planningNotePath && (
+                                  <div style={{ display: 'grid', gap: 6 }}>
+                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.08em' }}>
+                                      Planning note
+                                    </div>
+                                    <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.88)', wordBreak: 'break-word' }}>
+                                      {planningNotePath}
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          try {
+                                            await navigator.clipboard.writeText(planningNotePath)
+                                            toast.show('Copied Verdent plan path.')
+                                          } catch {
+                                            toast.show('Could not copy the Verdent plan path.', 'error')
+                                          }
+                                        }}
+                                        style={{
+                                          padding: '8px 12px',
+                                          borderRadius: 999,
+                                          border: 'none',
+                                          cursor: 'pointer',
+                                          fontSize: 12,
+                                          fontWeight: 700,
+                                          fontFamily: 'inherit',
+                                          background: 'rgba(130,220,170,.18)',
+                                          color: 'rgba(130,220,170,.98)',
+                                        }}
+                                      >
+                                        Copy plan path
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setMessage(`Open this Verdent planning note and continue from it: ${planningNotePath}`)
+                                          toast.show('Loaded the Verdent plan path into the composer.')
+                                        }}
+                                        style={{
+                                          padding: '8px 12px',
+                                          borderRadius: 999,
+                                          border: 'none',
+                                          cursor: 'pointer',
+                                          fontSize: 12,
+                                          fontWeight: 700,
+                                          fontFamily: 'inherit',
+                                          background: 'rgba(255,255,255,.08)',
+                                          color: 'rgba(255,255,255,.92)',
+                                        }}
+                                      >
+                                        Use this plan
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
 
                           {item.result.follow_on_workflow && item.result.follow_on_workflow !== 'none' && (
                             <div style={{
