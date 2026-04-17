@@ -5594,7 +5594,7 @@ function buildOwnerIntakeOperatorReply({ intakeKind, title, note, downstreamResu
           : `The next required lane is AI-5 research before planning can continue safely.`
         : '',
       followOnResult?.workflow === 'implementation_packet'
-        ? `I also prepared one shared execution contract for ${safeStr(followOnResult.target_ai || 'the implementation lane')} that tells the external AI exactly what to read, where to write progress, and how to report back into memory.`
+        ? `I also prepared one shared execution contract for ${safeStr(followOnResult.target_ai || 'the implementation lane')} that tells the external AI exactly what to read, where to write progress, and how to report back into memory. The preferred executor for this lane is ${preferredExecutionProviderLabel(followOnResult.target_ai || '')}.`
         : '',
       safeStr(followOnResult?.next_step || downstreamResult?.next_step || '').trim(),
     ].filter(Boolean);
@@ -6417,6 +6417,18 @@ function buildImplementationCodingPrompt(packet) {
   ].join('\n');
 }
 
+function preferredExecutionProviderForTarget(targetAi) {
+  const normalized = safeStr(targetAi || '').trim().toUpperCase();
+  if (normalized === 'AI-1') return 'claude';
+  if (normalized === 'AI-2') return 'codex';
+  return 'claude';
+}
+
+function preferredExecutionProviderLabel(targetAi) {
+  const provider = preferredExecutionProviderForTarget(targetAi);
+  return provider === 'codex' ? 'Codex' : 'Claude';
+}
+
 function buildCodexExecutionPrompt(packet) {
   const basePrompt = buildImplementationCodingPrompt(packet);
   return [
@@ -6485,8 +6497,10 @@ function buildImplementationMemoryReportTargets(packet) {
 
 function buildImplementationStarterPrompt(packet, executionContract) {
   const targetAi = safeStr(packet.target_ai || 'AI-1').trim() || 'AI-1';
+  const preferredProviderLabel = preferredExecutionProviderLabel(targetAi);
   return [
     `You are the external execution agent for ${targetAi} on VuriumBook.`,
+    `Primary external executor for this lane: ${preferredProviderLabel}.`,
     '',
     `Read the execution contract first: ${safeStr(executionContract.contract_note_absolute_path)}`,
     '',
@@ -6590,6 +6604,8 @@ async function attachImplementationExecutionContract(packet) {
   const starterPrompt = buildImplementationStarterPrompt(packet, provisionalContract);
 
   const targetAi = safeStr(packet.target_ai || 'AI-1').trim() || 'AI-1';
+  const preferredProvider = preferredExecutionProviderForTarget(targetAi);
+  const preferredProviderLabel = preferredExecutionProviderLabel(targetAi);
   const sourceOfTruth = uniqueList(Array.isArray(packet.source_of_truth_stack) ? packet.source_of_truth_stack : []).filter(Boolean);
   const fileTargets = uniqueList(Array.isArray(packet.file_targets) ? packet.file_targets : []).filter(Boolean);
   const changeSummary = uniqueList(Array.isArray(packet.change_summary) ? packet.change_summary : []).filter(Boolean);
@@ -6601,10 +6617,13 @@ async function attachImplementationExecutionContract(packet) {
     'status: active',
     `task_id: ${safeStr(packet.task_id)}`,
     `target_ai: ${targetAi}`,
+    `preferred_executor: ${preferredProvider}`,
     `created: ${toIso(new Date())}`,
     '---',
     '',
     `# Execution Contract — ${safeStr(packet.task_id)} → ${targetAi}`,
+    '',
+    `Preferred external executor: ${preferredProviderLabel}`,
     '',
     '## Read From',
     ...(readFrom.length ? readFrom.map((entry) => `- ${entry}`) : ['- pending']),
@@ -6646,30 +6665,36 @@ async function attachImplementationExecutionContract(packet) {
 
   try {
     await writeWorkspaceBrainNote(contractRelativePath, contractBody);
+    const codexVariant = `${starterPrompt}\n\nCodex-specific note: inspect the current code first and make the smallest correct patch in the owned file scope.`;
+    const claudeVariant = `${starterPrompt}\n\nClaude-specific note: keep the execution scoped to the owned lane and call out partner-lane needs explicitly instead of widening the task.`;
+    const preferredPrompt = preferredProvider === 'codex' ? codexVariant : claudeVariant;
     return {
       ...packet,
-      ready_to_paste_prompt: starterPrompt,
-      starter_prompt: starterPrompt,
-      codex_prompt: `${starterPrompt}\n\nCodex-specific note: inspect the current code first and make the smallest correct patch in the owned file scope.`,
-      claude_prompt: `${starterPrompt}\n\nClaude-specific note: keep the execution scoped to the owned lane and call out partner-lane needs explicitly instead of widening the task.`,
+      ready_to_paste_prompt: preferredPrompt,
+      starter_prompt: preferredPrompt,
+      codex_prompt: codexVariant,
+      claude_prompt: claudeVariant,
       execution_contract: {
         ...provisionalContract,
-        starter_prompt: starterPrompt,
-        reason: 'Execution contract saved to the local workspace brain.',
+        starter_prompt: preferredPrompt,
+        reason: `Execution contract saved to the local workspace brain. Preferred executor: ${preferredProviderLabel}.`,
       },
     };
   } catch (error) {
+    const codexVariant = `${starterPrompt}\n\nCodex-specific note: inspect the current code first and make the smallest correct patch in the owned file scope.`;
+    const claudeVariant = `${starterPrompt}\n\nClaude-specific note: keep the execution scoped to the owned lane and call out partner-lane needs explicitly instead of widening the task.`;
+    const preferredPrompt = preferredProvider === 'codex' ? codexVariant : claudeVariant;
     return {
       ...packet,
-      ready_to_paste_prompt: starterPrompt,
-      starter_prompt: starterPrompt,
-      codex_prompt: `${starterPrompt}\n\nCodex-specific note: inspect the current code first and make the smallest correct patch in the owned file scope.`,
-      claude_prompt: `${starterPrompt}\n\nClaude-specific note: keep the execution scoped to the owned lane and call out partner-lane needs explicitly instead of widening the task.`,
+      ready_to_paste_prompt: preferredPrompt,
+      starter_prompt: preferredPrompt,
+      codex_prompt: codexVariant,
+      claude_prompt: claudeVariant,
       execution_contract: {
         ...provisionalContract,
         status: 'blocked',
-        starter_prompt: starterPrompt,
-        reason: `Execution contract write failed: ${safeStr(error?.message || 'unknown error')}`,
+        starter_prompt: preferredPrompt,
+        reason: `Execution contract write failed: ${safeStr(error?.message || 'unknown error')}. Preferred executor: ${preferredProviderLabel}.`,
       },
     };
   }

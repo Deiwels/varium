@@ -341,6 +341,18 @@ function routeTargetLabel(value: string) {
   return ROUTE_TARGET_LABELS[value] || value
 }
 
+function preferredExecutionProviderForTarget(value: string) {
+  const normalized = String(value || '').trim().toUpperCase()
+  if (normalized === 'AI-1') return 'claude'
+  if (normalized === 'AI-2') return 'codex'
+  return 'claude'
+}
+
+function preferredExecutionProviderLabel(value: string) {
+  const provider = preferredExecutionProviderForTarget(value)
+  return provider === 'codex' ? 'Codex' : 'Claude'
+}
+
 function workflowLabel(value: string) {
   return WORKFLOW_LABELS[value] || value
 }
@@ -1488,15 +1500,19 @@ function OwnerIntakePageInner() {
                                     Execution Contract
                                   </div>
                                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,.78)', lineHeight: 1.6 }}>
-                                    Ready for {info.codingPromptTarget ? routeTargetLabel(info.codingPromptTarget) : 'the implementation lane'} through one shared memory contract. Source: {info.codingPromptSource || 'Implementation Packet'}.
+                                    Ready for {info.codingPromptTarget ? routeTargetLabel(info.codingPromptTarget) : 'the implementation lane'} through one shared memory contract. Preferred executor: {preferredExecutionProviderLabel(info.codingPromptTarget)}. Source: {info.codingPromptSource || 'Implementation Packet'}.
                                   </div>
                                 </div>
                                 <button
                                   type="button"
                                   onClick={async () => {
+                                    const preferredProvider = preferredExecutionProviderForTarget(info.codingPromptTarget)
+                                    const primaryPrompt = preferredProvider === 'codex'
+                                      ? (info.codexPrompt || info.starterPrompt || info.codingPrompt)
+                                      : (info.claudePrompt || info.starterPrompt || info.codingPrompt)
                                     try {
-                                      await navigator.clipboard.writeText(info.starterPrompt || info.codexPrompt || info.codingPrompt)
-                                      toast.show('Copied starter prompt.')
+                                      await navigator.clipboard.writeText(primaryPrompt)
+                                      toast.show(`Copied ${preferredExecutionProviderLabel(info.codingPromptTarget)} starter prompt.`)
                                     } catch {
                                       toast.show('Could not copy the starter prompt.', 'error')
                                     }
@@ -1513,16 +1529,20 @@ function OwnerIntakePageInner() {
                                     color: 'rgba(130,220,170,.98)',
                                   }}
                                 >
-                                  Copy starter prompt
+                                  {`Copy for ${preferredExecutionProviderLabel(info.codingPromptTarget)}`}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={async () => {
+                                    const preferredProvider = preferredExecutionProviderForTarget(info.codingPromptTarget)
+                                    const alternatePrompt = preferredProvider === 'codex'
+                                      ? (info.claudePrompt || info.starterPrompt || info.codingPrompt)
+                                      : (info.codexPrompt || info.starterPrompt || info.codingPrompt)
                                     try {
-                                      await navigator.clipboard.writeText(info.claudePrompt || info.codingPrompt)
-                                      toast.show('Copied Claude prompt.')
+                                      await navigator.clipboard.writeText(alternatePrompt)
+                                      toast.show(`Copied ${preferredProvider === 'codex' ? 'Claude' : 'Codex'} alternate prompt.`)
                                     } catch {
-                                      toast.show('Could not copy the Claude prompt.', 'error')
+                                      toast.show('Could not copy the alternate prompt.', 'error')
                                     }
                                   }}
                                   style={{
@@ -1537,7 +1557,7 @@ function OwnerIntakePageInner() {
                                     color: 'rgba(130,150,220,.98)',
                                   }}
                                 >
-                                  Copy Claude variant
+                                  {`Copy ${preferredExecutionProviderForTarget(info.codingPromptTarget) === 'codex' ? 'Claude' : 'Codex'} variant`}
                                 </button>
                                 <button
                                   type="button"
@@ -1639,7 +1659,7 @@ function OwnerIntakePageInner() {
                                 <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
                                   <div>
                                     <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
-                                      Starter prompt
+                                      {`Preferred starter (${preferredExecutionProviderLabel(info.codingPromptTarget)})`}
                                     </div>
                                     <pre style={{
                                       margin: 0,
@@ -1653,7 +1673,9 @@ function OwnerIntakePageInner() {
                                       lineHeight: 1.65,
                                       whiteSpace: 'pre-wrap',
                                       wordBreak: 'break-word',
-                                    }}>{info.starterPrompt || info.codexPrompt || info.codingPrompt}</pre>
+                                    }}>{preferredExecutionProviderForTarget(info.codingPromptTarget) === 'codex'
+                                      ? (info.codexPrompt || info.starterPrompt || info.codingPrompt)
+                                      : (info.claudePrompt || info.starterPrompt || info.codingPrompt)}</pre>
                                   </div>
                                   <div>
                                     <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.72)', marginBottom: 6 }}>
