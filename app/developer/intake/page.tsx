@@ -617,6 +617,8 @@ function OwnerIntakePageInner() {
       setRelatedLinks('')
       setAudience('')
       setChannel('')
+      setIntakeKind('auto')
+      setPriority('medium')
       setApprovedClaimsLink('')
       setCurrentOfferLink('')
       setNeedStaticCreatives(false)
@@ -638,7 +640,9 @@ function OwnerIntakePageInner() {
     setLatestResult(item.result)
     setMessage(item.message)
     setTitle(item.result.title)
-    setIntakeKind(item.result.intake_kind)
+    setIntakeKind('auto')
+    setPriority('medium')
+    toast.show('Loaded into composer in Auto mode for a follow-up.')
   }
 
   function stageQuickAction(nextMessage: string, nextKind: IntakeKind = 'auto') {
@@ -658,11 +662,17 @@ function OwnerIntakePageInner() {
 
   const latestInfo = deriveRuntimeInfo(latestResult)
   const displayHistory = [...history].reverse()
+  const activeFocus = deriveActiveFocus(history)
   const submitLabel = isSubmitting
     ? 'Thinking…'
     : intakeKind === 'task' || intakeKind === 'growth' || intakeKind === 'research'
       ? 'Start workflow'
       : 'Ask system'
+  const composerModeHint = intakeKind === 'auto'
+    ? 'Auto mode: follow-up questions stay conversational. Explicit start / plan / fix requests will open execution lanes.'
+    : intakeKind === 'advisory'
+      ? 'Discuss mode: the system will answer first and avoid opening tasks unless you later tell it to start.'
+      : `${kindPresets.find((preset) => preset.kind === intakeKind)?.label || intakeKind} mode: the next send will open that lane directly.`
 
   return (
     <>
@@ -955,7 +965,7 @@ function OwnerIntakePageInner() {
                             )}
                             <button
                               type="button"
-                              onClick={() => stageQuickAction(item.message, item.result.intake_kind)}
+                              onClick={() => stageQuickAction(item.message, 'auto')}
                               style={{
                                 padding: '8px 12px',
                                 borderRadius: 999,
@@ -1192,6 +1202,17 @@ function OwnerIntakePageInner() {
                 >
                   {submitLabel}
                 </button>
+              </div>
+
+              <div style={{ display: 'grid', gap: 4, marginTop: 8 }}>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.42)', lineHeight: 1.6 }}>
+                  {composerModeHint}
+                </div>
+                {activeFocus?.title && (
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.28)', lineHeight: 1.6 }}>
+                    Current thread focus: {activeFocus.title}
+                  </div>
+                )}
               </div>
             </div>
 

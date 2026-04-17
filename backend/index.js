@@ -4459,6 +4459,11 @@ function detectOwnerIntakeKind(input) {
     'скажи',
     'розкажи',
     'поясни',
+    'детальніше',
+    'докладніше',
+    'більше про це',
+    'ще про це',
+    'покажи',
     'оціни',
     'проаналізуй',
     'подумай',
@@ -4504,6 +4509,59 @@ function detectOwnerIntakeKind(input) {
     return 'growth';
   }
   return 'task';
+}
+
+function shouldForceOwnerAdvisoryFollowUp(input, context) {
+  if (safeStr(input?.intake_kind).trim().toLowerCase() && safeStr(input?.intake_kind).trim().toLowerCase() !== 'auto') {
+    return false;
+  }
+
+  const activeFocus = context && typeof context === 'object' ? context.active_focus : null;
+  const history = Array.isArray(context?.owner_conversation_history) ? context.owner_conversation_history : [];
+  if (!activeFocus && !history.length) return false;
+
+  const normalizedText = `${safeStr(input?.title)}\n${safeStr(input?.message)}`.toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!normalizedText) return false;
+
+  const explicitExecutionSignals = [
+    'починаємо',
+    'почни',
+    'запускай',
+    'стартуємо',
+    'implement',
+    'реалізуй',
+    'fix this',
+    'виправ це',
+    'create task',
+    'створи задачу',
+    'зроби план',
+    'сплануй',
+    'run planning',
+  ];
+  if (explicitExecutionSignals.some((signal) => normalizedText.includes(signal))) return false;
+
+  const followUpSignals = [
+    'детальніше',
+    'докладніше',
+    'поясни',
+    'розкажи',
+    'що там',
+    'що зараз',
+    'статус',
+    'ситуац',
+    'стан',
+    'огляд',
+    'більше про це',
+    'ще про це',
+    'what now',
+    'current state',
+    'status',
+    'details',
+    'detail',
+  ];
+
+  return normalizedText.includes('?')
+    || followUpSignals.some((signal) => normalizedText.includes(signal));
 }
 
 function buildOwnerIntakeId(kind, now = new Date()) {
@@ -6528,7 +6586,9 @@ async function executeOwnerAdvisory(meta, context, input) {
 
 async function executeOwnerIntake(meta, context, input) {
   const title = deriveOwnerIntakeTitle(input);
-  const intakeKind = detectOwnerIntakeKind(input);
+  const intakeKind = shouldForceOwnerAdvisoryFollowUp(input, context)
+    ? 'advisory'
+    : detectOwnerIntakeKind(input);
   const intakeId = buildOwnerIntakeId(intakeKind);
   const metadata = buildOwnerIntakeMetadata(intakeKind);
   const note = intakeKind === 'advisory'
