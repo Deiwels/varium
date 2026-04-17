@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { DevErrorBoundary } from '../_components/DevErrorBoundary'
 import { useToast } from '../_components/Toast'
 import { devFetch } from '../_lib/dev-fetch'
@@ -177,8 +177,234 @@ function runtimeBadgeStyle(state: 'active' | 'working' | 'fallback' | 'blocked' 
   } satisfies React.CSSProperties
 }
 
+type RuntimeBadgeState = 'active' | 'working' | 'fallback' | 'blocked' | 'idle' | 'standby'
+
+interface ReplyCardData {
+  header: string
+  body: string
+  modeNote: string
+  sections: Array<{ label: string; items: string[] }>
+}
+
+interface IntakeRuntimeInfo {
+  latestDownstream: string
+  latestFollowOn: string
+  downstreamRecord: Record<string, unknown> | null
+  followOnRecord: Record<string, unknown> | null
+  downstreamAiMeta: AIExecutionMeta | null
+  followOnAiMeta: AIExecutionMeta | null
+  effectiveReason: string
+  activeProvider: string
+  activeModel: string
+  hasRealAIResponse: boolean
+  isProviderFallback: boolean
+  systemWritebackOk: boolean
+  systemWorking: boolean
+  executionModeLabel: string
+  anthropicState: RuntimeBadgeState
+  openaiState: RuntimeBadgeState
+  verdentState: 'active' | 'idle'
+  operatorSummary: string
+  replyCard: ReplyCardData | null
+}
+
+function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo {
+  const latestDownstream = result?.downstream_result ? prettyJson(result.downstream_result) : ''
+  const downstreamRecord = asRecord(result?.downstream_result)
+  const downstreamAiMeta = asRecord(downstreamRecord?.ai_meta) as AIExecutionMeta | null
+  const latestFollowOn = result?.follow_on_result ? prettyJson(result.follow_on_result) : ''
+  const followOnRecord = asRecord(result?.follow_on_result)
+  const followOnAiMeta = asRecord(followOnRecord?.ai_meta) as AIExecutionMeta | null
+  const effectiveReason = String(
+    (typeof downstreamRecord?.reason === 'string' && downstreamRecord.reason)
+      || result?.reason
+      || ''
+  )
+  const activeProvider = typeof downstreamAiMeta?.provider === 'string' ? downstreamAiMeta.provider : ''
+  const activeModel = typeof downstreamAiMeta?.model === 'string' ? downstreamAiMeta.model : ''
+  const hasRealAIResponse = Boolean(activeProvider)
+  const isProviderFallback = !hasRealAIResponse && /AI provider error|AI not configured/i.test(effectiveReason)
+  const systemWritebackOk = result?.intake_kind === 'advisory'
+    ? true
+    : result?.writeback?.status === 'done'
+  const systemWorking = Boolean(result && (result.intake_kind === 'advisory'
+    ? (hasRealAIResponse || result.status === 'done')
+    : (systemWritebackOk && result.created_note_relative_path)))
+  const executionModeLabel = hasRealAIResponse
+    ? 'Real AI response'
+    : isProviderFallback
+      ? 'Fallback / draft mode'
+      : 'Structured routing only'
+  const anthropicState: RuntimeBadgeState =
+    activeProvider === 'anthropic'
+      ? 'active'
+      : /anthropic: .*credit balance is too low|anthropic: Anthropic API key not configured/i.test(effectiveReason)
+        ? 'blocked'
+        : 'standby'
+  const openaiState: RuntimeBadgeState =
+    activeProvider === 'openai'
+      ? 'active'
+      : /openai: OpenAI API key not configured/i.test(effectiveReason)
+        ? 'blocked'
+        : 'standby'
+  const verdentState: 'active' | 'idle' =
+    result?.route_target === 'AI-3' || result?.downstream_workflow === 'AI3_Planning_Intake' || result?.downstream_workflow === 'AI3_QA_Scan'
+      ? 'active'
+      : 'idle'
+  const operatorSummary = !result
+    ? ''
+    : result.downstream_workflow === 'Owner_Advisory'
+      ? hasRealAIResponse
+        ? `Owner Copilot answered through ${providerLabel(activeProvider)}.`
+        : 'Owner Copilot responded in advisory mode without opening execution yet.'
+      : hasRealAIResponse
+        ? `${routeTargetLabel(result.route_target)} answered through ${providerLabel(activeProvider)}.`
+        : isProviderFallback
+          ? `${routeTargetLabel(result.route_target)} was routed correctly, but this run fell back because the configured AI provider chain did not complete.`
+          : `${routeTargetLabel(result.route_target)} was routed and queued without a direct AI answer yet.`
+
+  const replyCard = (() => {
+    if (!result) return null
+
+    const header = result.downstream_workflow === 'Owner_Advisory'
+      ? hasRealAIResponse
+        ? 'Owner Copilot replied'
+        : 'Owner Copilot prepared a draft reply'
+      : hasRealAIResponse
+        ? `${routeTargetLabel(result.route_target)} replied`
+        : `${routeTargetLabel(result.route_target)} prepared a draft reply`
+    const modeNote = hasRealAIResponse
+      ? `${providerLabel(activeProvider)} answered this run.${activeModel ? ` Model: ${activeModel}.` : ''}`
+      : isProviderFallback
+        ? 'This run fell back to a draft/structured result because the live AI provider chain did not complete.'
+        : 'The system routed the request and prepared the next lane, but no direct AI answer is attached yet.'
+
+    if (result.downstream_workflow === 'AI3_Planning_Intake') {
+      const plan = asRecord(downstreamRecord?.plan_skeleton)
+      const workstreams = toStringList(plan?.workstreams)
+      const missingInputs = toStringList(plan?.missing_inputs)
+      const acceptanceCriteria = toStringList(plan?.acceptance_criteria_seed)
+      const recommendedSequence = toStringList(downstreamRecord?.recommended_sequence)
+
+      return {
+        header,
+        body: (typeof plan?.objective === 'string' && plan.objective.trim())
+          || 'Verdent created a planning shell for this task.',
+        modeNote,
+        sections: [
+          { label: 'Workstreams', items: workstreams },
+          { label: 'Missing inputs', items: missingInputs },
+          { label: 'Acceptance criteria', items: acceptanceCriteria },
+          { label: 'Recommended sequence', items: recommendedSequence },
+        ].filter((section) => section.items.length > 0),
+      }
+    }
+
+    if (result.downstream_workflow === 'Owner_Advisory') {
+      const advisoryReply = typeof downstreamRecord?.reply === 'string' ? downstreamRecord.reply.trim() : ''
+      const suggestedMode = typeof downstreamRecord?.suggested_mode === 'string' ? downstreamRecord.suggested_mode.trim() : ''
+
+      return {
+        header,
+        body: advisoryReply || 'The owner copilot responded without opening a delivery task yet.',
+        modeNote,
+        sections: [
+          { label: 'Suggested next mode', items: suggestedMode && suggestedMode !== 'none' ? [suggestedMode] : [] },
+        ].filter((section) => section.items.length > 0),
+      }
+    }
+
+    if (result.downstream_workflow === 'Growth_Asset_Flow') {
+      const growthOutput = asRecord(downstreamRecord?.growth_brief)
+      const growthBrief = asRecord(growthOutput?.growth_brief)
+      const hook = typeof growthBrief?.hook === 'string' ? growthBrief.hook.trim() : ''
+      const cta = typeof growthBrief?.cta === 'string' ? growthBrief.cta.trim() : ''
+      const channels = toStringList(growthBrief?.channels)
+      const assetRequests = toStringList(growthBrief?.asset_requests)
+      const riskNotes = toStringList(growthBrief?.risk_notes)
+
+      return {
+        header,
+        body: hook || 'The growth lane produced a campaign brief and asset direction.',
+        modeNote,
+        sections: [
+          { label: 'CTA', items: cta ? [cta] : [] },
+          { label: 'Channels', items: channels },
+          { label: 'Asset requests', items: assetRequests },
+          { label: 'Risk notes', items: riskNotes },
+        ].filter((section) => section.items.length > 0),
+      }
+    }
+
+    if (result.downstream_workflow === 'Research_Brief') {
+      const facts = toStringList(downstreamRecord?.facts)
+      const inferences = toStringList(downstreamRecord?.inferences)
+      const openQuestions = toStringList(downstreamRecord?.open_questions)
+
+      return {
+        header,
+        body: facts[0] || inferences[0] || 'The research lane created a source-backed brief shell.',
+        modeNote,
+        sections: [
+          { label: 'Facts', items: facts.slice(0, 4) },
+          { label: 'Inferences', items: inferences.slice(0, 3) },
+          { label: 'Open questions', items: openQuestions.slice(0, 4) },
+        ].filter((section) => section.items.length > 0),
+      }
+    }
+
+    if (result.intake_kind === 'handoff') {
+      return {
+        header,
+        body: 'The system created a handoff note and queued it for the next owner.',
+        modeNote,
+        sections: [],
+      }
+    }
+
+    if (result.intake_kind === 'truth_update_draft') {
+      return {
+        header,
+        body: 'The system created a truth-update draft for review instead of mutating canonical docs directly.',
+        modeNote,
+        sections: [],
+      }
+    }
+
+    return {
+      header,
+      body: result.next_step || result.reason || 'The system routed this request successfully.',
+      modeNote,
+      sections: [],
+    }
+  })()
+
+  return {
+    latestDownstream,
+    latestFollowOn,
+    downstreamRecord,
+    followOnRecord,
+    downstreamAiMeta,
+    followOnAiMeta,
+    effectiveReason,
+    activeProvider,
+    activeModel,
+    hasRealAIResponse,
+    isProviderFallback,
+    systemWritebackOk,
+    systemWorking,
+    executionModeLabel,
+    anthropicState,
+    openaiState,
+    verdentState,
+    operatorSummary,
+    replyCard,
+  }
+}
+
 function OwnerIntakePageInner() {
   const toast = useToast()
+  const conversationEndRef = useRef<HTMLDivElement | null>(null)
   const [message, setMessage] = useState('')
   const [title, setTitle] = useState('')
   const [intakeKind, setIntakeKind] = useState<IntakeKind>('auto')
@@ -216,6 +442,11 @@ function OwnerIntakePageInner() {
       localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 12)))
     } catch {}
   }, [history])
+
+  useEffect(() => {
+    if (!conversationEndRef.current) return
+    conversationEndRef.current.scrollIntoView({ behavior: history.length > 0 ? 'smooth' : 'auto', block: 'end' })
+  }, [history.length, latestResult?.intake_id, isSubmitting])
 
   async function submitIntake(event: React.FormEvent) {
     event.preventDefault()
@@ -272,7 +503,11 @@ function OwnerIntakePageInner() {
         },
         ...prev.filter((item) => item.id !== response.intake_id),
       ].slice(0, 12))
-      toast.show(`Created ${response.intake_kind} and routed it to ${response.route_target}.`)
+      toast.show(
+        response.intake_kind === 'advisory'
+          ? 'Owner Copilot replied.'
+          : `Created ${response.intake_kind} and routed it to ${response.route_target}.`
+      )
       setMessage('')
       setTitle('')
       setRelatedTaskId('')
@@ -301,174 +536,13 @@ function OwnerIntakePageInner() {
     setIntakeKind(item.result.intake_kind)
   }
 
-  const latestDownstream = latestResult?.downstream_result ? prettyJson(latestResult.downstream_result) : ''
-  const downstreamRecord = asRecord(latestResult?.downstream_result)
-  const downstreamAiMeta = asRecord(downstreamRecord?.ai_meta) as AIExecutionMeta | null
-  const latestFollowOn = latestResult?.follow_on_result ? prettyJson(latestResult.follow_on_result) : ''
-  const followOnRecord = asRecord(latestResult?.follow_on_result)
-  const followOnAiMeta = asRecord(followOnRecord?.ai_meta) as AIExecutionMeta | null
-  const effectiveReason = String(
-    (typeof downstreamRecord?.reason === 'string' && downstreamRecord.reason)
-      || latestResult?.reason
-      || ''
-  )
-  const activeProvider = typeof downstreamAiMeta?.provider === 'string' ? downstreamAiMeta.provider : ''
-  const activeModel = typeof downstreamAiMeta?.model === 'string' ? downstreamAiMeta.model : ''
-  const hasRealAIResponse = Boolean(activeProvider)
-  const isProviderFallback = !hasRealAIResponse && /AI provider error|AI not configured/i.test(effectiveReason)
-  const systemWritebackOk = latestResult?.intake_kind === 'advisory'
-    ? true
-    : latestResult?.writeback?.status === 'done'
-  const systemWorking = Boolean(latestResult && (latestResult.intake_kind === 'advisory'
-    ? (hasRealAIResponse || latestResult.status === 'done')
-    : (systemWritebackOk && latestResult.created_note_relative_path)))
-  const executionModeLabel = hasRealAIResponse
-    ? 'Real AI response'
-    : isProviderFallback
-      ? 'Fallback / draft mode'
-      : 'Structured routing only'
-  const anthropicState: 'active' | 'blocked' | 'standby' =
-    activeProvider === 'anthropic'
-      ? 'active'
-      : /anthropic: .*credit balance is too low|anthropic: Anthropic API key not configured/i.test(effectiveReason)
-        ? 'blocked'
-        : 'standby'
-  const openaiState: 'active' | 'blocked' | 'standby' =
-    activeProvider === 'openai'
-      ? 'active'
-      : /openai: OpenAI API key not configured/i.test(effectiveReason)
-        ? 'blocked'
-        : 'standby'
-  const verdentState: 'active' | 'idle' =
-    latestResult?.route_target === 'AI-3' || latestResult?.downstream_workflow === 'AI3_Planning_Intake' || latestResult?.downstream_workflow === 'AI3_QA_Scan'
-      ? 'active'
-      : 'idle'
-  const operatorSummary = !latestResult
-    ? ''
-    : latestResult.downstream_workflow === 'Owner_Advisory'
-      ? hasRealAIResponse
-        ? `Owner Copilot answered through ${providerLabel(activeProvider)}.`
-        : 'Owner Copilot responded in advisory mode without opening execution yet.'
-    : hasRealAIResponse
-      ? `${routeTargetLabel(latestResult.route_target)} answered through ${providerLabel(activeProvider)}.`
-      : isProviderFallback
-      ? `${routeTargetLabel(latestResult.route_target)} was routed correctly, but this run fell back because the configured AI provider chain did not complete.`
-        : `${routeTargetLabel(latestResult.route_target)} was routed and queued without a direct AI answer yet.`
-  const replyCard = (() => {
-    if (!latestResult) return null
-
-    const header = latestResult.downstream_workflow === 'Owner_Advisory'
-      ? hasRealAIResponse
-        ? 'Owner Copilot replied'
-        : 'Owner Copilot prepared a draft reply'
-      : hasRealAIResponse
-        ? `${routeTargetLabel(latestResult.route_target)} replied`
-        : `${routeTargetLabel(latestResult.route_target)} prepared a draft reply`
-    const modeNote = hasRealAIResponse
-      ? `${providerLabel(activeProvider)} answered this run.${activeModel ? ` Model: ${activeModel}.` : ''}`
-      : isProviderFallback
-        ? 'This run fell back to a draft/structured result because the live AI provider chain did not complete.'
-        : 'The system routed the request and prepared the next lane, but no direct AI answer is attached yet.'
-
-    if (latestResult.downstream_workflow === 'AI3_Planning_Intake') {
-      const plan = asRecord(downstreamRecord?.plan_skeleton)
-      const workstreams = toStringList(plan?.workstreams)
-      const missingInputs = toStringList(plan?.missing_inputs)
-      const acceptanceCriteria = toStringList(plan?.acceptance_criteria_seed)
-      const recommendedSequence = toStringList(downstreamRecord?.recommended_sequence)
-
-      return {
-        header,
-        body: (typeof plan?.objective === 'string' && plan.objective.trim())
-          || 'Verdent created a planning shell for this task.',
-        modeNote,
-        sections: [
-          { label: 'Workstreams', items: workstreams },
-          { label: 'Missing inputs', items: missingInputs },
-          { label: 'Acceptance criteria', items: acceptanceCriteria },
-          { label: 'Recommended sequence', items: recommendedSequence },
-        ].filter((section) => section.items.length > 0),
-      }
-    }
-
-    if (latestResult.downstream_workflow === 'Owner_Advisory') {
-      const advisoryReply = typeof downstreamRecord?.reply === 'string' ? downstreamRecord.reply.trim() : ''
-      const suggestedMode = typeof downstreamRecord?.suggested_mode === 'string' ? downstreamRecord.suggested_mode.trim() : ''
-
-      return {
-        header,
-        body: advisoryReply || 'The owner copilot responded without opening a delivery task yet.',
-        modeNote,
-        sections: [
-          { label: 'Suggested next mode', items: suggestedMode && suggestedMode !== 'none' ? [suggestedMode] : [] },
-        ].filter((section) => section.items.length > 0),
-      }
-    }
-
-    if (latestResult.downstream_workflow === 'Growth_Asset_Flow') {
-      const growthOutput = asRecord(downstreamRecord?.growth_brief)
-      const growthBrief = asRecord(growthOutput?.growth_brief)
-      const hook = typeof growthBrief?.hook === 'string' ? growthBrief.hook.trim() : ''
-      const cta = typeof growthBrief?.cta === 'string' ? growthBrief.cta.trim() : ''
-      const channels = toStringList(growthBrief?.channels)
-      const assetRequests = toStringList(growthBrief?.asset_requests)
-      const riskNotes = toStringList(growthBrief?.risk_notes)
-
-      return {
-        header,
-        body: hook || 'The growth lane produced a campaign brief and asset direction.',
-        modeNote,
-        sections: [
-          { label: 'CTA', items: cta ? [cta] : [] },
-          { label: 'Channels', items: channels },
-          { label: 'Asset requests', items: assetRequests },
-          { label: 'Risk notes', items: riskNotes },
-        ].filter((section) => section.items.length > 0),
-      }
-    }
-
-    if (latestResult.downstream_workflow === 'Research_Brief') {
-      const facts = toStringList(downstreamRecord?.facts)
-      const inferences = toStringList(downstreamRecord?.inferences)
-      const openQuestions = toStringList(downstreamRecord?.open_questions)
-
-      return {
-        header,
-        body: facts[0] || inferences[0] || 'The research lane created a source-backed brief shell.',
-        modeNote,
-        sections: [
-          { label: 'Facts', items: facts.slice(0, 4) },
-          { label: 'Inferences', items: inferences.slice(0, 3) },
-          { label: 'Open questions', items: openQuestions.slice(0, 4) },
-        ].filter((section) => section.items.length > 0),
-      }
-    }
-
-    if (latestResult.intake_kind === 'handoff') {
-      return {
-        header,
-        body: 'The system created a handoff note and queued it for the next owner.',
-        modeNote,
-        sections: [],
-      }
-    }
-
-    if (latestResult.intake_kind === 'truth_update_draft') {
-      return {
-        header,
-        body: 'The system created a truth-update draft for review instead of mutating canonical docs directly.',
-        modeNote,
-        sections: [],
-      }
-    }
-
-    return {
-      header,
-      body: latestResult.next_step || latestResult.reason || 'The system routed this request successfully.',
-      modeNote,
-      sections: [],
-    }
-  })()
+  const latestInfo = deriveRuntimeInfo(latestResult)
+  const displayHistory = [...history].reverse()
+  const submitLabel = isSubmitting
+    ? 'Thinking…'
+    : intakeKind === 'task' || intakeKind === 'growth' || intakeKind === 'research'
+      ? 'Start workflow'
+      : 'Ask system'
 
   return (
     <>
@@ -476,422 +550,435 @@ function OwnerIntakePageInner() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.85)', margin: 0 }}>Owner Intake</h1>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,.32)', margin: '6px 0 0', maxWidth: 720, lineHeight: 1.6 }}>
-            One box for the whole operating system. Ask broad questions, think through ideas, or start work. The system will answer like a copilot first when appropriate, and only create notes/tasks when the request clearly moves into execution.
+            One box for the whole operating system. Ask broad questions, think through ideas, or start work. The system answers in a chat flow first, then only opens tasks and lanes when your request clearly moves into execution.
           </p>
         </div>
       </div>
 
-      <div className="owner-intake-shell" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.3fr) minmax(320px, .9fr)', gap: 16, alignItems: 'start' }}>
-        <form onSubmit={submitIntake} style={{ ...card, padding: 20 }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-            {kindPresets.map((preset) => {
-              const active = intakeKind === preset.kind
-              return (
+      <div style={{ display: 'grid', gap: 16 }}>
+        <section style={{ ...card, padding: 16, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'grid', gap: 4 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.82)' }}>
+              Owner Copilot is live
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.42)', lineHeight: 1.6 }}>
+              Broad questions stay conversational first. Explicit start/build/plan requests open execution lanes automatically.
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <span style={runtimeBadgeStyle(latestInfo.verdentState)}>Verdent · {latestInfo.verdentState}</span>
+            <span style={runtimeBadgeStyle(latestInfo.anthropicState)}>
+              {latestInfo.activeProvider === 'anthropic' ? 'Claude · active' : latestInfo.anthropicState === 'blocked' ? 'Claude · blocked' : 'Claude · standby'}
+            </span>
+            <span style={runtimeBadgeStyle(latestInfo.openaiState)}>
+              {latestInfo.activeProvider === 'openai' ? 'OpenAI · active' : latestInfo.openaiState === 'blocked' ? 'OpenAI · blocked' : 'OpenAI · standby'}
+            </span>
+          </div>
+        </section>
+
+        <section style={{ ...card, minHeight: 'calc(100vh - 260px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '24px clamp(16px, 4vw, 40px)', display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {displayHistory.length === 0 && !isSubmitting ? (
+              <div style={{ display: 'grid', gap: 16, maxWidth: 860, margin: 'auto 0' }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: 'rgba(255,255,255,.84)' }}>
+                  Start with a question or a command
+                </div>
+                <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+                  {[
+                    'Скажи коротко, де ми зараз по VuriumBook і що краще робити далі.',
+                    'Починаємо проект: сплануй safer booking confirmation flow для reminder SMS і запусти Verdent.',
+                    'Знайди офіційні вимоги для SMS consent wording і підготуй research.',
+                  ].map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => setMessage(suggestion)}
+                      style={{
+                        ...card,
+                        padding: 14,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        background: 'rgba(255,255,255,.035)',
+                        color: 'rgba(255,255,255,.72)',
+                        fontSize: 13,
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                {displayHistory.map((item) => {
+                  const info = deriveRuntimeInfo(item.result)
+                  const primaryAssistantText = item.result.operator_reply || info.replyCard?.body || item.result.next_step || item.result.reason
+                  const secondaryReply = info.replyCard?.body && info.replyCard.body !== primaryAssistantText
+                    ? info.replyCard.body
+                    : ''
+                  return (
+                    <div key={item.id} style={{ display: 'grid', gap: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          onClick={() => loadHistoryItem(item)}
+                          style={{
+                            maxWidth: 'min(720px, 92%)',
+                            border: 'none',
+                            cursor: 'pointer',
+                            borderRadius: '22px 22px 8px 22px',
+                            background: 'linear-gradient(180deg, rgba(143,164,255,.18), rgba(112,133,255,.11))',
+                            color: 'rgba(255,255,255,.92)',
+                            padding: '16px 18px',
+                            textAlign: 'left',
+                            boxShadow: '0 10px 30px rgba(0,0,0,.16)',
+                          }}
+                        >
+                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.46)', marginBottom: 8 }}>
+                            You · {relTime(item.createdAt)}
+                          </div>
+                          <div style={{ fontSize: 14, lineHeight: 1.75 }}>{item.message}</div>
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                        <div
+                          style={{
+                            maxWidth: 'min(840px, 96%)',
+                            borderRadius: '22px 22px 22px 8px',
+                            background: 'rgba(255,255,255,.04)',
+                            border: '1px solid rgba(255,255,255,.06)',
+                            padding: '18px 18px 16px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.82)' }}>
+                              {workflowLabel(item.result.downstream_workflow)}
+                            </span>
+                            <span style={runtimeBadgeStyle(info.systemWorking ? 'working' : info.isProviderFallback ? 'fallback' : 'blocked')}>
+                              {info.executionModeLabel}
+                            </span>
+                            <span style={{ fontSize: 12, color: 'rgba(255,255,255,.38)' }}>
+                              {info.operatorSummary}
+                            </span>
+                          </div>
+
+                          <div style={{ fontSize: 15, color: 'rgba(255,255,255,.9)', lineHeight: 1.78, whiteSpace: 'pre-wrap' }}>
+                            {primaryAssistantText}
+                          </div>
+
+                          {secondaryReply && (
+                            <div style={{
+                              ...card,
+                              marginTop: 14,
+                              padding: 14,
+                              background: 'rgba(130,150,220,.06)',
+                              borderColor: 'rgba(130,150,220,.12)',
+                            }}>
+                              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,150,220,.8)', marginBottom: 6 }}>
+                                AI detail
+                              </div>
+                              <div style={{ fontSize: 13, color: 'rgba(255,255,255,.8)', lineHeight: 1.7 }}>
+                                {secondaryReply}
+                              </div>
+                            </div>
+                          )}
+
+                          {info.replyCard?.sections.length ? (
+                            <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+                              {info.replyCard.sections.map((section) => (
+                                <div key={section.label}>
+                                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.24)', marginBottom: 6 }}>
+                                    {section.label}
+                                  </div>
+                                  <ul style={{ margin: 0, paddingLeft: 18, color: 'rgba(255,255,255,.72)', fontSize: 12, lineHeight: 1.7 }}>
+                                    {section.items.map((entry) => (
+                                      <li key={entry}>{entry}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+
+                          {item.result.follow_on_workflow && item.result.follow_on_workflow !== 'none' && (
+                            <div style={{
+                              ...card,
+                              marginTop: 14,
+                              padding: 12,
+                              background: 'rgba(130,220,170,.05)',
+                              borderColor: 'rgba(130,220,170,.12)',
+                            }}>
+                              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.8)', marginBottom: 6 }}>
+                                Automatic continuation
+                              </div>
+                              <div style={{ fontSize: 13, color: 'rgba(255,255,255,.82)', lineHeight: 1.65 }}>
+                                {workflowLabel(item.result.follow_on_workflow)} · {item.result.follow_on_status}
+                                {info.followOnAiMeta?.provider
+                                  ? ` · ${providerLabel(String(info.followOnAiMeta.provider))}${info.followOnAiMeta?.model ? ` (${String(info.followOnAiMeta.model)})` : ''}`
+                                  : ''}
+                              </div>
+                              {item.result.follow_on_reference && (
+                                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.38)', marginTop: 6, wordBreak: 'break-word' }}>
+                                  {item.result.follow_on_reference}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <details style={{ marginTop: 14 }}>
+                            <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(130,150,220,.88)' }}>
+                              Show execution details
+                            </summary>
+                            <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+                              <div className="owner-intake-result-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                <div style={{ ...card, padding: 12 }}>
+                                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Kind</div>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.72)' }}>{item.result.intake_kind}</div>
+                                </div>
+                                <div style={{ ...card, padding: 12 }}>
+                                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Status</div>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: item.result.status === 'done' ? 'rgba(130,220,170,.85)' : item.result.status === 'partial' ? 'rgba(255,210,120,.9)' : 'rgba(255,255,255,.72)' }}>{item.result.status}</div>
+                                </div>
+                                <div style={{ ...card, padding: 12 }}>
+                                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Route target</div>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.72)' }}>{routeTargetLabel(item.result.route_target)}</div>
+                                </div>
+                                <div style={{ ...card, padding: 12 }}>
+                                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Queue stage</div>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.72)' }}>{item.result.queue_stage}</div>
+                                </div>
+                              </div>
+
+                              <div className="owner-intake-result-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                <div style={{ ...card, padding: 12 }}>
+                                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Provider</div>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.78)' }}>
+                                    {info.hasRealAIResponse ? `${providerLabel(info.activeProvider)}${info.activeModel ? ` · ${info.activeModel}` : ''}` : 'No live provider response'}
+                                  </div>
+                                </div>
+                                <div style={{ ...card, padding: 12 }}>
+                                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Created note</div>
+                                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.72)', wordBreak: 'break-word' }}>
+                                    {item.result.created_note_relative_path || 'No durable note created yet.'}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div style={{ fontSize: 13, color: 'rgba(255,255,255,.84)', lineHeight: 1.7 }}>
+                                <strong style={{ color: 'rgba(255,255,255,.92)' }}>Next step:</strong> {item.result.next_step}
+                              </div>
+
+                              {info.latestDownstream && (
+                                <details>
+                                  <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(130,150,220,.88)' }}>Show downstream payload</summary>
+                                  <pre style={{
+                                    margin: '10px 0 0',
+                                    padding: 12,
+                                    borderRadius: 12,
+                                    overflow: 'auto',
+                                    background: 'rgba(0,0,0,.25)',
+                                    border: '1px solid rgba(255,255,255,.06)',
+                                    color: 'rgba(255,255,255,.72)',
+                                    fontSize: 11,
+                                    lineHeight: 1.6,
+                                    whiteSpace: 'pre-wrap',
+                                    wordBreak: 'break-word',
+                                  }}>{info.latestDownstream}</pre>
+                                </details>
+                              )}
+
+                              {info.latestFollowOn && item.result.follow_on_workflow !== 'none' && (
+                                <details>
+                                  <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(130,220,170,.88)' }}>Show follow-on payload</summary>
+                                  <pre style={{
+                                    margin: '10px 0 0',
+                                    padding: 12,
+                                    borderRadius: 12,
+                                    overflow: 'auto',
+                                    background: 'rgba(0,0,0,.25)',
+                                    border: '1px solid rgba(255,255,255,.06)',
+                                    color: 'rgba(255,255,255,.72)',
+                                    fontSize: 11,
+                                    lineHeight: 1.6,
+                                    whiteSpace: 'pre-wrap',
+                                    wordBreak: 'break-word',
+                                  }}>{info.latestFollowOn}</pre>
+                                </details>
+                              )}
+                            </div>
+                          </details>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {isSubmitting && message.trim() && (
+                  <div style={{ display: 'grid', gap: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <div style={{
+                        maxWidth: 'min(720px, 92%)',
+                        borderRadius: '22px 22px 8px 22px',
+                        background: 'linear-gradient(180deg, rgba(143,164,255,.18), rgba(112,133,255,.11))',
+                        color: 'rgba(255,255,255,.92)',
+                        padding: '16px 18px',
+                        boxShadow: '0 10px 30px rgba(0,0,0,.16)',
+                      }}>
+                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.46)', marginBottom: 8 }}>
+                          You · now
+                        </div>
+                        <div style={{ fontSize: 14, lineHeight: 1.75 }}>{message}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                      <div style={{
+                        maxWidth: 'min(520px, 96%)',
+                        borderRadius: '22px 22px 22px 8px',
+                        background: 'rgba(255,255,255,.04)',
+                        border: '1px solid rgba(255,255,255,.06)',
+                        padding: '16px 18px',
+                        color: 'rgba(255,255,255,.72)',
+                        fontSize: 14,
+                      }}>
+                        System is thinking and routing this through the right lane…
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+            <div ref={conversationEndRef} />
+          </div>
+
+          <form onSubmit={submitIntake} style={{ borderTop: '1px solid rgba(255,255,255,.06)', padding: '16px clamp(16px, 4vw, 40px)', background: 'linear-gradient(180deg, rgba(8,8,12,.72), rgba(8,8,12,.96))', position: 'sticky', bottom: 0 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              {kindPresets.map((preset) => {
+                const active = intakeKind === preset.kind
+                return (
+                  <button
+                    key={preset.kind}
+                    type="button"
+                    onClick={() => setIntakeKind(preset.kind)}
+                    title={preset.helper}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: 999,
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      fontFamily: 'inherit',
+                      background: active ? 'rgba(130,150,220,.18)' : 'rgba(255,255,255,.06)',
+                      color: active ? 'rgba(130,150,220,.95)' : 'rgba(255,255,255,.46)',
+                    }}
+                  >
+                    {preset.label}
+                  </button>
+                )
+              })}
+
+              <div style={{ marginLeft: 'auto', minWidth: 130 }}>
+                <select
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                  style={{ ...inputBase, height: 38, padding: '0 12px' }}
+                >
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                  <option value="critical">critical</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ ...card, padding: 12, background: 'rgba(255,255,255,.025)' }}>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Ask about project status, think through an idea, or say clearly when you want to start work."
+                style={{ ...inputBase, minHeight: 104, padding: '14px 16px', resize: 'vertical', lineHeight: 1.7, border: 'none', background: 'transparent' }}
+              />
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => setAdvancedOpen((prev) => !prev)}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: 999,
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      fontFamily: 'inherit',
+                      background: 'rgba(255,255,255,.06)',
+                      color: 'rgba(255,255,255,.48)',
+                    }}
+                  >
+                    {advancedOpen ? 'Hide details' : 'Show details'}
+                  </button>
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,.3)' }}>
+                    Auto is best most of the time. Ask naturally; the system will decide whether to stay conversational or start execution.
+                  </span>
+                </div>
+
                 <button
-                  key={preset.kind}
-                  type="button"
-                  onClick={() => setIntakeKind(preset.kind)}
-                  title={preset.helper}
+                  type="submit"
+                  disabled={isSubmitting}
                   style={{
-                    padding: '7px 12px',
+                    minWidth: 160,
+                    height: 42,
+                    padding: '0 18px',
                     borderRadius: 999,
                     border: 'none',
                     cursor: 'pointer',
-                    fontSize: 12,
-                    fontWeight: 600,
+                    fontSize: 13,
+                    fontWeight: 700,
                     fontFamily: 'inherit',
-                    background: active ? 'rgba(130,150,220,.16)' : 'rgba(255,255,255,.06)',
-                    color: active ? 'rgba(130,150,220,.95)' : 'rgba(255,255,255,.42)',
+                    background: 'rgba(130,150,220,.18)',
+                    color: 'rgba(130,150,220,.95)',
+                    opacity: isSubmitting ? 0.5 : 1,
                   }}
                 >
-                  {preset.label}
+                  {submitLabel}
                 </button>
-              )
-            })}
-          </div>
-
-          <div className="owner-intake-topline" style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: 12, marginBottom: 12 }}>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Optional title. If empty, the system derives one."
-              style={{ ...inputBase, height: 42, padding: '0 14px' }}
-            />
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value)}
-              style={{ ...inputBase, height: 42, padding: '0 12px' }}
-            >
-              <option value="low">low</option>
-              <option value="medium">medium</option>
-              <option value="high">high</option>
-              <option value="critical">critical</option>
-            </select>
-          </div>
-
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Write what you need. Example: What is the current state of VuriumBook? Or: Start planning a safer onboarding confirmation flow for booking reminders."
-            style={{ ...inputBase, minHeight: 220, padding: '14px 16px', resize: 'vertical', lineHeight: 1.65, marginBottom: 14 }}
-          />
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 14 }}>
-            <button
-              type="button"
-              onClick={() => setAdvancedOpen((prev) => !prev)}
-              style={{
-                padding: '8px 12px',
-                borderRadius: 999,
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 600,
-                fontFamily: 'inherit',
-                background: 'rgba(255,255,255,.06)',
-                color: 'rgba(255,255,255,.45)',
-              }}
-            >
-              {advancedOpen ? 'Hide advanced fields' : 'Show advanced fields'}
-            </button>
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,.28)' }}>
-              Best default: keep `Auto`. Broad questions stay conversational first; explicit “start / build / plan” requests move into execution lanes.
-            </span>
-          </div>
-
-          {advancedOpen && (
-            <div className="owner-intake-advanced" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-              <textarea value={productContextLinks} onChange={(e) => setProductContextLinks(e.target.value)} placeholder="Product/context links, one per line" style={{ ...inputBase, minHeight: 100, padding: 12, resize: 'vertical' }} />
-              <textarea value={knownConstraints} onChange={(e) => setKnownConstraints(e.target.value)} placeholder="Constraints, one per line" style={{ ...inputBase, minHeight: 100, padding: 12, resize: 'vertical' }} />
-              <textarea value={sourceUrls} onChange={(e) => setSourceUrls(e.target.value)} placeholder="Official source URLs, one per line" style={{ ...inputBase, minHeight: 100, padding: 12, resize: 'vertical' }} />
-              <textarea value={questions} onChange={(e) => setQuestions(e.target.value)} placeholder="Research questions, one per line" style={{ ...inputBase, minHeight: 100, padding: 12, resize: 'vertical' }} />
-              <textarea value={targetSources} onChange={(e) => setTargetSources(e.target.value)} placeholder="Target source types, one per line" style={{ ...inputBase, minHeight: 100, padding: 12, resize: 'vertical' }} />
-              <textarea value={relatedLinks} onChange={(e) => setRelatedLinks(e.target.value)} placeholder="Related links, one per line" style={{ ...inputBase, minHeight: 100, padding: 12, resize: 'vertical' }} />
-              <input value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="Growth audience" style={{ ...inputBase, height: 42, padding: '0 14px' }} />
-              <input value={channel} onChange={(e) => setChannel(e.target.value)} placeholder="Growth channels" style={{ ...inputBase, height: 42, padding: '0 14px' }} />
-              <input value={approvedClaimsLink} onChange={(e) => setApprovedClaimsLink(e.target.value)} placeholder="Approved claims link" style={{ ...inputBase, height: 42, padding: '0 14px' }} />
-              <input value={currentOfferLink} onChange={(e) => setCurrentOfferLink(e.target.value)} placeholder="Current offer link" style={{ ...inputBase, height: 42, padding: '0 14px' }} />
-              <input value={relatedTaskId} onChange={(e) => setRelatedTaskId(e.target.value)} placeholder="Related task ID" style={{ ...inputBase, height: 42, padding: '0 14px' }} />
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '0 6px' }}>
-                <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: 'rgba(255,255,255,.45)' }}>
-                  <input type="checkbox" checked={needStaticCreatives} onChange={(e) => setNeedStaticCreatives(e.target.checked)} />
-                  Static creatives
-                </label>
-                <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: 'rgba(255,255,255,.45)' }}>
-                  <input type="checkbox" checked={needVideoBrief} onChange={(e) => setNeedVideoBrief(e.target.checked)} />
-                  Video brief
-                </label>
               </div>
             </div>
-          )}
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.28)' }}>
-              One submit can create the note, assign queue stage, and trigger Verdent, Growth, or Research automatically.
-            </div>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              style={{
-                minWidth: 170,
-                height: 40,
-                padding: '0 18px',
-                borderRadius: 999,
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: 700,
-                fontFamily: 'inherit',
-                background: 'rgba(130,150,220,.18)',
-                color: 'rgba(130,150,220,.95)',
-                opacity: isSubmitting ? 0.5 : 1,
-              }}
-            >
-              {isSubmitting ? 'Routing…' : 'Route through system'}
-            </button>
-          </div>
-        </form>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <section style={{ ...card, padding: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.78)', margin: 0 }}>Latest result</h2>
-              {latestResult && <span style={{ fontSize: 11, color: 'rgba(255,255,255,.28)' }}>{latestResult.intake_id}</span>}
-            </div>
-
-            {!latestResult ? (
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,.32)', margin: 0, lineHeight: 1.6 }}>
-                Submit the first intake and the system will show the created note, assigned lane, downstream workflow, and next step here.
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{
-                  ...card,
-                  padding: 14,
-                  background: systemWorking ? 'rgba(130,220,170,.06)' : 'rgba(255,210,120,.06)',
-                  borderColor: systemWorking ? 'rgba(130,220,170,.12)' : 'rgba(255,210,120,.12)',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 6 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.84)' }}>
-                      {systemWorking ? 'System worked' : 'System needs attention'}
-                    </div>
-                    <span style={runtimeBadgeStyle(systemWorking ? 'working' : isProviderFallback ? 'fallback' : 'blocked')}>
-                      {executionModeLabel}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.58)', lineHeight: 1.6 }}>
-                    {operatorSummary}
-                  </div>
+            {advancedOpen && (
+              <div className="owner-intake-advanced" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14 }}>
+                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Optional title. If empty, the system derives one." style={{ ...inputBase, height: 42, padding: '0 14px' }} />
+                <input value={relatedTaskId} onChange={(e) => setRelatedTaskId(e.target.value)} placeholder="Related task ID" style={{ ...inputBase, height: 42, padding: '0 14px' }} />
+                <textarea value={productContextLinks} onChange={(e) => setProductContextLinks(e.target.value)} placeholder="Product/context links, one per line" style={{ ...inputBase, minHeight: 92, padding: 12, resize: 'vertical' }} />
+                <textarea value={knownConstraints} onChange={(e) => setKnownConstraints(e.target.value)} placeholder="Constraints, one per line" style={{ ...inputBase, minHeight: 92, padding: 12, resize: 'vertical' }} />
+                <textarea value={sourceUrls} onChange={(e) => setSourceUrls(e.target.value)} placeholder="Official source URLs, one per line" style={{ ...inputBase, minHeight: 92, padding: 12, resize: 'vertical' }} />
+                <textarea value={questions} onChange={(e) => setQuestions(e.target.value)} placeholder="Research questions, one per line" style={{ ...inputBase, minHeight: 92, padding: 12, resize: 'vertical' }} />
+                <textarea value={targetSources} onChange={(e) => setTargetSources(e.target.value)} placeholder="Target source types, one per line" style={{ ...inputBase, minHeight: 92, padding: 12, resize: 'vertical' }} />
+                <textarea value={relatedLinks} onChange={(e) => setRelatedLinks(e.target.value)} placeholder="Related links, one per line" style={{ ...inputBase, minHeight: 92, padding: 12, resize: 'vertical' }} />
+                <input value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="Growth audience" style={{ ...inputBase, height: 42, padding: '0 14px' }} />
+                <input value={channel} onChange={(e) => setChannel(e.target.value)} placeholder="Growth channels" style={{ ...inputBase, height: 42, padding: '0 14px' }} />
+                <input value={approvedClaimsLink} onChange={(e) => setApprovedClaimsLink(e.target.value)} placeholder="Approved claims link" style={{ ...inputBase, height: 42, padding: '0 14px' }} />
+                <input value={currentOfferLink} onChange={(e) => setCurrentOfferLink(e.target.value)} placeholder="Current offer link" style={{ ...inputBase, height: 42, padding: '0 14px' }} />
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '0 6px' }}>
+                  <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: 'rgba(255,255,255,.45)' }}>
+                    <input type="checkbox" checked={needStaticCreatives} onChange={(e) => setNeedStaticCreatives(e.target.checked)} />
+                    Static creatives
+                  </label>
+                  <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: 'rgba(255,255,255,.45)' }}>
+                    <input type="checkbox" checked={needVideoBrief} onChange={(e) => setNeedVideoBrief(e.target.checked)} />
+                    Video brief
+                  </label>
                 </div>
-
-                {replyCard && (
-                  <div style={{
-                    ...card,
-                    padding: 16,
-                    background: 'rgba(130,150,220,.06)',
-                    borderColor: 'rgba(130,150,220,.12)',
-                  }}>
-                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(130,150,220,.75)', marginBottom: 8 }}>
-                      AI reply
-                    </div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,.88)', marginBottom: 8 }}>
-                      {replyCard.header}
-                    </div>
-                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,.82)', lineHeight: 1.65, marginBottom: 8 }}>
-                      {replyCard.body}
-                    </div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,.48)', lineHeight: 1.6, marginBottom: replyCard.sections.length ? 12 : 0 }}>
-                      {replyCard.modeNote}
-                    </div>
-                    {replyCard.sections.length > 0 && (
-                      <div style={{ display: 'grid', gap: 10 }}>
-                        {replyCard.sections.map((section) => (
-                          <div key={section.label}>
-                            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 6 }}>
-                              {section.label}
-                            </div>
-                            <ul style={{ margin: 0, paddingLeft: 18, color: 'rgba(255,255,255,.72)', fontSize: 12, lineHeight: 1.65 }}>
-                              {section.items.map((item) => (
-                                <li key={item}>{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {latestResult.operator_reply && (
-                  <div style={{
-                    ...card,
-                    padding: 16,
-                    background: 'rgba(130,220,170,.05)',
-                    borderColor: 'rgba(130,220,170,.12)',
-                  }}>
-                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(130,220,170,.8)', marginBottom: 8 }}>
-                      System reply
-                    </div>
-                    <div style={{ fontSize: 14, color: 'rgba(255,255,255,.86)', lineHeight: 1.75 }}>
-                      {latestResult.operator_reply}
-                    </div>
-                  </div>
-                )}
-
-                <div className="owner-intake-result-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div style={{ ...card, padding: 12 }}>
-                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Kind</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.72)' }}>{latestResult.intake_kind}</div>
-                  </div>
-                  <div style={{ ...card, padding: 12 }}>
-                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Status</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: latestResult.status === 'done' ? 'rgba(130,220,170,.85)' : latestResult.status === 'partial' ? 'rgba(255,210,120,.9)' : 'rgba(255,255,255,.72)' }}>{latestResult.status}</div>
-                  </div>
-                  <div style={{ ...card, padding: 12 }}>
-                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Route target</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.72)' }}>{routeTargetLabel(latestResult.route_target)}</div>
-                  </div>
-                  <div style={{ ...card, padding: 12 }}>
-                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Queue stage</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.72)' }}>{latestResult.queue_stage}</div>
-                  </div>
-                </div>
-
-                <div className="owner-intake-result-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div style={{ ...card, padding: 12 }}>
-                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Who answered</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.78)' }}>
-                      {workflowLabel(latestResult.downstream_workflow)}
-                    </div>
-                  </div>
-                  <div style={{ ...card, padding: 12 }}>
-                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Provider</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.78)' }}>
-                      {hasRealAIResponse ? `${providerLabel(activeProvider)}${activeModel ? ` · ${activeModel}` : ''}` : 'No live provider response'}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 8 }}>AI runtime</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    <span style={runtimeBadgeStyle(verdentState)}>Verdent · {verdentState}</span>
-                    <span style={runtimeBadgeStyle(anthropicState)}>{activeProvider === 'anthropic' ? 'Claude · active' : anthropicState === 'blocked' ? 'Claude · blocked' : 'Claude · standby'}</span>
-                    <span style={runtimeBadgeStyle(openaiState)}>{activeProvider === 'openai' ? 'OpenAI · active' : openaiState === 'blocked' ? 'OpenAI · blocked' : 'OpenAI · standby'}</span>
-                    <span style={runtimeBadgeStyle(systemWritebackOk ? 'working' : 'blocked')}>Writeback · {systemWritebackOk ? 'done' : (latestResult.writeback?.status || 'unknown')}</span>
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Created note</div>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.7)', wordBreak: 'break-word' }}>
-                    {latestResult.created_note_relative_path || 'No durable note created yet.'}
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Downstream</div>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.7)' }}>
-                    {workflowLabel(latestResult.downstream_workflow)} · {latestResult.downstream_status}
-                  </div>
-                  {latestResult.downstream_reference && (
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,.38)', marginTop: 4, wordBreak: 'break-word' }}>
-                      {latestResult.downstream_reference}
-                    </div>
-                  )}
-                </div>
-
-                {latestResult.follow_on_workflow && latestResult.follow_on_workflow !== 'none' && (
-                  <div>
-                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Automatic continuation</div>
-                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,.78)', lineHeight: 1.6 }}>
-                      {workflowLabel(latestResult.follow_on_workflow)} · {latestResult.follow_on_status}
-                      {followOnAiMeta?.provider
-                        ? ` · ${providerLabel(String(followOnAiMeta.provider))}${followOnAiMeta?.model ? ` (${String(followOnAiMeta.model)})` : ''}`
-                        : ''}
-                    </div>
-                    {latestResult.follow_on_reference && (
-                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,.38)', marginTop: 4, wordBreak: 'break-word' }}>
-                        {latestResult.follow_on_reference}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div>
-                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Reason</div>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.6)', lineHeight: 1.6 }}>{latestResult.reason}</div>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Next step</div>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.84)', lineHeight: 1.6 }}>{latestResult.next_step}</div>
-                </div>
-
-                {latestDownstream && (
-                  <details style={{ marginTop: 2 }}>
-                    <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(130,150,220,.88)' }}>Show downstream payload</summary>
-                    <pre style={{
-                      margin: '10px 0 0',
-                      padding: 12,
-                      borderRadius: 12,
-                      overflow: 'auto',
-                      background: 'rgba(0,0,0,.25)',
-                      border: '1px solid rgba(255,255,255,.06)',
-                      color: 'rgba(255,255,255,.72)',
-                      fontSize: 11,
-                      lineHeight: 1.6,
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                    }}>{latestDownstream}</pre>
-                  </details>
-                )}
-
-                {latestFollowOn && latestResult.follow_on_workflow !== 'none' && (
-                  <details style={{ marginTop: 2 }}>
-                    <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(130,220,170,.88)' }}>Show follow-on payload</summary>
-                    <pre style={{
-                      margin: '10px 0 0',
-                      padding: 12,
-                      borderRadius: 12,
-                      overflow: 'auto',
-                      background: 'rgba(0,0,0,.25)',
-                      border: '1px solid rgba(255,255,255,.06)',
-                      color: 'rgba(255,255,255,.72)',
-                      fontSize: 11,
-                      lineHeight: 1.6,
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                    }}>{latestFollowOn}</pre>
-                  </details>
-                )}
               </div>
             )}
-          </section>
-
-          <section style={{ ...card, padding: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.78)', margin: 0 }}>Recent intake</h2>
-              {history.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => { setHistory([]); try { localStorage.removeItem(HISTORY_KEY) } catch {} }}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'rgba(255,255,255,.28)',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-
-            {history.length === 0 ? (
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,.32)', margin: 0 }}>Recent submissions will appear here like a lightweight operator chat history.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {history.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => loadHistoryItem(item)}
-                    style={{
-                      ...card,
-                      padding: 12,
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      background: latestResult?.intake_id === item.id ? 'rgba(130,150,220,.08)' : 'rgba(255,255,255,.03)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 4 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.78)' }}>{item.result.title}</span>
-                      <span style={{ fontSize: 11, color: 'rgba(255,255,255,.28)', flexShrink: 0 }}>{relTime(item.createdAt)}</span>
-                    </div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,.42)', marginBottom: 6 }}>
-                      {item.result.intake_kind} → {routeTargetLabel(item.result.route_target)} · {item.result.status}
-                    </div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {item.message}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
+          </form>
+        </section>
       </div>
       <style>{`
-        @media (max-width: 1100px) {
-          .owner-intake-shell {
-            grid-template-columns: 1fr !important;
-          }
-        }
         @media (max-width: 720px) {
-          .owner-intake-topline,
           .owner-intake-advanced,
           .owner-intake-result-grid {
             grid-template-columns: 1fr !important;
