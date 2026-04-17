@@ -124,6 +124,14 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null
 }
 
+function toStringList(value: unknown) {
+  return Array.isArray(value)
+    ? value
+      .map((entry) => String(entry || '').trim())
+      .filter(Boolean)
+    : []
+}
+
 function routeTargetLabel(value: string) {
   return ROUTE_TARGET_LABELS[value] || value
 }
@@ -325,8 +333,105 @@ function OwnerIntakePageInner() {
     : hasRealAIResponse
       ? `${routeTargetLabel(latestResult.route_target)} answered through ${providerLabel(activeProvider)}.`
       : isProviderFallback
-        ? `${routeTargetLabel(latestResult.route_target)} was routed correctly, but this run fell back because the configured AI provider chain did not complete.`
+      ? `${routeTargetLabel(latestResult.route_target)} was routed correctly, but this run fell back because the configured AI provider chain did not complete.`
         : `${routeTargetLabel(latestResult.route_target)} was routed and queued without a direct AI answer yet.`
+  const replyCard = (() => {
+    if (!latestResult) return null
+
+    const header = hasRealAIResponse
+      ? `${routeTargetLabel(latestResult.route_target)} replied`
+      : `${routeTargetLabel(latestResult.route_target)} prepared a draft reply`
+    const modeNote = hasRealAIResponse
+      ? `${providerLabel(activeProvider)} answered this run.${activeModel ? ` Model: ${activeModel}.` : ''}`
+      : isProviderFallback
+        ? 'This run fell back to a draft/structured result because the live AI provider chain did not complete.'
+        : 'The system routed the request and prepared the next lane, but no direct AI answer is attached yet.'
+
+    if (latestResult.downstream_workflow === 'AI3_Planning_Intake') {
+      const plan = asRecord(downstreamRecord?.plan_skeleton)
+      const workstreams = toStringList(plan?.workstreams)
+      const missingInputs = toStringList(plan?.missing_inputs)
+      const acceptanceCriteria = toStringList(plan?.acceptance_criteria_seed)
+      const recommendedSequence = toStringList(downstreamRecord?.recommended_sequence)
+
+      return {
+        header,
+        body: (typeof plan?.objective === 'string' && plan.objective.trim())
+          || 'Verdent created a planning shell for this task.',
+        modeNote,
+        sections: [
+          { label: 'Workstreams', items: workstreams },
+          { label: 'Missing inputs', items: missingInputs },
+          { label: 'Acceptance criteria', items: acceptanceCriteria },
+          { label: 'Recommended sequence', items: recommendedSequence },
+        ].filter((section) => section.items.length > 0),
+      }
+    }
+
+    if (latestResult.downstream_workflow === 'Growth_Asset_Flow') {
+      const growthOutput = asRecord(downstreamRecord?.growth_brief)
+      const growthBrief = asRecord(growthOutput?.growth_brief)
+      const hook = typeof growthBrief?.hook === 'string' ? growthBrief.hook.trim() : ''
+      const cta = typeof growthBrief?.cta === 'string' ? growthBrief.cta.trim() : ''
+      const channels = toStringList(growthBrief?.channels)
+      const assetRequests = toStringList(growthBrief?.asset_requests)
+      const riskNotes = toStringList(growthBrief?.risk_notes)
+
+      return {
+        header,
+        body: hook || 'The growth lane produced a campaign brief and asset direction.',
+        modeNote,
+        sections: [
+          { label: 'CTA', items: cta ? [cta] : [] },
+          { label: 'Channels', items: channels },
+          { label: 'Asset requests', items: assetRequests },
+          { label: 'Risk notes', items: riskNotes },
+        ].filter((section) => section.items.length > 0),
+      }
+    }
+
+    if (latestResult.downstream_workflow === 'Research_Brief') {
+      const facts = toStringList(downstreamRecord?.facts)
+      const inferences = toStringList(downstreamRecord?.inferences)
+      const openQuestions = toStringList(downstreamRecord?.open_questions)
+
+      return {
+        header,
+        body: facts[0] || inferences[0] || 'The research lane created a source-backed brief shell.',
+        modeNote,
+        sections: [
+          { label: 'Facts', items: facts.slice(0, 4) },
+          { label: 'Inferences', items: inferences.slice(0, 3) },
+          { label: 'Open questions', items: openQuestions.slice(0, 4) },
+        ].filter((section) => section.items.length > 0),
+      }
+    }
+
+    if (latestResult.intake_kind === 'handoff') {
+      return {
+        header,
+        body: 'The system created a handoff note and queued it for the next owner.',
+        modeNote,
+        sections: [],
+      }
+    }
+
+    if (latestResult.intake_kind === 'truth_update_draft') {
+      return {
+        header,
+        body: 'The system created a truth-update draft for review instead of mutating canonical docs directly.',
+        modeNote,
+        sections: [],
+      }
+    }
+
+    return {
+      header,
+      body: latestResult.next_step || latestResult.reason || 'The system routed this request successfully.',
+      modeNote,
+      sections: [],
+    }
+  })()
 
   return (
     <>
@@ -501,6 +606,44 @@ function OwnerIntakePageInner() {
                     {operatorSummary}
                   </div>
                 </div>
+
+                {replyCard && (
+                  <div style={{
+                    ...card,
+                    padding: 16,
+                    background: 'rgba(130,150,220,.06)',
+                    borderColor: 'rgba(130,150,220,.12)',
+                  }}>
+                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(130,150,220,.75)', marginBottom: 8 }}>
+                      AI reply
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,.88)', marginBottom: 8 }}>
+                      {replyCard.header}
+                    </div>
+                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,.82)', lineHeight: 1.65, marginBottom: 8 }}>
+                      {replyCard.body}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,.48)', lineHeight: 1.6, marginBottom: replyCard.sections.length ? 12 : 0 }}>
+                      {replyCard.modeNote}
+                    </div>
+                    {replyCard.sections.length > 0 && (
+                      <div style={{ display: 'grid', gap: 10 }}>
+                        {replyCard.sections.map((section) => (
+                          <div key={section.label}>
+                            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 6 }}>
+                              {section.label}
+                            </div>
+                            <ul style={{ margin: 0, paddingLeft: 18, color: 'rgba(255,255,255,.72)', fontSize: 12, lineHeight: 1.65 }}>
+                              {section.items.map((item) => (
+                                <li key={item}>{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="owner-intake-result-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div style={{ ...card, padding: 12 }}>
