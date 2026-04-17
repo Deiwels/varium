@@ -1,13 +1,12 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { getDevApiBase } from '../_lib/dev-fetch'
 
 export default function DevLoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [localLoading, setLocalLoading] = useState(false)
   const [error, setError] = useState('')
   const [isLocalDev, setIsLocalDev] = useState(false)
   const devApiBase = getDevApiBase()
@@ -37,6 +36,44 @@ export default function DevLoginPage() {
     }
   }
 
+  async function handleLocalOwnerAccess() {
+    setLocalLoading(true)
+    setError('')
+    try {
+      const authRes = await fetch(`${devApiBase}/api/vurium-dev/auth/local`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      })
+      const authData = await authRes.json().catch(() => ({} as { token?: string; error?: string }))
+      if (!authRes.ok || !authData?.token) {
+        throw new Error(String(authData?.error || 'Local owner login failed'))
+      }
+
+      try { localStorage.setItem('vurium_dev_token', String(authData.token)) } catch {}
+
+      const pingRes = await fetch(`${devApiBase}/api/vurium-dev/ping`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${String(authData.token)}`,
+        },
+      })
+
+      if (!pingRes.ok) {
+        throw new Error(`Developer session check failed (${pingRes.status})`)
+      }
+
+      window.location.assign('/developer/intake')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Local owner login failed')
+    } finally {
+      setLocalLoading(false)
+    }
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{
@@ -53,8 +90,10 @@ export default function DevLoginPage() {
 
         {isLocalDev && !sent && (
           <div style={{ marginBottom: 16 }}>
-            <a
-              href="/developer/local-access"
+            <button
+              type="button"
+              onClick={handleLocalOwnerAccess}
+              disabled={localLoading}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -63,12 +102,13 @@ export default function DevLoginPage() {
                 background: 'rgba(130,220,170,.15)', color: 'rgba(130,220,170,.95)',
                 fontSize: 14, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
                 textDecoration: 'none',
+                opacity: localLoading ? 0.6 : 1,
               }}
             >
-              Continue as local owner
-            </a>
+              {localLoading ? 'Opening…' : 'Continue as local owner'}
+            </button>
             <p style={{ fontSize: 11, color: 'rgba(255,255,255,.28)', margin: '10px 0 0', lineHeight: 1.5 }}>
-              Localhost mode uses a direct local-access route, so you do not have to wait for a magic-link email just to use the operator panel.
+              Localhost mode signs in directly through the local backend, checks the developer session, and then opens Owner Intake.
             </p>
           </div>
         )}
@@ -118,6 +158,7 @@ export default function DevLoginPage() {
             </p>
           </div>
         )}
+        {isLocalDev && error && <p style={{ fontSize: 12, color: 'rgba(220,100,100,.8)', margin: '12px 0 0' }}>{error}</p>}
       </div>
     </div>
   )
