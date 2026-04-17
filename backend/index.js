@@ -3981,6 +3981,8 @@ Rules:
 - do not write implementation code
 - if critical information is missing, block or escalate instead of guessing
 - keep recommended_sequence realistic and ownership-based
+- when context.owner_conversation_history or context.active_focus is present, use that thread context to resolve references like "this", "that problem", or "continue"
+- do not force the owner to restate the same problem if the recent conversation already identifies the active issue
 
 Return exactly this JSON shape:
 {
@@ -4020,6 +4022,8 @@ Rules:
 - if the user is asking for understanding, advice, analysis, or status, keep it advisory first
 - if the user clearly asks to start or execute work, suggest the correct next mode instead of forcing a task automatically
 - when context.project_snapshot is provided, ground the answer in that internal context first
+- when context.owner_conversation_history or context.active_focus is provided, continue the same thread instead of acting like this is a brand new conversation
+- if the owner says "continue", "this issue", or "that problem", infer the most recent relevant focus from conversation context before asking them to restate it
 - for internal project status / overview requests, summarize what is already visible in queue, notes, and recent writebacks before recommending any execution mode
 - do not ask for AI-5 or external source URLs when the request is only about internal project status and the answer can be formed from internal context
 

@@ -40,6 +40,19 @@ interface IntakeHistoryItem {
   result: OwnerIntakeResult
 }
 
+interface ConversationContextItem {
+  id: string
+  createdAt: string
+  message: string
+  intake_kind: IntakeKind
+  route_target: string
+  workflow: string
+  status: string
+  operator_reply: string
+  next_step: string
+  created_note_relative_path: string
+}
+
 interface AIExecutionMeta {
   provider?: string
   model?: string
@@ -175,6 +188,39 @@ function runtimeBadgeStyle(state: 'active' | 'working' | 'fallback' | 'blocked' 
     fontSize: 12,
     fontWeight: 700,
   } satisfies React.CSSProperties
+}
+
+function buildConversationContext(history: IntakeHistoryItem[]): ConversationContextItem[] {
+  return history
+    .slice(0, 6)
+    .reverse()
+    .map((item) => ({
+      id: item.id,
+      createdAt: item.createdAt,
+      message: item.message,
+      intake_kind: item.result.intake_kind,
+      route_target: item.result.route_target,
+      workflow: item.result.downstream_workflow,
+      status: item.result.status,
+      operator_reply: item.result.operator_reply,
+      next_step: item.result.next_step,
+      created_note_relative_path: item.result.created_note_relative_path,
+    }))
+}
+
+function deriveActiveFocus(history: IntakeHistoryItem[]) {
+  const latestRelevant = history.find((item) => item.result.intake_kind !== 'advisory') || history[0]
+  if (!latestRelevant) return null
+
+  return {
+    intake_id: latestRelevant.result.intake_id,
+    title: latestRelevant.result.title,
+    intake_kind: latestRelevant.result.intake_kind,
+    route_target: latestRelevant.result.route_target,
+    downstream_workflow: latestRelevant.result.downstream_workflow,
+    created_note_relative_path: latestRelevant.result.created_note_relative_path,
+    next_step: latestRelevant.result.next_step,
+  }
 }
 
 function renderRichText(text: string) {
@@ -500,6 +546,8 @@ function OwnerIntakePageInner() {
           context: {
             canonical_links: parseLines(productContextLinks),
             constraints: parseLines(knownConstraints),
+            owner_conversation_history: buildConversationContext(history),
+            active_focus: deriveActiveFocus(history),
           },
           payload: {
             message: nextMessage.trim(),
@@ -613,7 +661,7 @@ function OwnerIntakePageInner() {
               Owner Copilot is live
             </div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,.42)', lineHeight: 1.6 }}>
-              Broad questions stay conversational first. Explicit start/build/plan requests open execution lanes automatically.
+              Broad questions stay conversational first. Explicit start/build/plan requests open execution lanes automatically. Recent turns and current focus are now carried forward automatically.
             </div>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
