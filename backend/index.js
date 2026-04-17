@@ -3903,9 +3903,9 @@ const ObsidianWritebackOutputSchema = z.object({
   next_step: z.string().default(''),
 });
 
-const OWNER_INTAKE_KIND_VALUES = ['task', 'growth', 'research', 'handoff', 'truth_update_draft'];
+const OWNER_INTAKE_KIND_VALUES = ['advisory', 'task', 'growth', 'research', 'handoff', 'truth_update_draft'];
 const OwnerIntakeKindSchema = z.enum(OWNER_INTAKE_KIND_VALUES);
-const OwnerIntakeInputKindSchema = z.enum(['auto', ...OWNER_INTAKE_KIND_VALUES]);
+const OwnerIntakeInputKindSchema = z.enum(['auto', 'advisory', ...OWNER_INTAKE_KIND_VALUES]);
 
 const OwnerIntakeInputSchema = z.object({
   message: z.string().min(1),
@@ -3955,6 +3955,17 @@ const OwnerIntakeOutputSchema = z.object({
   next_step: z.string().default(''),
 });
 
+const OwnerAdvisoryOutputSchema = z.object({
+  agent: z.literal('SYSTEM'),
+  workflow: z.literal('owner_advisory'),
+  status: WorkflowStatusSchema,
+  reply: z.string().default(''),
+  suggested_mode: z.enum(['none', ...OWNER_INTAKE_KIND_VALUES]).default('none'),
+  reason: z.string().default(''),
+  ai_meta: WorkflowAIExecutionMetaSchema,
+  next_step: z.string().default(''),
+});
+
 const AI3_PLANNING_INTAKE_SYSTEM_PROMPT = `You are AI 3 inside the VuriumBook AI Operating System.
 
 Your role:
@@ -3991,6 +4002,33 @@ Return exactly this JSON shape:
   "reason": "why escalation or dependency exists",
   "writeback_targets": ["04-Tasks/Workflow-Queue.md", "04-Tasks/Handoffs/"],
   "next_step": "clear next action"
+}`;
+
+const OWNER_ADVISORY_SYSTEM_PROMPT = `You are the front-door owner copilot inside the VuriumBook AI Operating System.
+
+Your role:
+- act like a smart first response, similar to a senior operator/copilot
+- answer broad questions, status requests, strategy questions, and early exploration without immediately turning them into delivery tasks
+- only recommend moving into task / growth / research / handoff / truth draft mode when that would help next
+- be practical, concise, and clear
+
+Rules:
+- return JSON only
+- no markdown
+- no code fences
+- do not create fake certainty
+- if the user is asking for understanding, advice, analysis, or status, keep it advisory first
+- if the user clearly asks to start or execute work, suggest the correct next mode instead of forcing a task automatically
+
+Return exactly this JSON shape:
+{
+  "agent": "SYSTEM",
+  "workflow": "owner_advisory",
+  "status": "done",
+  "reply": "short but useful answer for the owner",
+  "suggested_mode": "task",
+  "reason": "why this mode is recommended next",
+  "next_step": "what the owner should say or do next"
 }`;
 
 const AI3_QA_SCAN_SYSTEM_PROMPT = `You are AI 3 inside the VuriumBook AI Operating System.
@@ -4384,18 +4422,75 @@ function deriveOwnerIntakeTitle(input) {
 function detectOwnerIntakeKind(input) {
   if (input.intake_kind && input.intake_kind !== 'auto') return input.intake_kind;
   const text = `${safeStr(input.title)}\n${safeStr(input.message)}`.toLowerCase();
+  const normalizedText = text.replace(/\s+/g, ' ').trim();
   const sourceUrls = normalizeResearchSourceUrls(input.source_urls);
   if (sourceUrls.length) return 'research';
-  if (/(canonical|source of truth|rule update|protocol|manifesto|update the system|онови правила|онови протокол|онови канон|системн(ий|і) документ|truth update)/i.test(text)) {
+  const explicitExecutionSignals = [
+    'починаємо',
+    'почни',
+    'запускай',
+    'стартуємо',
+    'start the project',
+    'start project',
+    'start this',
+    'implement',
+    'реалізуй',
+    'build this',
+    'fix this',
+    'виправ це',
+    'do this now',
+    'create task',
+    'створи задачу',
+    'зроби план',
+    'сплануй',
+    'run planning',
+  ];
+  const advisorySignals = [
+    'скажи',
+    'розкажи',
+    'поясни',
+    'оціни',
+    'проаналізуй',
+    'подумай',
+    'що ',
+    'як ',
+    'чому',
+    'чи ',
+    'де ',
+    'статус',
+    'ситуац',
+    'стан',
+    'огляд',
+    'з чого почати',
+    'що далі',
+    'overview',
+    'status',
+    'current state',
+    'assess',
+    'analyze',
+    'analyse',
+    'brainstorm',
+    'what ',
+    'how ',
+    'why ',
+    'should ',
+    'can you',
+    'what now',
+    'next best step',
+  ];
+  const explicitExecution = explicitExecutionSignals.some((signal) => normalizedText.includes(signal));
+  const exploratory = normalizedText.includes('?') || advisorySignals.some((signal) => normalizedText.includes(signal));
+  if (!explicitExecution && exploratory) return 'advisory';
+  if (/(canonical|source of truth|rule update|protocol|manifesto|update the system|онови правила|онови протокол|онови канон|системн(ий|і) документ|truth update)/i.test(normalizedText)) {
     return 'truth_update_draft';
   }
-  if (/(handoff|передай|передача|assign to|route to|next owner|перекинь)/i.test(text)) {
+  if (/(handoff|передай|передача|assign to|route to|next owner|перекинь)/i.test(normalizedText)) {
     return 'handoff';
   }
-  if (/(research|дослід|знайди|знайти|official|офіційн|policy|compliance|vendor|source|джерел|documentation|документац|10dlc|consent|privacy|terms|telnyx|stripe rules)/i.test(text)) {
+  if (/(research|дослід|знайди|знайти|official|офіційн|policy|compliance|vendor|source|джерел|documentation|документац|10dlc|consent|privacy|terms|telnyx|stripe rules)/i.test(normalizedText)) {
     return 'research';
   }
-  if (/(campaign|growth|landing|ленд|landing page|ad |ads|реклам|creative|креатив|video|відео|promo|промо|cta|funnel|signup|trial|marketing|launch asset)/i.test(text)) {
+  if (/(campaign|growth|landing|ленд|landing page|ad |ads|реклам|creative|креатив|video|відео|promo|промо|cta|funnel|signup|trial|marketing|launch asset)/i.test(normalizedText)) {
     return 'growth';
   }
   return 'task';
@@ -4404,6 +4499,7 @@ function detectOwnerIntakeKind(input) {
 function buildOwnerIntakeId(kind, now = new Date()) {
   const stamp = toIso(now).replace(/\.\d+Z$/, 'Z');
   const compact = stamp.replace(/[-:TZ]/g, '').slice(0, 14);
+  if (kind === 'advisory') return `ADVISORY-${compact}`;
   if (kind === 'growth') return `GROWTH-${compact}`;
   if (kind === 'research') return `R-${compact}`;
   if (kind === 'handoff') return `HANDOFF-${compact}`;
@@ -4412,6 +4508,13 @@ function buildOwnerIntakeId(kind, now = new Date()) {
 }
 
 function buildOwnerIntakeMetadata(kind) {
+  if (kind === 'advisory') {
+    return {
+      queue_stage: 'Conversation',
+      route_target: 'none',
+      downstream_workflow: 'Owner_Advisory',
+    };
+  }
   if (kind === 'growth') {
     return {
       queue_stage: 'Waiting for Creative',
@@ -4688,6 +4791,10 @@ function buildOwnerIntakeResearchFollowOnInput(intakeId, title, input, note, dow
 }
 
 function buildOwnerIntakeOperatorReply({ intakeKind, title, note, downstreamResult, followOnResult }) {
+  if (intakeKind === 'advisory') {
+    return safeStr(downstreamResult?.reply || 'I understood this as an exploratory request, so I answered it without creating a delivery task yet.');
+  }
+
   if (intakeKind === 'task') {
     const objective = safeStr(downstreamResult?.plan_skeleton?.objective || title || 'the task').trim();
     const workstreams = Array.isArray(downstreamResult?.plan_skeleton?.workstreams)
@@ -4722,6 +4829,19 @@ function buildOwnerIntakeOperatorReply({ intakeKind, title, note, downstreamResu
   }
 
   return `I created a truth-update draft at ${note.relative_path}. It stays draft-only until someone reviews and manually updates canonical truth.`;
+}
+
+function buildOwnerAdvisoryFallback(input, reason) {
+  return {
+    agent: 'SYSTEM',
+    workflow: 'owner_advisory',
+    status: 'partial',
+    reply: `I understood this as an exploratory owner request. I have not created a task yet. ${reason}`,
+    suggested_mode: 'task',
+    reason,
+    ai_meta: null,
+    next_step: 'If you want execution to start, say explicitly: start the project, create the task, or plan this now.',
+  };
 }
 
 function inferPlanningWorkstreams(input) {
@@ -6111,37 +6231,69 @@ async function executeResearchBriefWorkflow(meta, context, input, { notifyOwner 
   }));
 }
 
+async function executeOwnerAdvisory(meta, context, input) {
+  return OwnerAdvisoryOutputSchema.parse(await runStructuredWorkflowAI({
+    workflowName: 'owner_advisory',
+    systemPrompt: OWNER_ADVISORY_SYSTEM_PROMPT,
+    input: {
+      message: safeStr(input.message).trim(),
+      title: safeStr(input.title).trim(),
+      requested_by: safeStr(input.requested_by || 'Owner') || 'Owner',
+      priority: safeStr(input.priority || 'medium') || 'medium',
+      product_context_links: uniqueList(input.product_context_links || []),
+      known_constraints: uniqueList(input.known_constraints || []),
+    },
+    meta,
+    context,
+    fallback: buildOwnerAdvisoryFallback(input, anthropic || openai
+      ? 'The advisory response fell back to a safer draft because parsing did not complete.'
+      : AI_NOT_CONFIGURED_REASON),
+    outputSchema: OwnerAdvisoryOutputSchema,
+    maxTokens: 1100,
+  }));
+}
+
 async function executeOwnerIntake(meta, context, input) {
   const title = deriveOwnerIntakeTitle(input);
   const intakeKind = detectOwnerIntakeKind(input);
   const intakeId = buildOwnerIntakeId(intakeKind);
   const metadata = buildOwnerIntakeMetadata(intakeKind);
-  const note = buildOwnerIntakeNote(intakeKind, intakeId, title, input, metadata);
+  const note = intakeKind === 'advisory'
+    ? { relative_path: '', content: '' }
+    : buildOwnerIntakeNote(intakeKind, intakeId, title, input, metadata);
 
   let writeback = null;
-  try {
-    const writebackResult = await writeObsidianNote({
-      relative_path: note.relative_path,
-      content: note.content,
-      mode: 'create',
-      dry_run: false,
-    });
-    writeback = {
-      status: writebackResult.status,
-      relative_path: writebackResult.relative_path,
-      reason: writebackResult.reason,
-    };
-  } catch (e) {
-    writeback = {
-      status: 'blocked',
-      relative_path: '',
-      reason: `Writeback failed: ${e.message}`,
-    };
+  if (intakeKind !== 'advisory') {
+    try {
+      const writebackResult = await writeObsidianNote({
+        relative_path: note.relative_path,
+        content: note.content,
+        mode: 'create',
+        dry_run: false,
+      });
+      writeback = {
+        status: writebackResult.status,
+        relative_path: writebackResult.relative_path,
+        reason: writebackResult.reason,
+      };
+    } catch (e) {
+      writeback = {
+        status: 'blocked',
+        relative_path: '',
+        reason: `Writeback failed: ${e.message}`,
+      };
+    }
   }
 
   let downstreamResult = null;
   let followOnResult = null;
-  if (intakeKind === 'task') {
+  if (intakeKind === 'advisory') {
+    downstreamResult = await executeOwnerAdvisory(
+      { ...meta, workflow_name: 'Owner_Advisory', trigger_source: meta.trigger_source || 'owner_intake' },
+      context,
+      input
+    );
+  } else if (intakeKind === 'task') {
     downstreamResult = await executePlanningIntakeWorkflow(
       { ...meta, workflow_name: 'AI3_Planning_Intake', trigger_source: meta.trigger_source || 'owner_intake' },
       {

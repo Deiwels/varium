@@ -4,7 +4,7 @@ import { DevErrorBoundary } from '../_components/DevErrorBoundary'
 import { useToast } from '../_components/Toast'
 import { devFetch } from '../_lib/dev-fetch'
 
-type IntakeKind = 'auto' | 'task' | 'growth' | 'research' | 'handoff' | 'truth_update_draft'
+type IntakeKind = 'auto' | 'advisory' | 'task' | 'growth' | 'research' | 'handoff' | 'truth_update_draft'
 
 interface OwnerIntakeResult {
   agent: 'SYSTEM'
@@ -66,6 +66,7 @@ const ROUTE_TARGET_LABELS: Record<string, string> = {
 }
 
 const WORKFLOW_LABELS: Record<string, string> = {
+  Owner_Advisory: 'Owner Copilot',
   AI3_Planning_Intake: 'AI-3 Planning Intake (Verdent)',
   AI3_QA_Scan: 'AI-3 QA Scan (Verdent)',
   Growth_Asset_Flow: 'AI-8 → AI-11 / AI-10 Growth Asset Flow',
@@ -94,6 +95,7 @@ const inputBase: React.CSSProperties = {
 
 const kindPresets: Array<{ kind: IntakeKind; label: string; helper: string }> = [
   { kind: 'auto', label: 'Auto', helper: 'Let the system classify it.' },
+  { kind: 'advisory', label: 'Discuss', helper: 'Think first, answer like a copilot, do not start execution yet.' },
   { kind: 'task', label: 'Task', helper: 'Product work that should route to Verdent planning.' },
   { kind: 'growth', label: 'Growth', helper: 'Campaigns, landing pages, creatives, promo assets.' },
   { kind: 'research', label: 'Research', helper: 'External facts, policy, vendor, official sources.' },
@@ -314,8 +316,12 @@ function OwnerIntakePageInner() {
   const activeModel = typeof downstreamAiMeta?.model === 'string' ? downstreamAiMeta.model : ''
   const hasRealAIResponse = Boolean(activeProvider)
   const isProviderFallback = !hasRealAIResponse && /AI provider error|AI not configured/i.test(effectiveReason)
-  const systemWritebackOk = latestResult?.writeback?.status === 'done'
-  const systemWorking = Boolean(latestResult && systemWritebackOk && latestResult.created_note_relative_path)
+  const systemWritebackOk = latestResult?.intake_kind === 'advisory'
+    ? true
+    : latestResult?.writeback?.status === 'done'
+  const systemWorking = Boolean(latestResult && (latestResult.intake_kind === 'advisory'
+    ? (hasRealAIResponse || latestResult.status === 'done')
+    : (systemWritebackOk && latestResult.created_note_relative_path)))
   const executionModeLabel = hasRealAIResponse
     ? 'Real AI response'
     : isProviderFallback
@@ -339,6 +345,10 @@ function OwnerIntakePageInner() {
       : 'idle'
   const operatorSummary = !latestResult
     ? ''
+    : latestResult.downstream_workflow === 'Owner_Advisory'
+      ? hasRealAIResponse
+        ? `Owner Copilot answered through ${providerLabel(activeProvider)}.`
+        : 'Owner Copilot responded in advisory mode without opening execution yet.'
     : hasRealAIResponse
       ? `${routeTargetLabel(latestResult.route_target)} answered through ${providerLabel(activeProvider)}.`
       : isProviderFallback
@@ -347,9 +357,13 @@ function OwnerIntakePageInner() {
   const replyCard = (() => {
     if (!latestResult) return null
 
-    const header = hasRealAIResponse
-      ? `${routeTargetLabel(latestResult.route_target)} replied`
-      : `${routeTargetLabel(latestResult.route_target)} prepared a draft reply`
+    const header = latestResult.downstream_workflow === 'Owner_Advisory'
+      ? hasRealAIResponse
+        ? 'Owner Copilot replied'
+        : 'Owner Copilot prepared a draft reply'
+      : hasRealAIResponse
+        ? `${routeTargetLabel(latestResult.route_target)} replied`
+        : `${routeTargetLabel(latestResult.route_target)} prepared a draft reply`
     const modeNote = hasRealAIResponse
       ? `${providerLabel(activeProvider)} answered this run.${activeModel ? ` Model: ${activeModel}.` : ''}`
       : isProviderFallback
@@ -373,6 +387,20 @@ function OwnerIntakePageInner() {
           { label: 'Missing inputs', items: missingInputs },
           { label: 'Acceptance criteria', items: acceptanceCriteria },
           { label: 'Recommended sequence', items: recommendedSequence },
+        ].filter((section) => section.items.length > 0),
+      }
+    }
+
+    if (latestResult.downstream_workflow === 'Owner_Advisory') {
+      const advisoryReply = typeof downstreamRecord?.reply === 'string' ? downstreamRecord.reply.trim() : ''
+      const suggestedMode = typeof downstreamRecord?.suggested_mode === 'string' ? downstreamRecord.suggested_mode.trim() : ''
+
+      return {
+        header,
+        body: advisoryReply || 'The owner copilot responded without opening a delivery task yet.',
+        modeNote,
+        sections: [
+          { label: 'Suggested next mode', items: suggestedMode && suggestedMode !== 'none' ? [suggestedMode] : [] },
         ].filter((section) => section.items.length > 0),
       }
     }
@@ -448,7 +476,7 @@ function OwnerIntakePageInner() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.85)', margin: 0 }}>Owner Intake</h1>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,.32)', margin: '6px 0 0', maxWidth: 720, lineHeight: 1.6 }}>
-            One box for the whole operating system. Write the request here, and the system will classify it, create the right note, route it to Verdent or the next lane, and write the result back into docs.
+            One box for the whole operating system. Ask broad questions, think through ideas, or start work. The system will answer like a copilot first when appropriate, and only create notes/tasks when the request clearly moves into execution.
           </p>
         </div>
       </div>
@@ -504,7 +532,7 @@ function OwnerIntakePageInner() {
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Write what you need. Example: Build a cleaner onboarding confirmation flow for booking reminders, preserve signup speed, and route planning to Verdent."
+            placeholder="Write what you need. Example: What is the current state of VuriumBook? Or: Start planning a safer onboarding confirmation flow for booking reminders."
             style={{ ...inputBase, minHeight: 220, padding: '14px 16px', resize: 'vertical', lineHeight: 1.65, marginBottom: 14 }}
           />
 
@@ -527,7 +555,7 @@ function OwnerIntakePageInner() {
               {advancedOpen ? 'Hide advanced fields' : 'Show advanced fields'}
             </button>
             <span style={{ fontSize: 12, color: 'rgba(255,255,255,.28)' }}>
-              Best default: keep `Auto`, write the request normally, and let the system route it.
+              Best default: keep `Auto`. Broad questions stay conversational first; explicit “start / build / plan” requests move into execution lanes.
             </span>
           </div>
 
@@ -716,7 +744,9 @@ function OwnerIntakePageInner() {
 
                 <div>
                   <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.22)', marginBottom: 4 }}>Created note</div>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.7)', wordBreak: 'break-word' }}>{latestResult.created_note_relative_path}</div>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.7)', wordBreak: 'break-word' }}>
+                    {latestResult.created_note_relative_path || 'No durable note created yet.'}
+                  </div>
                 </div>
 
                 <div>
