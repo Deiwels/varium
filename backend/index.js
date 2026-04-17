@@ -6933,6 +6933,44 @@ function inferImplementationFileTargets(input = {}, targetAi = 'AI-1') {
   ]).slice(0, 6);
 }
 
+function normalizeRepoRelativeTarget(target) {
+  const raw = safeStr(target).replace(/\\/g, '/').trim();
+  if (!raw) return '';
+  const stripped = raw.replace(/^\.\//, '');
+  if (path.isAbsolute(stripped)) {
+    const relativeToRepo = path.relative(process.cwd(), stripped).replace(/\\/g, '/');
+    if (!relativeToRepo || relativeToRepo.startsWith('..')) return '';
+    return relativeToRepo;
+  }
+  return stripped.replace(/^\/+/, '');
+}
+
+function repoTargetExists(target) {
+  const relative = normalizeRepoRelativeTarget(target);
+  if (!relative || /[*?[\]{}]/.test(relative)) return false;
+  try {
+    return fs.existsSync(path.join(process.cwd(), relative));
+  } catch {
+    return false;
+  }
+}
+
+function normalizeImplementationFileTargets(input = {}, fileTargets = [], targetAi = 'AI-1') {
+  const normalizedTargets = uniqueList((Array.isArray(fileTargets) ? fileTargets : [])
+    .map((entry) => normalizeRepoRelativeTarget(entry))
+    .filter(Boolean));
+  const existingTargets = normalizedTargets.filter((entry) => repoTargetExists(entry));
+  if (existingTargets.length) return existingTargets.slice(0, 6);
+
+  const inferredTargets = uniqueList(inferImplementationFileTargets(input, targetAi)
+    .map((entry) => normalizeRepoRelativeTarget(entry))
+    .filter(Boolean));
+  const inferredExistingTargets = inferredTargets.filter((entry) => repoTargetExists(entry));
+  if (inferredExistingTargets.length) return inferredExistingTargets.slice(0, 6);
+
+  return inferredTargets.slice(0, 6);
+}
+
 function buildImplementationCodingPrompt(packet) {
   const targetAi = safeStr(packet.target_ai || 'AI-1').trim() || 'AI-1';
   const fileTargets = Array.isArray(packet.file_targets) ? packet.file_targets.filter(Boolean) : [];
@@ -9181,6 +9219,11 @@ async function executeSingleImplementationPacketWorkflow(meta, context, input, {
     source_of_truth_stack: appendLatestDailyReviewPath(
       Array.isArray(result.source_of_truth_stack) ? result.source_of_truth_stack : [],
       latestDailyReview
+    ),
+    file_targets: normalizeImplementationFileTargets(
+      input,
+      Array.isArray(result.file_targets) ? result.file_targets : [],
+      safeStr(result.target_ai || inferImplementationPrimaryTarget(input)).trim() || inferImplementationPrimaryTarget(input)
     ),
     writeback_targets: result.writeback_targets?.length
       ? result.writeback_targets
