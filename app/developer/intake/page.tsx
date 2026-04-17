@@ -108,6 +108,7 @@ const WORKFLOW_LABELS: Record<string, string> = {
   Owner_Advisory: 'Owner Copilot',
   AI3_Planning_Intake: 'AI-3 Planning Intake (Verdent)',
   AI3_QA_Scan: 'AI-3 QA Scan (Verdent)',
+  Implementation_Packet: 'AI-3 → AI-1 / AI-2 Implementation Packet',
   Growth_Asset_Flow: 'AI-8 → AI-11 / AI-10 Growth Asset Flow',
   Research_Brief: 'AI-5 Research Brief',
   research_brief: 'AI-5 Research Brief',
@@ -403,6 +404,9 @@ interface IntakeRuntimeInfo {
   deepResearchPrompt: string
   deepResearchPromptSource: string
   deepResearchProvider: string
+  codingPrompt: string
+  codingPromptSource: string
+  codingPromptTarget: string
 }
 
 function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo {
@@ -476,6 +480,23 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
     ? workflowLabel(result?.follow_on_workflow || 'Research_Brief')
     : downstreamResearchPrompt
       ? workflowLabel(result?.downstream_workflow || 'Research_Brief')
+      : ''
+  const followOnCodingPrompt = typeof followOnRecord?.ready_to_paste_prompt === 'string'
+    ? followOnRecord.ready_to_paste_prompt.trim()
+    : ''
+  const downstreamCodingPrompt = typeof downstreamRecord?.ready_to_paste_prompt === 'string'
+    ? downstreamRecord.ready_to_paste_prompt.trim()
+    : ''
+  const codingPrompt = followOnCodingPrompt || downstreamCodingPrompt
+  const codingPromptSource = followOnCodingPrompt
+    ? workflowLabel(result?.follow_on_workflow || 'Implementation_Packet')
+    : downstreamCodingPrompt
+      ? workflowLabel(result?.downstream_workflow || 'Implementation_Packet')
+      : ''
+  const codingPromptTarget = typeof followOnRecord?.target_ai === 'string'
+    ? followOnRecord.target_ai.trim()
+    : typeof downstreamRecord?.target_ai === 'string'
+      ? downstreamRecord.target_ai.trim()
       : ''
 
   const replyCard = (() => {
@@ -574,6 +595,27 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
       }
     }
 
+    if (result.downstream_workflow === 'Implementation_Packet') {
+      const fileTargets = toStringList(downstreamRecord?.file_targets)
+      const changeSummary = toStringList(downstreamRecord?.change_summary)
+      const verificationSteps = toStringList(downstreamRecord?.verification_steps)
+      const targetAi = typeof downstreamRecord?.target_ai === 'string' ? downstreamRecord.target_ai.trim() : ''
+
+      return {
+        header,
+        body: typeof downstreamRecord?.objective === 'string' && downstreamRecord.objective.trim()
+          ? downstreamRecord.objective.trim()
+          : 'The system prepared a coding packet for implementation.',
+        modeNote,
+        sections: [
+          { label: 'Target lane', items: targetAi ? [targetAi] : [] },
+          { label: 'File targets', items: fileTargets.slice(0, 6) },
+          { label: 'Required changes', items: changeSummary.slice(0, 6) },
+          { label: 'Verification', items: verificationSteps.slice(0, 5) },
+        ].filter((section) => section.items.length > 0),
+      }
+    }
+
     if (result.intake_kind === 'handoff') {
       return {
         header,
@@ -623,6 +665,9 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
     deepResearchPrompt,
     deepResearchPromptSource,
     deepResearchProvider,
+    codingPrompt,
+    codingPromptSource,
+    codingPromptTarget,
   }
 }
 
@@ -1229,6 +1274,70 @@ function OwnerIntakePageInner() {
                                   whiteSpace: 'pre-wrap',
                                   wordBreak: 'break-word',
                                 }}>{info.deepResearchPrompt}</pre>
+                              </details>
+                            </div>
+                          )}
+
+                          {info.codingPrompt && (
+                            <div style={{
+                              ...card,
+                              marginTop: 14,
+                              padding: 14,
+                              background: 'rgba(130,220,170,.07)',
+                              borderColor: 'rgba(130,220,170,.16)',
+                            }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+                                <div style={{ display: 'grid', gap: 4 }}>
+                                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.86)' }}>
+                                    AI-1 / AI-2 Coding Prompt
+                                  </div>
+                                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.78)', lineHeight: 1.6 }}>
+                                    Ready for {info.codingPromptTarget ? routeTargetLabel(info.codingPromptTarget) : 'the implementation lane'}. Source: {info.codingPromptSource || 'Implementation Packet'}.
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      await navigator.clipboard.writeText(info.codingPrompt)
+                                      toast.show('Copied coding prompt.')
+                                    } catch {
+                                      toast.show('Could not copy the coding prompt.', 'error')
+                                    }
+                                  }}
+                                  style={{
+                                    padding: '8px 12px',
+                                    borderRadius: 999,
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    fontFamily: 'inherit',
+                                    background: 'rgba(130,220,170,.18)',
+                                    color: 'rgba(130,220,170,.98)',
+                                  }}
+                                >
+                                  Copy coding prompt
+                                </button>
+                              </div>
+
+                              <details style={{ marginTop: 12 }}>
+                                <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(130,220,170,.92)' }}>
+                                  Preview coding prompt
+                                </summary>
+                                <pre style={{
+                                  margin: '10px 0 0',
+                                  padding: 12,
+                                  borderRadius: 12,
+                                  overflow: 'auto',
+                                  background: 'rgba(0,0,0,.22)',
+                                  border: '1px solid rgba(255,255,255,.06)',
+                                  color: 'rgba(255,255,255,.78)',
+                                  fontSize: 11,
+                                  lineHeight: 1.65,
+                                  whiteSpace: 'pre-wrap',
+                                  wordBreak: 'break-word',
+                                }}>{info.codingPrompt}</pre>
                               </details>
                             </div>
                           )}

@@ -3953,6 +3953,49 @@ const AI3QAScanOutputSchema = z.object({
   next_step: z.string().default(''),
 });
 
+const IMPLEMENTATION_TARGET_VALUES = ['AI-1', 'AI-2'];
+const IMPLEMENTATION_KIND_VALUES = ['backend', 'frontend', 'fullstack'];
+const ImplementationTargetSchema = z.enum(IMPLEMENTATION_TARGET_VALUES);
+const ImplementationKindSchema = z.enum(IMPLEMENTATION_KIND_VALUES);
+
+const AI3ImplementationPacketInputSchema = z.object({
+  task_id: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().min(1),
+  planning_note_link: z.string().default(''),
+  task_note_link: z.string().default(''),
+  product_context_links: z.array(z.string()).default([]),
+  known_constraints: z.array(z.string()).default([]),
+  plan_objective: z.string().default(''),
+  plan_workstreams: z.array(z.string()).default([]),
+  missing_inputs: z.array(z.string()).default([]),
+  acceptance_criteria_seed: z.array(z.string()).default([]),
+  explicit_target_ai: z.enum(['none', ...IMPLEMENTATION_TARGET_VALUES]).default('none'),
+});
+
+const AI3ImplementationPacketOutputSchema = z.object({
+  agent: z.literal('AI-3'),
+  workflow: z.literal('implementation_packet'),
+  task_id: z.string().min(1),
+  status: WorkflowStatusSchema,
+  target_ai: ImplementationTargetSchema,
+  implementation_kind: ImplementationKindSchema,
+  objective: z.string().default(''),
+  source_of_truth_stack: z.array(z.string()).default([]),
+  file_targets: z.array(z.string()).default([]),
+  change_summary: z.array(z.string()).default([]),
+  verification_steps: z.array(z.string()).default([]),
+  coordination_notes: z.array(z.string()).default([]),
+  ready_to_paste_prompt: z.string().default(''),
+  escalate_to: WorkflowEscalationTargetSchema,
+  reason: z.string().default(''),
+  writeback_targets: z.array(z.string()).default([]),
+  writeback: WorkflowWritebackStateSchema,
+  owner_notification: WorkflowOwnerNotificationStateSchema,
+  ai_meta: WorkflowAIExecutionMetaSchema,
+  next_step: z.string().default(''),
+});
+
 const SUPPORT_EMAIL_LABEL_VALUES = ['support', 'lead', 'onboarding', 'technical', 'billing', 'compliance_risk'];
 const SUPPORT_ROUTE_LANE_VALUES = ['support_reply', 'technical_escalation', 'billing_escalation', 'compliance_escalation'];
 const SUPPORT_TECHNICAL_TARGET_VALUES = ['none', 'AI-1', 'AI-2'];
@@ -4448,6 +4491,46 @@ Return exactly this JSON shape:
   "next_step": "clear next action"
 }`;
 
+const AI3_IMPLEMENTATION_PACKET_SYSTEM_PROMPT = `You are AI 3 inside the VuriumBook AI Operating System.
+
+Your role:
+- convert an already-active task and its current plan/checklist into a code-ready implementation packet
+- target either AI-1 (backend) or AI-2 (frontend)
+- prepare a practical handoff that can immediately start coding work
+- do not invent new product scope when the current plan/checklist already exists
+
+Rules:
+- return JSON only
+- no markdown
+- no code fences
+- do not write the implementation code itself
+- prefer the current canonical checklist / plan stack over creating a parallel plan
+- if missing_inputs still contain unresolved external/product/compliance blockers, do not pretend coding can start safely
+- pick one primary target_ai (AI-1 or AI-2) and keep file_targets inside that lane's ownership as much as possible
+- if partner-lane coordination is needed, put it in coordination_notes instead of blurring ownership
+- the ready_to_paste_prompt must be strong enough that a coding AI can start implementation from it immediately
+
+Return exactly this JSON shape:
+{
+  "agent": "AI-3",
+  "workflow": "implementation_packet",
+  "task_id": "TASK-123",
+  "status": "done",
+  "target_ai": "AI-1",
+  "implementation_kind": "backend",
+  "objective": "one-sentence implementation objective",
+  "source_of_truth_stack": ["04-Tasks/TASK-123-Plan.md"],
+  "file_targets": ["backend/index.js"],
+  "change_summary": ["change 1", "change 2"],
+  "verification_steps": ["verify 1", "verify 2"],
+  "coordination_notes": ["optional coordination note"],
+  "ready_to_paste_prompt": "full coding prompt for AI-1 or AI-2",
+  "escalate_to": "AI-1",
+  "reason": "why this implementation packet is ready",
+  "writeback_targets": ["04-Tasks/Handoffs/"],
+  "next_step": "clear next action"
+}`;
+
 const AI9_SUPPORT_INBOX_SYSTEM_PROMPT = `You are AI 9 inside the VuriumBook AI Operating System.
 
 Your role:
@@ -4702,6 +4785,7 @@ const OPENAI_PRIMARY_WORKFLOW_NAMES = new Set([
 const ANTHROPIC_PRIMARY_WORKFLOW_NAMES = new Set([
   'planning_intake',
   'qa_scan',
+  'implementation_packet',
 ]);
 
 const WORKSPACE_BRAIN_TOP_LEVEL_DIRS = new Set([
@@ -4974,6 +5058,16 @@ function detectOwnerIntakeKind(input) {
     'зроби план',
     'сплануй',
     'run planning',
+    'start coding',
+    'write code',
+    'start implementation',
+    'apply the fix',
+    'make the code changes',
+    'починай код',
+    'починай писати код',
+    'починай імплементацію',
+    'зроби в коді',
+    'виправ в коді',
   ];
   const advisorySignals = [
     'скажи',
@@ -5057,6 +5151,16 @@ function shouldForceOwnerAdvisoryFollowUp(input, context) {
     'зроби план',
     'сплануй',
     'run planning',
+    'start coding',
+    'write code',
+    'start implementation',
+    'apply the fix',
+    'make the code changes',
+    'починай код',
+    'починай писати код',
+    'починай імплементацію',
+    'зроби в коді',
+    'виправ в коді',
   ];
   if (explicitExecutionSignals.some((signal) => normalizedText.includes(signal))) return false;
 
@@ -5367,6 +5471,16 @@ function shouldAutoContinueOwnerIntakeResearch(intakeKind, downstreamResult) {
   return downstreamResult.escalate_to === 'AI-5' || !!downstreamResult.requires_ai5;
 }
 
+function shouldAutoContinueOwnerIntakeImplementation(intakeKind, downstreamResult, input) {
+  if (intakeKind !== 'task') return false;
+  if (!ownerIntakeRequestsCodeExecution(input)) return false;
+  if (!downstreamResult || downstreamResult.workflow !== 'planning_intake') return false;
+  if (downstreamResult.status === 'blocked') return false;
+  if (downstreamResult.requires_ai5 || downstreamResult.requires_ai6 || downstreamResult.requires_ai7) return false;
+  if (['AI-5', 'AI-6', 'AI-7', 'Owner'].includes(safeStr(downstreamResult.escalate_to))) return false;
+  return true;
+}
+
 function buildOwnerIntakeResearchFollowOnInput(intakeId, title, input, note, downstreamResult) {
   const topicSeedLinks = inferResearchSeedNotePaths([
     safeStr(title).trim(),
@@ -5426,6 +5540,9 @@ function buildOwnerIntakeOperatorReply({ intakeKind, title, note, downstreamResu
         ? followOnResult
           ? `I also opened AI-5 research automatically so the missing context can be gathered before planning continues. I prepared a ready-to-paste AI-5 Deep Research prompt for the current research provider chain as well.`
           : `The next required lane is AI-5 research before planning can continue safely.`
+        : '',
+      followOnResult?.workflow === 'implementation_packet'
+        ? `I also prepared a coding handoff for ${safeStr(followOnResult.target_ai || 'the implementation lane')} with file targets and a ready-to-paste coding prompt, so this can move from planning into code work immediately.`
         : '',
       safeStr(followOnResult?.next_step || downstreamResult?.next_step || '').trim(),
     ].filter(Boolean);
@@ -6032,6 +6149,191 @@ function inferPlanningAcceptanceCriteria(input) {
   return uniqueList(criteria.length ? criteria : ['Acceptance criteria still need explicit review.']);
 }
 
+function ownerIntakeRequestsCodeExecution(input = {}) {
+  const normalized = `${safeStr(input.title)}\n${safeStr(input.message)}`
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) return false;
+  return [
+    /write code/,
+    /start coding/,
+    /implement now/,
+    /apply the fix/,
+    /make the code changes/,
+    /ship the fix/,
+    /починай (писати )?код/,
+    /починай імплементац/,
+    /починай реалізаці/,
+    /реалізуй .*в коді/,
+    /зроби .*в коді/,
+    /виправ .*в коді/,
+    /починай implementation/,
+    /start implementation/,
+  ].some((pattern) => pattern.test(normalized));
+}
+
+function inferExplicitImplementationTarget(input = {}) {
+  const normalized = `${safeStr(input.title)}\n${safeStr(input.message)}`
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (/(frontend|ui|screen|page|layout|component|responsive|mobile|css|button|booking page|render)/.test(normalized)) {
+    return 'AI-2';
+  }
+  if (/(backend|api|server|webhook|database|delivery|tfv|10dlc|telnyx|cron|queue|status|integration)/.test(normalized)) {
+    return 'AI-1';
+  }
+  return 'none';
+}
+
+function inferImplementationPrimaryTarget(input = {}) {
+  if (input.explicit_target_ai === 'AI-1' || input.explicit_target_ai === 'AI-2') return input.explicit_target_ai;
+
+  const normalized = `${safeStr(input.title)}\n${safeStr(input.description)}\n${safeStr(input.plan_objective)}`
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+  let frontendScore = 0;
+  let backendScore = 0;
+
+  if (/(frontend|ui|screen|page|layout|component|responsive|mobile|css|button|copy|render|visual)/.test(normalized)) frontendScore += 3;
+  if (/(booking page|settings page|dashboard|shell|signup|signin)/.test(normalized)) frontendScore += 2;
+  if (/(backend|api|server|webhook|database|delivery|tfv|10dlc|telnyx|cron|queue|status|integration|persist|validation)/.test(normalized)) backendScore += 3;
+  if (/(sms|notification|reminder|provider|send|provision|verify)/.test(normalized)) backendScore += 2;
+
+  return frontendScore > backendScore ? 'AI-2' : 'AI-1';
+}
+
+function inferImplementationKind(input = {}, targetAi = 'AI-1') {
+  const normalized = `${safeStr(input.title)}\n${safeStr(input.description)}\n${safeStr(input.plan_objective)}`
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+  const touchesFrontend = /(frontend|ui|screen|page|layout|component|responsive|mobile|css|button|booking page|settings page|dashboard|shell)/.test(normalized);
+  const touchesBackend = /(backend|api|server|webhook|database|delivery|tfv|10dlc|telnyx|cron|queue|status|integration|persist|validation|sms|notification|reminder)/.test(normalized);
+  if (touchesFrontend && touchesBackend) return 'fullstack';
+  return targetAi === 'AI-2' ? 'frontend' : 'backend';
+}
+
+function inferImplementationFileTargets(input = {}, targetAi = 'AI-1') {
+  const normalized = `${safeStr(input.title)}\n${safeStr(input.description)}\n${safeStr(input.plan_objective)}`
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (targetAi === 'AI-2') {
+    return uniqueList([
+      /(sms|notification|reminder|settings)/.test(normalized) ? 'app/settings/page.tsx' : '',
+      /(sms|notification|reminder|developer sms|tfv)/.test(normalized) ? 'app/developer/sms/page.tsx' : '',
+      /(booking|public page)/.test(normalized) ? 'app/book/[id]/page.tsx' : '',
+      'components/**',
+      'lib/**',
+      'app/globals.css',
+    ]).slice(0, 6);
+  }
+
+  return uniqueList([
+    'backend/index.js',
+    /(sms|notification|reminder|tfv|10dlc|telnyx)/.test(normalized) ? 'docs/Tasks/SMS-Notifications-Execution-Checklist.md' : '',
+    /(compliance|consent|policy|10dlc|tfv)/.test(normalized) ? 'docs/Compliance/Requirements/TFV-Reminder-SMS-Requirements.md' : '',
+  ]).slice(0, 6);
+}
+
+function buildImplementationCodingPrompt(packet) {
+  const targetAi = safeStr(packet.target_ai || 'AI-1').trim() || 'AI-1';
+  const fileTargets = Array.isArray(packet.file_targets) ? packet.file_targets.filter(Boolean) : [];
+  const sourceOfTruth = Array.isArray(packet.source_of_truth_stack) ? packet.source_of_truth_stack.filter(Boolean) : [];
+  const changeSummary = Array.isArray(packet.change_summary) ? packet.change_summary.filter(Boolean) : [];
+  const verificationSteps = Array.isArray(packet.verification_steps) ? packet.verification_steps.filter(Boolean) : [];
+  const coordinationNotes = Array.isArray(packet.coordination_notes) ? packet.coordination_notes.filter(Boolean) : [];
+
+  return [
+    `You are ${targetAi} inside the VuriumBook AI Operating System.`,
+    '',
+    `Implement task ${safeStr(packet.task_id)}.`,
+    `Objective: ${safeStr(packet.objective).trim() || 'Continue the approved implementation objective.'}`,
+    '',
+    'Use these sources of truth first:',
+    ...(sourceOfTruth.length ? sourceOfTruth.map((entry) => `- ${entry}`) : ['- Review the current task note and planning note before coding.']),
+    '',
+    'Primary file targets:',
+    ...(fileTargets.length ? fileTargets.map((entry) => `- ${entry}`) : ['- Identify the owned files first, then continue.']),
+    '',
+    'Required changes:',
+    ...(changeSummary.length ? changeSummary.map((entry) => `- ${entry}`) : ['- Continue from the current implementation packet.']),
+    '',
+    ...(coordinationNotes.length
+      ? [
+          'Coordination notes:',
+          ...coordinationNotes.map((entry) => `- ${entry}`),
+          '',
+        ]
+      : []),
+    'Verification after coding:',
+    ...(verificationSteps.length ? verificationSteps.map((entry) => `- ${entry}`) : ['- Run the most relevant verification for the changed files.']),
+    '',
+    'Rules:',
+    '- stay inside your ownership lane',
+    '- do not restart planning from scratch',
+    '- do not invent new product scope',
+    '- update the relevant docs/checklists only if they directly change',
+    '- after coding, produce a short self-check summary and the changed file list',
+  ].join('\n');
+}
+
+function buildImplementationPacketFallback(input, reason) {
+  const targetAi = inferImplementationPrimaryTarget(input);
+  const implementationKind = inferImplementationKind(input, targetAi);
+  const fileTargets = inferImplementationFileTargets(input, targetAi);
+  const sourceOfTruthStack = uniqueList([
+    safeStr(input.task_note_link).trim(),
+    safeStr(input.planning_note_link).trim(),
+    ...(Array.isArray(input.product_context_links) ? input.product_context_links : []),
+  ]).filter(Boolean);
+  const changeSummary = uniqueList([
+    safeStr(input.plan_objective || input.description || input.title).trim(),
+    ...(Array.isArray(input.plan_workstreams) ? input.plan_workstreams.map((entry) => `Address workstream: ${entry}`) : []),
+    ...(Array.isArray(input.known_constraints) ? input.known_constraints.map((entry) => `Preserve constraint: ${entry}`) : []),
+  ]).filter(Boolean);
+  const verificationSteps = uniqueList([
+    ...(Array.isArray(input.acceptance_criteria_seed) ? input.acceptance_criteria_seed : []),
+    targetAi === 'AI-2'
+      ? 'Verify browser and mobile behavior after the change.'
+      : 'Verify backend behavior and the affected workflow after the change.',
+  ]).filter(Boolean);
+  const coordinationNotes = implementationKind === 'fullstack'
+    ? [`Primary owner: ${targetAi}. Split any out-of-lane follow-up into a separate handoff for the partner implementation lane.`]
+    : [];
+
+  const result = {
+    agent: 'AI-3',
+    workflow: 'implementation_packet',
+    task_id: input.task_id,
+    status: 'partial',
+    target_ai: targetAi,
+    implementation_kind: implementationKind,
+    objective: safeStr(input.plan_objective || input.description || input.title).trim(),
+    source_of_truth_stack: sourceOfTruthStack,
+    file_targets: fileTargets,
+    change_summary: changeSummary,
+    verification_steps: verificationSteps,
+    coordination_notes: coordinationNotes,
+    ready_to_paste_prompt: '',
+    escalate_to: targetAi,
+    reason,
+    writeback_targets: ['04-Tasks/Handoffs/', '04-Tasks/Workflow-Queue.md'],
+    writeback: null,
+    owner_notification: null,
+    next_step: `Open the implementation packet for ${targetAi} and start code changes inside the owned file targets.`,
+  };
+
+  return {
+    ...result,
+    ready_to_paste_prompt: buildImplementationCodingPrompt(result),
+  };
+}
+
 function inferQATarget(changedAreas = []) {
   const text = changedAreas.join('\n').toLowerCase();
   return /(app\/|frontend|ui|screen|page|responsive|mobile)/.test(text) ? 'AI-2' : 'AI-1';
@@ -6397,6 +6699,67 @@ function buildPlanningWritebackInput(result) {
     '## Next Step',
     result.next_step || 'Review the planning intake and continue with the assigned lane.',
   ].join('\n');
+  return { relative_path: notePath, content: body, mode: 'replace', dry_run: false };
+}
+
+function buildImplementationPacketWritebackInput(result) {
+  const taskId = safeWorkflowSlug(result.task_id, 'task');
+  const targetAi = safeStr(result.target_ai || 'AI-1').trim() || 'AI-1';
+  const notePath = `04-Tasks/Handoffs/${taskId}-to-${safeWorkflowSlug(targetAi, 'AI-1')}.md`;
+  const sourceOfTruth = uniqueList(Array.isArray(result.source_of_truth_stack) ? result.source_of_truth_stack : []).filter(Boolean);
+  const fileTargets = uniqueList(Array.isArray(result.file_targets) ? result.file_targets : []).filter(Boolean);
+  const changeSummary = uniqueList(Array.isArray(result.change_summary) ? result.change_summary : []).filter(Boolean);
+  const verificationSteps = uniqueList(Array.isArray(result.verification_steps) ? result.verification_steps : []).filter(Boolean);
+  const coordinationNotes = uniqueList(Array.isArray(result.coordination_notes) ? result.coordination_notes : []).filter(Boolean);
+
+  const body = [
+    '---',
+    'type: handoff',
+    'status: active',
+    'from: AI-3',
+    `to: ${targetAi}`,
+    `created: ${toIso(new Date()).slice(0, 10)}`,
+    '---',
+    '',
+    '# Handoff',
+    '',
+    '## Completed',
+    '- Planning has already been converted into an implementation packet.',
+    `- Primary target lane: ${targetAi}`,
+    '',
+    '## Remaining',
+    ...(changeSummary.length ? changeSummary.map((entry) => `- ${entry}`) : ['- Implement the approved change set in the owned files.']),
+    '',
+    '## Source of Truth',
+    ...(sourceOfTruth.length ? sourceOfTruth.map((entry) => `- ${entry}`) : ['- pending']),
+    '',
+    '## File Targets',
+    ...(fileTargets.length ? fileTargets.map((entry) => `- ${entry}`) : ['- identify the owned code files first']),
+    '',
+    '## Verification Steps',
+    ...(verificationSteps.length ? verificationSteps.map((entry) => `- ${entry}`) : ['- run the relevant verification after coding']),
+    '',
+    '## Open Questions',
+    ...(coordinationNotes.length ? coordinationNotes.map((entry) => `- ${entry}`) : ['- none']),
+    '',
+    '## Risks',
+    `- ${safeStr(result.reason || 'Implementation packet should still respect current source-of-truth and ownership boundaries.')}`,
+    '',
+    '## Next Owner',
+    targetAi,
+    '',
+    '## Status',
+    '- non-blocking',
+    '',
+    '## Recommended Action',
+    `Start implementation in ${targetAi}'s owned scope and return a self-check summary after coding.`,
+    '',
+    '## Ready-to-Paste Coding Prompt',
+    '```text',
+    safeStr(result.ready_to_paste_prompt || '').trim() || 'No coding prompt generated.',
+    '```',
+  ].join('\n');
+
   return { relative_path: notePath, content: body, mode: 'replace', dry_run: false };
 }
 
@@ -7507,6 +7870,44 @@ async function executePlanningIntakeWorkflow(meta, context, input, { notifyOwner
   }));
 }
 
+async function executeImplementationPacketWorkflow(meta, context, input, { notifyOwner = true } = {}) {
+  const result = await runStructuredWorkflowAI({
+    workflowName: 'implementation_packet',
+    systemPrompt: AI3_IMPLEMENTATION_PACKET_SYSTEM_PROMPT,
+    input,
+    meta,
+    context,
+    fallback: buildImplementationPacketFallback(input, anthropic || openai
+      ? 'Failed to parse implementation packet AI output.'
+      : AI_NOT_CONFIGURED_REASON),
+    outputSchema: AI3ImplementationPacketOutputSchema,
+    maxTokens: 1600,
+  });
+
+  const finalizedResult = {
+    ...result,
+    ready_to_paste_prompt: safeStr(result.ready_to_paste_prompt || '').trim()
+      || buildImplementationCodingPrompt(result),
+    writeback_targets: result.writeback_targets?.length
+      ? result.writeback_targets
+      : ['04-Tasks/Handoffs/', '04-Tasks/Workflow-Queue.md'],
+    next_step: result.next_step || `Open the implementation packet for ${result.target_ai} and start coding in the owned files.`,
+  };
+
+  return AI3ImplementationPacketOutputSchema.parse(await finalizeWorkflowResult(finalizedResult, {
+    writebackBuilder: buildImplementationPacketWritebackInput,
+    ownerBuilder: notifyOwner
+      ? (finalResult) => buildGenericOwnerNotificationInput(
+        'Implementation_Packet',
+        `Implementation packet needs Owner review (${finalResult.task_id})`,
+        finalResult.reason || 'Implementation packet needs Owner review before coding continues.',
+        finalResult,
+        ['[[04-Tasks/Handoffs|Handoffs]]']
+      )
+      : null,
+  }));
+}
+
 async function executeQAScanWorkflow(meta, context, input, { notifyOwner = true } = {}) {
   const result = await runStructuredWorkflowAI({
     workflowName: 'qa_scan',
@@ -7718,6 +8119,9 @@ async function executeOwnerIntake(meta, context, input) {
       summary_note: threadSummaryNote,
     },
   };
+  const executionContext = intakeKind === 'advisory'
+    ? threadedContext
+    : await buildOwnerAdvisoryContext(threadedContext, input);
 
   let writeback = null;
   if (intakeKind !== 'advisory') {
@@ -7754,7 +8158,7 @@ async function executeOwnerIntake(meta, context, input) {
     downstreamResult = await executePlanningIntakeWorkflow(
       { ...meta, workflow_name: 'AI3_Planning_Intake', trigger_source: meta.trigger_source || 'owner_intake' },
       {
-        ...threadedContext,
+        ...executionContext,
         owner_intake_note: note.relative_path,
       },
       {
@@ -7778,11 +8182,46 @@ async function executeOwnerIntake(meta, context, input) {
       followOnResult = await executeResearchBriefWorkflow(
         { ...meta, workflow_name: 'Research_Brief', trigger_source: meta.trigger_source || 'owner_intake_follow_on' },
         {
-          ...threadedContext,
+          ...executionContext,
           owner_intake_note: note.relative_path,
           planning_note: safeStr(downstreamResult?.writeback?.relative_path || ''),
         },
         buildOwnerIntakeResearchFollowOnInput(intakeId, title, input, note, downstreamResult),
+        { notifyOwner: false }
+      );
+    } else if (shouldAutoContinueOwnerIntakeImplementation(intakeKind, downstreamResult, input)) {
+      followOnResult = await executeImplementationPacketWorkflow(
+        { ...meta, workflow_name: 'Implementation_Packet', trigger_source: meta.trigger_source || 'owner_intake_follow_on' },
+        {
+          ...executionContext,
+          owner_intake_note: note.relative_path,
+          planning_note: safeStr(downstreamResult?.writeback?.relative_path || ''),
+        },
+        {
+          task_id: intakeId,
+          title,
+          description: safeStr(input.message).trim(),
+          planning_note_link: safeStr(downstreamResult?.writeback?.relative_path || ''),
+          task_note_link: note.relative_path,
+          product_context_links: uniqueList([
+            note.relative_path,
+            safeStr(downstreamResult?.writeback?.relative_path || ''),
+            ...(input.product_context_links || []),
+            ...(input.related_links || []),
+          ]),
+          known_constraints: uniqueList(input.known_constraints || []),
+          plan_objective: safeStr(downstreamResult?.plan_skeleton?.objective || '').trim(),
+          plan_workstreams: Array.isArray(downstreamResult?.plan_skeleton?.workstreams)
+            ? downstreamResult.plan_skeleton.workstreams
+            : [],
+          missing_inputs: Array.isArray(downstreamResult?.plan_skeleton?.missing_inputs)
+            ? downstreamResult.plan_skeleton.missing_inputs
+            : [],
+          acceptance_criteria_seed: Array.isArray(downstreamResult?.plan_skeleton?.acceptance_criteria_seed)
+            ? downstreamResult.plan_skeleton.acceptance_criteria_seed
+            : [],
+          explicit_target_ai: inferExplicitImplementationTarget(input),
+        },
         { notifyOwner: false }
       );
     }
@@ -7790,7 +8229,7 @@ async function executeOwnerIntake(meta, context, input) {
     downstreamResult = await executeGrowthAssetFlowWorkflow(
       { ...meta, workflow_name: 'Growth_Asset_Flow', trigger_source: meta.trigger_source || 'owner_intake' },
       {
-        ...threadedContext,
+        ...executionContext,
         owner_intake_note: note.relative_path,
       },
       {
@@ -7814,7 +8253,7 @@ async function executeOwnerIntake(meta, context, input) {
     downstreamResult = await executeResearchBriefWorkflow(
       { ...meta, workflow_name: 'Research_Brief', trigger_source: meta.trigger_source || 'owner_intake' },
       {
-        ...threadedContext,
+        ...executionContext,
         owner_intake_note: note.relative_path,
       },
       {
@@ -7904,7 +8343,11 @@ async function executeOwnerIntake(meta, context, input) {
     owner_notification: downstreamResult?.owner_notification || null,
     operator_reply: operatorReply,
     chat_memory: chatMemory,
-    follow_on_workflow: followOnResult?.workflow === 'research_brief' ? 'Research_Brief' : 'none',
+    follow_on_workflow: followOnResult?.workflow === 'research_brief'
+      ? 'Research_Brief'
+      : followOnResult?.workflow === 'implementation_packet'
+        ? 'Implementation_Packet'
+        : 'none',
     follow_on_status: followOnStatus,
     follow_on_reference: followOnResult?.writeback?.relative_path || '',
     follow_on_result: followOnResult,
@@ -8323,6 +8766,18 @@ app.post('/api/vurium-dev/ai/research-brief', requireSuperadmin, async (req, res
     if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid research-brief payload', details: e.issues });
     console.error('AI research brief error:', e.message);
     res.status(500).json({ error: 'Failed to generate research brief' });
+  }
+});
+
+app.post('/api/vurium-dev/ai/implementation-packet', requireSuperadmin, async (req, res) => {
+  try {
+    const { meta, context, payload } = unwrapWorkflowEnvelope(req.body);
+    const input = AI3ImplementationPacketInputSchema.parse(payload);
+    res.json(await executeImplementationPacketWorkflow(meta, context, input));
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid implementation-packet payload', details: e.issues });
+    console.error('AI implementation packet error:', e.message);
+    res.status(500).json({ error: 'Failed to generate implementation packet' });
   }
 });
 
