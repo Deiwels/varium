@@ -4024,6 +4024,8 @@ Rules:
 - if the user is asking for understanding, advice, analysis, or status, keep it advisory first
 - if the user clearly asks to start or execute work, suggest the correct next mode instead of forcing a task automatically
 - when context.project_snapshot is provided, ground the answer in that internal context first
+- when context.project_snapshot.brain_note is provided, treat that note as the central working-memory summary for the current topic and answer from it first
+- when context.project_snapshot.canonical_topic_notes is provided, treat those notes as the source-of-truth stack for the topic before relying on recent ad-hoc task notes
 - when context.project_snapshot.topic_notes is provided, treat those notes as the primary history for the current topic before suggesting any new planning
 - when context.owner_conversation_history or context.active_focus is provided, continue the same thread instead of acting like this is a brand new conversation
 - if the owner says "continue", "this issue", or "that problem", infer the most recent relevant focus from conversation context before asking them to restate it
@@ -4926,16 +4928,34 @@ function buildOwnerIntakeOperatorReply({ intakeKind, title, note, downstreamResu
 }
 
 function buildOwnerAdvisoryFallback(input, reason) {
+  return buildOwnerAdvisoryFallbackWithContext(input, reason, {});
+}
+
+function buildOwnerAdvisoryFallbackWithContext(input, reason, advisoryContext = {}) {
+  const brainNotePath = safeStr(advisoryContext?.project_snapshot?.brain_note?.path || '').trim();
+  const topicNotes = Array.isArray(advisoryContext?.project_snapshot?.topic_notes)
+    ? advisoryContext.project_snapshot.topic_notes
+    : [];
+  const referencedNotes = uniqueList([
+    brainNotePath,
+    ...topicNotes.map((entry) => safeStr(entry?.path).trim()),
+  ]).filter(Boolean).slice(0, 8);
+  const brainLead = brainNotePath
+    ? ` I grounded this in ${brainNotePath} and the existing topic notes.`
+    : '';
+
   return {
     agent: 'SYSTEM',
     workflow: 'owner_advisory',
     status: 'partial',
-    reply: `I understood this as an exploratory owner request. I have not created a task yet. ${reason}`,
-    referenced_notes: [],
+    reply: `I understood this as an exploratory owner request. I have not created a task yet.${brainLead} ${reason}`.trim(),
+    referenced_notes: referencedNotes,
     suggested_mode: 'task',
     reason,
     ai_meta: null,
-    next_step: 'If you want execution to start, say explicitly: start the project, create the task, or plan this now.',
+    next_step: brainNotePath
+      ? 'If you want execution to start, say explicitly: use the existing SMS brain and produce one consolidated execution checklist.'
+      : 'If you want execution to start, say explicitly: start the project, create the task, or plan this now.',
   };
 }
 
@@ -5042,15 +5062,63 @@ function extractAdvisoryTopicKeywords(context = {}, input = {}) {
 }
 
 function scoreAdvisoryNoteCandidate(note, keywords = []) {
-  const haystack = `${safeStr(note.relativePath)} ${safeStr(note.excerpt)}`.toLowerCase();
+  const relativePath = safeStr(note.relativePath);
+  const relativePathLower = relativePath.toLowerCase();
+  const haystack = `${relativePath} ${safeStr(note.excerpt)}`.toLowerCase();
   let score = 0;
   for (const keyword of keywords) {
     if (!keyword) continue;
-    if (haystack.includes(keyword.toLowerCase())) score += safeStr(note.relativePath).toLowerCase().includes(keyword.toLowerCase()) ? 5 : 2;
+    if (haystack.includes(keyword.toLowerCase())) score += relativePathLower.includes(keyword.toLowerCase()) ? 5 : 2;
   }
   if (/sms|notification|reminder|tfv|10dlc|telnyx/.test(haystack)) score += 2;
   if (/plan|brief|launch|completion|checklist|requirements/.test(haystack)) score += 1;
+  if (relativePathLower.startsWith('tasks/')) score += 4;
+  if (/brain/.test(relativePathLower)) score += 14;
+  if (/sms-finalization-plan|launch-completion|implementation-plan-v2|live-sms-verification-checklist|tfv-reminder-sms-requirements|reminder-sms-launch-readiness/.test(relativePathLower)) score += 8;
+  if (/ai5-research-brief-reminder-sms|tfv-inspection-result/.test(relativePathLower)) score += 6;
+  if (relativePathLower.startsWith('04-tasks/')) score -= 1;
   return score;
+}
+
+function advisoryTopicLooksLikeSms(keywords = []) {
+  return keywords.some((keyword) => /sms|notification|reminder|tfv|10dlc|telnyx/.test(String(keyword || '').toLowerCase()));
+}
+
+function getCanonicalTopicReferencePaths(context = {}, input = {}) {
+  const keywords = extractAdvisoryTopicKeywords(context, input);
+  if (!keywords.length) return [];
+
+  if (advisoryTopicLooksLikeSms(keywords)) {
+    return [
+      'Tasks/SMS-Notifications-Brain.md',
+      'Tasks/SMS Finalization Plan.md',
+      'Tasks/Reminder-SMS-TFV-Implementation-Plan-v2.md',
+      'Tasks/Reminder-SMS-Launch-Completion.md',
+      'Compliance/Requirements/TFV-Reminder-SMS-Requirements.md',
+      'Tasks/AI5-Research-Brief-Reminder-SMS.md',
+      'Tasks/TFV-Inspection-Result-2026-04-15.md',
+      'Tasks/Live-SMS-Verification-Checklist.md',
+      'Features/SMS & 10DLC.md',
+    ];
+  }
+
+  return [];
+}
+
+async function readTopicBrainNote(context = {}, input = {}) {
+  const keywords = extractAdvisoryTopicKeywords(context, input);
+  if (!keywords.length) return null;
+
+  const candidates = [];
+  if (advisoryTopicLooksLikeSms(keywords)) {
+    candidates.push('Tasks/SMS-Notifications-Brain.md');
+  }
+
+  for (const candidate of candidates) {
+    const note = await readAdvisoryMarkdownNote(candidate, 2200);
+    if (note) return note;
+  }
+  return null;
 }
 
 async function listTopicAdvisoryNotes(context = {}, input = {}, limit = 8) {
@@ -5106,11 +5174,25 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
   const activeFocusPlanPath = activeFocusPath.startsWith('04-Tasks/TASK-')
     ? activeFocusPath.replace(/\.md$/, '-Plan.md')
     : '';
-  const [activeFocusNote, activeFocusPlan, topicNotes] = await Promise.all([
+  const canonicalTopicReferencePaths = getCanonicalTopicReferencePaths(context, input);
+  const [activeFocusNote, activeFocusPlan, topicBrainNote, topicNotes, canonicalTopicNotes] = await Promise.all([
     activeFocusPath ? readAdvisoryMarkdownNote(activeFocusPath, 1800) : Promise.resolve(null),
     activeFocusPlanPath ? readAdvisoryMarkdownNote(activeFocusPlanPath, 1800) : Promise.resolve(null),
+    readTopicBrainNote(context, input),
     listTopicAdvisoryNotes(context, input, 8),
+    Promise.all(canonicalTopicReferencePaths.map((relativePath) => readAdvisoryMarkdownNote(relativePath, 1800))),
   ]);
+
+  const normalizedTopicNotes = uniqueList([
+    safeStr(topicBrainNote?.path).trim(),
+    ...canonicalTopicNotes.map((entry) => safeStr(entry?.path).trim()),
+    ...topicNotes.map((entry) => safeStr(entry?.path).trim()),
+  ]).filter(Boolean).map((notePath) => {
+    if (topicBrainNote?.path === notePath) return topicBrainNote;
+    const canonicalMatch = canonicalTopicNotes.find((entry) => entry?.path === notePath);
+    if (canonicalMatch) return canonicalMatch;
+    return topicNotes.find((entry) => entry.path === notePath);
+  }).filter(Boolean);
 
   return {
     ...context,
@@ -5122,7 +5204,9 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
       recent_research_notes: recentResearch,
       active_focus_note: activeFocusNote,
       active_focus_plan_note: activeFocusPlan,
-      topic_notes: topicNotes,
+      brain_note: topicBrainNote,
+      canonical_topic_notes: canonicalTopicNotes.filter(Boolean),
+      topic_notes: normalizedTopicNotes,
     },
   };
 }
@@ -6686,14 +6770,15 @@ async function executeOwnerAdvisory(meta, context, input) {
     },
     meta,
     context: advisoryContext,
-    fallback: buildOwnerAdvisoryFallback(input, anthropic || openai
+    fallback: buildOwnerAdvisoryFallbackWithContext(input, anthropic || openai
       ? 'The advisory response fell back to a safer draft because parsing did not complete.'
-      : AI_NOT_CONFIGURED_REASON),
+      : AI_NOT_CONFIGURED_REASON, advisoryContext),
     outputSchema: OwnerAdvisoryOutputSchema,
     maxTokens: 1100,
   });
 
   const referencedNotes = uniqueList([
+    safeStr(advisoryContext?.project_snapshot?.brain_note?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.active_focus_note?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.active_focus_plan_note?.path || ''),
     ...((Array.isArray(advisoryContext?.project_snapshot?.topic_notes) ? advisoryContext.project_snapshot.topic_notes : [])
