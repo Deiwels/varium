@@ -3871,7 +3871,7 @@ PRIORITIES:
 IMPORTANT: Return ONLY valid JSON, no markdown, no code fences. Aim for 5-10 actionable findings per scan.`;
 
 const WORKFLOW_STATUS_VALUES = ['done', 'partial', 'blocked', 'needs_review', 'queued'];
-const WORKFLOW_ESCALATION_TARGET_VALUES = ['none', 'AI-1', 'AI-2', 'AI-3', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11', 'Owner'];
+const WORKFLOW_ESCALATION_TARGET_VALUES = ['none', 'AI-1', 'AI-2', 'AI-3', 'AI-4', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11', 'Owner'];
 const WorkflowStatusSchema = z.enum(WORKFLOW_STATUS_VALUES);
 const WorkflowEscalationTargetSchema = z.enum(WORKFLOW_ESCALATION_TARGET_VALUES);
 const WorkflowWritebackStateSchema = z.object({
@@ -4462,6 +4462,48 @@ const OwnerThreadExecutionForkOutputSchema = z.object({
   chat_memory: OwnerThreadMemoryStateSchema.nullable().default(null),
 });
 
+const DAILY_REVIEW_AI_VALUES = ['AI-1', 'AI-2', 'AI-3', 'AI-4', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11'];
+const DAILY_REVIEW_LANE_STATUS_VALUES = ['active', 'watch', 'idle', 'blocked'];
+const DAILY_REVIEW_PRIORITY_VALUES = ['critical', 'high', 'medium', 'low'];
+const DailyReviewAIEnumSchema = z.enum(DAILY_REVIEW_AI_VALUES);
+const DailyReviewLaneStatusSchema = z.enum(DAILY_REVIEW_LANE_STATUS_VALUES);
+const DailyReviewPrioritySchema = z.enum(DAILY_REVIEW_PRIORITY_VALUES);
+
+const DailyProjectReviewInputSchema = z.object({
+  project: z.string().default('VuriumBook'),
+  triggered_by: z.string().default('manual'),
+  force: z.boolean().default(false),
+});
+
+const DailyProjectReviewLaneRecommendationSchema = z.object({
+  ai: DailyReviewAIEnumSchema,
+  status: DailyReviewLaneStatusSchema.default('idle'),
+  priority: DailyReviewPrioritySchema.default('medium'),
+  should_engage: z.boolean().default(false),
+  summary: z.string().default(''),
+  next_action: z.string().default(''),
+});
+
+const DailyProjectReviewOutputSchema = z.object({
+  agent: z.literal('SYSTEM'),
+  workflow: z.literal('daily_project_review'),
+  status: WorkflowStatusSchema,
+  project: z.string().default('VuriumBook'),
+  review_date: z.string().default(''),
+  overall_summary: z.string().default(''),
+  top_blockers: z.array(z.string()).default([]),
+  owner_actions: z.array(z.string()).default([]),
+  lane_recommendations: z.array(DailyProjectReviewLaneRecommendationSchema).default([]),
+  referenced_notes: z.array(z.string()).default([]),
+  review_note_relative_path: z.string().default(''),
+  review_note_absolute_path: z.string().default(''),
+  writeback: WorkflowWritebackStateSchema,
+  owner_notification: WorkflowOwnerNotificationStateSchema,
+  ai_meta: WorkflowAIExecutionMetaSchema,
+  reason: z.string().default(''),
+  next_step: z.string().default(''),
+});
+
 const AI3_PLANNING_INTAKE_SYSTEM_PROMPT = `You are AI 3 inside the VuriumBook AI Operating System.
 
 Your role:
@@ -4479,6 +4521,7 @@ Rules:
 - keep recommended_sequence realistic and ownership-based
 - when context.owner_conversation_history or context.active_focus is present, use that thread context to resolve references like "this", "that problem", or "continue"
 - when context.thread_memory.summary_note is provided, treat it as durable memory from the same chat thread before asking the owner to restate context
+- when context.project_snapshot.local_daily_review is provided, treat it as the freshest whole-project scan before inventing new planning work
 - do not force the owner to restate the same problem if the recent conversation already identifies the active issue
 - when context.project_snapshot.local_topic_execution_checklist is provided, treat it as the current execution scaffold for that topic before inventing any new top-level plan
 - if the topic already has a canonical execution checklist, only create a new planning shell when the owner is clearly changing scope or asking for a materially different workstream
@@ -4524,6 +4567,7 @@ Rules:
 - when context.project_snapshot is provided, ground the answer in that internal context first
 - when context.project_snapshot.local_project_brain is provided, treat it as the top-level project memory for broad project status questions
 - when context.project_snapshot.local_current_state is provided, treat it as the freshest operational snapshot before relying on older queue items
+- when context.project_snapshot.local_daily_review is provided, treat it as the freshest whole-project daily scan and use it before older thread/task noise
 - when context.project_snapshot.local_execution_checklist is provided, use it to explain the next practical build step
 - when context.project_snapshot.brain_note is provided, treat that note as the central working-memory summary for the current topic and answer from it first
 - when context.project_snapshot.local_topic_execution_checklist is provided, treat it as the single operational checklist for the topic and prefer it over scattered historical plans
@@ -4564,6 +4608,49 @@ Allowed suggested_mode values only:
 - "truth_update_draft"
 
 If the owner should simply keep talking in the same chat, use "advisory", not "continue_advisory" and not any custom value.`;
+
+const DAILY_PROJECT_REVIEW_SYSTEM_PROMPT = `You are the daily project review orchestrator inside the VuriumBook AI Operating System.
+
+Your role:
+- scan the current project brain, current state, execution checklist, topic brains, latest daily review, recent task notes, recent research notes, and recent thread summaries
+- produce one grounded daily review for the whole project
+- tell the owner what changed, what is blocked, and what each AI lane should do next
+- do not invent new work if the current system already has a clear checklist
+
+Rules:
+- return JSON only
+- no markdown
+- no code fences
+- ground the review in the provided notes first
+- prefer one practical next action per lane over vague commentary
+- if a lane does not need work today, mark it idle and say so plainly
+- if the project is still mostly centered on one dominant workstream, say that clearly instead of pretending all lanes are equally busy
+- keep AI-3 focused on planning/QA governance, AI-1 on backend execution, AI-2 on frontend execution, AI-4 on incidents, AI-5 on external truth, AI-6 on product framing, AI-7 on compliance translation, AI-8 on growth, AI-9 on support, AI-10 on video, and AI-11 on creative
+
+Return exactly this JSON shape:
+{
+  "agent": "SYSTEM",
+  "workflow": "daily_project_review",
+  "status": "done",
+  "project": "VuriumBook",
+  "review_date": "2026-04-17",
+  "overall_summary": "one concise paragraph",
+  "top_blockers": ["blocker 1", "blocker 2"],
+  "owner_actions": ["action 1", "action 2"],
+  "lane_recommendations": [
+    {
+      "ai": "AI-1",
+      "status": "active",
+      "priority": "high",
+      "should_engage": true,
+      "summary": "what this lane should understand today",
+      "next_action": "one concrete next action"
+    }
+  ],
+  "referenced_notes": ["Projects/VuriumBook/Project-Brain.md"],
+  "reason": "why this review is trustworthy",
+  "next_step": "one clear next step for the owner"
+}`;
 
 const AI3_QA_SCAN_SYSTEM_PROMPT = `You are AI 3 inside the VuriumBook AI Operating System.
 
@@ -4610,6 +4697,7 @@ Rules:
 - no code fences
 - do not write the implementation code itself
 - prefer the current canonical checklist / plan stack over creating a parallel plan
+- when context.project_snapshot.local_daily_review is provided, treat it as the freshest execution-wide snapshot before widening scope
 - if missing_inputs still contain unresolved external/product/compliance blockers, do not pretend coding can start safely
 - pick one primary target_ai (AI-1 or AI-2) and keep file_targets inside that lane's ownership as much as possible
 - if partner-lane coordination is needed, put it in coordination_notes instead of blurring ownership
@@ -5764,6 +5852,7 @@ function buildOwnerAdvisoryFallbackWithContext(input, reason, advisoryContext = 
     : null;
   const projectBrainPath = safeStr(advisoryContext?.project_snapshot?.local_project_brain?.path || '').trim();
   const currentStatePath = safeStr(advisoryContext?.project_snapshot?.local_current_state?.path || '').trim();
+  const dailyReviewPath = safeStr(advisoryContext?.project_snapshot?.local_daily_review?.path || '').trim();
   const threadSummaryPath = safeStr(advisoryContext?.thread_memory?.summary_note?.path || '').trim();
   const brainNotePath = safeStr(advisoryContext?.project_snapshot?.brain_note?.path || '').trim();
   const topicNotes = Array.isArray(advisoryContext?.project_snapshot?.topic_notes)
@@ -5772,6 +5861,7 @@ function buildOwnerAdvisoryFallbackWithContext(input, reason, advisoryContext = 
   const referencedNotes = uniqueList([
     projectBrainPath,
     currentStatePath,
+    dailyReviewPath,
     threadSummaryPath,
     brainNotePath,
     ...topicNotes.map((entry) => safeStr(entry?.path).trim()),
@@ -5881,6 +5971,262 @@ async function writeWorkspaceBrainNote(relativePath, content) {
   await fsPromises.mkdir(path.dirname(absolute), { recursive: true });
   await fsPromises.writeFile(absolute, safeStr(content), 'utf8');
   return { path: cleaned, absolute };
+}
+
+function buildDailyProjectReviewRelativePath(project = 'VuriumBook', date = new Date()) {
+  return `Projects/${safeWorkflowSlug(project, 'project')}/Reviews/Daily/${toIso(date).slice(0, 10)}-AI-Daily-Review.md`;
+}
+
+function stringifyFrontmatterJson(value, fallback = '[]') {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function parseFrontmatterJson(rawValue, fallback) {
+  const raw = safeStr(rawValue).trim();
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+
+function compactFrontmatterSummary(value) {
+  return safeStr(value).replace(/\s+/g, ' ').trim().slice(0, 600);
+}
+
+async function listWorkspaceBrainMarkdownNotes(relativeDir, limit = 6, maxChars = 1200) {
+  try {
+    const cleaned = safeStr(relativeDir).replace(/\\/g, '/').replace(/^\/+/, '');
+    if (!cleaned) return [];
+    const root = getWorkspaceBrainRoot();
+    const absoluteDir = path.resolve(root, cleaned);
+    if (!(absoluteDir === root || absoluteDir.startsWith(root + path.sep))) return [];
+    const entries = await fsPromises.readdir(absoluteDir, { withFileTypes: true });
+    const files = entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+      .map((entry) => entry.name);
+
+    const enriched = await Promise.all(files.map(async (fileName) => {
+      const absolute = path.join(absoluteDir, fileName);
+      const stat = await fsPromises.stat(absolute);
+      return {
+        relativePath: path.posix.join(cleaned, fileName),
+        mtimeMs: stat.mtimeMs,
+      };
+    }));
+
+    const sorted = enriched.sort((a, b) => b.mtimeMs - a.mtimeMs).slice(0, limit);
+    const notes = await Promise.all(sorted.map(async (entry) => {
+      const note = await readWorkspaceBrainMarkdownNote(entry.relativePath, maxChars);
+      return note ? { ...note, modified_at: new Date(entry.mtimeMs).toISOString() } : null;
+    }));
+    return notes.filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+async function readLatestWorkspaceBrainDailyReview(project = 'VuriumBook') {
+  const relativeDir = `Projects/${safeWorkflowSlug(project, 'project')}/Reviews/Daily`;
+  const notes = await listWorkspaceBrainMarkdownNotes(relativeDir, 1, 2400);
+  const latest = notes[0];
+  if (!latest) return null;
+  const raw = await readWorkspaceBrainRawNote(latest.path);
+  const frontmatter = parseFrontmatterBlock(raw);
+  return {
+    ...latest,
+    review_date: safeStr(frontmatter.review_date).trim(),
+    overall_summary: safeStr(frontmatter.overall_summary).trim(),
+    top_blockers: parseFrontmatterJson(frontmatter.top_blockers_json, []),
+    owner_actions: parseFrontmatterJson(frontmatter.owner_actions_json, []),
+    lane_recommendations: parseFrontmatterJson(frontmatter.lane_recommendations_json, []),
+    referenced_notes: parseFrontmatterJson(frontmatter.referenced_notes_json, []),
+    updated: safeStr(frontmatter.updated).trim(),
+    status: safeStr(frontmatter.status).trim() || 'done',
+  };
+}
+
+function buildDailyProjectReviewFallback(input, reviewContext = {}, reason = '') {
+  const referencedNotes = uniqueList([
+    safeStr(reviewContext?.project_snapshot?.local_project_brain?.path || ''),
+    safeStr(reviewContext?.project_snapshot?.local_current_state?.path || ''),
+    safeStr(reviewContext?.project_snapshot?.local_execution_checklist?.path || ''),
+    safeStr(reviewContext?.project_snapshot?.local_daily_review?.path || ''),
+    ...((Array.isArray(reviewContext?.project_snapshot?.topic_notes) ? reviewContext.project_snapshot.topic_notes : [])
+      .map((entry) => safeStr(entry?.path || '').trim())),
+  ]).filter(Boolean);
+
+  return {
+    agent: 'SYSTEM',
+    workflow: 'daily_project_review',
+    status: 'partial',
+    project: safeStr(input?.project || 'VuriumBook') || 'VuriumBook',
+    review_date: toIso(new Date()).slice(0, 10),
+    overall_summary: 'The project is still centered on SMS / notifications launch readiness, while the workspace brain and copilot memory are being stabilized around one shared project state.',
+    top_blockers: [
+      'SMS notifications still need the real TFV / live-delivery completion path.',
+      'Old notes and historical plans still create noise around the current execution checklist.',
+      'OpenAI is still not active in the shared copilot flow, so Claude remains the fallback provider for all lanes.',
+    ],
+    owner_actions: [
+      'Keep one canonical SMS checklist and stop opening parallel SMS plans.',
+      'Use the daily review plus project brain as the first read for all new owner questions.',
+      'Connect OpenAI later, but do not block current execution on that integration.',
+    ],
+    lane_recommendations: [
+      {
+        ai: 'AI-1',
+        status: 'active',
+        priority: 'high',
+        should_engage: true,
+        summary: 'Backend execution is still the main live blocker because SMS TFV / sender readiness must be completed truthfully.',
+        next_action: 'Continue the TFV completion path and verify one live SMS pilot against the existing execution checklist.',
+      },
+      {
+        ai: 'AI-2',
+        status: 'watch',
+        priority: 'medium',
+        should_engage: true,
+        summary: 'Frontend work matters mainly where status visibility or owner/operator UX still hides the true SMS state.',
+        next_action: 'Keep UI/status clarity aligned with the real SMS lifecycle and do not overstate delivery readiness.',
+      },
+      {
+        ai: 'AI-3',
+        status: 'active',
+        priority: 'high',
+        should_engage: true,
+        summary: 'Verdent should keep the workstream on one checklist and prevent new plan sprawl.',
+        next_action: 'Route new SMS questions back to the existing execution checklist instead of creating parallel plans.',
+      },
+      {
+        ai: 'AI-4',
+        status: 'idle',
+        priority: 'low',
+        should_engage: false,
+        summary: 'Emergency handling is only needed if live delivery or provisioning starts failing in production.',
+        next_action: 'Stand by until there is a real incident.',
+      },
+      {
+        ai: 'AI-5',
+        status: 'watch',
+        priority: 'medium',
+        should_engage: true,
+        summary: 'Research is needed only when a blocker depends on missing vendor/carrier truth rather than internal execution.',
+        next_action: 'Run source-backed research only if the TFV or carrier rules are still unclear.',
+      },
+      {
+        ai: 'AI-6',
+        status: 'watch',
+        priority: 'medium',
+        should_engage: true,
+        summary: 'Product strategy should keep launch work focused on one blocker at a time.',
+        next_action: 'Confirm that SMS remains the top launch blocker before widening scope.',
+      },
+      {
+        ai: 'AI-7',
+        status: 'watch',
+        priority: 'medium',
+        should_engage: true,
+        summary: 'Compliance interpretation is only active when wording or consent handling changes.',
+        next_action: 'Review only if SMS consent language or TFV requirements shift.',
+      },
+      ...['AI-8', 'AI-9', 'AI-10', 'AI-11'].map((ai) => ({
+        ai,
+        status: 'idle',
+        priority: 'low',
+        should_engage: false,
+        summary: 'This lane is not the primary blocker today.',
+        next_action: 'Stand by until the current SMS / launch blocker is reduced.',
+      })),
+    ],
+    referenced_notes: referencedNotes,
+    review_note_relative_path: '',
+    review_note_absolute_path: '',
+    writeback: null,
+    owner_notification: null,
+    ai_meta: null,
+    reason: safeStr(reason || 'The daily review fell back to a safer draft summary because parsing did not complete.'),
+    next_step: 'Use this daily review as the shared baseline, then continue the current main blocker instead of reopening broad planning.',
+  };
+}
+
+function buildDailyProjectReviewNote(result) {
+  const relativePath = buildDailyProjectReviewRelativePath(result.project || 'VuriumBook');
+  const absolutePath = toWorkspaceKnowledgeAbsolutePath(relativePath);
+  const updatedAt = toIso(new Date());
+  const laneSections = (Array.isArray(result.lane_recommendations) ? result.lane_recommendations : [])
+    .map((entry) => [
+      `### ${safeStr(entry.ai || '').trim() || 'AI'}`,
+      `- Status: ${safeStr(entry.status || 'idle')}`,
+      `- Priority: ${safeStr(entry.priority || 'medium')}`,
+      `- Should engage: ${entry.should_engage ? 'yes' : 'no'}`,
+      `- Summary: ${safeStr(entry.summary || '').trim() || 'No update.'}`,
+      `- Next action: ${safeStr(entry.next_action || '').trim() || 'Stand by.'}`,
+      '',
+    ].join('\n'))
+    .join('\n');
+
+  const content = [
+    '---',
+    'type: daily-project-review',
+    `status: ${safeStr(result.status || 'done') || 'done'}`,
+    `project: ${safeStr(result.project || 'VuriumBook') || 'VuriumBook'}`,
+    `review_date: ${safeStr(result.review_date || toIso(new Date()).slice(0, 10))}`,
+    `updated: ${updatedAt}`,
+    `overall_summary: ${compactFrontmatterSummary(result.overall_summary)}`,
+    `top_blockers_json: ${stringifyFrontmatterJson(result.top_blockers || [], '[]')}`,
+    `owner_actions_json: ${stringifyFrontmatterJson(result.owner_actions || [], '[]')}`,
+    `lane_recommendations_json: ${stringifyFrontmatterJson(result.lane_recommendations || [], '[]')}`,
+    `referenced_notes_json: ${stringifyFrontmatterJson(result.referenced_notes || [], '[]')}`,
+    '---',
+    '',
+    `# Daily AI Review — ${safeStr(result.review_date || toIso(new Date()).slice(0, 10))}`,
+    '',
+    '## Overall Summary',
+    safeStr(result.overall_summary || '').trim() || 'No summary generated.',
+    '',
+    '## Top Blockers',
+    ...markdownList(result.top_blockers || [], '- none'),
+    '',
+    '## Owner Actions',
+    ...markdownList(result.owner_actions || [], '- none'),
+    '',
+    '## AI Lane Directions',
+    laneSections || 'No lane recommendations generated.',
+    '',
+    '## Referenced Notes',
+    ...markdownList(result.referenced_notes || [], '- none'),
+    '',
+    '## Next Step',
+    safeStr(result.next_step || '').trim() || 'Continue from the main blocker identified above.',
+  ].join('\n');
+
+  return { relativePath, absolutePath, content };
+}
+
+async function persistDailyProjectReview(result) {
+  const note = buildDailyProjectReviewNote(result);
+  try {
+    await writeWorkspaceBrainNote(note.relativePath, note.content);
+    return {
+      status: 'done',
+      relative_path: note.relativePath,
+      absolute_path: note.absolutePath,
+      reason: 'Daily project review saved to the local workspace brain.',
+    };
+  } catch (error) {
+    return {
+      status: 'blocked',
+      relative_path: note.relativePath,
+      absolute_path: note.absolutePath,
+      reason: `Daily review writeback failed: ${safeStr(error?.message || 'unknown error')}`,
+    };
+  }
 }
 
 function sanitizeOwnerThreadId(value) {
@@ -6352,10 +6698,11 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
     : '';
   const threadId = safeStr(input?.thread_id).trim();
   const canonicalTopicReferencePaths = getCanonicalTopicReferencePaths(context, input);
-  const [localProjectBrain, localCurrentState, localExecutionChecklist, threadSummaryNote, activeFocusNote, activeFocusPlan, topicBrainNote, topicExecutionChecklistNote, topicNotes, canonicalTopicNotes] = await Promise.all([
+  const [localProjectBrain, localCurrentState, localExecutionChecklist, localDailyReview, threadSummaryNote, activeFocusNote, activeFocusPlan, topicBrainNote, topicExecutionChecklistNote, topicNotes, canonicalTopicNotes] = await Promise.all([
     readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Project-Brain.md', 2200),
     readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Current-State.md', 2200),
     readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Execution-Checklist.md', 2200),
+    readLatestWorkspaceBrainDailyReview('VuriumBook'),
     threadId ? readWorkspaceBrainThreadSummary(threadId) : Promise.resolve(null),
     activeFocusPath ? readAdvisoryMarkdownNote(activeFocusPath, 1800) : Promise.resolve(null),
     activeFocusPlanPath ? readAdvisoryMarkdownNote(activeFocusPlanPath, 1800) : Promise.resolve(null),
@@ -6388,6 +6735,7 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
       local_project_brain: localProjectBrain,
       local_current_state: localCurrentState,
       local_execution_checklist: localExecutionChecklist,
+      local_daily_review: localDailyReview,
       local_topic_execution_checklist: topicExecutionChecklistNote,
       recent_task_notes: recentTasks,
       recent_research_notes: recentResearch,
@@ -6402,6 +6750,49 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
       summary_note: threadSummaryNote,
     },
   };
+}
+
+async function buildDailyProjectReviewContext(project = 'VuriumBook') {
+  const projectSlug = safeWorkflowSlug(project, 'VuriumBook');
+  const [localProjectBrain, localCurrentState, localExecutionChecklist, localDailyReview, topicNotes, recentTasks, recentResearch, recentThreads] = await Promise.all([
+    readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Project-Brain.md`, 2200),
+    readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Current-State.md`, 2200),
+    readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Execution-Checklist.md`, 2200),
+    readLatestWorkspaceBrainDailyReview(projectSlug),
+    listWorkspaceBrainMarkdownNotes(`Projects/${projectSlug}/Topics`, 8, 1800),
+    listRecentAdvisoryNotes('04-Tasks', 6),
+    listRecentAdvisoryNotes('07-Research', 5),
+    listWorkspaceBrainProjectThreads(projectSlug),
+  ]);
+
+  const recentThreadSummaries = (await Promise.all(
+    (Array.isArray(recentThreads) ? recentThreads : [])
+      .slice(0, 6)
+      .map((thread) => readWorkspaceBrainMarkdownNote(safeStr(thread.summary_path || ''), 1400))
+  )).filter(Boolean);
+
+  return {
+    project_snapshot: {
+      local_project_brain: localProjectBrain,
+      local_current_state: localCurrentState,
+      local_execution_checklist: localExecutionChecklist,
+      local_daily_review: localDailyReview,
+      topic_notes: topicNotes,
+      recent_task_notes: recentTasks,
+      recent_research_notes: recentResearch,
+    },
+    thread_memory: {
+      recent_thread_summaries: recentThreadSummaries,
+    },
+  };
+}
+
+function appendLatestDailyReviewPath(entries = [], latestDailyReview = null) {
+  const latestPath = safeStr(latestDailyReview?.path || '').trim();
+  return uniqueList([
+    ...entries,
+    latestPath,
+  ]).filter(Boolean);
 }
 
 function inferPlanningWorkstreams(input) {
@@ -8726,12 +9117,22 @@ async function executeGrowthAssetFlow(meta, context, input) {
 }
 
 async function executePlanningIntakeWorkflow(meta, context, input, { notifyOwner = true } = {}) {
+  const latestDailyReview = await readLatestWorkspaceBrainDailyReview('VuriumBook');
+  const planningContext = {
+    ...context,
+    project_snapshot: {
+      ...(context && typeof context === 'object' && context.project_snapshot && typeof context.project_snapshot === 'object'
+        ? context.project_snapshot
+        : {}),
+      local_daily_review: latestDailyReview,
+    },
+  };
   const result = await runStructuredWorkflowAI({
     workflowName: 'planning_intake',
     systemPrompt: AI3_PLANNING_INTAKE_SYSTEM_PROMPT,
     input,
     meta,
-    context,
+    context: planningContext,
     fallback: buildPlanningFallback(input, anthropic ? 'Failed to parse planning intake AI output.' : AI_NOT_CONFIGURED_REASON),
     outputSchema: AI3PlanningIntakeOutputSchema,
     maxTokens: 1400,
@@ -8752,12 +9153,22 @@ async function executePlanningIntakeWorkflow(meta, context, input, { notifyOwner
 }
 
 async function executeSingleImplementationPacketWorkflow(meta, context, input, { notifyOwner = true } = {}) {
+  const latestDailyReview = await readLatestWorkspaceBrainDailyReview('VuriumBook');
+  const executionContext = {
+    ...context,
+    project_snapshot: {
+      ...(context && typeof context === 'object' && context.project_snapshot && typeof context.project_snapshot === 'object'
+        ? context.project_snapshot
+        : {}),
+      local_daily_review: latestDailyReview,
+    },
+  };
   const result = await runStructuredWorkflowAI({
     workflowName: 'implementation_packet',
     systemPrompt: AI3_IMPLEMENTATION_PACKET_SYSTEM_PROMPT,
     input,
     meta,
-    context,
+    context: executionContext,
     fallback: buildImplementationPacketFallback(input, anthropic || openai
       ? 'Failed to parse implementation packet AI output.'
       : AI_NOT_CONFIGURED_REASON),
@@ -8767,6 +9178,10 @@ async function executeSingleImplementationPacketWorkflow(meta, context, input, {
 
   const finalizedResult = {
     ...result,
+    source_of_truth_stack: appendLatestDailyReviewPath(
+      Array.isArray(result.source_of_truth_stack) ? result.source_of_truth_stack : [],
+      latestDailyReview
+    ),
     writeback_targets: result.writeback_targets?.length
       ? result.writeback_targets
       : ['04-Tasks/Handoffs/', '04-Tasks/Workflow-Queue.md'],
@@ -8899,6 +9314,75 @@ async function executeResearchBriefWorkflow(meta, context, input, { notifyOwner 
   }));
 }
 
+async function executeDailyProjectReviewWorkflow(meta, context, input) {
+  const project = safeStr(input.project || 'VuriumBook').trim() || 'VuriumBook';
+  const reviewContext = await buildDailyProjectReviewContext(project);
+  const fallback = buildDailyProjectReviewFallback(
+    input,
+    reviewContext,
+    anthropic || openai
+      ? 'The daily review fell back to a safer draft because parsing did not complete.'
+      : AI_NOT_CONFIGURED_REASON
+  );
+
+  const result = await runStructuredWorkflowAI({
+    workflowName: 'daily_project_review',
+    systemPrompt: DAILY_PROJECT_REVIEW_SYSTEM_PROMPT,
+    input: {
+      project,
+      triggered_by: safeStr(input.triggered_by || 'manual').trim() || 'manual',
+      force: !!input.force,
+    },
+    meta,
+    context: reviewContext,
+    fallback,
+    outputSchema: DailyProjectReviewOutputSchema,
+    maxTokens: 2200,
+  });
+
+  const referencedNotes = uniqueList([
+    safeStr(reviewContext?.project_snapshot?.local_project_brain?.path || ''),
+    safeStr(reviewContext?.project_snapshot?.local_current_state?.path || ''),
+    safeStr(reviewContext?.project_snapshot?.local_execution_checklist?.path || ''),
+    safeStr(reviewContext?.project_snapshot?.local_daily_review?.path || ''),
+    ...((Array.isArray(reviewContext?.project_snapshot?.topic_notes) ? reviewContext.project_snapshot.topic_notes : [])
+      .map((entry) => safeStr(entry?.path || '').trim())),
+    ...((Array.isArray(reviewContext?.thread_memory?.recent_thread_summaries) ? reviewContext.thread_memory.recent_thread_summaries : [])
+      .map((entry) => safeStr(entry?.path || '').trim())),
+    ...((Array.isArray(reviewContext?.project_snapshot?.recent_task_notes) ? reviewContext.project_snapshot.recent_task_notes : [])
+      .map((entry) => safeStr(entry?.path || '').trim())),
+    ...((Array.isArray(reviewContext?.project_snapshot?.recent_research_notes) ? reviewContext.project_snapshot.recent_research_notes : [])
+      .map((entry) => safeStr(entry?.path || '').trim())),
+  ]).filter(Boolean).slice(0, 18);
+
+  const normalizedResult = DailyProjectReviewOutputSchema.parse({
+    ...result,
+    project,
+    review_date: safeStr(result.review_date || toIso(new Date()).slice(0, 10)),
+    referenced_notes: appendLatestDailyReviewPath(
+      uniqueList([...(Array.isArray(result.referenced_notes) ? result.referenced_notes : []), ...referencedNotes]).filter(Boolean),
+      reviewContext?.project_snapshot?.local_daily_review
+    ),
+    owner_notification: null,
+    writeback: null,
+    next_step: safeStr(result.next_step || 'Use this daily review as the common project scan before opening new work.'),
+  });
+
+  const writeback = await persistDailyProjectReview(normalizedResult);
+  return DailyProjectReviewOutputSchema.parse({
+    ...normalizedResult,
+    review_note_relative_path: safeStr(writeback.relative_path || ''),
+    review_note_absolute_path: safeStr(writeback.absolute_path || ''),
+    writeback: {
+      status: safeStr(writeback.status || 'blocked') || 'blocked',
+      relative_path: safeStr(writeback.relative_path || ''),
+      reason: safeStr(writeback.reason || ''),
+    },
+    status: normalizedResult.status === 'done' && writeback.status !== 'done' ? 'partial' : normalizedResult.status,
+    reason: normalizedResult.reason || safeStr(writeback.reason || 'Daily review completed.'),
+  });
+}
+
 async function executeOwnerAdvisory(meta, context, input) {
   const advisoryContext = await buildOwnerAdvisoryContext(context, input);
   const result = await runStructuredWorkflowAI({
@@ -8925,6 +9409,7 @@ async function executeOwnerAdvisory(meta, context, input) {
   const referencedNotes = uniqueList([
     safeStr(advisoryContext?.project_snapshot?.local_project_brain?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.local_current_state?.path || ''),
+    safeStr(advisoryContext?.project_snapshot?.local_daily_review?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.local_execution_checklist?.path || ''),
     safeStr(advisoryContext?.thread_memory?.summary_note?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.brain_note?.path || ''),
@@ -9724,6 +10209,52 @@ app.post('/api/vurium-dev/ai/owner-intake', requireSuperadmin, async (req, res) 
     if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid owner-intake payload', details: e.issues });
     console.error('Owner intake error:', e.message);
     res.status(500).json({ error: 'Failed to process owner intake' });
+  }
+});
+
+app.post('/api/vurium-dev/ai/daily-review', requireSuperadmin, async (req, res) => {
+  try {
+    const { meta, context, payload } = unwrapWorkflowEnvelope(req.body);
+    const input = DailyProjectReviewInputSchema.parse(payload);
+    res.json(await executeDailyProjectReviewWorkflow(meta, context, input));
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid daily-review payload', details: e.issues });
+    console.error('Daily review error:', e.message);
+    res.status(500).json({ error: 'Failed to generate daily review' });
+  }
+});
+
+app.get('/api/vurium-dev/ai/daily-review/latest', requireSuperadmin, async (req, res) => {
+  try {
+    const project = safeStr(req.query.project || 'VuriumBook').trim() || 'VuriumBook';
+    const latest = await readLatestWorkspaceBrainDailyReview(project);
+    if (!latest) return res.status(404).json({ error: 'No daily review found yet' });
+    res.json(DailyProjectReviewOutputSchema.parse({
+      agent: 'SYSTEM',
+      workflow: 'daily_project_review',
+      status: safeStr(latest.status || 'done') || 'done',
+      project,
+      review_date: safeStr(latest.review_date || ''),
+      overall_summary: safeStr(latest.overall_summary || latest.excerpt || ''),
+      top_blockers: Array.isArray(latest.top_blockers) ? latest.top_blockers : [],
+      owner_actions: Array.isArray(latest.owner_actions) ? latest.owner_actions : [],
+      lane_recommendations: Array.isArray(latest.lane_recommendations) ? latest.lane_recommendations : [],
+      referenced_notes: Array.isArray(latest.referenced_notes) ? latest.referenced_notes : [],
+      review_note_relative_path: safeStr(latest.path || ''),
+      review_note_absolute_path: toWorkspaceKnowledgeAbsolutePath(safeStr(latest.path || '')),
+      writeback: {
+        status: 'done',
+        relative_path: safeStr(latest.path || ''),
+        reason: 'Latest daily review loaded from the local workspace brain.',
+      },
+      owner_notification: null,
+      ai_meta: null,
+      reason: safeStr(latest.updated || 'Latest daily review loaded.'),
+      next_step: 'Use this daily review as the shared project snapshot before opening new work.',
+    }));
+  } catch (e) {
+    console.error('Daily review latest error:', e.message);
+    res.status(500).json({ error: 'Failed to load latest daily review' });
   }
 });
 

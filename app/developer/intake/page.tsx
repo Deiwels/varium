@@ -144,6 +144,35 @@ interface AIExecutionMeta {
   output_tokens?: number
 }
 
+interface DailyReviewLaneRecommendation {
+  ai: string
+  status: string
+  priority: string
+  should_engage: boolean
+  summary: string
+  next_action: string
+}
+
+interface DailyProjectReviewResult {
+  agent: 'SYSTEM'
+  workflow: 'daily_project_review'
+  status: string
+  project: string
+  review_date: string
+  overall_summary: string
+  top_blockers: string[]
+  owner_actions: string[]
+  lane_recommendations: DailyReviewLaneRecommendation[]
+  referenced_notes: string[]
+  review_note_relative_path: string
+  review_note_absolute_path: string
+  writeback: { status?: string; relative_path?: string; reason?: string } | null
+  owner_notification: { status?: string; reason?: string } | null
+  ai_meta: AIExecutionMeta | null
+  reason: string
+  next_step: string
+}
+
 const HISTORY_KEY = 'vurium_owner_intake_history'
 const THREADS_KEY = 'vurium_owner_threads'
 const ACTIVE_THREAD_KEY = 'vurium_owner_active_thread'
@@ -977,8 +1006,10 @@ function OwnerIntakePageInner() {
   const [needVideoBrief, setNeedVideoBrief] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isRunningDailyReview, setIsRunningDailyReview] = useState(false)
   const [forkingExecutionKey, setForkingExecutionKey] = useState('')
   const [latestResult, setLatestResult] = useState<OwnerIntakeResult | null>(null)
+  const [latestDailyReview, setLatestDailyReview] = useState<DailyProjectReviewResult | null>(null)
   const [threads, setThreads] = useState<OwnerThread[]>([])
   const [activeThreadId, setActiveThreadId] = useState(DEFAULT_THREAD_ID)
   const [hydratedThreadId, setHydratedThreadId] = useState('')
@@ -1091,9 +1122,70 @@ function OwnerIntakePageInner() {
   }, [history, activeThreadId, hydratedThreadId])
 
   useEffect(() => {
+    let cancelled = false
+
+    async function loadLatestDailyReview() {
+      try {
+        const response = await devFetch('/api/vurium-dev/ai/daily-review/latest') as DailyProjectReviewResult
+        if (!cancelled) setLatestDailyReview(response)
+      } catch {
+        if (!cancelled) setLatestDailyReview(null)
+      }
+    }
+
+    void loadLatestDailyReview()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     if (!conversationEndRef.current) return
     conversationEndRef.current.scrollIntoView({ behavior: history.length > 0 ? 'smooth' : 'auto', block: 'end' })
   }, [history.length, latestResult?.intake_id, isSubmitting])
+
+  async function refreshLatestDailyReview() {
+    try {
+      const response = await devFetch('/api/vurium-dev/ai/daily-review/latest') as DailyProjectReviewResult
+      setLatestDailyReview(response)
+      return response
+    } catch (error) {
+      setLatestDailyReview(null)
+      throw error
+    }
+  }
+
+  async function runDailyReviewNow() {
+    setIsRunningDailyReview(true)
+    try {
+      const response = await devFetch('/api/vurium-dev/ai/daily-review', {
+        method: 'POST',
+        body: JSON.stringify({
+          meta: {
+            workflow_name: 'Daily_Project_Review_UI',
+            timestamp: new Date().toISOString(),
+            trigger_source: 'developer_owner_intake_daily_review',
+            risk_level: 'low',
+          },
+          context: {
+            owner_conversation_history: buildConversationContext(history),
+            active_focus: deriveActiveFocus(history),
+          },
+          payload: {
+            project: 'VuriumBook',
+            triggered_by: 'manual_owner',
+            force: true,
+          },
+        }),
+      }) as DailyProjectReviewResult
+      setLatestDailyReview(response)
+      toast.show('Daily AI review updated.')
+    } catch (error) {
+      toast.show(error instanceof Error ? error.message : 'Could not run the daily review.', 'error')
+    } finally {
+      setIsRunningDailyReview(false)
+    }
+  }
 
   async function sendIntake(overrides?: { message?: string; intakeKind?: IntakeKind }) {
     const nextMessage = overrides?.message ?? message
@@ -1450,6 +1542,129 @@ function OwnerIntakePageInner() {
               {latestInfo.activeProvider === 'openai' ? 'OpenAI · active' : latestInfo.openaiState === 'blocked' ? 'OpenAI · blocked' : 'OpenAI · standby'}
             </span>
           </div>
+        </section>
+
+        <section style={{ ...card, padding: 16, display: 'grid', gap: 14 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <div style={{ display: 'grid', gap: 4 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.82)' }}>
+                Daily AI Review
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.42)', lineHeight: 1.6, maxWidth: 760 }}>
+                One shared daily scan of the project brain, current state, checklists, topic brains, and recent threads. This becomes the freshest project snapshot that advisory, planning, and execution lanes can read first.
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => { void refreshLatestDailyReview().then(() => toast.show('Daily AI review refreshed.')).catch((error) => toast.show(error instanceof Error ? error.message : 'Could not refresh daily review.', 'error')) }}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 999,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  fontFamily: 'inherit',
+                  background: 'rgba(255,255,255,.08)',
+                  color: 'rgba(255,255,255,.74)',
+                }}
+              >
+                Refresh
+              </button>
+              <button
+                type="button"
+                onClick={() => { void runDailyReviewNow() }}
+                disabled={isRunningDailyReview}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 999,
+                  border: 'none',
+                  cursor: isRunningDailyReview ? 'progress' : 'pointer',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  fontFamily: 'inherit',
+                  background: 'rgba(130,220,170,.18)',
+                  color: 'rgba(130,220,170,.96)',
+                  opacity: isRunningDailyReview ? 0.7 : 1,
+                }}
+              >
+                {isRunningDailyReview ? 'Running scan…' : 'Run daily scan now'}
+              </button>
+            </div>
+          </div>
+
+          {latestDailyReview ? (
+            <div style={{
+              padding: 14,
+              borderRadius: 16,
+              border: '1px solid rgba(255,255,255,.06)',
+              background: 'rgba(255,255,255,.03)',
+              display: 'grid',
+              gap: 12,
+            }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                <span style={runtimeBadgeStyle(latestDailyReview.status === 'done' ? 'working' : latestDailyReview.status === 'partial' ? 'fallback' : 'blocked')}>
+                  {latestDailyReview.status === 'done' ? 'fresh daily scan' : latestDailyReview.status}
+                </span>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,.42)' }}>
+                  {latestDailyReview.review_date || 'today'}
+                </span>
+                {latestDailyReview.review_note_relative_path && (
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,.28)', wordBreak: 'break-word' }}>
+                    {latestDailyReview.review_note_relative_path}
+                  </span>
+                )}
+              </div>
+
+              <div style={{ fontSize: 14, color: 'rgba(255,255,255,.86)', lineHeight: 1.75 }}>
+                {latestDailyReview.overall_summary || latestDailyReview.reason}
+              </div>
+
+              {latestDailyReview.top_blockers.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.24)', marginBottom: 6 }}>
+                    Top blockers
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 18, color: 'rgba(255,255,255,.72)', fontSize: 12, lineHeight: 1.7 }}>
+                    {latestDailyReview.top_blockers.slice(0, 4).map((entry) => (
+                      <li key={entry}>{entry}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {latestDailyReview.lane_recommendations.length > 0 && (
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.24)' }}>
+                    AI lanes to watch today
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {latestDailyReview.lane_recommendations
+                      .filter((entry) => entry.should_engage || entry.status === 'active' || entry.status === 'blocked')
+                      .slice(0, 6)
+                      .map((entry) => (
+                        <span key={entry.ai} style={runtimeBadgeStyle(entry.status === 'active' ? 'working' : entry.status === 'blocked' ? 'blocked' : 'fallback')}>
+                          {entry.ai} · {entry.priority}
+                        </span>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{
+              padding: 14,
+              borderRadius: 16,
+              border: '1px dashed rgba(255,255,255,.08)',
+              background: 'rgba(255,255,255,.02)',
+              color: 'rgba(255,255,255,.42)',
+              fontSize: 12,
+              lineHeight: 1.7,
+            }}>
+              No daily review exists yet. Run the first scan and the system will save one shared project snapshot into the local workspace brain.
+            </div>
+          )}
         </section>
 
         <section style={{ ...card, padding: 16, display: 'grid', gap: 12 }}>
