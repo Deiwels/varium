@@ -4365,6 +4365,7 @@ const OwnerIntakeInputSchema = z.object({
   title: z.string().default(''),
   intake_kind: OwnerIntakeInputKindSchema.default('auto'),
   thread_id: z.string().default('copilot-01'),
+  requested_route_target: WorkflowEscalationTargetSchema.default('none'),
   requested_by: z.string().default('Owner'),
   priority: z.string().default('medium'),
   product_context_links: z.array(z.string()).default([]),
@@ -4425,7 +4426,9 @@ const OwnerAdvisoryOutputSchema = z.object({
   status: WorkflowStatusSchema,
   reply: z.string().default(''),
   referenced_notes: z.array(z.string()).default([]),
-  suggested_mode: z.enum(['none', ...OWNER_INTAKE_KIND_VALUES]).default('none'),
+  suggested_mode: z.enum(['none', 'continue_advisory', ...OWNER_INTAKE_KIND_VALUES]).transform((value) => (
+    value === 'continue_advisory' ? 'advisory' : value
+  )).default('none'),
   reason: z.string().default(''),
   ai_meta: WorkflowAIExecutionMetaSchema,
   next_step: z.string().default(''),
@@ -4528,6 +4531,10 @@ Rules:
 - when context.project_snapshot.topic_notes is provided, treat those notes as the primary history for the current topic before suggesting any new planning
 - when context.owner_conversation_history or context.active_focus is provided, continue the same thread instead of acting like this is a brand new conversation
 - when context.thread_memory.summary_note is provided, use it as durable chat memory before relying only on the in-browser recent turns
+- when input.requested_route_target is set and context.requested_lane is provided, answer from that lane's perspective while staying truthful about the current system shape
+- if context.requested_lane.mode is "claude_advisory", explain that Claude is temporarily acting as that lane until a dedicated engine exists
+- if context.requested_lane.mode is "external_execution", explain that Claude is answering from that lane inside the shared copilot, and that the separate execution provider only matters later if coding work is opened
+- if context.requested_lane.mode is "live_workflow", answer like the owner is speaking to that lane's role while staying advisory first unless execution is explicitly requested
 - if the owner says "continue", "this issue", or "that problem", infer the most recent relevant focus from conversation context before asking them to restate it
 - for internal project status / overview requests, summarize what is already visible in queue, notes, and recent writebacks before recommending any execution mode
 - do not ask for AI-5 or external source URLs when the request is only about internal project status and the answer can be formed from internal context
@@ -4545,7 +4552,18 @@ Return exactly this JSON shape:
   "suggested_mode": "task",
   "reason": "why this mode is recommended next",
   "next_step": "what the owner should say or do next"
-}`;
+}
+
+Allowed suggested_mode values only:
+- "none"
+- "advisory"
+- "task"
+- "growth"
+- "research"
+- "handoff"
+- "truth_update_draft"
+
+If the owner should simply keep talking in the same chat, use "advisory", not "continue_advisory" and not any custom value.`;
 
 const AI3_QA_SCAN_SYSTEM_PROMPT = `You are AI 3 inside the VuriumBook AI Operating System.
 
@@ -5212,6 +5230,88 @@ function detectOwnerIntakeKind(input) {
   return 'task';
 }
 
+const OWNER_AI_LANE_CONTEXT = {
+  'AI-1': {
+    label: 'AI-1 Backend',
+    role: 'Backend + Docs + Infra Owner',
+    mode: 'external_execution',
+    copilot_provider: 'Claude',
+    execution_provider: 'Claude',
+  },
+  'AI-2': {
+    label: 'AI-2 Frontend',
+    role: 'Frontend + UI Owner',
+    mode: 'external_execution',
+    copilot_provider: 'Claude',
+    execution_provider: 'Codex',
+  },
+  'AI-3': {
+    label: 'AI-3 Verdent',
+    role: 'Planner + Verifier + QA Gatekeeper',
+    mode: 'live_workflow',
+    copilot_provider: 'Claude',
+    execution_provider: 'Claude',
+  },
+  'AI-4': {
+    label: 'AI-4 Emergency',
+    role: 'Emergency Quick-Fixer + Emergency Reviewer',
+    mode: 'claude_advisory',
+    copilot_provider: 'Claude',
+  },
+  'AI-5': {
+    label: 'AI-5 Research',
+    role: 'External Facts Research Lane',
+    mode: 'live_workflow',
+    copilot_provider: 'Claude',
+    execution_provider: 'Claude',
+  },
+  'AI-6': {
+    label: 'AI-6 Product',
+    role: 'Product Strategy Owner',
+    mode: 'claude_advisory',
+    copilot_provider: 'Claude',
+  },
+  'AI-7': {
+    label: 'AI-7 Compliance',
+    role: 'Compliance-to-Implementation Translator',
+    mode: 'claude_advisory',
+    copilot_provider: 'Claude',
+  },
+  'AI-8': {
+    label: 'AI-8 Growth',
+    role: 'Growth Engine Owner',
+    mode: 'live_workflow',
+    copilot_provider: 'Claude',
+    execution_provider: 'Claude',
+  },
+  'AI-9': {
+    label: 'AI-9 Support',
+    role: 'Customer Communication Agent',
+    mode: 'live_workflow',
+    copilot_provider: 'Claude',
+    execution_provider: 'Claude',
+  },
+  'AI-10': {
+    label: 'AI-10 Video',
+    role: 'Video Content Generator',
+    mode: 'live_workflow',
+    copilot_provider: 'Claude',
+    execution_provider: 'Claude',
+  },
+  'AI-11': {
+    label: 'AI-11 Creative',
+    role: 'Visual Marketing Generator',
+    mode: 'live_workflow',
+    copilot_provider: 'Claude',
+    execution_provider: 'Claude',
+  },
+};
+
+function getRequestedOwnerLaneContext(routeTarget = '') {
+  const normalized = safeStr(routeTarget).trim().toUpperCase();
+  return OWNER_AI_LANE_CONTEXT[normalized] || null;
+}
+
 function shouldForceOwnerAdvisoryFollowUp(input, context) {
   if (safeStr(input?.intake_kind).trim().toLowerCase() && safeStr(input?.intake_kind).trim().toLowerCase() !== 'auto') {
     return false;
@@ -5286,11 +5386,12 @@ function buildOwnerIntakeId(kind, now = new Date()) {
   return `TASK-${compact}`;
 }
 
-function buildOwnerIntakeMetadata(kind) {
+function buildOwnerIntakeMetadata(kind, input = {}) {
+  const requestedRouteTarget = safeStr(input?.requested_route_target || 'none').trim();
   if (kind === 'advisory') {
     return {
       queue_stage: 'Conversation',
-      route_target: 'none',
+      route_target: requestedRouteTarget && requestedRouteTarget !== 'none' ? requestedRouteTarget : 'none',
       downstream_workflow: 'Owner_Advisory',
     };
   }
@@ -5658,6 +5759,9 @@ function buildOwnerAdvisoryFallback(input, reason) {
 }
 
 function buildOwnerAdvisoryFallbackWithContext(input, reason, advisoryContext = {}) {
+  const requestedLane = advisoryContext?.requested_lane && typeof advisoryContext.requested_lane === 'object'
+    ? advisoryContext.requested_lane
+    : null;
   const projectBrainPath = safeStr(advisoryContext?.project_snapshot?.local_project_brain?.path || '').trim();
   const currentStatePath = safeStr(advisoryContext?.project_snapshot?.local_current_state?.path || '').trim();
   const threadSummaryPath = safeStr(advisoryContext?.thread_memory?.summary_note?.path || '').trim();
@@ -5675,12 +5779,19 @@ function buildOwnerAdvisoryFallbackWithContext(input, reason, advisoryContext = 
   const brainLead = brainNotePath
     ? ` I grounded this in the local brain and ${brainNotePath}.`
     : '';
+  const laneLead = requestedLane?.label
+    ? ` I answered from the ${requestedLane.label} lane perspective via ${safeStr(requestedLane.copilot_provider || 'Claude')}.${requestedLane.mode === 'claude_advisory'
+      ? ' This lane is currently Claude-backed advisory only.'
+      : requestedLane.mode === 'external_execution' && safeStr(requestedLane.execution_provider).trim()
+        ? ` If you later open code work for this lane, execution will hand off to ${safeStr(requestedLane.execution_provider).trim()}.`
+        : ''}`
+    : '';
 
   return {
     agent: 'SYSTEM',
     workflow: 'owner_advisory',
     status: 'partial',
-    reply: `I understood this as an exploratory owner request. I have not created a task yet.${brainLead} ${reason}`.trim(),
+    reply: `I understood this as an exploratory owner request. I have not created a task yet.${laneLead}${brainLead} ${reason}`.trim(),
     referenced_notes: referencedNotes,
     suggested_mode: 'task',
     reason,
@@ -6269,6 +6380,7 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
 
   return {
     ...context,
+    requested_lane: getRequestedOwnerLaneContext(input?.requested_route_target),
     project_snapshot: {
       queue_note: queueNote,
       rule_updates: rulesNote,
@@ -8739,6 +8851,7 @@ async function executeOwnerAdvisory(meta, context, input) {
     input: {
       message: safeStr(input.message).trim(),
       title: safeStr(input.title).trim(),
+      requested_route_target: safeStr(input.requested_route_target || 'none').trim() || 'none',
       requested_by: safeStr(input.requested_by || 'Owner') || 'Owner',
       priority: safeStr(input.priority || 'medium') || 'medium',
       product_context_links: uniqueList(input.product_context_links || []),
@@ -8870,7 +8983,7 @@ async function executeOwnerIntake(meta, context, input) {
     : detectOwnerIntakeKind(input);
   const intakeId = buildOwnerIntakeId(intakeKind);
   const threadId = sanitizeOwnerThreadId(input.thread_id);
-  const metadata = buildOwnerIntakeMetadata(intakeKind);
+  const metadata = buildOwnerIntakeMetadata(intakeKind, input);
   const note = intakeKind === 'advisory'
     ? { relative_path: '', content: '' }
     : buildOwnerIntakeNote(intakeKind, intakeId, title, input, metadata);

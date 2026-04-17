@@ -91,6 +91,15 @@ interface ExecutionThreadForkResult {
   chat_memory: { status?: string; thread_id?: string; transcript_path?: string; summary_path?: string; reason?: string } | null
 }
 
+interface AiTeamLane {
+  id: string
+  label: string
+  role: string
+  mode: 'external_execution' | 'live_workflow' | 'claude_advisory'
+  copilotProvider: 'Claude' | 'OpenAI'
+  executionProvider?: 'Claude' | 'Codex' | 'OpenAI'
+}
+
 interface ExecutionContract {
   status: string
   contract_note_relative_path: string
@@ -155,6 +164,20 @@ const ROUTE_TARGET_LABELS: Record<string, string> = {
   Owner: 'Owner',
   none: 'None',
 }
+
+const AI_TEAM_LANES: AiTeamLane[] = [
+  { id: 'AI-1', label: 'AI-1 Backend', role: 'Backend + Docs + Infra', mode: 'external_execution', copilotProvider: 'Claude', executionProvider: 'Claude' },
+  { id: 'AI-2', label: 'AI-2 Frontend', role: 'Frontend + UI', mode: 'external_execution', copilotProvider: 'Claude', executionProvider: 'Codex' },
+  { id: 'AI-3', label: 'AI-3 Verdent', role: 'Planning + QA', mode: 'live_workflow', copilotProvider: 'Claude', executionProvider: 'Claude' },
+  { id: 'AI-4', label: 'AI-4 Emergency', role: 'Incidents + quick fixes', mode: 'claude_advisory', copilotProvider: 'Claude' },
+  { id: 'AI-5', label: 'AI-5 Research', role: 'External facts + source truth', mode: 'live_workflow', copilotProvider: 'Claude', executionProvider: 'Claude' },
+  { id: 'AI-6', label: 'AI-6 Product', role: 'Product strategy', mode: 'claude_advisory', copilotProvider: 'Claude' },
+  { id: 'AI-7', label: 'AI-7 Compliance', role: 'Requirements translation', mode: 'claude_advisory', copilotProvider: 'Claude' },
+  { id: 'AI-8', label: 'AI-8 Growth', role: 'Growth strategy', mode: 'live_workflow', copilotProvider: 'Claude', executionProvider: 'Claude' },
+  { id: 'AI-9', label: 'AI-9 Support', role: 'Support communication', mode: 'live_workflow', copilotProvider: 'Claude', executionProvider: 'Claude' },
+  { id: 'AI-10', label: 'AI-10 Video', role: 'Video briefs', mode: 'live_workflow', copilotProvider: 'Claude', executionProvider: 'Claude' },
+  { id: 'AI-11', label: 'AI-11 Creative', role: 'Creative variants', mode: 'live_workflow', copilotProvider: 'Claude', executionProvider: 'Claude' },
+]
 
 const WORKFLOW_LABELS: Record<string, string> = {
   Owner_Advisory: 'Owner Copilot',
@@ -938,6 +961,7 @@ function OwnerIntakePageInner() {
   const [title, setTitle] = useState('')
   const [intakeKind, setIntakeKind] = useState<IntakeKind>('auto')
   const [priority, setPriority] = useState('medium')
+  const [requestedRouteTarget, setRequestedRouteTarget] = useState('none')
   const [audience, setAudience] = useState('')
   const [channel, setChannel] = useState('')
   const [productContextLinks, setProductContextLinks] = useState('')
@@ -1101,6 +1125,7 @@ function OwnerIntakePageInner() {
             title: title.trim(),
             intake_kind: nextKind,
             thread_id: activeThreadId,
+            requested_route_target: requestedRouteTarget,
             requested_by: 'Owner',
             priority,
             product_context_links: parseLines(productContextLinks),
@@ -1332,10 +1357,15 @@ function OwnerIntakePageInner() {
     : intakeKind === 'task' || intakeKind === 'growth' || intakeKind === 'research'
       ? 'Start workflow'
       : 'Ask system'
+  const selectedLane = AI_TEAM_LANES.find((lane) => lane.id === requestedRouteTarget) || null
   const composerModeHint = intakeKind === 'auto'
-    ? 'Auto mode: follow-up questions stay conversational. Explicit start / plan / fix requests will open execution lanes.'
+    ? selectedLane
+      ? `Auto mode with ${selectedLane.label} focus: the system stays conversational first, but answers from that lane's perspective whenever it can.`
+      : 'Auto mode: follow-up questions stay conversational. Explicit start / plan / fix requests will open execution lanes.'
     : intakeKind === 'advisory'
-      ? 'Discuss mode: the system will answer first and avoid opening tasks unless you later tell it to start.'
+      ? selectedLane
+        ? `Discuss mode with ${selectedLane.label} focus: Claude will respond as that lane unless you later tell the system to start execution.`
+        : 'Discuss mode: the system will answer first and avoid opening tasks unless you later tell it to start.'
       : `${kindPresets.find((preset) => preset.kind === intakeKind)?.label || intakeKind} mode: the next send will open that lane directly.`
 
   return (
@@ -1405,7 +1435,7 @@ function OwnerIntakePageInner() {
               Owner Copilot is live
             </div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,.42)', lineHeight: 1.6 }}>
-              Broad questions stay conversational first. Explicit start/build/plan requests open execution lanes automatically. Recent turns and current focus are now carried forward automatically.
+              Broad questions stay conversational first. Explicit start/build/plan requests open execution lanes automatically. All 11 AI lanes can already answer here through Claude-backed copilot memory while OpenAI is still offline.
             </div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,.28)', lineHeight: 1.6 }}>
               Active thread: {threads.find((thread) => thread.id === activeThreadId)?.title || activeThreadId}
@@ -1420,6 +1450,81 @@ function OwnerIntakePageInner() {
               {latestInfo.activeProvider === 'openai' ? 'OpenAI · active' : latestInfo.openaiState === 'blocked' ? 'OpenAI · blocked' : 'OpenAI · standby'}
             </span>
           </div>
+        </section>
+
+        <section style={{ ...card, padding: 16, display: 'grid', gap: 12 }}>
+          <div style={{ display: 'grid', gap: 4 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.82)' }}>
+              AI Team
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.42)', lineHeight: 1.6 }}>
+              All 11 AI lanes are available here now. Until OpenAI is connected, every lane answers through Claude inside Owner Copilot. Separate execution providers only matter later when you open coding work.
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => setRequestedRouteTarget('none')}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 999,
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 700,
+                fontFamily: 'inherit',
+                background: requestedRouteTarget === 'none' ? 'rgba(130,150,220,.18)' : 'rgba(255,255,255,.06)',
+                color: requestedRouteTarget === 'none' ? 'rgba(130,150,220,.96)' : 'rgba(255,255,255,.6)',
+              }}
+            >
+              No lane focus
+            </button>
+            {AI_TEAM_LANES.map((lane) => (
+              <button
+                key={lane.id}
+                type="button"
+                onClick={() => setRequestedRouteTarget((current) => current === lane.id ? 'none' : lane.id)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 999,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  fontFamily: 'inherit',
+                  background: requestedRouteTarget === lane.id ? 'rgba(130,220,170,.18)' : 'rgba(255,255,255,.06)',
+                  color: requestedRouteTarget === lane.id ? 'rgba(130,220,170,.96)' : 'rgba(255,255,255,.62)',
+                }}
+                title={`${lane.role} · ${lane.mode === 'live_workflow' ? 'Live workflow' : lane.mode === 'external_execution' ? 'Execution lane' : 'Claude advisory'} · Copilot: ${lane.copilotProvider}${lane.executionProvider ? ` · Execution: ${lane.executionProvider}` : ''}`}
+              >
+                {lane.id}
+              </button>
+            ))}
+          </div>
+          {selectedLane && (
+            <div style={{
+              padding: 12,
+              borderRadius: 14,
+              border: '1px solid rgba(255,255,255,.06)',
+              background: 'rgba(255,255,255,.03)',
+              display: 'grid',
+              gap: 4,
+            }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: 'rgba(255,255,255,.86)' }}>
+                {selectedLane.label}
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.58)', lineHeight: 1.6 }}>
+                {selectedLane.role}
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.42)', lineHeight: 1.6 }}>
+                {selectedLane.mode === 'live_workflow'
+                  ? `Runs here now through a Claude-backed workflow.`
+                  : selectedLane.mode === 'external_execution'
+                    ? `Claude answers as this lane here in Copilot. If you later open implementation work, execution will hand off to ${selectedLane.executionProvider || 'the configured executor'}.`
+                    : `Claude answers as this lane here until a dedicated workflow is connected.`}
+              </div>
+            </div>
+          )}
         </section>
 
         <section style={{ ...card, minHeight: 'calc(100vh - 260px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
