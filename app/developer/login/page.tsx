@@ -9,7 +9,6 @@ export default function DevLoginPage() {
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [localLoading, setLocalLoading] = useState(false)
   const [isLocalDev, setIsLocalDev] = useState(false)
   const devApiBase = getDevApiBase()
 
@@ -38,27 +37,6 @@ export default function DevLoginPage() {
     }
   }
 
-  async function handleLocalAccess() {
-    setLocalLoading(true)
-    setError('')
-    try {
-      const response = await fetch(`${devApiBase}/api/vurium-dev/auth/local`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      })
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || 'Local access failed')
-      if (data.token) try { localStorage.setItem('vurium_dev_token', data.token) } catch {}
-      router.replace('/developer/intake')
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Local access failed')
-    } finally {
-      setLocalLoading(false)
-    }
-  }
-
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{
@@ -75,21 +53,22 @@ export default function DevLoginPage() {
 
         {isLocalDev && !sent && (
           <div style={{ marginBottom: 16 }}>
-            <button
-              type="button"
-              onClick={handleLocalAccess}
-              disabled={localLoading}
+            <a
+              href="/developer/local-access"
               style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 width: '100%', height: 44, borderRadius: 12, border: 'none',
                 background: 'rgba(130,220,170,.15)', color: 'rgba(130,220,170,.95)',
                 fontSize: 14, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
-                opacity: localLoading ? 0.5 : 1,
+                textDecoration: 'none',
               }}
             >
-              {localLoading ? 'Opening local access...' : 'Continue as local owner'}
-            </button>
+              Continue as local owner
+            </a>
             <p style={{ fontSize: 11, color: 'rgba(255,255,255,.28)', margin: '10px 0 0', lineHeight: 1.5 }}>
-              Localhost mode uses the local backend directly, so you do not have to wait for a magic-link email just to use the operator panel.
+              Localhost mode uses a direct local-access route, so you do not have to wait for a magic-link email just to use the operator panel.
             </p>
           </div>
         )}
