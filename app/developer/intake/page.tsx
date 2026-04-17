@@ -393,6 +393,7 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
     if (result.downstream_workflow === 'Owner_Advisory') {
       const advisoryReply = typeof downstreamRecord?.reply === 'string' ? downstreamRecord.reply.trim() : ''
       const suggestedMode = typeof downstreamRecord?.suggested_mode === 'string' ? downstreamRecord.suggested_mode.trim() : ''
+      const referencedNotes = toStringList(downstreamRecord?.referenced_notes)
 
       return {
         header,
@@ -400,6 +401,7 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
         modeNote,
         sections: [
           { label: 'Suggested next mode', items: suggestedMode && suggestedMode !== 'none' ? [suggestedMode] : [] },
+          { label: 'Relevant docs', items: referencedNotes.slice(0, 8) },
         ].filter((section) => section.items.length > 0),
       }
     }

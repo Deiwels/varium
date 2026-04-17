@@ -3961,6 +3961,7 @@ const OwnerAdvisoryOutputSchema = z.object({
   workflow: z.literal('owner_advisory'),
   status: WorkflowStatusSchema,
   reply: z.string().default(''),
+  referenced_notes: z.array(z.string()).default([]),
   suggested_mode: z.enum(['none', ...OWNER_INTAKE_KIND_VALUES]).default('none'),
   reason: z.string().default(''),
   ai_meta: WorkflowAIExecutionMetaSchema,
@@ -4023,10 +4024,12 @@ Rules:
 - if the user is asking for understanding, advice, analysis, or status, keep it advisory first
 - if the user clearly asks to start or execute work, suggest the correct next mode instead of forcing a task automatically
 - when context.project_snapshot is provided, ground the answer in that internal context first
+- when context.project_snapshot.topic_notes is provided, treat those notes as the primary history for the current topic before suggesting any new planning
 - when context.owner_conversation_history or context.active_focus is provided, continue the same thread instead of acting like this is a brand new conversation
 - if the owner says "continue", "this issue", or "that problem", infer the most recent relevant focus from conversation context before asking them to restate it
 - for internal project status / overview requests, summarize what is already visible in queue, notes, and recent writebacks before recommending any execution mode
 - do not ask for AI-5 or external source URLs when the request is only about internal project status and the answer can be formed from internal context
+- if relevant internal plans already exist for the current topic, summarize those plans first and explain the current blocker before proposing any new task
 
 Return exactly this JSON shape:
 {
@@ -4034,6 +4037,7 @@ Return exactly this JSON shape:
   "workflow": "owner_advisory",
   "status": "done",
   "reply": "short but useful answer for the owner",
+  "referenced_notes": ["docs or notes the answer is grounded in"],
   "suggested_mode": "task",
   "reason": "why this mode is recommended next",
   "next_step": "what the owner should say or do next"
@@ -4927,6 +4931,7 @@ function buildOwnerAdvisoryFallback(input, reason) {
     workflow: 'owner_advisory',
     status: 'partial',
     reply: `I understood this as an exploratory owner request. I have not created a task yet. ${reason}`,
+    referenced_notes: [],
     suggested_mode: 'task',
     reason,
     ai_meta: null,
@@ -4996,13 +5001,115 @@ async function listRecentAdvisoryNotes(relativeDir, limit = 5) {
   }
 }
 
-async function buildOwnerAdvisoryContext(context = {}) {
+function extractAdvisoryTopicKeywords(context = {}, input = {}) {
+  const parts = [
+    safeStr(input?.message),
+    safeStr(input?.title),
+    safeStr(context?.active_focus?.title),
+    safeStr(context?.active_focus?.created_note_relative_path),
+    ...((Array.isArray(context?.owner_conversation_history) ? context.owner_conversation_history : [])
+      .slice(0, 6)
+      .map((entry) => `${safeStr(entry?.message)} ${safeStr(entry?.created_note_relative_path)}`)),
+  ].join(' ');
+
+  const normalized = parts
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s/-]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const rawTokens = normalized.split(' ').map((entry) => entry.trim()).filter(Boolean);
+  const stopwords = new Set([
+    'і', 'й', 'та', 'це', 'про', 'для', 'щоб', 'або', 'але', 'вже', 'там', 'тут', 'цей', 'ця', 'ці',
+    'по', 'до', 'на', 'не', 'ми', 'я', 'ти', 'він', 'вона', 'вони', 'то', 'що', 'як', 'де', 'чи',
+    'мені', 'нас', 'їх', 'його', 'її', 'the', 'and', 'for', 'this', 'that', 'with', 'from', 'into',
+    'about', 'status', 'details', 'detail', 'more', 'issue', 'project', 'task', 'owner', 'intake',
+    'план', 'проект', 'задача', 'owner-intake',
+  ]);
+
+  const tokens = rawTokens.filter((token) => token.length >= 3 && !stopwords.has(token));
+  const keywordBoosts = uniqueList([
+    ...(normalized.includes('sms') ? ['sms'] : []),
+    ...(normalized.includes('notification') || normalized.includes('notifications') || normalized.includes('нотиф') ? ['notification', 'notifications', 'нотифікац'] : []),
+    ...(normalized.includes('reminder') || normalized.includes('нагад') ? ['reminder'] : []),
+    ...(normalized.includes('tfv') ? ['tfv'] : []),
+    ...(normalized.includes('10dlc') ? ['10dlc'] : []),
+    ...(normalized.includes('telnyx') ? ['telnyx'] : []),
+    ...(normalized.includes('consent') ? ['consent'] : []),
+  ]);
+
+  return uniqueList([...keywordBoosts, ...tokens]).slice(0, 12);
+}
+
+function scoreAdvisoryNoteCandidate(note, keywords = []) {
+  const haystack = `${safeStr(note.relativePath)} ${safeStr(note.excerpt)}`.toLowerCase();
+  let score = 0;
+  for (const keyword of keywords) {
+    if (!keyword) continue;
+    if (haystack.includes(keyword.toLowerCase())) score += safeStr(note.relativePath).toLowerCase().includes(keyword.toLowerCase()) ? 5 : 2;
+  }
+  if (/sms|notification|reminder|tfv|10dlc|telnyx/.test(haystack)) score += 2;
+  if (/plan|brief|launch|completion|checklist|requirements/.test(haystack)) score += 1;
+  return score;
+}
+
+async function listTopicAdvisoryNotes(context = {}, input = {}, limit = 8) {
+  const keywords = extractAdvisoryTopicKeywords(context, input);
+  if (!keywords.length) return [];
+
+  const searchDirs = [
+    '04-Tasks',
+    '07-Research',
+    'Tasks',
+    'Features',
+    'Product/Feature-Briefs',
+    'Compliance/Requirements',
+  ];
+
+  const collected = [];
+  for (const relativeDir of searchDirs) {
+    try {
+      const root = getObsidianRoot();
+      const absoluteDir = path.resolve(root, relativeDir);
+      if (!(absoluteDir === root || absoluteDir.startsWith(root + path.sep))) continue;
+      const entries = await fsPromises.readdir(absoluteDir, { withFileTypes: true });
+      const files = entries.filter((entry) => entry.isFile() && entry.name.endsWith('.md'));
+      for (const entry of files) {
+        const relativePath = path.posix.join(relativeDir.replace(/\\/g, '/'), entry.name);
+        const note = await readAdvisoryMarkdownNote(relativePath, 1400);
+        if (!note) continue;
+        const score = scoreAdvisoryNoteCandidate(note, keywords);
+        if (score > 0) {
+          collected.push({ ...note, score });
+        }
+      }
+    } catch {}
+  }
+
+  const deduped = Array.from(new Map(collected.map((entry) => [entry.path, entry])).values());
+  return deduped
+    .sort((a, b) => b.score - a.score || a.path.localeCompare(b.path))
+    .slice(0, limit)
+    .map(({ score, ...entry }) => entry);
+}
+
+async function buildOwnerAdvisoryContext(context = {}, input = {}) {
   const [queueNote, rulesNote, inProgressNote, recentTasks, recentResearch] = await Promise.all([
     readAdvisoryMarkdownNote('04-Tasks/Workflow-Queue.md', 2200),
     readAdvisoryMarkdownNote('AI-Rule-Updates.md', 1200),
     readAdvisoryMarkdownNote('Tasks/In Progress.md', 1200),
     listRecentAdvisoryNotes('04-Tasks', 5),
     listRecentAdvisoryNotes('07-Research', 4),
+  ]);
+
+  const activeFocusPath = safeStr(context?.active_focus?.created_note_relative_path || '').trim();
+  const activeFocusPlanPath = activeFocusPath.startsWith('04-Tasks/TASK-')
+    ? activeFocusPath.replace(/\.md$/, '-Plan.md')
+    : '';
+  const [activeFocusNote, activeFocusPlan, topicNotes] = await Promise.all([
+    activeFocusPath ? readAdvisoryMarkdownNote(activeFocusPath, 1800) : Promise.resolve(null),
+    activeFocusPlanPath ? readAdvisoryMarkdownNote(activeFocusPlanPath, 1800) : Promise.resolve(null),
+    listTopicAdvisoryNotes(context, input, 8),
   ]);
 
   return {
@@ -5013,6 +5120,9 @@ async function buildOwnerAdvisoryContext(context = {}) {
       in_progress_note: inProgressNote,
       recent_task_notes: recentTasks,
       recent_research_notes: recentResearch,
+      active_focus_note: activeFocusNote,
+      active_focus_plan_note: activeFocusPlan,
+      topic_notes: topicNotes,
     },
   };
 }
@@ -6562,8 +6672,8 @@ async function executeResearchBriefWorkflow(meta, context, input, { notifyOwner 
 }
 
 async function executeOwnerAdvisory(meta, context, input) {
-  const advisoryContext = await buildOwnerAdvisoryContext(context);
-  return OwnerAdvisoryOutputSchema.parse(await runStructuredWorkflowAI({
+  const advisoryContext = await buildOwnerAdvisoryContext(context, input);
+  const result = await runStructuredWorkflowAI({
     workflowName: 'owner_advisory',
     systemPrompt: OWNER_ADVISORY_SYSTEM_PROMPT,
     input: {
@@ -6581,7 +6691,19 @@ async function executeOwnerAdvisory(meta, context, input) {
       : AI_NOT_CONFIGURED_REASON),
     outputSchema: OwnerAdvisoryOutputSchema,
     maxTokens: 1100,
-  }));
+  });
+
+  const referencedNotes = uniqueList([
+    safeStr(advisoryContext?.project_snapshot?.active_focus_note?.path || ''),
+    safeStr(advisoryContext?.project_snapshot?.active_focus_plan_note?.path || ''),
+    ...((Array.isArray(advisoryContext?.project_snapshot?.topic_notes) ? advisoryContext.project_snapshot.topic_notes : [])
+      .map((entry) => safeStr(entry?.path).trim())),
+  ]).filter(Boolean).slice(0, 8);
+
+  return OwnerAdvisoryOutputSchema.parse({
+    ...result,
+    referenced_notes: referencedNotes,
+  });
 }
 
 async function executeOwnerIntake(meta, context, input) {
