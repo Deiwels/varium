@@ -62,6 +62,20 @@ interface OwnerThread {
   updatedAt: string
 }
 
+interface OwnerThreadSnapshot {
+  thread_id: string
+  project: string
+  title: string
+  updated: string
+  workflow: string
+  route_target: string
+  next_step: string
+  reason: string
+  summary_path: string
+  transcript_path: string
+  transcript_preview: string
+}
+
 interface AIExecutionMeta {
   provider?: string
   model?: string
@@ -114,6 +128,77 @@ function buildThreadTitle(message: string, fallback = 'New chat') {
     .trim()
     .slice(0, 72)
   return normalized || fallback
+}
+
+function mergeThreads(localThreads: OwnerThread[], remoteThreads: OwnerThread[]) {
+  const merged = new Map<string, OwnerThread>();
+  for (const thread of [...localThreads, ...remoteThreads]) {
+    const existing = merged.get(thread.id);
+    if (!existing) {
+      merged.set(thread.id, thread);
+      continue;
+    }
+    merged.set(thread.id, {
+      ...existing,
+      title: existing.title === 'New chat' || existing.title === 'VuriumBook Copilot'
+        ? thread.title || existing.title
+        : existing.title,
+      createdAt: existing.createdAt || thread.createdAt,
+      updatedAt: new Date(existing.updatedAt).getTime() >= new Date(thread.updatedAt).getTime()
+        ? existing.updatedAt
+        : thread.updatedAt,
+    });
+  }
+  return Array.from(merged.values()).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
+function buildHistoryItemFromThreadSnapshot(snapshot: OwnerThreadSnapshot): IntakeHistoryItem {
+  const operatorReply = snapshot.reason
+    ? `${snapshot.reason}\n\n${snapshot.next_step ? `Next step: ${snapshot.next_step}` : ''}`.trim()
+    : snapshot.next_step || 'Thread restored from workspace brain memory.'
+
+  return {
+    id: `restored-${snapshot.thread_id}`,
+    createdAt: snapshot.updated || new Date().toISOString(),
+    message: `Restored thread: ${snapshot.title}`,
+    result: {
+      agent: 'SYSTEM',
+      workflow: 'owner_intake',
+      status: 'done',
+      intake_id: `restored-${snapshot.thread_id}`,
+      intake_kind: 'advisory',
+      thread_id: snapshot.thread_id,
+      title: snapshot.title,
+      queue_stage: 'Context Restored',
+      route_target: snapshot.route_target || 'none',
+      created_note_relative_path: snapshot.summary_path || '',
+      downstream_workflow: snapshot.workflow || 'Owner_Advisory',
+      downstream_status: 'done',
+      downstream_reference: snapshot.summary_path || '',
+      downstream_result: {
+        reply: operatorReply,
+        referenced_notes: [snapshot.summary_path, snapshot.transcript_path].filter(Boolean),
+      },
+      escalate_to: 'none',
+      reason: snapshot.reason || 'Restored from workspace brain thread memory.',
+      writeback_targets: [],
+      writeback: null,
+      owner_notification: null,
+      operator_reply: operatorReply,
+      chat_memory: {
+        status: 'done',
+        thread_id: snapshot.thread_id,
+        transcript_path: snapshot.transcript_path,
+        summary_path: snapshot.summary_path,
+        reason: 'Thread restored from workspace brain.',
+      },
+      follow_on_workflow: 'none',
+      follow_on_status: 'none',
+      follow_on_reference: '',
+      follow_on_result: null,
+      next_step: snapshot.next_step || 'Continue this thread or start a new execution request.',
+    },
+  }
 }
 
 const card: React.CSSProperties = {
@@ -556,6 +641,7 @@ function OwnerIntakePageInner() {
   const [activeThreadId, setActiveThreadId] = useState(DEFAULT_THREAD_ID)
   const [hydratedThreadId, setHydratedThreadId] = useState('')
   const [history, setHistory] = useState<IntakeHistoryItem[]>([])
+  const [remoteThreadsLoaded, setRemoteThreadsLoaded] = useState(false)
 
   useEffect(() => {
     try {
@@ -580,6 +666,38 @@ function OwnerIntakePageInner() {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
+
+    async function loadRemoteThreads() {
+      try {
+        const response = await devFetch('/api/vurium-dev/ai/owner-threads') as { project?: string; threads?: Array<{ thread_id: string; title: string; updated: string }> }
+        if (cancelled) return
+        const remoteThreads = Array.isArray(response?.threads)
+          ? response.threads
+            .map((thread) => ({
+              id: String(thread.thread_id || '').trim(),
+              title: String(thread.title || '').trim() || 'Recovered chat',
+              createdAt: String(thread.updated || new Date().toISOString()),
+              updatedAt: String(thread.updated || new Date().toISOString()),
+            }))
+            .filter((thread) => thread.id)
+          : []
+        if (remoteThreads.length) {
+          setThreads((prev) => mergeThreads(prev, remoteThreads))
+        }
+      } catch {
+      } finally {
+        if (!cancelled) setRemoteThreadsLoaded(true)
+      }
+    }
+
+    void loadRemoteThreads()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     try {
       if (!threads.length) return
       localStorage.setItem(THREADS_KEY, JSON.stringify(threads))
@@ -601,6 +719,27 @@ function OwnerIntakePageInner() {
       setHydratedThreadId(activeThreadId)
     }
   }, [activeThreadId])
+
+  useEffect(() => {
+    let cancelled = false
+    if (!remoteThreadsLoaded || !activeThreadId || history.length > 0) return
+
+    async function hydrateThreadFromBrain() {
+      try {
+        const snapshot = await devFetch(`/api/vurium-dev/ai/owner-threads/${encodeURIComponent(activeThreadId)}`) as OwnerThreadSnapshot
+        if (cancelled || !snapshot?.thread_id) return
+        const restored = [buildHistoryItemFromThreadSnapshot(snapshot)]
+        setHistory(restored)
+        setLatestResult(restored[0].result)
+      } catch {
+      }
+    }
+
+    void hydrateThreadFromBrain()
+    return () => {
+      cancelled = true
+    }
+  }, [activeThreadId, history.length, remoteThreadsLoaded])
 
   useEffect(() => {
     try {

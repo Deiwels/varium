@@ -5378,6 +5378,22 @@ async function readTopicBrainNote(context = {}, input = {}) {
   return null;
 }
 
+async function readTopicExecutionChecklistNote(context = {}, input = {}) {
+  const keywords = extractAdvisoryTopicKeywords(context, input);
+  if (!keywords.length) return null;
+
+  const candidates = [];
+  if (advisoryTopicLooksLikeSms(keywords)) {
+    candidates.push('Projects/VuriumBook/Topics/SMS-Notifications-Execution-Checklist.md');
+  }
+
+  for (const candidate of candidates) {
+    const note = await readWorkspaceBrainMarkdownNote(candidate, 2200);
+    if (note) return note;
+  }
+  return null;
+}
+
 async function listTopicAdvisoryNotes(context = {}, input = {}, limit = 8) {
   const keywords = extractAdvisoryTopicKeywords(context, input);
   if (!keywords.length) return [];
@@ -5433,7 +5449,7 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
     : '';
   const threadId = safeStr(input?.thread_id).trim();
   const canonicalTopicReferencePaths = getCanonicalTopicReferencePaths(context, input);
-  const [localProjectBrain, localCurrentState, localExecutionChecklist, threadSummaryNote, activeFocusNote, activeFocusPlan, topicBrainNote, topicNotes, canonicalTopicNotes] = await Promise.all([
+  const [localProjectBrain, localCurrentState, localExecutionChecklist, threadSummaryNote, activeFocusNote, activeFocusPlan, topicBrainNote, topicExecutionChecklistNote, topicNotes, canonicalTopicNotes] = await Promise.all([
     readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Project-Brain.md', 2200),
     readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Current-State.md', 2200),
     readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Execution-Checklist.md', 2200),
@@ -5441,16 +5457,19 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
     activeFocusPath ? readAdvisoryMarkdownNote(activeFocusPath, 1800) : Promise.resolve(null),
     activeFocusPlanPath ? readAdvisoryMarkdownNote(activeFocusPlanPath, 1800) : Promise.resolve(null),
     readTopicBrainNote(context, input),
+    readTopicExecutionChecklistNote(context, input),
     listTopicAdvisoryNotes(context, input, 8),
     Promise.all(canonicalTopicReferencePaths.map((relativePath) => readAdvisoryMarkdownNote(relativePath, 1800))),
   ]);
 
   const normalizedTopicNotes = uniqueList([
     safeStr(topicBrainNote?.path).trim(),
+    safeStr(topicExecutionChecklistNote?.path).trim(),
     ...canonicalTopicNotes.map((entry) => safeStr(entry?.path).trim()),
     ...topicNotes.map((entry) => safeStr(entry?.path).trim()),
   ]).filter(Boolean).map((notePath) => {
     if (topicBrainNote?.path === notePath) return topicBrainNote;
+    if (topicExecutionChecklistNote?.path === notePath) return topicExecutionChecklistNote;
     const canonicalMatch = canonicalTopicNotes.find((entry) => entry?.path === notePath);
     if (canonicalMatch) return canonicalMatch;
     return topicNotes.find((entry) => entry.path === notePath);
@@ -5465,6 +5484,7 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
       local_project_brain: localProjectBrain,
       local_current_state: localCurrentState,
       local_execution_checklist: localExecutionChecklist,
+      local_topic_execution_checklist: topicExecutionChecklistNote,
       recent_task_notes: recentTasks,
       recent_research_notes: recentResearch,
       active_focus_note: activeFocusNote,
@@ -7064,6 +7084,98 @@ async function executeOwnerAdvisory(meta, context, input) {
   });
 }
 
+function parseFrontmatterBlock(raw) {
+  const text = safeStr(raw);
+  const match = text.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return {};
+  const fields = {};
+  for (const line of match[1].split('\n')) {
+    const separator = line.indexOf(':');
+    if (separator <= 0) continue;
+    const key = safeStr(line.slice(0, separator)).trim();
+    const value = safeStr(line.slice(separator + 1)).trim();
+    if (!key) continue;
+    fields[key] = value;
+  }
+  return fields;
+}
+
+function parseThreadSummaryMetadata(raw = '', summaryPath = '') {
+  const frontmatter = parseFrontmatterBlock(raw);
+  const lines = safeStr(raw).split('\n');
+  const extractBulletValue = (label) => {
+    const pattern = new RegExp(`^- \\*\\*${label}:\\*\\*\\s*(.+)$`);
+    const matched = lines.find((line) => pattern.test(line.trim()));
+    if (!matched) return '';
+    return safeStr(matched.replace(pattern, '$1')).trim();
+  };
+  return {
+    thread_id: sanitizeOwnerThreadId(frontmatter.thread_id || path.basename(summaryPath, '.md').replace(/-summary$/, '')),
+    title: extractBulletValue('About') || 'Owner Copilot thread',
+    reason: extractBulletValue('Current issue'),
+    workflow: extractBulletValue('Last decision').split('->')[0]?.trim() || 'Owner_Advisory',
+    route_target: extractBulletValue('Last decision').split('->')[1]?.trim() || 'none',
+    next_step: extractBulletValue('Next step'),
+    updated: safeStr(frontmatter.updated).trim(),
+    summary_path: summaryPath,
+  };
+}
+
+async function listWorkspaceBrainProjectThreads(project = 'VuriumBook') {
+  const chatsDir = path.join(getWorkspaceBrainRoot(), 'Projects', project, 'Chats', 'Thread-Memory');
+  try {
+    const entries = await fsPromises.readdir(chatsDir, { withFileTypes: true });
+    const files = entries.filter((entry) => entry.isFile() && entry.name.endsWith('.md'));
+    const threads = await Promise.all(files.map(async (entry) => {
+      const relativePath = path.posix.join('Projects', project, 'Chats', 'Thread-Memory', entry.name);
+      const raw = await readWorkspaceBrainRawNote(relativePath);
+      if (!raw) return null;
+      const meta = parseThreadSummaryMetadata(raw, relativePath);
+      return {
+        ...meta,
+        transcript_path: buildOwnerThreadTranscriptRelativePath(meta.thread_id),
+      };
+    }));
+    return threads
+      .filter(Boolean)
+      .sort((a, b) => safeStr(b.updated).localeCompare(safeStr(a.updated)));
+  } catch {
+    return [];
+  }
+}
+
+async function readWorkspaceBrainThreadSnapshot(threadId, project = 'VuriumBook') {
+  const sanitizedThreadId = sanitizeOwnerThreadId(threadId);
+  const summaryPath = buildOwnerThreadSummaryRelativePath(sanitizedThreadId);
+  const transcriptPath = buildOwnerThreadTranscriptRelativePath(sanitizedThreadId);
+  const [summaryRaw, transcriptRaw] = await Promise.all([
+    readWorkspaceBrainRawNote(summaryPath),
+    readWorkspaceBrainRawNote(transcriptPath),
+  ]);
+  if (!summaryRaw && !transcriptRaw) return null;
+
+  const summaryMeta = parseThreadSummaryMetadata(summaryRaw || '', summaryPath);
+  const transcriptPreview = safeStr(transcriptRaw)
+    .split('\n')
+    .slice(-24)
+    .join('\n')
+    .trim();
+
+  return {
+    thread_id: sanitizedThreadId,
+    project,
+    title: summaryMeta.title || `Copilot Thread ${sanitizedThreadId}`,
+    updated: summaryMeta.updated || '',
+    workflow: summaryMeta.workflow || 'Owner_Advisory',
+    route_target: summaryMeta.route_target || 'none',
+    next_step: summaryMeta.next_step || '',
+    reason: summaryMeta.reason || '',
+    summary_path: summaryPath,
+    transcript_path: transcriptPath,
+    transcript_preview: transcriptPreview,
+  };
+}
+
 async function executeOwnerIntake(meta, context, input) {
   const title = deriveOwnerIntakeTitle(input);
   const intakeKind = shouldForceOwnerAdvisoryFollowUp(input, context)
@@ -7702,6 +7814,30 @@ app.post('/api/vurium-dev/ai/owner-intake', requireSuperadmin, async (req, res) 
     if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid owner-intake payload', details: e.issues });
     console.error('Owner intake error:', e.message);
     res.status(500).json({ error: 'Failed to process owner intake' });
+  }
+});
+
+app.get('/api/vurium-dev/ai/owner-threads', requireSuperadmin, async (req, res) => {
+  try {
+    const project = safeStr(req.query.project || 'VuriumBook').trim() || 'VuriumBook';
+    res.json({
+      project,
+      threads: await listWorkspaceBrainProjectThreads(project),
+    });
+  } catch (e) {
+    console.error('Owner threads list error:', e.message);
+    res.status(500).json({ error: 'Failed to load owner threads' });
+  }
+});
+
+app.get('/api/vurium-dev/ai/owner-threads/:threadId', requireSuperadmin, async (req, res) => {
+  try {
+    const snapshot = await readWorkspaceBrainThreadSnapshot(req.params.threadId, safeStr(req.query.project || 'VuriumBook').trim() || 'VuriumBook');
+    if (!snapshot) return res.status(404).json({ error: 'Thread not found' });
+    res.json(snapshot);
+  } catch (e) {
+    console.error('Owner thread snapshot error:', e.message);
+    res.status(500).json({ error: 'Failed to load owner thread snapshot' });
   }
 });
 
