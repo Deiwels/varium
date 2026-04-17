@@ -108,6 +108,7 @@ interface ParallelExecutionBundle {
   bundle_note_relative_path: string
   bundle_note_absolute_path: string
   lane_targets: string[]
+  combined_quick_start_prompt: string
   launch_prompt: string
   return_to_system_prompt: string
   reason: string
@@ -710,6 +711,7 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
         bundle_note_relative_path: typeof rawParallelBundle.bundle_note_relative_path === 'string' ? rawParallelBundle.bundle_note_relative_path.trim() : '',
         bundle_note_absolute_path: typeof rawParallelBundle.bundle_note_absolute_path === 'string' ? rawParallelBundle.bundle_note_absolute_path.trim() : '',
         lane_targets: toStringList(rawParallelBundle.lane_targets),
+        combined_quick_start_prompt: typeof rawParallelBundle.combined_quick_start_prompt === 'string' ? rawParallelBundle.combined_quick_start_prompt.trim() : '',
         launch_prompt: typeof rawParallelBundle.launch_prompt === 'string' ? rawParallelBundle.launch_prompt.trim() : '',
         return_to_system_prompt: typeof rawParallelBundle.return_to_system_prompt === 'string' ? rawParallelBundle.return_to_system_prompt.trim() : '',
         reason: typeof rawParallelBundle.reason === 'string' ? rawParallelBundle.reason.trim() : '',
@@ -1234,7 +1236,7 @@ function OwnerIntakePageInner() {
       source_thread_id: item.result.thread_id || activeThreadId,
       title: `${routeTargetLabel(targetAi)} · ${item.result.title || item.message}`,
       target_ai: targetAi,
-      coding_prompt: lane.starterPrompt || lane.codexPrompt,
+      coding_prompt: lane.quickStartPrompt || lane.starterPrompt || lane.codexPrompt,
       source_workflow: item.result.follow_on_workflow !== 'none'
         ? item.result.follow_on_workflow
         : item.result.downstream_workflow,
@@ -1287,7 +1289,9 @@ function OwnerIntakePageInner() {
       }
       throw error
     } finally {
-      setForkingExecutionKey('')
+      if ((options?.key || `${item.id}:${targetAi}`) !== `${item.id}:all`) {
+        setForkingExecutionKey('')
+      }
     }
   }
 
@@ -1650,12 +1654,41 @@ function OwnerIntakePageInner() {
                                       <div style={{ fontSize: 13, color: 'rgba(255,255,255,.82)', lineHeight: 1.6 }}>
                                         {`Run ${info.parallelExecutionBundle.lane_targets.join(' + ')} at the same time. The shared bundle note keeps the launch order and unified return flow in one place.`}
                                       </div>
+                                      {info.parallelExecutionBundle.combined_quick_start_prompt && (
+                                        <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.72)', lineHeight: 1.7 }}>
+                                          1. Send the AI-1 quick start to Claude. 2. Send the AI-2 quick start to Codex. 3. Paste one combined return back into Owner Copilot.
+                                        </div>
+                                      )}
                                       {info.parallelExecutionBundle.bundle_note_absolute_path && (
                                         <div style={{ fontSize: 12, color: 'rgba(255,255,255,.52)', wordBreak: 'break-word' }}>
                                           {info.parallelExecutionBundle.bundle_note_absolute_path}
                                         </div>
                                       )}
                                     </div>
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        try {
+                                          await navigator.clipboard.writeText(info.parallelExecutionBundle?.combined_quick_start_prompt || '')
+                                          toast.show('Copied both quick starts.')
+                                        } catch {
+                                          toast.show('Could not copy both quick starts.', 'error')
+                                        }
+                                      }}
+                                      style={{
+                                        padding: '8px 12px',
+                                        borderRadius: 999,
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                        fontFamily: 'inherit',
+                                        background: 'rgba(255,205,120,.18)',
+                                        color: 'rgba(255,205,120,.98)',
+                                      }}
+                                    >
+                                      Copy both quick starts
+                                    </button>
                                     <button
                                       type="button"
                                       onClick={async () => {
@@ -1729,6 +1762,21 @@ function OwnerIntakePageInner() {
                                     <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(255,205,120,.92)' }}>
                                       Preview parallel launch instructions
                                     </summary>
+                                    {info.parallelExecutionBundle.combined_quick_start_prompt && (
+                                      <pre style={{
+                                        margin: '10px 0 0',
+                                        padding: 12,
+                                        borderRadius: 12,
+                                        overflow: 'auto',
+                                        background: 'rgba(0,0,0,.22)',
+                                        border: '1px solid rgba(255,255,255,.06)',
+                                        color: 'rgba(255,255,255,.78)',
+                                        fontSize: 11,
+                                        lineHeight: 1.65,
+                                        whiteSpace: 'pre-wrap',
+                                        wordBreak: 'break-word',
+                                      }}>{info.parallelExecutionBundle.combined_quick_start_prompt}</pre>
+                                    )}
                                     <pre style={{
                                       margin: '10px 0 0',
                                       padding: 12,

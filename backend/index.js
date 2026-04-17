@@ -3990,6 +3990,7 @@ const ParallelExecutionBundleSchema = z.object({
   bundle_note_relative_path: z.string().default(''),
   bundle_note_absolute_path: z.string().default(''),
   lane_targets: z.array(ImplementationTargetSchema).default([]),
+  combined_quick_start_prompt: z.string().default(''),
   launch_prompt: z.string().default(''),
   return_to_system_prompt: z.string().default(''),
   reason: z.string().default(''),
@@ -4012,6 +4013,7 @@ const PARALLEL_EXECUTION_BUNDLE_DEFAULT = {
   bundle_note_relative_path: '',
   bundle_note_absolute_path: '',
   lane_targets: [],
+  combined_quick_start_prompt: '',
   launch_prompt: '',
   return_to_system_prompt: '',
   reason: '',
@@ -6577,6 +6579,25 @@ function buildParallelExecutionLaunchPrompt(packet, orderedPackets, bundleAbsolu
   ].join('\n');
 }
 
+function buildParallelExecutionCombinedQuickStartPrompt(packet, orderedPackets) {
+  const sections = orderedPackets.flatMap((entry, index) => {
+    const targetAi = safeStr(entry.target_ai || 'AI-1').trim() || 'AI-1';
+    const quickStart = safeStr(entry.quick_start_prompt || entry.execution_contract?.quick_start_prompt || '').trim();
+    return [
+      `Step ${index + 1} — ${targetAi} (${preferredExecutionProviderLabel(targetAi)})`,
+      quickStart || `Read the ${targetAi} execution contract first and continue from there.`,
+      '',
+    ];
+  });
+
+  return [
+    `Run the parallel execution for ${safeStr(packet.task_id)} in this order:`,
+    '',
+    ...sections,
+    'After both lanes finish, use the combined return prompt from the parallel bundle note and report back into Owner Copilot.',
+  ].join('\n');
+}
+
 function buildParallelExecutionReturnPrompt(packet, orderedPackets) {
   return [
     `Paste this back into Owner Copilot once the parallel execution for ${safeStr(packet.task_id)} is complete.`,
@@ -6852,6 +6873,7 @@ async function attachParallelExecutionBundle(packet) {
   const bundleRelativePath = buildParallelExecutionBundleRelativePath(packet);
   const bundleAbsolutePath = toWorkspaceKnowledgeAbsolutePath(bundleRelativePath);
   const launchPrompt = buildParallelExecutionLaunchPrompt(packet, orderedPackets, bundleAbsolutePath);
+  const combinedQuickStartPrompt = buildParallelExecutionCombinedQuickStartPrompt(packet, orderedPackets);
   const returnPrompt = buildParallelExecutionReturnPrompt(packet, orderedPackets);
   const laneLines = orderedPackets.map((entry) => {
     const targetAi = safeStr(entry.target_ai || 'AI-1').trim() || 'AI-1';
@@ -6887,6 +6909,11 @@ async function attachParallelExecutionBundle(packet) {
     launchPrompt,
     '```',
     '',
+    '## Combined Quick Start',
+    '```text',
+    combinedQuickStartPrompt,
+    '```',
+    '',
     '## Combined Return-to-System Prompt',
     '```text',
     returnPrompt,
@@ -6911,6 +6938,7 @@ async function attachParallelExecutionBundle(packet) {
         bundle_note_relative_path: bundleRelativePath,
         bundle_note_absolute_path: bundleAbsolutePath,
         lane_targets: laneTargets,
+        combined_quick_start_prompt: combinedQuickStartPrompt,
         launch_prompt: launchPrompt,
         return_to_system_prompt: returnPrompt,
         reason: `Parallel execution bundle saved to the local workspace brain for ${laneTargets.join(' + ')}.`,
@@ -6924,6 +6952,7 @@ async function attachParallelExecutionBundle(packet) {
         bundle_note_relative_path: bundleRelativePath,
         bundle_note_absolute_path: bundleAbsolutePath,
         lane_targets: laneTargets,
+        combined_quick_start_prompt: combinedQuickStartPrompt,
         launch_prompt: launchPrompt,
         return_to_system_prompt: returnPrompt,
         reason: `Parallel execution bundle write failed: ${safeStr(error?.message || 'unknown error')}`,
