@@ -16,6 +16,9 @@ function IconEmail() {
 function IconAI() {
   return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3M3.05 3.05l2.12 2.12M10.83 10.83l2.12 2.12M3.05 12.95l2.12-2.12M10.83 5.17l2.12-2.12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
 }
+function IconIntake() {
+  return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4.5A2.5 2.5 0 015.5 2h5A2.5 2.5 0 0113 4.5v4A2.5 2.5 0 0110.5 11H8l-3 3v-3H5.5A2.5 2.5 0 013 8.5v-4z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M5.5 5.5h5M5.5 7.75h3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+}
 function IconSMS() {
   return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.3"/><path d="M4 13l2-1h4l2 1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M4 7h8M4 9.5h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
 }
@@ -31,6 +34,7 @@ function IconMenu() {
 
 const NAV = [
   { href: '/developer', label: 'Overview', Icon: IconOverview },
+  { href: '/developer/intake', label: 'Owner Intake', Icon: IconIntake },
   { href: '/developer/analytics', label: 'Analytics', Icon: IconAnalytics },
   { href: '/developer/email', label: 'Email', Icon: IconEmail },
   { href: '/developer/sms', label: 'SMS', Icon: IconSMS },
