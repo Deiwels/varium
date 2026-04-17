@@ -1,3 +1,5 @@
+import { NextResponse } from 'next/server'
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, '&amp;')
@@ -37,30 +39,25 @@ export async function GET(req: Request) {
       )
     }
 
-    const token = escapeHtml(String(data.token))
-    return new Response(
-      `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="Cache-Control" content="no-store" />
-    <title>Opening Developer Panel…</title>
-  </head>
-  <body style="background:#050507;color:#fff;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;padding:32px">
-    <h1 style="font-size:20px;margin:0 0 12px">Opening Developer Panel…</h1>
-    <p style="color:rgba(255,255,255,.65);margin:0 0 18px">Storing your local owner token and redirecting you to Owner Intake.</p>
-    <script>
-      try {
-        localStorage.setItem('vurium_dev_token', '${token}');
-        window.location.replace('/developer/intake');
-      } catch (e) {
-        document.body.innerHTML = '<h1 style="font-size:20px">Local access failed</h1><p style="color:rgba(255,255,255,.65)">Could not store the local developer token.</p><p><a href="/developer/login" style="color:#8ba7ff">Back to login</a></p>';
-      }
-    </script>
-  </body>
-</html>`,
-      { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } }
-    )
+    const token = String(data.token)
+    const next = new NextResponse(null, { status: 302 })
+    next.headers.set('Location', '/developer/intake')
+    next.cookies.set('vurium_admin_token', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: false,
+      path: '/',
+      maxAge: 60 * 60 * 24,
+    })
+    // Keep the lightweight localStorage token too as a client-side fallback for existing dev fetch helpers.
+    next.cookies.set('vurium_dev_bootstrap', token, {
+      httpOnly: false,
+      sameSite: 'lax',
+      secure: false,
+      path: '/',
+      maxAge: 60 * 5,
+    })
+    return next
   } catch (error) {
     const message = escapeHtml(error instanceof Error ? error.message : 'Local access failed')
     return new Response(
