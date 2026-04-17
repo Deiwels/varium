@@ -1977,9 +1977,19 @@ app.post('/api/webhooks/telnyx', async (req, res) => {
 app.post('/api/webhooks/telnyx-10dlc', async (req, res) => {
   try {
     verifyTelnyxWebhookSignature(req);
-    const event = req.body?.data || {};
+    const event = req.body?.data || req.body || {};
     const eventType = event.event_type || req.body?.event_type || '';
-    const payload = event.payload || event || {};
+    const payload = event.payload || req.body?.payload || event || {};
+    const tfvRequestId = payload.verification_request_id || payload.verificationRequestId || '';
+    const tfvStatus = payload.status || '';
+    const tfvReason = extractTelnyxTfvReason(payload);
+
+    if (tfvRequestId || /verification_request/i.test(eventType)) {
+      await applyTfvStatusUpdateByRequestId(tfvRequestId, tfvStatus, tfvReason, {
+        source: `webhook:${eventType || 'verification_request'}`,
+      }).catch(() => {});
+      return res.status(200).json({ ok: true });
+    }
 
     // Find workspace by brand_id or campaign_id
     const brandId = payload.brand_id || payload.brandId || '';
@@ -2116,6 +2126,308 @@ function getWorkspaceBookingUrl(workspaceLike) {
   return handle ? `${frontendUrl}/book/${encodeURIComponent(handle)}` : `${frontendUrl}/book/`;
 }
 
+const SMS_TFV_MAX_SUBMIT_RETRIES = 5;
+const SMS_TFV_SUBMIT_BACKOFF_MS = [5, 15, 60, 240, 1440].map((minutes) => minutes * 60 * 1000);
+
+function computeSmsTfvSubmitRetryAt(retryCount) {
+  const idx = Math.max(0, Math.min(retryCount, SMS_TFV_SUBMIT_BACKOFF_MS.length - 1));
+  return new Date(Date.now() + SMS_TFV_SUBMIT_BACKOFF_MS[idx]);
+}
+
+function getSmsTfvMissingFields(settings) {
+  const missing = [];
+  if (!safeStr(settings?.shop_name || settings?.sms_brand_name || '')) missing.push('shop_name');
+  if (!safeStr(settings?.shop_address || '')) missing.push('shop_address');
+  if (!safeStr(settings?.shop_phone || '')) missing.push('shop_phone');
+  if (!safeStr(settings?.shop_email || '')) missing.push('shop_email');
+  if (!safeStr(settings?.sms_from_number || '')) missing.push('sms_from_number');
+  return missing;
+}
+
+function buildSmsTfvPayload(workspaceLike, settings) {
+  const shopName = safeStr(settings?.shop_name || settings?.sms_brand_name || workspaceLike?.name || 'Business');
+  const bookingUrl = getWorkspaceBookingUrl(workspaceLike);
+  return {
+    phoneNumbers: [safeStr(settings?.sms_from_number || '')].filter(Boolean),
+    businessName: shopName,
+    corporateWebsite: bookingUrl,
+    businessContactEmail: safeStr(settings?.shop_email || ''),
+    businessContactPhone: formatPhone(settings?.shop_phone) || safeStr(settings?.shop_phone || ''),
+    useCase: 'Appointments',
+    useCaseSummary: `${shopName} sends appointment confirmations and reminders to clients who opt in during online booking at ${bookingUrl}.`,
+    messageVolume: '100',
+    optInWorkflowDescription: `Clients opt in via an SMS consent checkbox on the booking page at ${bookingUrl}. The checkbox is optional and unchecked by default.`,
+    optInWorkflowImageURLs: [bookingUrl],
+    sampleMessage1: `${shopName}: Your appointment is confirmed for tomorrow at 2:00 PM. Reply STOP to opt out.`,
+    sampleMessage2: `${shopName}: Reminder - your appointment is in 1 hour. Reply HELP for help.`,
+    webhookUrl: `${API_BASE_URL}/api/webhooks/telnyx-10dlc`,
+    privacyPolicyUrl: 'https://vurium.com/privacy',
+    termsAndConditionsUrl: 'https://vurium.com/terms',
+  };
+}
+
+function normalizeTelnyxTfvStatus(status) {
+  return safeStr(status || '').toLowerCase();
+}
+
+function mapTelnyxTfvStatusToSmsStatus(status) {
+  const normalized = normalizeTelnyxTfvStatus(status);
+  if (!normalized) return null;
+  if (normalized === 'verified') return 'active';
+  if (normalized === 'rejected') return 'tfv_rejected';
+  if (normalized.startsWith('waiting') || normalized === 'in progress' || normalized === 'pending' || normalized === 'draft') {
+    return 'tfv_pending';
+  }
+  return null;
+}
+
+function extractTelnyxTfvReason(payload) {
+  return safeStr(
+    payload?.reason
+    || payload?.rejection_reason
+    || payload?.status_reason
+    || payload?.failure_reason
+    || ''
+  ).slice(0, 1000);
+}
+
+function buildSystemAuditReq(actorName = 'system') {
+  return {
+    headers: {},
+    ip: 'system',
+    user: { uid: 'system', name: actorName, username: actorName, role: 'system' },
+  };
+}
+
+async function applyTfvStatusUpdateBySettingsRef(settingsRef, currentSettings, status, reason, meta = {}) {
+  const normalizedExternalStatus = safeStr(status || '');
+  const mappedStatus = mapTelnyxTfvStatusToSmsStatus(normalizedExternalStatus);
+  if (!mappedStatus) {
+    if (normalizedExternalStatus) {
+      await settingsRef.set({
+        sms_tfv_external_status: normalizedExternalStatus,
+        sms_tfv_last_synced_at: toIso(new Date()),
+      }, { merge: true }).catch(() => {});
+    }
+    return { ok: true, ignored: true, external_status: normalizedExternalStatus };
+  }
+
+  const nowIso = toIso(new Date());
+  const currentStatus = safeStr(currentSettings?.sms_registration_status || 'none');
+  const patch = {
+    sms_tfv_external_status: normalizedExternalStatus,
+    sms_tfv_last_synced_at: nowIso,
+    sms_status_updated_at: nowIso,
+  };
+
+  if (mappedStatus === 'active') {
+    patch.sms_registration_status = 'active';
+    patch.sms_tfv_verified_at = nowIso;
+    patch.sms_tfv_rejection_reason = null;
+    patch.sms_tfv_submit_next_retry_at = null;
+    patch.sms_tfv_submit_last_error = null;
+  } else if (mappedStatus === 'tfv_rejected') {
+    patch.sms_registration_status = 'tfv_rejected';
+    patch.sms_tfv_rejected_at = nowIso;
+    patch.sms_tfv_rejection_reason = safeStr(reason || '').slice(0, 1000) || null;
+    patch.sms_tfv_submit_next_retry_at = null;
+  } else if (mappedStatus === 'tfv_pending' && !isSmsDeliveryReadyStatus(currentStatus)) {
+    patch.sms_registration_status = 'tfv_pending';
+    patch.sms_tfv_submit_last_error = null;
+  }
+
+  await settingsRef.set(patch, { merge: true });
+
+  if (meta.wsId && mappedStatus !== currentStatus) {
+    writeAuditLog(meta.wsId, {
+      action: mappedStatus === 'active' ? 'sms.tfv_verified' : mappedStatus === 'tfv_rejected' ? 'sms.tfv_rejected' : 'sms.tfv_updated',
+      resource_id: safeStr(currentSettings?.sms_tfv_request_id || meta.tfvRequestId || ''),
+      data: {
+        external_status: normalizedExternalStatus || null,
+        internal_status: mappedStatus,
+        reason: safeStr(reason || '').slice(0, 500) || null,
+        source: safeStr(meta.source || 'tfv_status'),
+      },
+      req: buildSystemAuditReq('tfv_sync'),
+    }).catch(() => {});
+  }
+
+  return { ok: true, status: mappedStatus, external_status: normalizedExternalStatus };
+}
+
+async function applyTfvStatusUpdateByRequestId(tfvRequestId, status, reason, meta = {}) {
+  const requestId = safeStr(tfvRequestId || '');
+  if (!requestId) return { ok: false, skipped: 'missing_request_id' };
+  const snap = await db.collectionGroup('settings')
+    .where('sms_tfv_request_id', '==', requestId)
+    .limit(1)
+    .get()
+    .catch(() => null);
+  if (!snap || snap.empty) return { ok: false, skipped: 'workspace_not_found' };
+  const settingsDoc = snap.docs[0];
+  const wsId = settingsDoc.ref.parent?.parent?.id || '';
+  return applyTfvStatusUpdateBySettingsRef(
+    settingsDoc.ref,
+    settingsDoc.data() || {},
+    status,
+    reason,
+    { ...meta, wsId, tfvRequestId: requestId }
+  );
+}
+
+async function submitTfvForWorkspace(workspaceLike, opts = {}) {
+  const wsId = safeStr(workspaceLike?.id || '');
+  if (!wsId) return { ok: false, skipped: 'missing_workspace_id' };
+
+  try {
+    const wsRef = db.collection('workspaces').doc(wsId);
+    const [wsDoc, settingsDoc] = await Promise.all([
+      wsRef.get(),
+      wsRef.collection('settings').doc('config').get(),
+    ]);
+    if (!wsDoc.exists) return { ok: false, skipped: 'workspace_not_found' };
+
+    const workspace = { id: wsId, ...(wsDoc.data() || {}) };
+    const settingsRef = settingsDoc.ref;
+    const settings = settingsDoc.exists ? (settingsDoc.data() || {}) : {};
+    const currentStatus = safeStr(settings.sms_registration_status || 'none');
+    const requestId = safeStr(settings.sms_tfv_request_id || '');
+    const mode = safeStr(opts.mode || 'create');
+    const source = safeStr(opts.source || 'workspace');
+    const missingFields = getSmsTfvMissingFields(settings);
+
+    if (missingFields.length > 0) return { ok: false, skipped: 'missing_fields', missing_fields: missingFields };
+    if (safeStr(settings.sms_number_type || '') !== 'toll-free') return { ok: false, skipped: 'not_tollfree' };
+    if (isLegacyManualSmsPath(workspace, settings)) return { ok: false, skipped: 'legacy_manual_path' };
+    if (mode === 'update' && !requestId) return { ok: false, skipped: 'missing_tfv_request_id' };
+    if (mode === 'update' && currentStatus !== 'tfv_rejected') return { ok: false, skipped: `status:${currentStatus}` };
+
+    if (mode !== 'update') {
+      if (isSmsDeliveryReadyStatus(currentStatus)) return { ok: true, already_active: true, status: currentStatus };
+      if (currentStatus === 'tfv_pending' && requestId) return { ok: true, already_pending: true, status: currentStatus, tfv_request_id: requestId };
+      if (!['configured', 'tfv_submit_failed'].includes(currentStatus)) return { ok: false, skipped: `status:${currentStatus}` };
+    }
+
+    const payload = buildSmsTfvPayload(workspace, settings);
+    const tfvResult = mode === 'update'
+      ? await telnyxApi('PATCH', `/v2/messaging_tollfree/verification/requests/${encodeURIComponent(requestId)}`, payload)
+      : await telnyxApi('POST', '/v2/messaging_tollfree/verification/requests', payload);
+
+    const nowIso = toIso(new Date());
+    const responseRequestId = safeStr(tfvResult?.data?.id || requestId);
+    const externalStatus = safeStr(tfvResult?.data?.status || 'Waiting For Telnyx');
+
+    await settingsRef.set({
+      sms_registration_status: 'tfv_pending',
+      sms_tfv_request_id: responseRequestId,
+      sms_tfv_submitted_at: mode === 'update' ? (settings.sms_tfv_submitted_at || nowIso) : nowIso,
+      sms_tfv_resubmitted_at: mode === 'update' ? nowIso : null,
+      sms_tfv_external_status: externalStatus,
+      sms_tfv_last_synced_at: nowIso,
+      sms_tfv_submit_retry_count: 0,
+      sms_tfv_submit_next_retry_at: null,
+      sms_tfv_submit_last_error: null,
+      sms_tfv_submit_last_attempt_at: nowIso,
+      sms_tfv_submit_last_source: source,
+      sms_tfv_rejection_reason: null,
+      sms_status_updated_at: nowIso,
+      updated_at: nowIso,
+    }, { merge: true });
+
+    writeAuditLog(wsId, {
+      action: mode === 'update' ? 'sms.tfv_resubmitted' : 'sms.tfv_submitted',
+      resource_id: responseRequestId,
+      data: {
+        source,
+        phone_number: payload.phoneNumbers?.[0] || null,
+        external_status: externalStatus || null,
+        mode,
+      },
+      req: opts.req || buildSystemAuditReq(mode === 'update' ? 'tfv_resubmit' : 'tfv_submit'),
+    }).catch(() => {});
+
+    return {
+      ok: true,
+      status: 'tfv_pending',
+      tfv_request_id: responseRequestId,
+      external_status: externalStatus,
+      mode,
+    };
+  } catch (e) {
+    const settingsRef = db.collection('workspaces').doc(wsId).collection('settings').doc('config');
+    const settingsDoc = await settingsRef.get().catch(() => null);
+    const settings = settingsDoc?.exists ? (settingsDoc.data() || {}) : {};
+    const currentStatus = safeStr(settings.sms_registration_status || 'configured');
+    const prevRetryCount = Number(settings.sms_tfv_submit_retry_count || 0);
+    const nextRetryCount = prevRetryCount + 1;
+    const reachedMax = nextRetryCount >= SMS_TFV_MAX_SUBMIT_RETRIES;
+    const nowIso = toIso(new Date());
+    const keepRejected = currentStatus === 'tfv_rejected';
+    const patch = {
+      sms_registration_status: keepRejected ? 'tfv_rejected' : (reachedMax ? 'tfv_submit_failed' : 'configured'),
+      sms_tfv_submit_retry_count: nextRetryCount,
+      sms_tfv_submit_next_retry_at: (keepRejected || reachedMax) ? null : toIso(computeSmsTfvSubmitRetryAt(prevRetryCount)),
+      sms_tfv_submit_last_error: safeStr(e?.message || 'tfv_submit_failed').slice(0, 1000),
+      sms_tfv_submit_last_attempt_at: nowIso,
+      sms_tfv_submit_last_source: safeStr(opts.source || 'workspace'),
+      sms_status_updated_at: nowIso,
+      updated_at: nowIso,
+    };
+    await settingsRef.set(patch, { merge: true }).catch(() => {});
+
+    writeAuditLog(wsId, {
+      action: reachedMax ? 'sms.tfv_submit_exhausted' : 'sms.tfv_submit_failed',
+      resource_id: safeStr(settings.sms_tfv_request_id || ''),
+      data: {
+        error: safeStr(e?.message || '').slice(0, 500),
+        retry_count: nextRetryCount,
+        next_retry_at: patch.sms_tfv_submit_next_retry_at || null,
+        source: safeStr(opts.source || 'workspace'),
+        mode: safeStr(opts.mode || 'create'),
+      },
+      req: opts.req || buildSystemAuditReq('tfv_submit'),
+    }).catch(() => {});
+
+    return {
+      ok: false,
+      error: e?.message || 'tfv_submit_failed',
+      retry_count: nextRetryCount,
+      reached_max: reachedMax,
+    };
+  }
+}
+
+async function syncTfvStatusForWorkspace(workspaceLike, opts = {}) {
+  const wsId = safeStr(workspaceLike?.id || '');
+  if (!wsId) return { ok: false, skipped: 'missing_workspace_id' };
+  const settingsRef = db.collection('workspaces').doc(wsId).collection('settings').doc('config');
+  const settingsDoc = await settingsRef.get();
+  const settings = settingsDoc.exists ? (settingsDoc.data() || {}) : {};
+  const currentStatus = safeStr(settings.sms_registration_status || 'none');
+  const requestId = safeStr(settings.sms_tfv_request_id || '');
+  if (!requestId) return { ok: false, skipped: 'missing_tfv_request_id' };
+  if (!['tfv_pending', 'tfv_rejected', 'active', 'verified'].includes(currentStatus)) {
+    return { ok: false, skipped: `status:${currentStatus}` };
+  }
+  try {
+    const tfvResult = await telnyxApi('GET', `/v2/messaging_tollfree/verification/requests/${encodeURIComponent(requestId)}`);
+    const record = tfvResult?.data || {};
+    return applyTfvStatusUpdateBySettingsRef(
+      settingsRef,
+      settings,
+      record?.status || '',
+      extractTelnyxTfvReason(record),
+      { wsId, tfvRequestId: requestId, source: safeStr(opts.source || 'tfv_poll') }
+    );
+  } catch (e) {
+    await settingsRef.set({
+      sms_tfv_last_synced_at: toIso(new Date()),
+      sms_tfv_submit_last_error: safeStr(e?.message || 'tfv_status_sync_failed').slice(0, 1000),
+    }, { merge: true }).catch(() => {});
+    return { ok: false, error: e?.message || 'tfv_status_sync_failed' };
+  }
+}
+
 async function provisionTollFreeSmsForWorkspace(workspace, opts = {}) {
   const wsId = safeStr(workspace?.id || '');
   if (!wsId) {
@@ -2240,6 +2552,15 @@ async function provisionTollFreeSmsForWorkspace(workspace, opts = {}) {
         user: { uid: safeStr(opts.actor_uid || 'system'), name: actor, username: actor, role: safeStr(opts.actor_role || 'system') },
       },
     }).catch(() => {});
+
+    // If the workspace already has the required business fields, do not stop at
+    // "configured" — immediately advance into TFV submission.
+    submitTfvForWorkspace(workspace, {
+      source: `${safeStr(opts.source || 'workspace')}:post_provision`,
+      req: buildSystemAuditReq('tfv_post_provision'),
+    }).catch((tfvErr) => {
+      console.warn('TFV auto-submit after provisioning failed:', tfvErr?.message || tfvErr);
+    });
 
     return {
       ok: true,
@@ -11440,6 +11761,26 @@ app.post('/api/sms/enable-tollfree', requireRole('owner'), async (req, res) => {
   }
 });
 
+app.post('/api/sms/resubmit-tfv', requireRole('owner'), async (req, res) => {
+  try {
+    const wsDoc = await db.collection('workspaces').doc(req.wsId).get();
+    const workspace = { id: req.wsId, ...(wsDoc.exists ? wsDoc.data() : {}) };
+    const result = await submitTfvForWorkspace(workspace, {
+      mode: 'update',
+      source: 'workspace:resubmit_tfv',
+      req,
+    });
+    if (!result.ok) {
+      const skipped = safeStr(result.skipped || '');
+      return res.status(skipped.startsWith('status:') ? 409 : 400).json(result);
+    }
+    res.json(result);
+  } catch (e) {
+    console.error('TFV resubmit error:', e);
+    res.status(500).json({ error: e?.message || 'Failed to resubmit TFV' });
+  }
+});
+
 // 10DLC SMS registration for Salon/Business plan
 app.post('/api/sms/register', requireRole('owner'), async (req, res) => {
   try {
@@ -11807,6 +12148,13 @@ app.get('/api/sms/status', requireRole('owner', 'admin'), async (req, res) => {
       brand_name: data.sms_brand_name || data.shop_name || null,
       messaging_profile_id: data.sms_messaging_profile_id || null,
       registered_at: data.sms_registered_at || null,
+      tfv_request_id: data.sms_tfv_request_id || null,
+      tfv_external_status: data.sms_tfv_external_status || null,
+      tfv_submitted_at: data.sms_tfv_submitted_at || null,
+      tfv_resubmitted_at: data.sms_tfv_resubmitted_at || null,
+      tfv_verified_at: data.sms_tfv_verified_at || null,
+      tfv_rejected_at: data.sms_tfv_rejected_at || null,
+      tfv_rejection_reason: data.sms_tfv_rejection_reason || null,
     });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -11915,6 +12263,19 @@ app.post('/api/settings', requireRole('owner', 'admin'), async (req, res) => {
     const ref = req.ws('settings').doc('config');
     await ref.set(patch, { merge: true });
     const saved = await ref.get();
+
+    const savedData = saved.exists ? (saved.data() || {}) : {};
+    if (safeStr(savedData.sms_registration_status || '') === 'configured' && getSmsTfvMissingFields(savedData).length === 0) {
+      const wsDoc = await req.wsDoc().get().catch(() => null);
+      const workspace = { id: req.wsId, ...(wsDoc?.exists ? wsDoc.data() : {}) };
+      submitTfvForWorkspace(workspace, {
+        source: 'settings:auto_submit',
+        req,
+      }).catch((tfvErr) => {
+        console.warn('TFV auto-submit after settings update failed:', tfvErr?.message || tfvErr);
+      });
+    }
+
     res.json({ id: 'config', ...saved.data() });
   } catch (e) { res.status(500).json({ error: e?.message }); }
 });
@@ -14464,6 +14825,92 @@ async function runSmsAutoProvisionRetry() {
   }
 }
 
+let _lastSmsTfvSubmitRetryRun = 0;
+async function runSmsTfvSubmitRetry() {
+  const now = Date.now();
+  if (now - _lastSmsTfvSubmitRetryRun < 5 * 60 * 1000) return;
+  _lastSmsTfvSubmitRetryRun = now;
+  try {
+    const nowMs = Date.now();
+    let lastDoc = null;
+    let hasMore = true;
+    let processed = 0;
+    const maxPerCycle = 500;
+    while (hasMore && processed < maxPerCycle) {
+      let q = db.collection('workspaces').orderBy('__name__').limit(50);
+      if (lastDoc) q = q.startAfter(lastDoc);
+      const wsSnap = await q.get();
+      if (wsSnap.empty) break;
+      for (const ws of wsSnap.docs) {
+        processed++;
+        try {
+          const settingsDoc = await db.collection('workspaces').doc(ws.id)
+            .collection('settings').doc('config').get();
+          if (!settingsDoc.exists) continue;
+          const data = settingsDoc.data() || {};
+          const retryAt = data.sms_tfv_submit_next_retry_at;
+          if (!retryAt) continue;
+          if (new Date(retryAt).getTime() > nowMs) continue;
+          const status = safeStr(data.sms_registration_status || '');
+          if (!['configured', 'tfv_submit_failed'].includes(status)) continue;
+          const wsData = ws.data() || {};
+          submitTfvForWorkspace(
+            { id: ws.id, name: wsData.name || '', slug: wsData.slug || '' },
+            { source: 'auto:tfv_submit_retry', req: buildSystemAuditReq('tfv_submit_retry') }
+          ).catch(() => {});
+        } catch (e) {
+          console.warn('runSmsTfvSubmitRetry error for ws', ws.id, e?.message);
+        }
+      }
+      lastDoc = wsSnap.docs[wsSnap.docs.length - 1];
+      hasMore = wsSnap.docs.length === 50;
+    }
+  } catch (e) {
+    console.warn('runSmsTfvSubmitRetry error:', e?.message);
+  }
+}
+
+let _lastSmsTfvStatusRun = 0;
+async function runTfvStatusCheck() {
+  const now = Date.now();
+  if (now - _lastSmsTfvStatusRun < 30 * 60 * 1000) return;
+  _lastSmsTfvStatusRun = now;
+  try {
+    let lastDoc = null;
+    let hasMore = true;
+    let processed = 0;
+    const maxPerCycle = 500;
+    while (hasMore && processed < maxPerCycle) {
+      let q = db.collection('workspaces').orderBy('__name__').limit(50);
+      if (lastDoc) q = q.startAfter(lastDoc);
+      const wsSnap = await q.get();
+      if (wsSnap.empty) break;
+      for (const ws of wsSnap.docs) {
+        processed++;
+        try {
+          const settingsDoc = await db.collection('workspaces').doc(ws.id)
+            .collection('settings').doc('config').get();
+          if (!settingsDoc.exists) continue;
+          const data = settingsDoc.data() || {};
+          if (safeStr(data.sms_registration_status || '') !== 'tfv_pending') continue;
+          if (!safeStr(data.sms_tfv_request_id || '')) continue;
+          const wsData = ws.data() || {};
+          await syncTfvStatusForWorkspace(
+            { id: ws.id, name: wsData.name || '', slug: wsData.slug || '' },
+            { source: 'auto:tfv_poll' }
+          ).catch(() => {});
+        } catch (e) {
+          console.warn('runTfvStatusCheck error for ws', ws.id, e?.message);
+        }
+      }
+      lastDoc = wsSnap.docs[wsSnap.docs.length - 1];
+      hasMore = wsSnap.docs.length === 50;
+    }
+  } catch (e) {
+    console.warn('runTfvStatusCheck error:', e?.message);
+  }
+}
+
 async function runAutoMemberships() {
   const now = Date.now();
   if (now - _lastMembershipRun < 5 * 60 * 1000) return; // throttle 5 min
@@ -15074,6 +15521,8 @@ setInterval(() => {
   withJobLock('runPayrollAudit', 900, runPayrollAudit).catch(() => {});
   withJobLock('runBookingAudit', 900, runBookingAudit).catch(() => {});
   withJobLock('runSmsAutoProvisionRetry', 600, runSmsAutoProvisionRetry).catch(() => {});
+  withJobLock('runSmsTfvSubmitRetry', 600, runSmsTfvSubmitRetry).catch(() => {});
+  withJobLock('runTfvStatusCheck', 1800, runTfvStatusCheck).catch(() => {});
 }, 3 * 60 * 1000);
 
 // AI Diagnostics — auto-scan every 30 minutes. Wrapped in withJobLock too so multi-instance

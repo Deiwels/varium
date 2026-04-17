@@ -26,22 +26,22 @@ Requirements: [[Compliance/Requirements/TFV-Reminder-SMS-Requirements|TFV Requir
 
 ### System Requirements
 
-- [ ] **SYS.1** — Status lifecycle implemented: `none` → `provisioning` → `configured` → `tfv_pending` → `active` (and error branches `tfv_rejected`, `tfv_submit_failed`, `failed`)
+- [x] **SYS.1** — Status lifecycle implemented: `none` → `provisioning` → `configured` → `tfv_pending` → `active` (and error branches `tfv_rejected`, `tfv_submit_failed`, `failed`)
 - [ ] **SYS.2** — Per-workspace TFV architecture confirmed (no platform-level ISV submissions)
 - [ ] **SYS.3** — Pattern B (Sole Proprietor, no BRN fields) used as default TFV path
 - [ ] **SYS.4** — Element Barbershop exclusion verified (status unchanged after deploy)
 
 ### Backend Requirements
 
-- [ ] **BE.1** — `provisionTollFreeSmsForWorkspace()` writes `configured`, not `active`
-- [ ] **BE.2** — TFV submission gated on `shop_name && shop_address && shop_phone && shop_email && sms_from_number && status === 'configured'`
-- [ ] **BE.3** — TFV payload uses per-workspace identity (`shop_name`, workspace booking URL, `shop_email`, `shop_phone`); no ISV flag; no "on behalf of" language
-- [ ] **BE.4** — `getWorkspaceSmsConfig()` blocks sending for all non-`active` statuses
-- [ ] **BE.5** — Webhook handler processes TFV events (`verified` → `active`, `rejected` → `tfv_rejected`)
-- [ ] **BE.6** — Polling job runs every 30 min for `tfv_pending` workspaces
-- [ ] **BE.7** — TFV submission retry: exponential backoff (5m→15m→1h→4h→24h), max 5 attempts → `tfv_submit_failed`
-- [ ] **BE.8** — All TFV Firestore writes use single atomic `set({...}, { merge: true })`
-- [ ] **BE.9** — `POST /api/sms/resubmit-tfv` endpoint for `tfv_rejected` workspaces (owner-only, audit log)
+- [x] **BE.1** — `provisionTollFreeSmsForWorkspace()` writes `configured`, not `active`
+- [x] **BE.2** — TFV submission gated on `shop_name && shop_address && shop_phone && shop_email && sms_from_number && status === 'configured'`
+- [x] **BE.3** — TFV payload uses per-workspace identity (`shop_name`, workspace booking URL, `shop_email`, `shop_phone`); no ISV flag; no "on behalf of" language
+- [x] **BE.4** — `getWorkspaceSmsConfig()` blocks sending for all non-`active` statuses
+- [x] **BE.5** — Webhook handler processes TFV events (`verified` → `active`, `rejected` → `tfv_rejected`)
+- [x] **BE.6** — Polling job runs every 30 min for `tfv_pending` workspaces
+- [x] **BE.7** — TFV submission retry: exponential backoff (5m→15m→1h→4h→24h), max 5 attempts → `tfv_submit_failed`
+- [x] **BE.8** — All TFV Firestore writes use single atomic `set({...}, { merge: true })`
+- [x] **BE.9** — `POST /api/sms/resubmit-tfv` endpoint for `tfv_rejected` workspaces (owner-only, audit log)
 - [ ] **BE.10** — `POST /api/vurium-dev/sms/force-status` admin endpoint (superadmin-only, audit log)
 
 ### UI Requirements

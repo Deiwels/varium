@@ -62,7 +62,7 @@ AI 5 has now answered the external-facts question in [[Tasks/AI5-Research-Brief-
 - `Verified` is the only clearly positive state that should be treated as ready
 - our current backend `sms_registration_status: active` is too optimistic if read as "customer-deliverable"
 
-The repo does **not** currently submit TFV as part of `provisionTollFreeSmsForWorkspace()`, so the reminder blocker is now understood as a **real external readiness gap**, not a vague suspicion.
+The repo now submits TFV from the real provisioning/settings flow and tracks `configured` → `tfv_pending` → `active` truthfully. The remaining reminder blocker is the **real external review / rejection-resubmit mile**, not uncertainty about whether the backend can start TFV at all.
 
 ### 2A. Live TFV rejection received
 
