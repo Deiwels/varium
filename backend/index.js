@@ -3844,6 +3844,7 @@ const AI5ResearchBriefOutputSchema = z.object({
   inferences: z.array(z.string()).default([]),
   open_questions: z.array(z.string()).default([]),
   source_summary: z.array(ResearchSourceSummarySchema).default([]),
+  deep_research_prompt: z.string().default(''),
   escalate_to: WorkflowEscalationTargetSchema,
   reason: z.string().default(''),
   writeback_targets: z.array(z.string()).default([]),
@@ -4270,6 +4271,7 @@ Rules:
 - facts must be short, explicit, and source-grounded
 - inferences must be clearly framed as interpretation, not confirmed truth
 - if evidence is incomplete, add it to open_questions instead of guessing
+- deep_research_prompt must be a ready-to-paste prompt for GPT Deep Research (or similar) that tells the external researcher exactly what to investigate next, which source types to prioritize, and what output structure to return
 
 Return exactly this JSON shape:
 {
@@ -4288,6 +4290,7 @@ Return exactly this JSON shape:
     "Unresolved question still needing evidence"
   ],
   "source_summary": [],
+  "deep_research_prompt": "A ready-to-paste Deep Research prompt that tells an external research model exactly what to investigate, which sources to prioritize, how to separate facts from inferences, and what output structure to return.",
   "escalate_to": "AI-7",
   "reason": "Implementation constraints should now be translated from the research findings.",
   "writeback_targets": ["07-Research/", "07-Research/AI5-Research-Brief-*.md", "04-Tasks/Handoffs/"],
@@ -4815,7 +4818,7 @@ function buildOwnerIntakeOperatorReply({ intakeKind, title, note, downstreamResu
       workstreams.length ? `Current workstreams: ${workstreams.join(', ')}.` : '',
       shouldAutoContinueOwnerIntakeResearch(intakeKind, downstreamResult)
         ? followOnResult
-          ? `I also opened AI-5 research automatically so the missing context can be gathered before planning continues.`
+          ? `I also opened AI-5 research automatically so the missing context can be gathered before planning continues. I prepared a ready-to-paste AI-5 Deep Research prompt for external DeepSearch as well.`
           : `The next required lane is AI-5 research before planning can continue safely.`
         : '',
       safeStr(followOnResult?.next_step || downstreamResult?.next_step || '').trim(),
@@ -4828,7 +4831,7 @@ function buildOwnerIntakeOperatorReply({ intakeKind, title, note, downstreamResu
   }
 
   if (intakeKind === 'research') {
-    return `I understood this as a research request, created ${note.relative_path}, and opened the AI-5 research lane to gather facts, inferences, and open questions.`;
+    return `I understood this as a research request, created ${note.relative_path}, and opened the AI-5 research lane to gather facts, inferences, and open questions. I also prepared a ready-to-paste AI-5 Deep Research prompt you can drop into GPT Deep Research if you want the external pass immediately.`;
   }
 
   if (intakeKind === 'handoff') {
@@ -5422,6 +5425,11 @@ function buildResearchWritebackInput(result) {
     '## Sources',
     ...(result.source_summary?.length ? result.source_summary.map((entry) => `- [${entry.status}] ${entry.url || entry.title || entry.source_type}`) : ['- none']),
     '',
+    '## Ready-to-Paste Deep Research Prompt',
+    '```text',
+    safeStr(result.deep_research_prompt || '').trim() || 'No Deep Research prompt was generated.',
+    '```',
+    '',
     '## Routing',
     `- Escalate to: ${result.escalate_to}`,
     '',
@@ -5723,6 +5731,119 @@ function buildResearchWritebackTargets() {
   return ['07-Research/', '07-Research/AI5-Research-Brief-*.md', '04-Tasks/Handoffs/'];
 }
 
+function buildDeepResearchPromptFromBrief(input, result = {}) {
+  const topic = safeStr(input?.topic || 'Research topic needs clarification').trim();
+  const researchId = safeStr(input?.research_id || '').trim();
+  const taskId = safeStr(input?.task_id || '').trim();
+  const questions = uniqueList([
+    ...((Array.isArray(input?.questions) ? input.questions : []).map((entry) => safeStr(entry).trim())),
+    ...((Array.isArray(result?.open_questions) ? result.open_questions : []).map((entry) => safeStr(entry).trim())),
+  ]).filter(Boolean);
+  const targetSources = uniqueList([
+    ...((Array.isArray(input?.target_sources) ? input.target_sources : []).map((entry) => safeStr(entry).trim())),
+  ]).filter(Boolean);
+  const relatedLinks = uniqueList([
+    ...((Array.isArray(input?.related_links) ? input.related_links : []).map((entry) => safeStr(entry).trim())),
+  ]).filter(Boolean);
+  const knownSourceUrls = uniqueList([
+    ...normalizeResearchSourceUrls(input?.source_urls),
+    ...((Array.isArray(result?.source_summary) ? result.source_summary : [])
+      .map((entry) => safeStr(entry?.url).trim())
+      .filter(Boolean)),
+  ]);
+  const facts = uniqueList([
+    ...((Array.isArray(result?.facts) ? result.facts : []).map((entry) => safeStr(entry).trim())),
+  ]).filter(Boolean);
+  const inferences = uniqueList([
+    ...((Array.isArray(result?.inferences) ? result.inferences : []).map((entry) => safeStr(entry).trim())),
+  ]).filter(Boolean);
+  const openQuestions = uniqueList([
+    ...((Array.isArray(result?.open_questions) ? result.open_questions : []).map((entry) => safeStr(entry).trim())),
+  ]).filter(Boolean);
+
+  const lines = [
+    'Act as AI-5 Research for the VuriumBook operating system.',
+    'Your job is to do a source-backed Deep Research pass that unblocks planning and implementation.',
+    '',
+    `Research topic: ${topic}`,
+    ...(taskId ? [`Task ID: ${taskId}`] : []),
+    ...(researchId ? [`Research ID: ${researchId}`] : []),
+    '',
+    'Questions to answer:',
+    ...(questions.length
+      ? questions.map((entry) => `- ${entry}`)
+      : ['- Identify the official facts still needed to unblock planning for this topic.']),
+    '',
+    'Source rules:',
+    '- Prioritize official vendor documentation, official policy/legal pages, platform help centers, and primary-source standards.',
+    '- If a claim is not supported by a primary source, do not present it as a fact.',
+    '- Separate confirmed facts from inferences.',
+    '- Attach a source URL to every factual claim.',
+    '- Do not claim legal certainty unless the source explicitly states it.',
+    '- If evidence is incomplete, list it as an open question instead of guessing.',
+    '',
+    ...(knownSourceUrls.length
+      ? [
+        'Known official source URLs to inspect first:',
+        ...knownSourceUrls.map((entry) => `- ${entry}`),
+        '',
+      ]
+      : [
+        'Known official source URLs to inspect first:',
+        '- Discover the relevant official sources as part of the research pass.',
+        '',
+      ]),
+    ...(targetSources.length
+      ? [
+        'Source types to prioritize:',
+        ...targetSources.map((entry) => `- ${entry}`),
+        '',
+      ]
+      : []),
+    ...(relatedLinks.length
+      ? [
+        'Internal context links / notes to use as framing only:',
+        ...relatedLinks.map((entry) => `- ${entry}`),
+        '',
+      ]
+      : []),
+    ...(facts.length
+      ? [
+        'Current source-backed facts already collected locally:',
+        ...facts.map((entry) => `- ${entry}`),
+        '',
+      ]
+      : []),
+    ...(inferences.length
+      ? [
+        'Current working inferences already identified locally:',
+        ...inferences.map((entry) => `- ${entry}`),
+        '',
+      ]
+      : []),
+    ...(openQuestions.length
+      ? [
+        'Still unresolved:',
+        ...openQuestions.map((entry) => `- ${entry}`),
+        '',
+      ]
+      : []),
+    'Return the result in this exact structure:',
+    '1. Executive summary',
+    '2. Facts',
+    '   - one bullet per fact',
+    '   - include the exact supporting source URL after each fact',
+    '3. Inferences',
+    '4. Open questions',
+    '5. Sources consulted',
+    '6. Recommended next inputs needed for planning',
+    '',
+    'If the evidence is weak or contradictory, say that explicitly and recommend the next official source to inspect.',
+  ];
+
+  return lines.join('\n').trim();
+}
+
 function getObsidianRoot() {
   return path.resolve(process.env.VURIUM_OBSIDIAN_ROOT || path.resolve(__dirname, '../docs'));
 }
@@ -5895,7 +6016,7 @@ async function writeObsidianNote(input) {
 }
 
 function buildResearchBriefQueued(input, reason) {
-  return {
+  const result = {
     agent: 'AI-5',
     workflow: 'research_brief',
     research_id: input.research_id,
@@ -5912,10 +6033,14 @@ function buildResearchBriefQueued(input, reason) {
     owner_notification: null,
     next_step: 'Attach official source URLs to the research request, then rerun AI-5 research intake.',
   };
+  return {
+    ...result,
+    deep_research_prompt: buildDeepResearchPromptFromBrief(input, result),
+  };
 }
 
 function buildResearchBriefBlocked(input, reason, sourceSummary = []) {
-  return {
+  const result = {
     agent: 'AI-5',
     workflow: 'research_brief',
     research_id: input.research_id,
@@ -5932,10 +6057,14 @@ function buildResearchBriefBlocked(input, reason, sourceSummary = []) {
     owner_notification: null,
     next_step: 'Repair the source list or attach accessible official sources before rerunning AI-5 research intake.',
   };
+  return {
+    ...result,
+    deep_research_prompt: buildDeepResearchPromptFromBrief(input, result),
+  };
 }
 
 function buildResearchBriefStaged(input, reason, sourceSummary = [], fetchedSources = []) {
-  return {
+  const result = {
     agent: 'AI-5',
     workflow: 'research_brief',
     research_id: input.research_id,
@@ -5954,6 +6083,10 @@ function buildResearchBriefStaged(input, reason, sourceSummary = [], fetchedSour
     writeback: null,
     owner_notification: null,
     next_step: 'Review the fetched official sources manually, then continue planning or rerun AI-5 once the AI key is configured.',
+  };
+  return {
+    ...result,
+    deep_research_prompt: buildDeepResearchPromptFromBrief(input, result),
   };
 }
 
@@ -6075,7 +6208,7 @@ async function generateResearchBrief(meta, context, input) {
   });
 
   const fetchFailures = failed.map((entry) => `Unable to fetch ${entry.url}: ${entry.error}`);
-  return AI5ResearchBriefOutputSchema.parse({
+  const finalizedResult = {
     ...result,
     status: failed.length && result.status === 'done' ? 'partial' : result.status,
     open_questions: Array.from(new Set([...(result.open_questions || []), ...fetchFailures])),
@@ -6087,6 +6220,12 @@ async function generateResearchBrief(meta, context, input) {
     next_step: result.next_step || (result.escalate_to === 'AI-7'
       ? 'Route the source-backed findings to AI-7 for compliance translation.'
       : 'Review the research brief and route it to the next owner.'),
+  };
+
+  return AI5ResearchBriefOutputSchema.parse({
+    ...finalizedResult,
+    deep_research_prompt: safeStr(result.deep_research_prompt || '').trim()
+      || buildDeepResearchPromptFromBrief(input, finalizedResult),
   });
 }
 

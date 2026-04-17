@@ -281,6 +281,8 @@ interface IntakeRuntimeInfo {
   verdentState: 'active' | 'idle'
   operatorSummary: string
   replyCard: ReplyCardData | null
+  deepResearchPrompt: string
+  deepResearchPromptSource: string
 }
 
 function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo {
@@ -337,6 +339,19 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
         : isProviderFallback
           ? `${routeTargetLabel(result.route_target)} was routed correctly, but this run fell back because the configured AI provider chain did not complete.`
           : `${routeTargetLabel(result.route_target)} was routed and queued without a direct AI answer yet.`
+
+  const downstreamResearchPrompt = typeof downstreamRecord?.deep_research_prompt === 'string'
+    ? downstreamRecord.deep_research_prompt.trim()
+    : ''
+  const followOnResearchPrompt = typeof followOnRecord?.deep_research_prompt === 'string'
+    ? followOnRecord.deep_research_prompt.trim()
+    : ''
+  const deepResearchPrompt = followOnResearchPrompt || downstreamResearchPrompt
+  const deepResearchPromptSource = followOnResearchPrompt
+    ? workflowLabel(result?.follow_on_workflow || 'Research_Brief')
+    : downstreamResearchPrompt
+      ? workflowLabel(result?.downstream_workflow || 'Research_Brief')
+      : ''
 
   const replyCard = (() => {
     if (!result) return null
@@ -415,6 +430,9 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
       const facts = toStringList(downstreamRecord?.facts)
       const inferences = toStringList(downstreamRecord?.inferences)
       const openQuestions = toStringList(downstreamRecord?.open_questions)
+      const deepResearchPrompt = typeof downstreamRecord?.deep_research_prompt === 'string'
+        ? downstreamRecord.deep_research_prompt.trim()
+        : ''
 
       return {
         header,
@@ -424,6 +442,7 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
           { label: 'Facts', items: facts.slice(0, 4) },
           { label: 'Inferences', items: inferences.slice(0, 3) },
           { label: 'Open questions', items: openQuestions.slice(0, 4) },
+          { label: 'AI-5 Deep Research', items: deepResearchPrompt ? ['Ready-to-paste prompt prepared for GPT Deep Research.'] : [] },
         ].filter((section) => section.items.length > 0),
       }
     }
@@ -474,6 +493,8 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
     verdentState,
     operatorSummary,
     replyCard,
+    deepResearchPrompt,
+    deepResearchPromptSource,
   }
 }
 
@@ -823,6 +844,70 @@ function OwnerIntakePageInner() {
                                   {item.result.follow_on_reference}
                                 </div>
                               )}
+                            </div>
+                          )}
+
+                          {info.deepResearchPrompt && (
+                            <div style={{
+                              ...card,
+                              marginTop: 14,
+                              padding: 14,
+                              background: 'rgba(120,170,255,.07)',
+                              borderColor: 'rgba(120,170,255,.16)',
+                            }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+                                <div style={{ display: 'grid', gap: 4 }}>
+                                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(120,170,255,.86)' }}>
+                                    AI-5 Deep Research Prompt
+                                  </div>
+                                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.78)', lineHeight: 1.6 }}>
+                                    Ready to paste into GPT Deep Research. Source: {info.deepResearchPromptSource || 'AI-5 Research'}.
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      await navigator.clipboard.writeText(info.deepResearchPrompt)
+                                      toast.show('Copied AI-5 Deep Research prompt.')
+                                    } catch {
+                                      toast.show('Could not copy the AI-5 prompt.', 'error')
+                                    }
+                                  }}
+                                  style={{
+                                    padding: '8px 12px',
+                                    borderRadius: 999,
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    fontFamily: 'inherit',
+                                    background: 'rgba(120,170,255,.18)',
+                                    color: 'rgba(120,170,255,.98)',
+                                  }}
+                                >
+                                  Copy AI-5 prompt
+                                </button>
+                              </div>
+
+                              <details style={{ marginTop: 12 }}>
+                                <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(120,170,255,.92)' }}>
+                                  Preview prompt
+                                </summary>
+                                <pre style={{
+                                  margin: '10px 0 0',
+                                  padding: 12,
+                                  borderRadius: 12,
+                                  overflow: 'auto',
+                                  background: 'rgba(0,0,0,.22)',
+                                  border: '1px solid rgba(255,255,255,.06)',
+                                  color: 'rgba(255,255,255,.78)',
+                                  fontSize: 11,
+                                  lineHeight: 1.65,
+                                  whiteSpace: 'pre-wrap',
+                                  wordBreak: 'break-word',
+                                }}>{info.deepResearchPrompt}</pre>
+                              </details>
                             </div>
                           )}
 
