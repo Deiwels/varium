@@ -6581,6 +6581,11 @@ function buildImplementationCodingPrompt(packet) {
     '- do not invent new product scope',
     '- update the relevant docs/checklists only if they directly change',
     '- after coding, produce a short self-check summary and the changed file list',
+    '',
+    'AI dependency protocol:',
+    ...buildImplementationDependencyProtocol(targetAi).map((entry) => `- ${entry}`),
+    '',
+    'If another lane is needed, do not stop at "blocked". Name the exact AI lane and the exact question or dependency.',
   ].join('\n');
 }
 
@@ -6594,6 +6599,33 @@ function preferredExecutionProviderForTarget(targetAi) {
 function preferredExecutionProviderLabel(targetAi) {
   const provider = preferredExecutionProviderForTarget(targetAi);
   return provider === 'codex' ? 'Codex' : 'Claude';
+}
+
+function buildImplementationDependencyProtocol(targetAi = 'AI-1') {
+  const normalized = safeStr(targetAi || 'AI-1').trim().toUpperCase() || 'AI-1';
+  return uniqueList([
+    normalized === 'AI-1'
+      ? 'AI-2 — request this when backend work reveals required UI, component, layout, copy, or frontend flow changes.'
+      : 'AI-1 — request this when frontend work reveals required API, database, webhook, cron, provider, or server-side changes.',
+    'AI-3 — request this when the current plan, checklist, sequence, or acceptance criteria are contradictory, stale, or need QA/governance review.',
+    'AI-4 — request this when the task turns into an outage, urgent hotfix, rollback, or risky live incident.',
+    'AI-5 — request this when you are blocked by missing official facts, vendor docs, carrier rules, or external source truth.',
+    'AI-6 — request this when you are blocked by product ambiguity, scope conflict, missing prioritization, or unclear owner intent.',
+    'AI-7 — request this when you are blocked by compliance wording, consent logic, privacy/policy translation, or legal-to-implementation interpretation.',
+    'AI-8 — request this when implementation depends on growth strategy, funnel direction, offer positioning, or landing-page marketing choices.',
+    'AI-9 — request this when implementation depends on customer-facing reply copy, support handling, or communication workflow language.',
+    'AI-10 — request this when implementation depends on a video brief, script, or motion deliverable.',
+    'AI-11 — request this when implementation depends on creative assets, ad variants, or visual marketing deliverables.',
+  ]);
+}
+
+function buildImplementationDependencyInstruction(targetAi = 'AI-1') {
+  return [
+    `You are responsible for noticing when support from another AI lane is needed for ${safeStr(targetAi || 'AI-1')}.`,
+    'Do not wait for the Owner to manually choose the next AI if the dependency is clear.',
+    'If you hit one of the triggers below, write a short dependency request into the execution contract Work Log and include it in the return-to-system report under "Supporting AI lanes needed".',
+    ...buildImplementationDependencyProtocol(targetAi).map((entry) => `- ${entry}`),
+  ].join('\n');
 }
 
 function buildCodexExecutionPrompt(packet) {
@@ -6610,6 +6642,7 @@ function buildCodexExecutionPrompt(packet) {
     '- use the existing source-of-truth stack and do not restate product scope from scratch',
     '- make the smallest correct patch that resolves the owned implementation target',
     '- preserve unrelated user changes in the worktree',
+    '- if another AI lane is needed, name the exact lane instead of asking the Owner to guess',
     '- after coding, report: summary, changed files, checks run, residual blockers',
   ].join('\n');
 }
@@ -6687,6 +6720,7 @@ function buildParallelExecutionLaunchPrompt(packet, orderedPackets, bundleAbsolu
     '- do not restart planning',
     '- each lane must stay inside its owned scope',
     '- each lane writes short progress updates into its own execution contract note',
+    '- each lane must name any required support AI lane directly inside its work log instead of making the Owner guess',
     '- once both lanes finish, paste a combined report back into Owner Copilot',
   ].join('\n');
 }
@@ -6733,6 +6767,9 @@ function buildParallelExecutionReturnPrompt(packet, orderedPackets) {
         `${targetAi} blockers:`,
         '- ...',
         '',
+        `${targetAi} supporting AI lanes needed:`,
+        '- none / AI-3 / AI-4 / AI-5 / AI-6 / AI-7 / AI-8 / AI-9 / AI-10 / AI-11',
+        '',
       ];
     }),
     'Integrated next step:',
@@ -6753,8 +6790,11 @@ function buildImplementationStarterPrompt(packet, executionContract) {
     '- Read context only from the notes listed under "Read From".',
     '- Write short work-log updates into the execution contract note under "Work Log".',
     '- When coding is done, use the "Return-to-System" block from the contract note and report back into Owner Copilot.',
+    '- If another AI lane is needed, record the exact lane and reason under "Work Log" and in the final return.',
     '',
     'Do not restart planning. Stay inside the owned implementation scope and preserve unrelated changes.',
+    '',
+    buildImplementationDependencyInstruction(targetAi),
   ].join('\n');
 }
 
@@ -6766,6 +6806,7 @@ function buildImplementationQuickStartPrompt(packet, executionContract) {
     `Use ${preferredProviderLabel} as your executor.`,
     `Read this file first: ${safeStr(executionContract.contract_note_absolute_path)}`,
     'Follow the execution contract, write progress back into that note, and then report the result to Owner Copilot.',
+    'If you need another AI lane, name the exact AI and reason in the work log instead of asking the Owner to figure it out manually.',
   ].join('\n');
 }
 
@@ -6781,7 +6822,7 @@ function buildClaudeExecutionPrompt(packet) {
     'Claude-specific execution rules:',
     '- read the relevant files and source-of-truth notes first',
     '- stay in the owned implementation lane',
-    '- if a partner lane is needed, call it out explicitly instead of blending scopes',
+    '- if a partner lane or support lane is needed, call out the exact AI lane explicitly instead of blending scopes',
     '- after coding, return: summary, changed files, verification, blockers, next action',
   ].join('\n');
 }
@@ -6805,6 +6846,10 @@ function buildReturnToSystemPrompt(packet) {
     '',
     'Docs or checklists updated:',
     '- ...',
+    '',
+    'Supporting AI lanes needed:',
+    '- none / AI-3 / AI-4 / AI-5 / AI-6 / AI-7 / AI-8 / AI-9 / AI-10 / AI-11',
+    '- include one short reason per lane if any are needed',
     '',
     'Open blockers:',
     '- ...',
@@ -6909,6 +6954,12 @@ async function attachImplementationExecutionContract(packet) {
     '## Verification Steps',
     ...(verificationSteps.length ? verificationSteps.map((entry) => `- ${entry}`) : ['- run the relevant checks after coding']),
     '',
+    '## AI Dependency Protocol',
+    ...buildImplementationDependencyProtocol(targetAi).map((entry) => `- ${entry}`),
+    '',
+    '## Escalation Rule',
+    '- If another lane is clearly needed, write "Needs AI-X: <reason>" in the Work Log and repeat it in the Return-to-System block.',
+    '',
     '## Quick Start Prompt',
     '```text',
     quickStartPrompt,
@@ -6926,6 +6977,7 @@ async function attachImplementationExecutionContract(packet) {
     '',
     '## Work Log',
     '- pending',
+    '- If blocked by another lane, add: Needs AI-X: <exact reason>',
   ].join('\n');
 
   try {
@@ -7035,6 +7087,7 @@ async function attachParallelExecutionBundle(packet) {
     '- launch the listed lanes at the same time when possible',
     '- keep each lane inside its owned implementation scope',
     '- write progress into the lane-specific execution contract notes',
+    '- if a lane needs another AI lane, record the exact AI and reason instead of asking the Owner to infer it',
     '- after both lanes finish, return one integrated report to Owner Copilot',
     '',
     '## Status',
@@ -7558,6 +7611,9 @@ function buildImplementationPacketWritebackInput(result) {
     `- Read first: ${contractNotePath}`,
     `- Write progress: ${contractNotePath}`,
     '- Report back: Owner Copilot in /developer/intake using the return prompt below.',
+    '',
+    '## AI Dependency Protocol',
+    ...buildImplementationDependencyProtocol(targetAi).map((entry) => `- ${entry}`),
     '',
     '## Quick Start Prompt',
     '```text',

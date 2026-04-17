@@ -1928,6 +1928,9 @@ function OwnerIntakePageInner() {
                                         <div style={{ fontSize: 13, color: 'rgba(255,255,255,.78)', lineHeight: 1.6 }}>
                                           {`Preferred executor: ${preferredExecutionProviderLabel(lane.targetAi)}. Source: ${lane.sourceLabel}.`}
                                         </div>
+                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.48)', lineHeight: 1.6 }}>
+                                          {`${routeTargetLabel(lane.targetAi)} already gets an AI dependency protocol. If it needs AI-3/4/5/6/7/8/9/10/11, it should write the exact lane and reason into memory instead of making you decide manually.`}
+                                        </div>
                                       </div>
                                       <button
                                         type="button"
