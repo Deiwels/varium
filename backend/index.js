@@ -3873,6 +3873,7 @@ const AI5ResearchBriefOutputSchema = z.object({
   open_questions: z.array(z.string()).default([]),
   source_summary: z.array(ResearchSourceSummarySchema).default([]),
   deep_research_prompt: z.string().default(''),
+  deep_research_provider: z.string().default(''),
   escalate_to: WorkflowEscalationTargetSchema,
   reason: z.string().default(''),
   writeback_targets: z.array(z.string()).default([]),
@@ -4327,7 +4328,7 @@ Rules:
 - facts must be short, explicit, and source-grounded
 - inferences must be clearly framed as interpretation, not confirmed truth
 - if evidence is incomplete, add it to open_questions instead of guessing
-- deep_research_prompt must be a ready-to-paste prompt for GPT Deep Research (or similar) that tells the external researcher exactly what to investigate next, which source types to prioritize, and what output structure to return
+- deep_research_prompt must be a ready-to-paste prompt for AI-5 Deep Research (Claude now, OpenAI when available, or another external research model if used manually) that tells the researcher exactly what to investigate next, which source types to prioritize, and what output structure to return
 
 Return exactly this JSON shape:
 {
@@ -4346,7 +4347,7 @@ Return exactly this JSON shape:
     "Unresolved question still needing evidence"
   ],
   "source_summary": [],
-  "deep_research_prompt": "A ready-to-paste Deep Research prompt that tells an external research model exactly what to investigate, which sources to prioritize, how to separate facts from inferences, and what output structure to return.",
+  "deep_research_prompt": "A ready-to-paste Deep Research prompt that tells the active research provider exactly what to investigate, which sources to prioritize, how to separate facts from inferences, and what output structure to return.",
   "escalate_to": "AI-7",
   "reason": "Implementation constraints should now be translated from the research findings.",
   "writeback_targets": ["07-Research/", "07-Research/AI5-Research-Brief-*.md", "04-Tasks/Handoffs/"],
@@ -4380,7 +4381,16 @@ const OPENAI_PRIMARY_WORKFLOW_NAMES = new Set([
 const ANTHROPIC_PRIMARY_WORKFLOW_NAMES = new Set([
   'planning_intake',
   'qa_scan',
-  'research_brief',
+]);
+
+const WORKSPACE_BRAIN_TOP_LEVEL_DIRS = new Set([
+  'Projects',
+  'System',
+  'Research',
+  'People',
+  'Vendors',
+  'Archive',
+  'Templates',
 ]);
 
 function getStructuredWorkflowProviderChain(workflowName, providerPreference = '') {
@@ -4390,6 +4400,12 @@ function getStructuredWorkflowProviderChain(workflowName, providerPreference = '
 
   if (AI_PROVIDER_MODE === 'openai_only') return ['openai'];
   if (AI_PROVIDER_MODE === 'anthropic_only') return ['anthropic'];
+
+  if (workflowName === 'research_brief') {
+    if (openai) return ['openai', 'anthropic'];
+    if (anthropic) return ['anthropic'];
+    return ['openai', 'anthropic'];
+  }
 
   if (OPENAI_PRIMARY_WORKFLOW_NAMES.has(workflowName)) return ['openai', 'anthropic'];
   if (ANTHROPIC_PRIMARY_WORKFLOW_NAMES.has(workflowName)) return ['anthropic', 'openai'];
@@ -4473,6 +4489,133 @@ function splitChannelList(value) {
 function extractUrlsFromText(text) {
   const matches = safeStr(text).match(/https?:\/\/[^\s)>"']+/gi) || [];
   return uniqueList(matches.map((entry) => safeStr(entry).replace(/[),.;]+$/, '')));
+}
+
+function extractWikiLinkTargets(text) {
+  const matches = safeStr(text).match(/\[\[([^[\]]+)\]\]/g) || [];
+  return uniqueList(matches.map((entry) => {
+    const inner = safeStr(entry).slice(2, -2);
+    return safeStr(inner.split('|')[0]).split('#')[0].trim();
+  }).filter(Boolean));
+}
+
+function shouldReadFromWorkspaceBrain(relativePath) {
+  const cleaned = safeStr(relativePath).replace(/\\/g, '/').replace(/^\/+/, '');
+  const topLevel = cleaned.split('/')[0] || '';
+  return WORKSPACE_BRAIN_TOP_LEVEL_DIRS.has(topLevel);
+}
+
+function normalizeInternalMarkdownReference(value) {
+  const raw = safeStr(value).trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return '';
+
+  let candidate = raw.split('#')[0].trim();
+  if (!candidate) return '';
+
+  if (path.isAbsolute(candidate)) {
+    const workspaceBrainRoot = getWorkspaceBrainRoot();
+    const repoDocsRoot = getObsidianRoot();
+    if (candidate.startsWith(workspaceBrainRoot + path.sep)) {
+      candidate = path.relative(workspaceBrainRoot, candidate);
+    } else if (candidate.startsWith(repoDocsRoot + path.sep)) {
+      candidate = path.relative(repoDocsRoot, candidate);
+    } else {
+      return '';
+    }
+  }
+
+  candidate = candidate.replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!candidate) return '';
+  if (!candidate.endsWith('.md')) candidate = `${candidate}.md`;
+  return candidate;
+}
+
+async function readInternalKnowledgeNoteRaw(relativePath) {
+  const cleaned = normalizeInternalMarkdownReference(relativePath);
+  if (!cleaned) return '';
+
+  if (shouldReadFromWorkspaceBrain(cleaned)) {
+    return readWorkspaceBrainRawNote(cleaned);
+  }
+
+  try {
+    const { absolute } = resolveObsidianTargetPath(cleaned);
+    return await fsPromises.readFile(absolute, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+function inferResearchSeedNotePaths(topic = '') {
+  const text = safeStr(topic).toLowerCase();
+  const seeds = [];
+
+  if (/(sms|notification|reminder|tfv|telnyx|10dlc|toll[- ]?free)/.test(text)) {
+    seeds.push(
+      'Tasks/SMS-Notifications-Brain.md',
+      'Tasks/SMS-Notifications-Execution-Checklist.md',
+      'Tasks/AI5-Research-Brief-Reminder-SMS.md',
+      'Compliance/Requirements/TFV-Reminder-SMS-Requirements.md',
+      'Compliance/Vendor-Constraints/Telnyx-TFV.md'
+    );
+  }
+
+  return uniqueList(seeds);
+}
+
+function scoreOfficialResearchUrl(url) {
+  const text = safeStr(url).toLowerCase();
+  let score = 0;
+  if (/developers\.|developer\.|docs\.|api-reference|support\.|help\.|knowledgebase|kb/.test(text)) score += 4;
+  if (/(policy|privacy|terms|legal|compliance|consent|tfv|10dlc|toll-free|tollfree|telnyx)/.test(text)) score += 3;
+  if (/\/api\/|\/docs\/|\/articles\//.test(text)) score += 2;
+  if (/vurium\.com\/(privacy|terms)/.test(text)) score += 1;
+  if (/localhost|127\.0\.0\.1/.test(text)) score -= 5;
+  return score;
+}
+
+async function discoverResearchSourceUrlsFromContext(input) {
+  const topicText = [
+    safeStr(input?.topic).trim(),
+    ...(Array.isArray(input?.questions) ? input.questions.map((entry) => safeStr(entry).trim()) : []),
+  ].filter(Boolean).join('\n');
+
+  const initialNoteQueue = uniqueList([
+    ...((Array.isArray(input?.related_links) ? input.related_links : []).map((entry) => normalizeInternalMarkdownReference(entry))),
+    ...inferResearchSeedNotePaths(topicText),
+  ]).filter(Boolean);
+
+  if (!initialNoteQueue.length) return [];
+
+  const queue = [...initialNoteQueue];
+  const visited = new Set();
+  const discoveredUrls = [];
+
+  while (queue.length && visited.size < 12) {
+    const notePath = queue.shift();
+    const normalizedPath = normalizeInternalMarkdownReference(notePath);
+    if (!normalizedPath || visited.has(normalizedPath)) continue;
+    visited.add(normalizedPath);
+
+    const raw = await readInternalKnowledgeNoteRaw(normalizedPath);
+    if (!raw) continue;
+
+    discoveredUrls.push(...extractUrlsFromText(raw));
+
+    if (visited.size < 6) {
+      const linkedNotes = extractWikiLinkTargets(raw)
+        .map((entry) => normalizeInternalMarkdownReference(entry))
+        .filter(Boolean);
+      for (const linkedNote of linkedNotes) {
+        if (!visited.has(linkedNote)) queue.push(linkedNote);
+      }
+    }
+  }
+
+  return uniqueList(discoveredUrls)
+    .sort((a, b) => scoreOfficialResearchUrl(b) - scoreOfficialResearchUrl(a) || a.localeCompare(b))
+    .slice(0, 12);
 }
 
 function deriveOwnerIntakeTitle(input) {
@@ -4904,6 +5047,11 @@ function shouldAutoContinueOwnerIntakeResearch(intakeKind, downstreamResult) {
 }
 
 function buildOwnerIntakeResearchFollowOnInput(intakeId, title, input, note, downstreamResult) {
+  const topicSeedLinks = inferResearchSeedNotePaths([
+    safeStr(title).trim(),
+    safeStr(input.message).trim(),
+    safeStr(downstreamResult?.reason || '').trim(),
+  ].filter(Boolean).join('\n'));
   const plan = downstreamResult?.plan_skeleton || {};
   const sourceUrls = normalizeResearchSourceUrls([
     ...normalizeResearchSourceUrls(input.source_urls),
@@ -4931,6 +5079,7 @@ function buildOwnerIntakeResearchFollowOnInput(intakeId, title, input, note, dow
       ...(input.related_links || []),
       ...(input.product_context_links || []),
       safeStr(downstreamResult?.writeback?.relative_path || ''),
+      ...topicSeedLinks,
     ]),
     source_urls: sourceUrls,
   };
@@ -4954,7 +5103,7 @@ function buildOwnerIntakeOperatorReply({ intakeKind, title, note, downstreamResu
       workstreams.length ? `Current workstreams: ${workstreams.join(', ')}.` : '',
       shouldAutoContinueOwnerIntakeResearch(intakeKind, downstreamResult)
         ? followOnResult
-          ? `I also opened AI-5 research automatically so the missing context can be gathered before planning continues. I prepared a ready-to-paste AI-5 Deep Research prompt for external DeepSearch as well.`
+          ? `I also opened AI-5 research automatically so the missing context can be gathered before planning continues. I prepared a ready-to-paste AI-5 Deep Research prompt for the current research provider chain as well.`
           : `The next required lane is AI-5 research before planning can continue safely.`
         : '',
       safeStr(followOnResult?.next_step || downstreamResult?.next_step || '').trim(),
@@ -4967,7 +5116,7 @@ function buildOwnerIntakeOperatorReply({ intakeKind, title, note, downstreamResu
   }
 
   if (intakeKind === 'research') {
-    return `I understood this as a research request, created ${note.relative_path}, and opened the AI-5 research lane to gather facts, inferences, and open questions. I also prepared a ready-to-paste AI-5 Deep Research prompt you can drop into GPT Deep Research if you want the external pass immediately.`;
+    return `I understood this as a research request, created ${note.relative_path}, and opened the AI-5 research lane to gather facts, inferences, and open questions. I also prepared a ready-to-paste AI-5 Deep Research prompt you can use with the current research provider if you want an extra external pass immediately.`;
   }
 
   if (intakeKind === 'handoff') {
@@ -6348,10 +6497,21 @@ function buildResearchWritebackTargets() {
   return ['07-Research/', '07-Research/AI5-Research-Brief-*.md', '04-Tasks/Handoffs/'];
 }
 
+function getPreferredDeepResearchProvider() {
+  const chain = getStructuredWorkflowProviderChain('research_brief');
+  return chain[0] || '';
+}
+
 function buildDeepResearchPromptFromBrief(input, result = {}) {
   const topic = safeStr(input?.topic || 'Research topic needs clarification').trim();
   const researchId = safeStr(input?.research_id || '').trim();
   const taskId = safeStr(input?.task_id || '').trim();
+  const provider = safeStr(result?.deep_research_provider || getPreferredDeepResearchProvider()).trim();
+  const providerLabel = provider === 'openai'
+    ? 'OpenAI Deep Research'
+    : provider === 'anthropic'
+      ? 'Claude Research'
+      : 'an external research model';
   const questions = uniqueList([
     ...((Array.isArray(input?.questions) ? input.questions : []).map((entry) => safeStr(entry).trim())),
     ...((Array.isArray(result?.open_questions) ? result.open_questions : []).map((entry) => safeStr(entry).trim())),
@@ -6379,7 +6539,7 @@ function buildDeepResearchPromptFromBrief(input, result = {}) {
   ]).filter(Boolean);
 
   const lines = [
-    'Act as AI-5 Research for the VuriumBook operating system.',
+    `Act as AI-5 Research for the VuriumBook operating system using ${providerLabel}.`,
     'Your job is to do a source-backed Deep Research pass that unblocks planning and implementation.',
     '',
     `Research topic: ${topic}`,
@@ -6643,6 +6803,7 @@ function buildResearchBriefQueued(input, reason) {
     inferences: [],
     open_questions: input.questions.length ? input.questions : ['Research request needs explicit external fact questions.'],
     source_summary: [],
+    deep_research_provider: getPreferredDeepResearchProvider(),
     escalate_to: 'AI-3',
     reason,
     writeback_targets: buildResearchWritebackTargets(),
@@ -6667,6 +6828,7 @@ function buildResearchBriefBlocked(input, reason, sourceSummary = []) {
     inferences: [],
     open_questions: input.questions.length ? input.questions : ['Research request needs manual review.'],
     source_summary: sourceSummary,
+    deep_research_provider: getPreferredDeepResearchProvider(),
     escalate_to: 'AI-3',
     reason,
     writeback_targets: buildResearchWritebackTargets(),
@@ -6694,6 +6856,7 @@ function buildResearchBriefStaged(input, reason, sourceSummary = [], fetchedSour
       'Review the fetched source excerpts manually or rerun once the AI key is configured.',
     ]),
     source_summary: sourceSummary,
+    deep_research_provider: getPreferredDeepResearchProvider(),
     escalate_to: 'AI-3',
     reason,
     writeback_targets: buildResearchWritebackTargets(),
@@ -6770,11 +6933,14 @@ async function fetchResearchSources(sourceUrls) {
 }
 
 async function generateResearchBrief(meta, context, input) {
-  const sourceUrls = normalizeResearchSourceUrls(input.source_urls);
+  const explicitSourceUrls = normalizeResearchSourceUrls(input.source_urls);
+  const sourceUrls = explicitSourceUrls.length
+    ? explicitSourceUrls
+    : await discoverResearchSourceUrlsFromContext(input);
   if (!sourceUrls.length) {
     return buildResearchBriefQueued(
       input,
-      'AI-5 research intake requires explicit official source URLs before it can produce source-backed findings.'
+      'AI-5 research intake could not find any official source URLs in the linked notes or request payload.'
     );
   }
 
@@ -6827,6 +6993,7 @@ async function generateResearchBrief(meta, context, input) {
   const fetchFailures = failed.map((entry) => `Unable to fetch ${entry.url}: ${entry.error}`);
   const finalizedResult = {
     ...result,
+    deep_research_provider: safeStr(result.deep_research_provider || getPreferredDeepResearchProvider()).trim(),
     status: failed.length && result.status === 'done' ? 'partial' : result.status,
     open_questions: Array.from(new Set([...(result.open_questions || []), ...fetchFailures])),
     source_summary: sourceSummary,

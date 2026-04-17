@@ -396,6 +396,7 @@ interface IntakeRuntimeInfo {
   replyCard: ReplyCardData | null
   deepResearchPrompt: string
   deepResearchPromptSource: string
+  deepResearchProvider: string
 }
 
 function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo {
@@ -459,6 +460,11 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
   const followOnResearchPrompt = typeof followOnRecord?.deep_research_prompt === 'string'
     ? followOnRecord.deep_research_prompt.trim()
     : ''
+  const deepResearchProvider = typeof followOnRecord?.deep_research_provider === 'string'
+    ? followOnRecord.deep_research_provider.trim()
+    : typeof downstreamRecord?.deep_research_provider === 'string'
+      ? downstreamRecord.deep_research_provider.trim()
+      : ''
   const deepResearchPrompt = followOnResearchPrompt || downstreamResearchPrompt
   const deepResearchPromptSource = followOnResearchPrompt
     ? workflowLabel(result?.follow_on_workflow || 'Research_Brief')
@@ -557,7 +563,7 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
           { label: 'Facts', items: facts.slice(0, 4) },
           { label: 'Inferences', items: inferences.slice(0, 3) },
           { label: 'Open questions', items: openQuestions.slice(0, 4) },
-          { label: 'AI-5 Deep Research', items: deepResearchPrompt ? ['Ready-to-paste prompt prepared for GPT Deep Research.'] : [] },
+          { label: 'AI-5 Deep Research', items: deepResearchPrompt ? [`Ready-to-paste prompt prepared${deepResearchProvider ? ` for ${providerLabel(deepResearchProvider)}` : ''}.`] : [] },
         ].filter((section) => section.items.length > 0),
       }
     }
@@ -610,6 +616,7 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
     replyCard,
     deepResearchPrompt,
     deepResearchPromptSource,
+    deepResearchProvider,
   }
 }
 
@@ -1170,7 +1177,7 @@ function OwnerIntakePageInner() {
                                     AI-5 Deep Research Prompt
                                   </div>
                                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,.78)', lineHeight: 1.6 }}>
-                                    Ready to paste into GPT Deep Research. Source: {info.deepResearchPromptSource || 'AI-5 Research'}.
+                                    Ready for AI-5 Deep Research{info.deepResearchProvider ? ` via ${providerLabel(info.deepResearchProvider)}` : ''}. Source: {info.deepResearchPromptSource || 'AI-5 Research'}.
                                   </div>
                                 </div>
                                 <button
