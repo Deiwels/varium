@@ -874,20 +874,45 @@ function deriveRuntimeInfo(result: OwnerIntakeResult | null): IntakeRuntimeInfo 
 
     if (result.downstream_workflow === 'AI3_Planning_Intake') {
       const plan = asRecord(downstreamRecord?.plan_skeleton)
+      const detailedPlan = asRecord(downstreamRecord?.detailed_plan)
       const workstreams = toStringList(plan?.workstreams)
       const missingInputs = toStringList(plan?.missing_inputs)
       const acceptanceCriteria = toStringList(plan?.acceptance_criteria_seed)
       const recommendedSequence = toStringList(downstreamRecord?.recommended_sequence)
+      const sourceStack = toStringList(detailedPlan?.canonical_source_of_truth_stack)
+      const alreadyExists = toStringList(detailedPlan?.what_already_exists)
+      const blockers = toStringList(detailedPlan?.blockers)
+      const fileSurfaceMap = toStringList(detailedPlan?.file_surface_map)
+      const risksAndVerification = toStringList(detailedPlan?.risks_and_verification)
+      const requiredHandoffs = toStringList(detailedPlan?.required_ai_handoffs)
+      const executionPhasesRaw = Array.isArray(detailedPlan?.execution_phases) ? detailedPlan.execution_phases : []
+      const executionPhases = executionPhasesRaw.flatMap((entry, index) => {
+        const phase = asRecord(entry)
+        const title = typeof phase?.phase === 'string' && phase.phase.trim()
+          ? phase.phase.trim()
+          : `Phase ${index + 1}`
+        const actions = toStringList(phase?.actions)
+        return actions.length ? [`${title}: ${actions.join(' | ')}`] : [title]
+      })
+      const currentVerdict = typeof detailedPlan?.current_verdict === 'string' ? detailedPlan.current_verdict.trim() : ''
 
       return {
         header,
-        body: (typeof plan?.objective === 'string' && plan.objective.trim())
-          || 'Verdent created a planning shell for this task.',
+        body: currentVerdict
+          || (typeof plan?.objective === 'string' && plan.objective.trim())
+          || 'Claude created a detailed planning response for this task.',
         modeNote,
         sections: [
+          { label: 'Canonical source stack', items: sourceStack },
+          { label: 'What already exists', items: alreadyExists },
           { label: 'Workstreams', items: workstreams },
+          { label: 'Blockers', items: blockers },
           { label: 'Missing inputs', items: missingInputs },
           { label: 'Acceptance criteria', items: acceptanceCriteria },
+          { label: 'Execution phases', items: executionPhases },
+          { label: 'File / surface map', items: fileSurfaceMap },
+          { label: 'Risks and verification', items: risksAndVerification },
+          { label: 'Required AI handoffs', items: requiredHandoffs },
           { label: 'Recommended sequence', items: recommendedSequence },
         ].filter((section) => section.items.length > 0),
       }
@@ -2004,10 +2029,10 @@ function OwnerIntakePageInner() {
                               <div style={{ display: 'grid', gap: 10 }}>
                                 <div style={{ display: 'grid', gap: 4 }}>
                                   <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(130,220,170,.86)' }}>
-                                    Verdent plan
+                                    Claude detailed plan
                                   </div>
                                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,.8)', lineHeight: 1.65 }}>
-                                    Verdent already created the task shell and planning note for this thread. You should not need to go hunting for them in execution details.
+                                    Claude already created the canonical planning note for this thread. You should not need to go hunting through execution details to find the real plan.
                                   </div>
                                 </div>
 
@@ -2062,9 +2087,9 @@ function OwnerIntakePageInner() {
                                         onClick={async () => {
                                           try {
                                             await navigator.clipboard.writeText(planningNotePath)
-                                            toast.show('Copied Verdent plan path.')
+                                            toast.show('Copied detailed plan path.')
                                           } catch {
-                                            toast.show('Could not copy the Verdent plan path.', 'error')
+                                            toast.show('Could not copy the detailed plan path.', 'error')
                                           }
                                         }}
                                         style={{
@@ -2084,8 +2109,8 @@ function OwnerIntakePageInner() {
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          setMessage(`Open this Verdent planning note and continue from it: ${planningNotePath}`)
-                                          toast.show('Loaded the Verdent plan path into the composer.')
+                                          setMessage(`Open this Claude planning note and continue from it: ${planningNotePath}`)
+                                          toast.show('Loaded the detailed plan path into the composer.')
                                         }}
                                         style={{
                                           padding: '8px 12px',
@@ -2119,10 +2144,10 @@ function OwnerIntakePageInner() {
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
                                 <div style={{ display: 'grid', gap: 4 }}>
                                   <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(188,166,255,.92)' }}>
-                                    External Verdent Full Plan
+                                    Optional External Verdent Plan
                                   </div>
                                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,.78)', lineHeight: 1.6 }}>
-                                    Use the real external Verdent planner for a full plan, then paste the returned markdown back here and the system will import it into the canonical planning note automatically.
+                                    Claude already produced the canonical planning note. Use external Verdent only if you want a second-opinion plan, then paste it back here and the system will import it over the same canonical note.
                                   </div>
                                 </div>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>

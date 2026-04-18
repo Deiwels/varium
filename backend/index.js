@@ -3919,6 +3919,30 @@ const AI3PlanningIntakeOutputSchema = z.object({
     missing_inputs: z.array(z.string()).default([]),
     acceptance_criteria_seed: z.array(z.string()).default([]),
   }),
+  detailed_plan: z.object({
+    current_verdict: z.string().default(''),
+    canonical_source_of_truth_stack: z.array(z.string()).default([]),
+    what_already_exists: z.array(z.string()).default([]),
+    blockers: z.array(z.string()).default([]),
+    execution_phases: z.array(z.object({
+      phase: z.string().default(''),
+      actions: z.array(z.string()).default([]),
+    })).default([]),
+    file_surface_map: z.array(z.string()).default([]),
+    risks_and_verification: z.array(z.string()).default([]),
+    required_ai_handoffs: z.array(z.string()).default([]),
+    immediate_next_action: z.string().default(''),
+  }).default({
+    current_verdict: '',
+    canonical_source_of_truth_stack: [],
+    what_already_exists: [],
+    blockers: [],
+    execution_phases: [],
+    file_surface_map: [],
+    risks_and_verification: [],
+    required_ai_handoffs: [],
+    immediate_next_action: '',
+  }),
   escalate_to: WorkflowEscalationTargetSchema,
   reason: z.string().default(''),
   writeback_targets: z.array(z.string()).default([]),
@@ -4557,6 +4581,7 @@ const AI3_PLANNING_INTAKE_SYSTEM_PROMPT = `You are AI 3 inside the VuriumBook AI
 
 Your role:
 - convert non-trivial task intake into structured planning intake
+- produce one practical detailed plan grounded in the current source-of-truth stack
 - identify whether AI 5, AI 6, or AI 7 are needed before planning continues
 - stay inside planning / structure / QA governance
 - do not invent compliance, vendor, product, or pricing truth
@@ -4577,6 +4602,7 @@ Rules:
 - when context.project_snapshot.local_topic_execution_checklist is provided, treat it as the current execution scaffold for that topic before inventing any new top-level plan
 - if the topic already has a canonical execution checklist, only create a new planning shell when the owner is clearly changing scope or asking for a materially different workstream
 - for SMS / notifications / TFV work, prefer the existing checklist and canonical plan stack over inventing another parallel SMS plan
+- treat Claude as the detailed planner for this lane; do not defer the useful plan into an external tool unless the owner explicitly asks for an outside second opinion
 
 Return exactly this JSON shape:
 {
@@ -4593,6 +4619,22 @@ Return exactly this JSON shape:
     "workstreams": ["research", "planning"],
     "missing_inputs": ["missing thing"],
     "acceptance_criteria_seed": ["criterion 1"]
+  },
+  "detailed_plan": {
+    "current_verdict": "one short grounded summary of the task state",
+    "canonical_source_of_truth_stack": ["note path 1", "note path 2"],
+    "what_already_exists": ["existing thing 1", "existing thing 2"],
+    "blockers": ["blocker 1"],
+    "execution_phases": [
+      {
+        "phase": "Phase 1",
+        "actions": ["action 1", "action 2"]
+      }
+    ],
+    "file_surface_map": ["backend/index.js", "app/settings/page.tsx"],
+    "risks_and_verification": ["risk or check 1", "risk or check 2"],
+    "required_ai_handoffs": ["AI-1: backend execution", "AI-5: vendor fact check if still needed"],
+    "immediate_next_action": "the one concrete next move"
   },
   "escalate_to": "AI-5",
   "reason": "why escalation or dependency exists",
@@ -5895,17 +5937,20 @@ function buildOwnerIntakeOperatorReply({ intakeKind, title, note, downstreamResu
     const workstreams = Array.isArray(downstreamResult?.plan_skeleton?.workstreams)
       ? downstreamResult.plan_skeleton.workstreams.filter(Boolean)
       : [];
+    const detailedVerdict = safeStr(downstreamResult?.detailed_plan?.current_verdict || '').trim();
     const verdentBridge = downstreamResult && typeof downstreamResult === 'object' && downstreamResult.verdent_external_bridge && typeof downstreamResult.verdent_external_bridge === 'object'
       ? downstreamResult.verdent_external_bridge
       : null;
+    const planningNotePath = safeStr(downstreamResult?.writeback?.relative_path || '').trim();
     const parts = [
       `I understood this as a delivery task and created ${note.relative_path}.`,
       downstreamResult
-        ? `Verdent created a planning response for "${objective}".`
+        ? `Claude created a detailed planning response for "${objective}".${planningNotePath ? ` The canonical planning note is ${planningNotePath}.` : ''}`
         : 'I routed the request into Verdent planning.',
+      detailedVerdict ? detailedVerdict : '',
       workstreams.length ? `Current workstreams: ${workstreams.join(', ')}.` : '',
       verdentBridge?.status === 'done'
-        ? `I also prepared a ready-to-paste external Verdent prompt. If you want the full Verdent plan, use the prompt, then paste the returned markdown back into Owner Copilot so it gets imported into ${safeStr(verdentBridge.target_plan_relative_path || '').trim()}.`
+        ? `I also prepared an optional external Verdent prompt if you want a second-opinion plan, but Claude's detailed plan is already the canonical one in our system.`
         : '',
       shouldAutoContinueOwnerIntakeResearch(intakeKind, downstreamResult)
         ? followOnResult
@@ -8562,6 +8607,44 @@ function buildPlanningFallback(input, reason) {
           : ['Owner or planner review is still recommended before implementation.'],
       acceptance_criteria_seed: inferPlanningAcceptanceCriteria(input),
     },
+    detailed_plan: {
+      current_verdict: needsExternal
+        ? 'The task has a usable planning direction, but external source truth still blocks a final implementation-safe plan.'
+        : needsCompliance
+          ? 'The task is understood, but compliance translation still blocks a final implementation-safe plan.'
+          : 'A conservative detailed plan is available, but a live planning pass should still confirm it before execution.',
+      canonical_source_of_truth_stack: uniqueList((input.product_context_links || []).map((entry) => safeStr(entry).trim()).filter(Boolean)).slice(0, 8),
+      what_already_exists: [
+        safeStr(input.description || input.title).trim() ? `Known task: ${safeStr(input.description || input.title).trim()}` : '',
+        'Planning intake captured the task objective and workstreams.',
+      ].filter(Boolean),
+      blockers: needsExternal
+        ? ['Official external source links are still required before planning can finalize safely.']
+        : needsCompliance
+          ? ['Compliance wording still needs explicit review before planning can finalize safely.']
+          : ['A live planner review is still recommended before implementation starts.'],
+      execution_phases: [
+        {
+          phase: 'Stabilize planning inputs',
+          actions: needsExternal
+            ? ['Open AI-5 research using official source targets.', 'Bring the returned facts back into the canonical plan note.']
+            : needsCompliance
+              ? ['Route the draft plan to AI-7 for compliance translation.', 'Update the plan note with compliance-safe wording.']
+              : ['Review the detailed plan note.', 'Confirm the owned execution lane and start implementation.'],
+        },
+      ],
+      file_surface_map: [],
+      risks_and_verification: [
+        needsExternal ? 'Do not guess vendor or policy truth without AI-5 research.' : '',
+        needsCompliance ? 'Do not guess compliance wording without AI-7 review.' : '',
+        'Do not create duplicate plans for the same workstream.',
+      ].filter(Boolean),
+      required_ai_handoffs: uniqueList([
+        needsExternal ? 'AI-5: gather official external source truth before planning continues.' : '',
+        needsCompliance ? 'AI-7: translate compliance requirements into implementation-safe guidance.' : '',
+      ].filter(Boolean)),
+      immediate_next_action: nextStep,
+    },
     escalate_to: escalateTo,
     reason,
     writeback_targets: ['04-Tasks/Workflow-Queue.md', '04-Tasks/Handoffs/'],
@@ -8819,6 +8902,8 @@ function safeWorkflowSlug(value, fallback = 'item') {
 function buildPlanningWritebackInput(result) {
   const taskId = safeWorkflowSlug(result.task_id, 'task');
   const notePath = `04-Tasks/${taskId}-Plan.md`;
+  const detailedPlan = result?.detailed_plan || {};
+  const executionPhases = Array.isArray(detailedPlan.execution_phases) ? detailedPlan.execution_phases : [];
   const systemLinks = uniqueList([
     '[[04-Tasks/Workflow-Queue|Workflow Queue]]',
     '[[04-Tasks/Tasks-Index|Tasks Index]]',
@@ -8835,17 +8920,61 @@ function buildPlanningWritebackInput(result) {
     '',
     `# Plan: ${result.task_id}`,
     '',
+    '## Current Verdict',
+    safeStr(detailedPlan.current_verdict || '').trim() || result.plan_skeleton?.objective || '',
+    '',
     '## Objective',
     result.plan_skeleton?.objective || '',
     '',
+    '## Canonical Source Of Truth Stack',
+    ...(Array.isArray(detailedPlan.canonical_source_of_truth_stack) && detailedPlan.canonical_source_of_truth_stack.length
+      ? detailedPlan.canonical_source_of_truth_stack.map((entry) => `- ${entry}`)
+      : ['- no explicit source stack attached']),
+    '',
+    '## What Already Exists',
+    ...(Array.isArray(detailedPlan.what_already_exists) && detailedPlan.what_already_exists.length
+      ? detailedPlan.what_already_exists.map((entry) => `- ${entry}`)
+      : ['- none listed']),
+    '',
     '## Workstreams',
     ...(result.plan_skeleton?.workstreams?.length ? result.plan_skeleton.workstreams.map((entry) => `- ${entry}`) : ['- planning']),
+    '',
+    '## Blockers',
+    ...(Array.isArray(detailedPlan.blockers) && detailedPlan.blockers.length
+      ? detailedPlan.blockers.map((entry) => `- ${entry}`)
+      : ['- none listed']),
     '',
     '## Missing Inputs',
     ...(result.plan_skeleton?.missing_inputs?.length ? result.plan_skeleton.missing_inputs.map((entry) => `- ${entry}`) : ['- none listed']),
     '',
     '## Acceptance Criteria Seed',
     ...(result.plan_skeleton?.acceptance_criteria_seed?.length ? result.plan_skeleton.acceptance_criteria_seed.map((entry) => `- ${entry}`) : ['- pending']),
+    '',
+    '## Execution Phases',
+    ...(executionPhases.length
+      ? executionPhases.flatMap((phase, idx) => {
+        const phaseTitle = safeStr(phase?.phase || `Phase ${idx + 1}`).trim() || `Phase ${idx + 1}`;
+        const actions = Array.isArray(phase?.actions) && phase.actions.length
+          ? phase.actions.map((entry) => `  - ${entry}`)
+          : ['  - no actions listed'];
+        return [`- ${phaseTitle}`, ...actions];
+      })
+      : ['- no explicit execution phases listed']),
+    '',
+    '## File / Surface Map',
+    ...(Array.isArray(detailedPlan.file_surface_map) && detailedPlan.file_surface_map.length
+      ? detailedPlan.file_surface_map.map((entry) => `- ${entry}`)
+      : ['- no exact files or surfaces listed']),
+    '',
+    '## Risks And Verification',
+    ...(Array.isArray(detailedPlan.risks_and_verification) && detailedPlan.risks_and_verification.length
+      ? detailedPlan.risks_and_verification.map((entry) => `- ${entry}`)
+      : ['- no explicit risks or verification items listed']),
+    '',
+    '## Required AI Handoffs',
+    ...(Array.isArray(detailedPlan.required_ai_handoffs) && detailedPlan.required_ai_handoffs.length
+      ? detailedPlan.required_ai_handoffs.map((entry) => `- ${entry}`)
+      : ['- none listed']),
     '',
     '## System Links',
     ...systemLinks.map((entry) => `- ${entry}`),
@@ -8863,7 +8992,7 @@ function buildPlanningWritebackInput(result) {
     result.reason || '(none)',
     '',
     '## Next Step',
-    result.next_step || 'Review the planning intake and continue with the assigned lane.',
+    safeStr(detailedPlan.immediate_next_action || '').trim() || result.next_step || 'Review the planning intake and continue with the assigned lane.',
   ].join('\n');
   return { relative_path: notePath, content: body, mode: 'replace', dry_run: false };
 }
