@@ -3973,6 +3973,15 @@ const AI3ImplementationPacketInputSchema = z.object({
   explicit_target_ai: z.enum(['none', ...IMPLEMENTATION_TARGET_VALUES]).default('none'),
 });
 
+const ExecutionBridgeSchema = z.object({
+  status: WorkflowStatusSchema,
+  bridge_note_relative_path: z.string().default(''),
+  bridge_note_absolute_path: z.string().default(''),
+  request_template: z.string().default(''),
+  last_response_excerpt: z.string().default(''),
+  reason: z.string().default(''),
+});
+
 const ExecutionContractSchema = z.object({
   status: WorkflowStatusSchema,
   contract_note_relative_path: z.string().default(''),
@@ -3982,6 +3991,14 @@ const ExecutionContractSchema = z.object({
   report_back_to: z.array(z.string()).default([]),
   quick_start_prompt: z.string().default(''),
   starter_prompt: z.string().default(''),
+  execution_bridge: ExecutionBridgeSchema.default({
+    status: 'blocked',
+    bridge_note_relative_path: '',
+    bridge_note_absolute_path: '',
+    request_template: '',
+    last_response_excerpt: '',
+    reason: '',
+  }),
   reason: z.string().default(''),
 });
 
@@ -4005,6 +4022,14 @@ const EXECUTION_CONTRACT_DEFAULT = {
   report_back_to: [],
   quick_start_prompt: '',
   starter_prompt: '',
+  execution_bridge: {
+    status: 'blocked',
+    bridge_note_relative_path: '',
+    bridge_note_absolute_path: '',
+    request_template: '',
+    last_response_excerpt: '',
+    reason: '',
+  },
   reason: '',
 };
 
@@ -4462,6 +4487,29 @@ const OwnerThreadExecutionForkOutputSchema = z.object({
   chat_memory: OwnerThreadMemoryStateSchema.nullable().default(null),
 });
 
+const ExecutionBridgeRunInputSchema = z.object({
+  project: z.string().default('VuriumBook'),
+  target_ai: ImplementationTargetSchema.default('AI-1'),
+  bridge_note_relative_path: z.string().default(''),
+  request_text: z.string().default(''),
+});
+
+const ExecutionBridgeRunOutputSchema = z.object({
+  agent: z.literal('SYSTEM'),
+  workflow: z.literal('execution_bridge'),
+  status: WorkflowStatusSchema,
+  project: z.string().default('VuriumBook'),
+  target_ai: ImplementationTargetSchema,
+  bridge_note_relative_path: z.string().default(''),
+  bridge_note_absolute_path: z.string().default(''),
+  request_text: z.string().default(''),
+  system_reply: z.string().default(''),
+  referenced_notes: z.array(z.string()).default([]),
+  ai_meta: WorkflowAIExecutionMetaSchema,
+  reason: z.string().default(''),
+  next_step: z.string().default(''),
+});
+
 const DAILY_REVIEW_AI_VALUES = ['AI-1', 'AI-2', 'AI-3', 'AI-4', 'AI-5', 'AI-6', 'AI-7', 'AI-8', 'AI-9', 'AI-10', 'AI-11'];
 const DAILY_REVIEW_LANE_STATUS_VALUES = ['active', 'watch', 'idle', 'blocked'];
 const DAILY_REVIEW_PRIORITY_VALUES = ['critical', 'high', 'medium', 'low'];
@@ -4610,6 +4658,39 @@ Allowed suggested_mode values only:
 - "truth_update_draft"
 
 If the owner should simply keep talking in the same chat, use "advisory", not "continue_advisory" and not any custom value.`;
+
+const EXECUTION_BRIDGE_SYSTEM_PROMPT = `You are the internal execution bridge inside the VuriumBook AI Operating System.
+
+Your role:
+- answer direct execution-time questions from AI-1 or AI-2
+- use project memory, current state, daily review, codebase snapshot, the execution contract, and listed source notes first
+- give short, operational answers that help the external executor continue without restarting planning
+- if another AI lane is clearly needed, name the exact lane and reason
+
+Rules:
+- return JSON only
+- no markdown
+- no code fences
+- do not create a new task or a new plan
+- do not widen scope
+- prefer one clear blocker, one source-of-truth stack, and one next step
+- if the answer is uncertain, say exactly what is unclear instead of inventing confidence
+
+Return exactly this JSON shape:
+{
+  "agent": "SYSTEM",
+  "workflow": "execution_bridge",
+  "status": "done",
+  "project": "VuriumBook",
+  "target_ai": "AI-1",
+  "bridge_note_relative_path": "Projects/VuriumBook/Handoffs/TASK-123-to-AI-1-System-Bridge.md",
+  "bridge_note_absolute_path": "/Users/.../Projects/VuriumBook/Handoffs/TASK-123-to-AI-1-System-Bridge.md",
+  "request_text": "the exact request from the execution bridge note",
+  "system_reply": "short operational answer for the external executor",
+  "referenced_notes": ["Projects/VuriumBook/Project-Brain.md"],
+  "reason": "why this answer is correct",
+  "next_step": "the exact next move for the execution lane"
+}`;
 
 const DAILY_PROJECT_REVIEW_SYSTEM_PROMPT = `You are the daily project review orchestrator inside the VuriumBook AI Operating System.
 
@@ -7020,6 +7101,212 @@ async function buildDailyProjectReviewContext(project = 'VuriumBook') {
   };
 }
 
+function appendExecutionBridgeLog(rawContent = '', requestText = '', responseBlock = '') {
+  const content = safeStr(rawContent);
+  const entry = [
+    `### ${toIso(new Date())}`,
+    '',
+    '#### Request',
+    '```text',
+    safeStr(requestText).trim() || '(no request captured)',
+    '```',
+    '',
+    '#### Response',
+    '```text',
+    safeStr(responseBlock).trim() || '(no response generated)',
+    '```',
+  ].join('\n');
+
+  const pattern = /## Request \/ Response Log\n([\s\S]*)$/;
+  if (pattern.test(content)) {
+    return content.replace(pattern, (_, existing) => {
+      const cleaned = safeStr(existing).trim();
+      const prior = cleaned && cleaned !== '- pending'
+        ? `${cleaned}\n\n`
+        : '';
+      return `## Request / Response Log\n${prior}${entry}\n`;
+    });
+  }
+
+  return `${content.trimEnd()}\n\n## Request / Response Log\n${entry}\n`;
+}
+
+async function buildExecutionBridgeContext(input, frontmatter = {}) {
+  const project = safeStr(input.project || 'VuriumBook').trim() || 'VuriumBook';
+  const projectSlug = safeWorkflowSlug(project, 'VuriumBook');
+  const contractPath = safeStr(frontmatter.contract_note_relative_path || '').trim();
+  const readFromPaths = uniqueList(parseFrontmatterJson(frontmatter.read_from_json, []));
+  const sourceOfTruthPaths = uniqueList(parseFrontmatterJson(frontmatter.source_of_truth_json, []));
+  const referencePaths = uniqueList([
+    `Projects/${projectSlug}/Project-Brain.md`,
+    `Projects/${projectSlug}/Current-State.md`,
+    `Projects/${projectSlug}/Execution-Checklist.md`,
+    buildProjectCodebaseSnapshotRelativePath(project),
+    safeStr(frontmatter.bridge_note_relative_path || '').trim(),
+    contractPath,
+    ...sourceOfTruthPaths,
+    ...readFromPaths,
+  ]).filter(Boolean);
+
+  const noteExcerpts = (await Promise.all(referencePaths.map((referencePath) => (
+    readInternalKnowledgeNoteExcerpt(referencePath, shouldReadFromWorkspaceBrain(referencePath) ? 1800 : 1400)
+  )))).filter(Boolean);
+
+  const [
+    localProjectBrain,
+    localCurrentState,
+    localExecutionChecklist,
+    localDailyReview,
+    localCodebaseSnapshot,
+  ] = await Promise.all([
+    readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Project-Brain.md`, 2200),
+    readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Current-State.md`, 2200),
+    readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Execution-Checklist.md`, 2200),
+    readLatestWorkspaceBrainDailyReview(project),
+    ensureWorkspaceBrainProjectCodebaseSnapshot(project),
+  ]);
+
+  return {
+    project_snapshot: {
+      local_project_brain: localProjectBrain,
+      local_current_state: localCurrentState,
+      local_execution_checklist: localExecutionChecklist,
+      local_daily_review: localDailyReview,
+      local_codebase_snapshot: localCodebaseSnapshot,
+    },
+    bridge_reference_notes: noteExcerpts,
+    execution_bridge: {
+      target_ai: safeStr(input.target_ai || '').trim() || 'AI-1',
+      request_text: safeStr(input.request_text || '').trim(),
+      contract_note_relative_path: contractPath,
+      source_of_truth_paths: sourceOfTruthPaths,
+      read_from_paths: readFromPaths,
+    },
+  };
+}
+
+async function executeExecutionBridgeWorkflow(meta, context, input) {
+  const bridgeRelativePath = normalizeInternalMarkdownReference(input.bridge_note_relative_path);
+  const bridgeAbsolutePath = toWorkspaceKnowledgeAbsolutePath(bridgeRelativePath);
+  const bridgeRaw = bridgeRelativePath ? await readWorkspaceBrainRawNote(bridgeRelativePath) : '';
+  const frontmatter = parseFrontmatterBlock(bridgeRaw);
+  frontmatter.bridge_note_relative_path = bridgeRelativePath;
+
+  const targetAi = safeStr(input.target_ai || frontmatter.target_ai || 'AI-1').trim() || 'AI-1';
+  const requestText = safeStr(input.request_text || extractMeaningfulExecutionBridgeRequest(bridgeRaw)).trim();
+
+  if (!bridgeRelativePath) {
+    return ExecutionBridgeRunOutputSchema.parse({
+      agent: 'SYSTEM',
+      workflow: 'execution_bridge',
+      status: 'blocked',
+      project: safeStr(input.project || 'VuriumBook').trim() || 'VuriumBook',
+      target_ai: targetAi,
+      bridge_note_relative_path: '',
+      bridge_note_absolute_path: '',
+      request_text: requestText,
+      system_reply: '',
+      referenced_notes: [],
+      ai_meta: null,
+      reason: 'Execution bridge note path is missing.',
+      next_step: 'Open an implementation packet first so the system can create a bridge note for AI-1 or AI-2.',
+    });
+  }
+
+  if (!requestText) {
+    const emptyResponse = [
+      'EXECUTION_BRIDGE_RESPONSE',
+      `Target AI: ${targetAi}`,
+      `Answered: ${toIso(new Date())}`,
+      'System reply:',
+      'No valid EXECUTION_BRIDGE_REQUEST block was found yet. Write a real request into the bridge note first.',
+      '',
+      'Referenced notes:',
+      '- none',
+      '',
+      'Next step:',
+      'Write one narrow blocker question into the bridge note, then run the execution bridge again.',
+      'END_EXECUTION_BRIDGE_RESPONSE',
+    ].join('\n');
+    const seeded = appendExecutionBridgeLog(
+      replaceMarkdownSection(bridgeRaw || `# Execution Bridge — ${targetAi}`, 'Latest Response', emptyResponse),
+      '(no request captured)',
+      emptyResponse,
+    );
+    await writeWorkspaceBrainNote(bridgeRelativePath, seeded);
+    return ExecutionBridgeRunOutputSchema.parse({
+      agent: 'SYSTEM',
+      workflow: 'execution_bridge',
+      status: 'needs_review',
+      project: safeStr(input.project || 'VuriumBook').trim() || 'VuriumBook',
+      target_ai: targetAi,
+      bridge_note_relative_path: bridgeRelativePath,
+      bridge_note_absolute_path: bridgeAbsolutePath,
+      request_text: '',
+      system_reply: 'No valid EXECUTION_BRIDGE_REQUEST block was found yet.',
+      referenced_notes: [],
+      ai_meta: null,
+      reason: 'Bridge note does not contain a valid execution request yet.',
+      next_step: 'Write one real blocker question into the bridge note and rerun the execution bridge.',
+    });
+  }
+
+  const bridgeContext = await buildExecutionBridgeContext({
+    ...input,
+    target_ai: targetAi,
+    bridge_note_relative_path: bridgeRelativePath,
+    request_text: requestText,
+  }, frontmatter);
+
+  const fallback = buildExecutionBridgeFallback({
+    ...input,
+    target_ai: targetAi,
+    bridge_note_relative_path: bridgeRelativePath,
+    request_text: requestText,
+  }, bridgeContext, anthropic || openai
+    ? 'The execution bridge fell back to a safer draft because parsing did not complete.'
+    : AI_NOT_CONFIGURED_REASON);
+
+  const result = anthropic || openai
+    ? await runStructuredWorkflowAI({
+        workflowName: 'execution_bridge',
+        systemPrompt: EXECUTION_BRIDGE_SYSTEM_PROMPT,
+        input: {
+          ...input,
+          project: safeStr(input.project || 'VuriumBook').trim() || 'VuriumBook',
+          target_ai: targetAi,
+          bridge_note_relative_path: bridgeRelativePath,
+          bridge_note_absolute_path: bridgeAbsolutePath,
+          request_text: requestText,
+        },
+        meta,
+        context: bridgeContext,
+        fallback,
+        outputSchema: ExecutionBridgeRunOutputSchema,
+        maxTokens: 1000,
+      })
+    : fallback;
+
+  const responseBlock = buildExecutionBridgeResponseBlock(result);
+  const withRequest = replaceMarkdownSection(bridgeRaw, 'Latest Request', requestText);
+  const withResponse = replaceMarkdownSection(withRequest, 'Latest Response', responseBlock);
+  const finalBridgeBody = appendExecutionBridgeLog(withResponse, requestText, responseBlock);
+  await writeWorkspaceBrainNote(bridgeRelativePath, finalBridgeBody);
+
+  return ExecutionBridgeRunOutputSchema.parse({
+    ...result,
+    target_ai: targetAi,
+    bridge_note_relative_path: bridgeRelativePath,
+    bridge_note_absolute_path: bridgeAbsolutePath,
+    request_text: requestText,
+    referenced_notes: uniqueList([
+      ...(Array.isArray(result.referenced_notes) ? result.referenced_notes : []),
+      ...((Array.isArray(bridgeContext.bridge_reference_notes) ? bridgeContext.bridge_reference_notes : [])
+        .map((entry) => safeStr(entry?.path).trim())),
+    ]).filter(Boolean).slice(0, 12),
+  });
+}
+
 function appendLatestDailyReviewPath(entries = [], latestDailyReview = null) {
   const latestPath = safeStr(latestDailyReview?.path || '').trim();
   return uniqueList([
@@ -7321,6 +7608,12 @@ function buildImplementationContractRelativePath(packet) {
   return `Projects/VuriumBook/Handoffs/${taskId}-to-${safeWorkflowSlug(targetAi, 'AI-1')}-Execution-Contract.md`;
 }
 
+function buildImplementationBridgeRelativePath(packet) {
+  const taskId = safeWorkflowSlug(packet.task_id, 'task');
+  const targetAi = safeStr(packet.target_ai || 'AI-1').trim() || 'AI-1';
+  return `Projects/VuriumBook/Handoffs/${taskId}-to-${safeWorkflowSlug(targetAi, 'AI-1')}-System-Bridge.md`;
+}
+
 function buildParallelExecutionBundleRelativePath(packet) {
   const taskId = safeWorkflowSlug(packet.task_id, 'task');
   return `Projects/VuriumBook/Handoffs/${taskId}-Parallel-Execution-Bundle.md`;
@@ -7331,6 +7624,113 @@ function toWorkspaceKnowledgeAbsolutePath(relativePath) {
   if (!cleaned) return '';
   if (cleaned.startsWith('Projects/')) return path.join(getWorkspaceBrainRoot(), cleaned).replace(/\\/g, '/');
   return path.join(getObsidianRoot(), cleaned).replace(/\\/g, '/');
+}
+
+async function readInternalKnowledgeNoteExcerpt(reference, maxChars = 1600) {
+  const cleaned = normalizeInternalMarkdownReference(reference);
+  if (!cleaned) return null;
+  if (shouldReadFromWorkspaceBrain(cleaned)) return readWorkspaceBrainMarkdownNote(cleaned, maxChars);
+  return readAdvisoryMarkdownNote(cleaned, maxChars);
+}
+
+function escapeRegex(text) {
+  return safeStr(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function buildExecutionBridgeRequestTemplate(packet, executionBridge = {}) {
+  const targetAi = safeStr(packet.target_ai || 'AI-1').trim() || 'AI-1';
+  const bridgePath = safeStr(executionBridge.bridge_note_absolute_path || '').trim();
+  return [
+    'EXECUTION_BRIDGE_REQUEST',
+    `Target AI: ${targetAi}`,
+    'Question: <what exact system answer do you need right now?>',
+    'Need:',
+    '- blocker clarity / can I start now?',
+    '- source-of-truth confirmation',
+    '- exact next step',
+    '- supporting AI lane recommendation',
+    'Context:',
+    '- optional short note about what you just checked or why you are blocked',
+    'END_EXECUTION_BRIDGE_REQUEST',
+    bridgePath ? `# Write this block into: ${bridgePath}` : '',
+  ].filter(Boolean).join('\n');
+}
+
+function extractMeaningfulExecutionBridgeRequest(raw = '') {
+  const matches = Array.from(safeStr(raw).matchAll(/EXECUTION_BRIDGE_REQUEST\s*([\s\S]*?)\s*END_EXECUTION_BRIDGE_REQUEST/g));
+  const blocks = matches
+    .map((entry) => safeStr(entry[1]).trim())
+    .reverse();
+  const block = blocks.find((entry) => {
+    const compact = entry.toLowerCase();
+    return entry
+      && !compact.includes('<what exact system answer do you need right now?>')
+      && !compact.includes('(no request yet)');
+  }) || '';
+  if (!block) return '';
+  return [
+    'EXECUTION_BRIDGE_REQUEST',
+    block,
+    'END_EXECUTION_BRIDGE_REQUEST',
+  ].join('\n');
+}
+
+function replaceMarkdownSection(rawContent = '', heading = '', body = '') {
+  const content = safeStr(rawContent);
+  const safeHeading = safeStr(heading).trim();
+  const nextSectionPattern = `(?=\\n##\\s|\\n#\\s|$)`;
+  const pattern = new RegExp(`## ${escapeRegex(safeHeading)}\\n[\\s\\S]*?${nextSectionPattern}`);
+  const section = `## ${safeHeading}\n\`\`\`text\n${safeStr(body).trim() || '(empty)'}\n\`\`\`\n\n`;
+  if (pattern.test(content)) {
+    return content.replace(pattern, section);
+  }
+  return `${content.trimEnd()}\n\n${section}`;
+}
+
+function buildExecutionBridgeResponseBlock(result) {
+  return [
+    'EXECUTION_BRIDGE_RESPONSE',
+    `Target AI: ${safeStr(result.target_ai || 'AI-1')}`,
+    `Answered: ${toIso(new Date())}`,
+    'System reply:',
+    safeStr(result.system_reply || '').trim() || '(no reply generated)',
+    '',
+    'Referenced notes:',
+    ...(Array.isArray(result.referenced_notes) && result.referenced_notes.length
+      ? result.referenced_notes.map((entry) => `- ${entry}`)
+      : ['- none']),
+    '',
+    'Next step:',
+    safeStr(result.next_step || '').trim() || '(none)',
+    'END_EXECUTION_BRIDGE_RESPONSE',
+  ].join('\n');
+}
+
+function buildExecutionBridgeFallback(input, context = {}, reason = '') {
+  const referencedNotes = uniqueList([
+    safeStr(context?.project_snapshot?.local_project_brain?.path || ''),
+    safeStr(context?.project_snapshot?.local_current_state?.path || ''),
+    safeStr(context?.project_snapshot?.local_daily_review?.path || ''),
+    safeStr(context?.project_snapshot?.local_codebase_snapshot?.path || ''),
+    ...((Array.isArray(context?.bridge_reference_notes) ? context.bridge_reference_notes : [])
+      .map((entry) => safeStr(entry?.path).trim())),
+  ]).filter(Boolean).slice(0, 10);
+
+  return {
+    agent: 'SYSTEM',
+    workflow: 'execution_bridge',
+    status: 'partial',
+    project: safeStr(input.project || 'VuriumBook').trim() || 'VuriumBook',
+    target_ai: safeStr(input.target_ai || 'AI-1').trim() || 'AI-1',
+    bridge_note_relative_path: safeStr(input.bridge_note_relative_path || '').trim(),
+    bridge_note_absolute_path: toWorkspaceKnowledgeAbsolutePath(safeStr(input.bridge_note_relative_path || '').trim()),
+    request_text: safeStr(input.request_text || '').trim(),
+    system_reply: `I answered through the safer fallback path because the live provider chain did not complete. ${reason}`.trim(),
+    referenced_notes: referencedNotes,
+    ai_meta: null,
+    reason,
+    next_step: 'Use the referenced notes and continue only the existing execution path. If anything is still unclear, ask one narrower bridge question.',
+  };
 }
 
 function buildImplementationMemoryReadPaths(packet) {
@@ -7442,6 +7842,7 @@ function buildParallelExecutionReturnPrompt(packet, orderedPackets) {
 function buildImplementationStarterPrompt(packet, executionContract) {
   const targetAi = safeStr(packet.target_ai || 'AI-1').trim() || 'AI-1';
   const preferredProviderLabel = preferredExecutionProviderLabel(targetAi);
+  const bridgePath = safeStr(executionContract?.execution_bridge?.bridge_note_absolute_path || '').trim();
   return [
     `You are the external execution agent for ${targetAi} on VuriumBook.`,
     `Primary external executor for this lane: ${preferredProviderLabel}.`,
@@ -7453,6 +7854,7 @@ function buildImplementationStarterPrompt(packet, executionContract) {
     '- Write short work-log updates into the execution contract note under "Work Log".',
     '- When coding is done, use the "Return-to-System" block from the contract note and report back into Owner Copilot.',
     '- If another AI lane is needed, record the exact lane and reason under "Work Log" and in the final return.',
+    ...(bridgePath ? [`- If you need the system to answer a blocker question, write an EXECUTION_BRIDGE_REQUEST into: ${bridgePath}`] : []),
     '',
     'Do not restart planning. Stay inside the owned implementation scope and preserve unrelated changes.',
     '',
@@ -7463,12 +7865,14 @@ function buildImplementationStarterPrompt(packet, executionContract) {
 function buildImplementationQuickStartPrompt(packet, executionContract) {
   const targetAi = safeStr(packet.target_ai || 'AI-1').trim() || 'AI-1';
   const preferredProviderLabel = preferredExecutionProviderLabel(targetAi);
+  const bridgePath = safeStr(executionContract?.execution_bridge?.bridge_note_absolute_path || '').trim();
   return [
     `You are ${targetAi} for VuriumBook.`,
     `Use ${preferredProviderLabel} as your executor.`,
     `Read this file first: ${safeStr(executionContract.contract_note_absolute_path)}`,
     'Follow the execution contract, write progress back into that note, and then report the result to Owner Copilot.',
     'If you need another AI lane, name the exact AI and reason in the work log instead of asking the Owner to figure it out manually.',
+    ...(bridgePath ? [`If you need a direct system answer, write an EXECUTION_BRIDGE_REQUEST block into: ${bridgePath}`] : []),
   ].join('\n');
 }
 
@@ -7543,6 +7947,14 @@ function attachExternalExecutionPrompts(packet) {
       report_back_to: [],
       quick_start_prompt: '',
       starter_prompt: '',
+      execution_bridge: {
+        status: 'blocked',
+        bridge_note_relative_path: '',
+        bridge_note_absolute_path: '',
+        request_template: '',
+        last_response_excerpt: '',
+        reason: '',
+      },
       reason: '',
     },
   };
@@ -7551,10 +7963,23 @@ function attachExternalExecutionPrompts(packet) {
 async function attachImplementationExecutionContract(packet) {
   const contractRelativePath = buildImplementationContractRelativePath(packet);
   const contractAbsolutePath = toWorkspaceKnowledgeAbsolutePath(contractRelativePath);
+  const bridgeRelativePath = buildImplementationBridgeRelativePath(packet);
+  const bridgeAbsolutePath = toWorkspaceKnowledgeAbsolutePath(bridgeRelativePath);
   const readFrom = buildImplementationMemoryReadPaths(packet);
   const writeProgressTo = buildImplementationMemoryWritePaths(packet);
   const reportBackTo = buildImplementationMemoryReportTargets(packet);
   const returnPrompt = safeStr(packet.return_to_system_prompt || '').trim() || buildReturnToSystemPrompt(packet);
+  const requestTemplate = buildExecutionBridgeRequestTemplate(packet, {
+    bridge_note_absolute_path: bridgeAbsolutePath,
+  });
+  const provisionalBridge = {
+    status: 'done',
+    bridge_note_relative_path: bridgeRelativePath,
+    bridge_note_absolute_path: bridgeAbsolutePath,
+    request_template: requestTemplate,
+    last_response_excerpt: '',
+    reason: 'Execution bridge is ready.',
+  };
 
   const provisionalContract = {
     status: 'done',
@@ -7565,6 +7990,7 @@ async function attachImplementationExecutionContract(packet) {
     report_back_to: reportBackTo,
     quick_start_prompt: '',
     starter_prompt: '',
+    execution_bridge: provisionalBridge,
     reason: 'Execution contract is ready.',
   };
   const quickStartPrompt = buildImplementationQuickStartPrompt(packet, provisionalContract);
@@ -7637,13 +8063,66 @@ async function attachImplementationExecutionContract(packet) {
     returnPrompt,
     '```',
     '',
+    '## System Bridge',
+    `- Bridge note: ${bridgeAbsolutePath}`,
+    '- If you need the system to answer a blocker question, write an EXECUTION_BRIDGE_REQUEST block into that note and run the execution bridge from Owner Copilot.',
+    '',
+    '## Execution Bridge Request Template',
+    '```text',
+    requestTemplate,
+    '```',
+    '',
     '## Work Log',
     '- pending',
     '- If blocked by another lane, add: Needs AI-X: <exact reason>',
   ].join('\n');
 
+  const bridgeBody = [
+    '---',
+    'type: execution-bridge',
+    'status: active',
+    `task_id: ${safeStr(packet.task_id)}`,
+    `target_ai: ${targetAi}`,
+    `contract_note_relative_path: ${contractRelativePath}`,
+    `read_from_json: ${stringifyFrontmatterJson(readFrom)}`,
+    `source_of_truth_json: ${stringifyFrontmatterJson(sourceOfTruth)}`,
+    `updated: ${toIso(new Date())}`,
+    '---',
+    '',
+    `# Execution Bridge — ${safeStr(packet.task_id)} → ${targetAi}`,
+    '',
+    '## Purpose',
+    `Use this note when ${targetAi} needs a direct answer from the Vurium system during execution without reopening planning.`,
+    '',
+    '## Contract',
+    `- Execution contract: ${contractAbsolutePath}`,
+    `- Preferred executor: ${preferredProviderLabel}`,
+    '',
+    '## Read Context',
+    ...(readFrom.length ? readFrom.map((entry) => `- ${entry}`) : ['- pending']),
+    '',
+    '## How To Ask The System',
+    '```text',
+    requestTemplate,
+    '```',
+    '',
+    '## Latest Request',
+    '```text',
+    '(no request yet)',
+    '```',
+    '',
+    '## Latest Response',
+    '```text',
+    '(no response yet)',
+    '```',
+    '',
+    '## Request / Response Log',
+    '- pending',
+  ].join('\n');
+
   try {
     await writeWorkspaceBrainNote(contractRelativePath, contractBody);
+    await writeWorkspaceBrainNote(bridgeRelativePath, bridgeBody);
     const codexVariant = `${starterPrompt}\n\nCodex-specific note: inspect the current code first and make the smallest correct patch in the owned file scope.`;
     const claudeVariant = `${starterPrompt}\n\nClaude-specific note: keep the execution scoped to the owned lane and call out partner-lane needs explicitly instead of widening the task.`;
     const preferredPrompt = preferredProvider === 'codex' ? codexVariant : claudeVariant;
@@ -7658,6 +8137,7 @@ async function attachImplementationExecutionContract(packet) {
         ...provisionalContract,
         quick_start_prompt: quickStartPrompt,
         starter_prompt: preferredPrompt,
+        execution_bridge: provisionalBridge,
         reason: `Execution contract saved to the local workspace brain. Preferred executor: ${preferredProviderLabel}.`,
       },
     };
@@ -7677,6 +8157,11 @@ async function attachImplementationExecutionContract(packet) {
         status: 'blocked',
         quick_start_prompt: quickStartPrompt,
         starter_prompt: preferredPrompt,
+        execution_bridge: {
+          ...provisionalBridge,
+          status: 'blocked',
+          reason: `Execution bridge write failed: ${safeStr(error?.message || 'unknown error')}`,
+        },
         reason: `Execution contract write failed: ${safeStr(error?.message || 'unknown error')}. Preferred executor: ${preferredProviderLabel}.`,
       },
     };
@@ -8213,14 +8698,25 @@ function buildImplementationPacketWritebackInput(result) {
   const targetAi = safeStr(result.target_ai || 'AI-1').trim() || 'AI-1';
   const notePath = buildImplementationHandoffRelativePath(result);
   const contractNotePath = buildImplementationContractRelativePath(result);
+  const bridgeNotePath = buildImplementationBridgeRelativePath(result);
   const quickStartPrompt = safeStr(result.quick_start_prompt || '').trim()
     || safeStr(result.execution_contract?.quick_start_prompt || '').trim()
     || buildImplementationQuickStartPrompt(result, {
       contract_note_absolute_path: toWorkspaceKnowledgeAbsolutePath(contractNotePath),
+      execution_bridge: {
+        bridge_note_absolute_path: toWorkspaceKnowledgeAbsolutePath(bridgeNotePath),
+      },
     });
   const starterPrompt = safeStr(result.starter_prompt || '').trim() || buildImplementationStarterPrompt(result, {
     contract_note_absolute_path: toWorkspaceKnowledgeAbsolutePath(contractNotePath),
+    execution_bridge: {
+      bridge_note_absolute_path: toWorkspaceKnowledgeAbsolutePath(bridgeNotePath),
+    },
   });
+  const bridgeTemplate = safeStr(result.execution_contract?.execution_bridge?.request_template || '').trim()
+    || buildExecutionBridgeRequestTemplate(result, {
+      bridge_note_absolute_path: toWorkspaceKnowledgeAbsolutePath(bridgeNotePath),
+    });
   const sourceOfTruth = uniqueList(Array.isArray(result.source_of_truth_stack) ? result.source_of_truth_stack : []).filter(Boolean);
   const fileTargets = uniqueList(Array.isArray(result.file_targets) ? result.file_targets : []).filter(Boolean);
   const changeSummary = uniqueList(Array.isArray(result.change_summary) ? result.change_summary : []).filter(Boolean);
@@ -8273,9 +8769,15 @@ function buildImplementationPacketWritebackInput(result) {
     `- Read first: ${contractNotePath}`,
     `- Write progress: ${contractNotePath}`,
     '- Report back: Owner Copilot in /developer/intake using the return prompt below.',
+    `- Ask the system questions: ${bridgeNotePath}`,
     '',
     '## AI Dependency Protocol',
     ...buildImplementationDependencyProtocol(targetAi).map((entry) => `- ${entry}`),
+    '',
+    '## Execution Bridge Request Template',
+    '```text',
+    bridgeTemplate || 'No execution bridge request template generated.',
+    '```',
     '',
     '## Quick Start Prompt',
     '```text',
@@ -10849,6 +11351,18 @@ app.post('/api/vurium-dev/ai/implementation-packet', requireSuperadmin, async (r
     if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid implementation-packet payload', details: e.issues });
     console.error('AI implementation packet error:', e.message);
     res.status(500).json({ error: 'Failed to generate implementation packet' });
+  }
+});
+
+app.post('/api/vurium-dev/ai/execution-bridge/run', requireSuperadmin, async (req, res) => {
+  try {
+    const { meta, context, payload } = unwrapWorkflowEnvelope(req.body);
+    const input = ExecutionBridgeRunInputSchema.parse(payload);
+    res.json(await executeExecutionBridgeWorkflow(meta, context, input));
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid execution-bridge payload', details: e.issues });
+    console.error('Execution bridge error:', e.message);
+    res.status(500).json({ error: 'Failed to run execution bridge' });
   }
 });
 

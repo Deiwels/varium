@@ -109,6 +109,14 @@ interface ExecutionContract {
   report_back_to: string[]
   quick_start_prompt: string
   starter_prompt: string
+  execution_bridge?: {
+    status: string
+    bridge_note_relative_path: string
+    bridge_note_absolute_path: string
+    request_template: string
+    last_response_excerpt: string
+    reason: string
+  } | null
   reason: string
 }
 
@@ -144,9 +152,25 @@ interface ExecutionLaneInfo {
   claudePrompt: string
   returnToSystemPrompt: string
   executionContract: ExecutionContract | null
+  executionBridge: ExecutionContract['execution_bridge']
   fileTargets: string[]
   changeSummary: string[]
   verificationSteps: string[]
+}
+
+interface ExecutionBridgeRunResult {
+  agent: 'SYSTEM'
+  workflow: 'execution_bridge'
+  status: string
+  project: string
+  target_ai: string
+  bridge_note_relative_path: string
+  bridge_note_absolute_path: string
+  request_text: string
+  system_reply: string
+  referenced_notes: string[]
+  reason: string
+  next_step: string
 }
 
 interface AIExecutionMeta {
@@ -470,6 +494,16 @@ function buildExecutionLaneInfoFromRecord(record: Record<string, unknown>, sourc
         report_back_to: toStringList(rawExecutionContract.report_back_to),
         quick_start_prompt: typeof rawExecutionContract.quick_start_prompt === 'string' ? rawExecutionContract.quick_start_prompt.trim() : '',
         starter_prompt: typeof rawExecutionContract.starter_prompt === 'string' ? rawExecutionContract.starter_prompt.trim() : '',
+        execution_bridge: asRecord(rawExecutionContract.execution_bridge)
+          ? {
+              status: typeof asRecord(rawExecutionContract.execution_bridge)?.status === 'string' ? String(asRecord(rawExecutionContract.execution_bridge)?.status).trim() : '',
+              bridge_note_relative_path: typeof asRecord(rawExecutionContract.execution_bridge)?.bridge_note_relative_path === 'string' ? String(asRecord(rawExecutionContract.execution_bridge)?.bridge_note_relative_path).trim() : '',
+              bridge_note_absolute_path: typeof asRecord(rawExecutionContract.execution_bridge)?.bridge_note_absolute_path === 'string' ? String(asRecord(rawExecutionContract.execution_bridge)?.bridge_note_absolute_path).trim() : '',
+              request_template: typeof asRecord(rawExecutionContract.execution_bridge)?.request_template === 'string' ? String(asRecord(rawExecutionContract.execution_bridge)?.request_template).trim() : '',
+              last_response_excerpt: typeof asRecord(rawExecutionContract.execution_bridge)?.last_response_excerpt === 'string' ? String(asRecord(rawExecutionContract.execution_bridge)?.last_response_excerpt).trim() : '',
+              reason: typeof asRecord(rawExecutionContract.execution_bridge)?.reason === 'string' ? String(asRecord(rawExecutionContract.execution_bridge)?.reason).trim() : '',
+            }
+          : null,
         reason: typeof rawExecutionContract.reason === 'string' ? rawExecutionContract.reason.trim() : '',
       }
     : null
@@ -485,6 +519,7 @@ function buildExecutionLaneInfoFromRecord(record: Record<string, unknown>, sourc
     claudePrompt,
     returnToSystemPrompt,
     executionContract,
+    executionBridge: executionContract?.execution_bridge || null,
     fileTargets: toStringList(record?.file_targets),
     changeSummary: toStringList(record?.change_summary),
     verificationSteps: toStringList(record?.verification_steps),
@@ -1055,6 +1090,8 @@ function OwnerIntakePageInner() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isRunningDailyReview, setIsRunningDailyReview] = useState(false)
   const [forkingExecutionKey, setForkingExecutionKey] = useState('')
+  const [runningBridgeKey, setRunningBridgeKey] = useState('')
+  const [bridgeReplies, setBridgeReplies] = useState<Record<string, ExecutionBridgeRunResult>>({})
   const [latestResult, setLatestResult] = useState<OwnerIntakeResult | null>(null)
   const [latestDailyReview, setLatestDailyReview] = useState<DailyProjectReviewResult | null>(null)
   const [threads, setThreads] = useState<OwnerThread[]>([])
@@ -1407,6 +1444,7 @@ function OwnerIntakePageInner() {
       source_note_paths: dedupeStrings([
         bundlePath,
         lane.executionContract?.contract_note_relative_path,
+        lane.executionBridge?.bridge_note_relative_path,
         item.result.created_note_relative_path,
         item.result.downstream_reference,
         item.result.follow_on_reference,
@@ -1477,6 +1515,39 @@ function OwnerIntakePageInner() {
       toast.show(message, 'error')
     } finally {
       setForkingExecutionKey('')
+    }
+  }
+
+  async function runExecutionBridge(lane: ExecutionLaneInfo, item: IntakeHistoryItem) {
+    const bridge = lane.executionBridge
+    if (!bridge?.bridge_note_relative_path) {
+      toast.show('This lane does not have a system bridge note yet.', 'error')
+      return
+    }
+
+    const bridgeKey = `${item.id}:${lane.targetAi}:bridge`
+    setRunningBridgeKey(bridgeKey)
+    try {
+      const response = await devFetch('/api/vurium-dev/ai/execution-bridge/run', {
+        method: 'POST',
+        body: JSON.stringify({
+          payload: {
+            project: 'VuriumBook',
+            target_ai: lane.targetAi,
+            bridge_note_relative_path: bridge.bridge_note_relative_path,
+          },
+        }),
+      }) as ExecutionBridgeRunResult
+      setBridgeReplies((prev) => ({
+        ...prev,
+        [bridge.bridge_note_relative_path]: response,
+      }))
+      toast.show(`System replied for ${routeTargetLabel(lane.targetAi)}.`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not run the execution bridge'
+      toast.show(message, 'error')
+    } finally {
+      setRunningBridgeKey('')
     }
   }
 
@@ -2413,6 +2484,11 @@ function OwnerIntakePageInner() {
                                   : (lane.codexPrompt || lane.starterPrompt)
                                 const laneExecutionKey = `${item.id}:${lane.targetAi}`
                                 const laneBusy = forkingExecutionKey === laneExecutionKey || forkingExecutionKey === `${item.id}:all`
+                                const bridge = lane.executionBridge
+                                const bridgeBusy = runningBridgeKey === `${item.id}:${lane.targetAi}:bridge`
+                                const bridgeReply = bridge?.bridge_note_relative_path
+                                  ? bridgeReplies[bridge.bridge_note_relative_path]
+                                  : null
 
                                 return (
                                   <div key={`${item.id}-${lane.targetAi}`} style={{
@@ -2571,6 +2647,97 @@ function OwnerIntakePageInner() {
                                             </ul>
                                           </div>
                                         </div>
+                                      </div>
+                                    )}
+
+                                    {bridge && (
+                                      <div style={{
+                                        marginTop: 12,
+                                        padding: 12,
+                                        borderRadius: 12,
+                                        background: 'rgba(120,170,255,.08)',
+                                        border: '1px solid rgba(120,170,255,.16)',
+                                        display: 'grid',
+                                        gap: 10,
+                                      }}>
+                                        <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(120,170,255,.92)' }}>
+                                          System bridge
+                                        </div>
+                                        <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.76)', lineHeight: 1.65 }}>
+                                          {`If ${routeTargetLabel(lane.targetAi)} gets blocked or needs the system to answer a direct question, it can write an EXECUTION_BRIDGE_REQUEST into this note and the system will answer back into the same note.`}
+                                        </div>
+                                        {bridge.bridge_note_absolute_path && (
+                                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.54)', wordBreak: 'break-word' }}>
+                                            {bridge.bridge_note_absolute_path}
+                                          </div>
+                                        )}
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                          <button
+                                            type="button"
+                                            onClick={async () => {
+                                              try {
+                                                await navigator.clipboard.writeText(bridge.request_template || '')
+                                                toast.show('Copied execution bridge request template.')
+                                              } catch {
+                                                toast.show('Could not copy the bridge request template.', 'error')
+                                              }
+                                            }}
+                                            style={{
+                                              padding: '8px 12px',
+                                              borderRadius: 999,
+                                              border: 'none',
+                                              cursor: 'pointer',
+                                              fontSize: 12,
+                                              fontWeight: 700,
+                                              fontFamily: 'inherit',
+                                              background: 'rgba(120,170,255,.18)',
+                                              color: 'rgba(120,170,255,.98)',
+                                            }}
+                                          >
+                                            Copy bridge request template
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => { void runExecutionBridge(lane, item) }}
+                                            disabled={bridgeBusy}
+                                            style={{
+                                              padding: '8px 12px',
+                                              borderRadius: 999,
+                                              border: 'none',
+                                              cursor: bridgeBusy ? 'wait' : 'pointer',
+                                              fontSize: 12,
+                                              fontWeight: 700,
+                                              fontFamily: 'inherit',
+                                              background: 'rgba(255,255,255,.08)',
+                                              color: 'rgba(255,255,255,.9)',
+                                              opacity: bridgeBusy ? 0.72 : 1,
+                                            }}
+                                          >
+                                            {bridgeBusy ? 'Answering…' : 'Run system reply'}
+                                          </button>
+                                        </div>
+                                        {bridgeReply?.system_reply && (
+                                          <div style={{
+                                            padding: 12,
+                                            borderRadius: 12,
+                                            background: 'rgba(255,255,255,.04)',
+                                            border: '1px solid rgba(255,255,255,.06)',
+                                            display: 'grid',
+                                            gap: 8,
+                                          }}>
+                                            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(120,170,255,.92)' }}>
+                                              Latest bridge reply
+                                            </div>
+                                            <div style={{ fontSize: 13, color: 'rgba(255,255,255,.82)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                                              {bridgeReply.system_reply}
+                                            </div>
+                                            {bridgeReply.next_step && (
+                                              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.62)', lineHeight: 1.6 }}>
+                                                {`Next step: ${bridgeReply.next_step}`}
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
                                       </div>
                                     )}
 
