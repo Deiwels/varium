@@ -12,7 +12,8 @@ const https = require('https');
 const http2 = require('http2');
 const os = require('os');
 const path = require('path');
-const fsPromises = require('fs').promises;
+const fs = require('fs');
+const fsPromises = fs.promises;
 const { z } = require('zod');
 const { Firestore } = require('@google-cloud/firestore');
 const { google } = require('googleapis');
@@ -4571,6 +4572,7 @@ Rules:
 - when context.thread_memory.summary_note is provided, treat it as durable memory from the same chat thread before asking the owner to restate context
 - when context.project_snapshot.local_daily_review is provided, treat it as the freshest whole-project scan before inventing new planning work
 - when context.project_snapshot.local_codebase_snapshot is provided, treat it as the current codebase surface map before inventing architecture or ownership from memory
+- when context.project_snapshot.local_library_index is provided, treat it as the project librarian index that says where the key brains, checklists, contracts, bridges, and repo hotspots live
 - do not force the owner to restate the same problem if the recent conversation already identifies the active issue
 - when context.project_snapshot.local_topic_execution_checklist is provided, treat it as the current execution scaffold for that topic before inventing any new top-level plan
 - if the topic already has a canonical execution checklist, only create a new planning shell when the owner is clearly changing scope or asking for a materially different workstream
@@ -4618,6 +4620,7 @@ Rules:
 - when context.project_snapshot.local_current_state is provided, treat it as the freshest operational snapshot before relying on older queue items
 - when context.project_snapshot.local_daily_review is provided, treat it as the freshest whole-project daily scan and use it before older thread/task noise
 - when context.project_snapshot.local_codebase_snapshot is provided, treat it as the current codebase surface map for the whole project before assuming the system only knows notes or chat
+- when context.project_snapshot.local_library_index is provided, treat it as the project librarian index that maps where important notes, contracts, bridges, and repo hotspots live
 - when context.project_snapshot.local_execution_checklist is provided, use it to explain the next practical build step
 - when context.project_snapshot.brain_note is provided, treat that note as the central working-memory summary for the current topic and answer from it first
 - when context.project_snapshot.local_topic_execution_checklist is provided, treat it as the single operational checklist for the topic and prefer it over scattered historical plans
@@ -4664,6 +4667,7 @@ const EXECUTION_BRIDGE_SYSTEM_PROMPT = `You are the internal execution bridge in
 Your role:
 - answer direct execution-time questions from AI-1 or AI-2
 - use project memory, current state, daily review, codebase snapshot, the execution contract, and listed source notes first
+- act like a fast project librarian who knows where the important notes, contracts, bridges, and repo hotspots live
 - give short, operational answers that help the external executor continue without restarting planning
 - if another AI lane is clearly needed, name the exact lane and reason
 
@@ -4782,6 +4786,7 @@ Rules:
 - prefer the current canonical checklist / plan stack over creating a parallel plan
 - when context.project_snapshot.local_daily_review is provided, treat it as the freshest execution-wide snapshot before widening scope
 - when context.project_snapshot.local_codebase_snapshot is provided, use it to anchor file ownership and project surfaces before inventing new file targets
+- when context.project_snapshot.local_library_index is provided, use it as the project librarian map for where the important notes, contracts, bridges, and repo hotspots live
 - if missing_inputs still contain unresolved external/product/compliance blockers, do not pretend coding can start safely
 - pick one primary target_ai (AI-1 or AI-2) and keep file_targets inside that lane's ownership as much as possible
 - if partner-lane coordination is needed, put it in coordination_notes instead of blurring ownership
@@ -5944,6 +5949,7 @@ function buildOwnerAdvisoryFallbackWithContext(input, reason, advisoryContext = 
   const currentStatePath = safeStr(advisoryContext?.project_snapshot?.local_current_state?.path || '').trim();
   const dailyReviewPath = safeStr(advisoryContext?.project_snapshot?.local_daily_review?.path || '').trim();
   const codebaseSnapshotPath = safeStr(advisoryContext?.project_snapshot?.local_codebase_snapshot?.path || '').trim();
+  const libraryIndexPath = safeStr(advisoryContext?.project_snapshot?.local_library_index?.path || '').trim();
   const threadSummaryPath = safeStr(advisoryContext?.thread_memory?.summary_note?.path || '').trim();
   const brainNotePath = safeStr(advisoryContext?.project_snapshot?.brain_note?.path || '').trim();
   const topicNotes = Array.isArray(advisoryContext?.project_snapshot?.topic_notes)
@@ -5954,6 +5960,7 @@ function buildOwnerAdvisoryFallbackWithContext(input, reason, advisoryContext = 
     currentStatePath,
     dailyReviewPath,
     codebaseSnapshotPath,
+    libraryIndexPath,
     threadSummaryPath,
     brainNotePath,
     ...topicNotes.map((entry) => safeStr(entry?.path).trim()),
@@ -6145,6 +6152,10 @@ async function readLatestWorkspaceBrainDailyReview(project = 'VuriumBook') {
 
 function buildProjectCodebaseSnapshotRelativePath(project = 'VuriumBook') {
   return `Projects/${safeWorkflowSlug(project, 'project')}/Codebase-Snapshot.md`;
+}
+
+function buildProjectLibraryIndexRelativePath(project = 'VuriumBook') {
+  return `Projects/${safeWorkflowSlug(project, 'project')}/Library-Index.md`;
 }
 
 async function statWorkspaceBrainNote(relativePath) {
@@ -6360,6 +6371,154 @@ async function ensureWorkspaceBrainProjectCodebaseSnapshot(project = 'VuriumBook
   return readWorkspaceBrainMarkdownNote(snapshot.relativePath, 2200);
 }
 
+async function buildProjectLibraryIndex(project = 'VuriumBook') {
+  const projectSlug = safeWorkflowSlug(project, 'VuriumBook');
+  const [
+    projectBrain,
+    currentState,
+    executionChecklist,
+    dailyReview,
+    codebaseSnapshot,
+    topicNotes,
+    threadSummaries,
+    handoffNotes,
+  ] = await Promise.all([
+    readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Project-Brain.md`, 1800),
+    readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Current-State.md`, 1800),
+    readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Execution-Checklist.md`, 1800),
+    readLatestWorkspaceBrainDailyReview(project),
+    ensureWorkspaceBrainProjectCodebaseSnapshot(project),
+    listWorkspaceBrainMarkdownNotes(`Projects/${projectSlug}/Topics`, 12, 900),
+    listWorkspaceBrainMarkdownNotes(`Projects/${projectSlug}/Chats/Thread-Memory`, 8, 700),
+    listWorkspaceBrainMarkdownNotes(`Projects/${projectSlug}/Handoffs`, 16, 800),
+  ]);
+
+  const coreMemory = uniqueList([
+    safeStr(projectBrain?.path || '').trim(),
+    safeStr(currentState?.path || '').trim(),
+    safeStr(executionChecklist?.path || '').trim(),
+    safeStr(dailyReview?.path || '').trim(),
+    safeStr(codebaseSnapshot?.path || '').trim(),
+  ]).filter(Boolean);
+
+  const topicPaths = uniqueList((Array.isArray(topicNotes) ? topicNotes : [])
+    .map((entry) => safeStr(entry?.path || '').trim()))
+    .filter(Boolean)
+    .slice(0, 12);
+
+  const threadSummaryPaths = uniqueList((Array.isArray(threadSummaries) ? threadSummaries : [])
+    .map((entry) => safeStr(entry?.path || '').trim()))
+    .filter(Boolean)
+    .slice(0, 8);
+
+  const executionContracts = [];
+  const bridgeNotes = [];
+  const otherHandoffs = [];
+  for (const note of Array.isArray(handoffNotes) ? handoffNotes : []) {
+    const notePath = safeStr(note?.path || '').trim();
+    if (!notePath) continue;
+    if (/Execution-Contract\.md$/i.test(notePath)) {
+      executionContracts.push(notePath);
+    } else if (/System-Bridge\.md$/i.test(notePath)) {
+      bridgeNotes.push(notePath);
+    } else {
+      otherHandoffs.push(notePath);
+    }
+  }
+
+  const repoHotspots = uniqueList([
+    'docs/Tasks/VuriumBook-Project-Brain.md',
+    'docs/Tasks/VuriumBook-Current-State.md',
+    'docs/Tasks/VuriumBook-Execution-Checklist.md',
+    'docs/Tasks/SMS-Notifications-Brain.md',
+    'docs/Tasks/SMS-Notifications-Execution-Checklist.md',
+    'docs/Tasks/Reminder-SMS-TFV-Implementation-Plan-v2.md',
+    'docs/Tasks/Reminder-SMS-Launch-Completion.md',
+    'docs/Tasks/Live-SMS-Verification-Checklist.md',
+    'docs/Compliance/Requirements/TFV-Reminder-SMS-Requirements.md',
+    'backend/index.js',
+    'app/settings/page.tsx',
+    'app/signup/page.tsx',
+    'app/developer/sms/page.tsx',
+    'app/developer/intake/page.tsx',
+  ].filter((entry) => entry && fs.existsSync(path.join(process.cwd(), entry))));
+
+  const focusAreas = uniqueList([
+    ...(Array.isArray(parseFrontmatterJson(codebaseSnapshot?.focus_areas_json, []))
+      ? parseFrontmatterJson(codebaseSnapshot?.focus_areas_json, [])
+      : []),
+    topicPaths.some((entry) => /SMS-Notifications-Brain/i.test(entry)) ? 'sms notifications working memory' : '',
+    executionContracts.length ? 'external execution contracts for AI lanes' : '',
+    bridgeNotes.length ? 'system bridge librarian channel for AI-1 / AI-2' : '',
+  ]).filter(Boolean);
+
+  const relativePath = buildProjectLibraryIndexRelativePath(project);
+  const content = [
+    '---',
+    'type: library-index',
+    `project: ${projectSlug}`,
+    `updated: ${toIso(new Date())}`,
+    `core_memory_json: ${stringifyFrontmatterJson(coreMemory, '[]')}`,
+    `topic_paths_json: ${stringifyFrontmatterJson(topicPaths, '[]')}`,
+    `thread_summary_paths_json: ${stringifyFrontmatterJson(threadSummaryPaths, '[]')}`,
+    `execution_contract_paths_json: ${stringifyFrontmatterJson(executionContracts, '[]')}`,
+    `bridge_note_paths_json: ${stringifyFrontmatterJson(bridgeNotes, '[]')}`,
+    `repo_hotspots_json: ${stringifyFrontmatterJson(repoHotspots, '[]')}`,
+    `focus_areas_json: ${stringifyFrontmatterJson(focusAreas, '[]')}`,
+    '---',
+    '',
+    `# Library Index — ${safeStr(project || 'VuriumBook')}`,
+    '',
+    '## Purpose',
+    'This is the project librarian map. Use it first when you need to know where the important project memory, topic brains, execution contracts, bridge notes, and repo hotspots live.',
+    '',
+    '## Core Memory',
+    ...markdownList(coreMemory, '- none'),
+    '',
+    '## Topic Brains',
+    ...markdownList(topicPaths, '- none'),
+    '',
+    '## Recent Thread Summaries',
+    ...markdownList(threadSummaryPaths, '- none'),
+    '',
+    '## Execution Contracts',
+    ...markdownList(executionContracts, '- none'),
+    '',
+    '## System Bridge Notes',
+    ...markdownList(bridgeNotes, '- none'),
+    '',
+    '## Other Handoffs',
+    ...markdownList(otherHandoffs.slice(0, 12), '- none'),
+    '',
+    '## Repo Hotspots',
+    ...markdownList(repoHotspots, '- none'),
+    '',
+    '## Focus Areas',
+    ...markdownList(focusAreas, '- none'),
+    '',
+    '## Librarian Rule',
+    'If an execution AI needs to know where something lives, which note is canonical, or which file path matters next, use this index plus the System Bridge before asking the Owner to explain it manually.',
+  ].join('\n');
+
+  return { relativePath, content };
+}
+
+async function ensureWorkspaceBrainProjectLibraryIndex(project = 'VuriumBook', { maxAgeMinutes = 15, force = false } = {}) {
+  const relativePath = buildProjectLibraryIndexRelativePath(project);
+  const existingStat = await statWorkspaceBrainNote(relativePath);
+  if (!force && existingStat) {
+    const ageMs = Date.now() - existingStat.mtimeMs;
+    if (ageMs <= maxAgeMinutes * 60 * 1000) {
+      const existingNote = await readWorkspaceBrainMarkdownNote(relativePath, 2200);
+      if (existingNote) return existingNote;
+    }
+  }
+
+  const indexNote = await buildProjectLibraryIndex(project);
+  await writeWorkspaceBrainNote(indexNote.relativePath, indexNote.content);
+  return readWorkspaceBrainMarkdownNote(indexNote.relativePath, 2200);
+}
+
 function buildDailyProjectReviewFallback(input, reviewContext = {}, reason = '') {
   const referencedNotes = uniqueList([
     safeStr(reviewContext?.project_snapshot?.local_project_brain?.path || ''),
@@ -6367,6 +6526,7 @@ function buildDailyProjectReviewFallback(input, reviewContext = {}, reason = '')
     safeStr(reviewContext?.project_snapshot?.local_execution_checklist?.path || ''),
     safeStr(reviewContext?.project_snapshot?.local_daily_review?.path || ''),
     safeStr(reviewContext?.project_snapshot?.local_codebase_snapshot?.path || ''),
+    safeStr(reviewContext?.project_snapshot?.local_library_index?.path || ''),
     ...((Array.isArray(reviewContext?.project_snapshot?.topic_notes) ? reviewContext.project_snapshot.topic_notes : [])
       .map((entry) => safeStr(entry?.path || '').trim())),
   ]).filter(Boolean);
@@ -7008,12 +7168,13 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
     : '';
   const threadId = safeStr(input?.thread_id).trim();
   const canonicalTopicReferencePaths = getCanonicalTopicReferencePaths(context, input);
-  const [localProjectBrain, localCurrentState, localExecutionChecklist, localDailyReview, localCodebaseSnapshot, threadSummaryNote, activeFocusNote, activeFocusPlan, topicBrainNote, topicExecutionChecklistNote, topicNotes, canonicalTopicNotes] = await Promise.all([
+  const [localProjectBrain, localCurrentState, localExecutionChecklist, localDailyReview, localCodebaseSnapshot, localLibraryIndex, threadSummaryNote, activeFocusNote, activeFocusPlan, topicBrainNote, topicExecutionChecklistNote, topicNotes, canonicalTopicNotes] = await Promise.all([
     readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Project-Brain.md', 2200),
     readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Current-State.md', 2200),
     readWorkspaceBrainMarkdownNote('Projects/VuriumBook/Execution-Checklist.md', 2200),
     readLatestWorkspaceBrainDailyReview('VuriumBook'),
     ensureWorkspaceBrainProjectCodebaseSnapshot('VuriumBook'),
+    ensureWorkspaceBrainProjectLibraryIndex('VuriumBook'),
     threadId ? readWorkspaceBrainThreadSummary(threadId) : Promise.resolve(null),
     activeFocusPath ? readAdvisoryMarkdownNote(activeFocusPath, 1800) : Promise.resolve(null),
     activeFocusPlanPath ? readAdvisoryMarkdownNote(activeFocusPlanPath, 1800) : Promise.resolve(null),
@@ -7048,6 +7209,7 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
       local_execution_checklist: localExecutionChecklist,
       local_daily_review: localDailyReview,
       local_codebase_snapshot: localCodebaseSnapshot,
+      local_library_index: localLibraryIndex,
       local_topic_execution_checklist: topicExecutionChecklistNote,
       recent_task_notes: recentTasks,
       recent_research_notes: recentResearch,
@@ -7066,12 +7228,13 @@ async function buildOwnerAdvisoryContext(context = {}, input = {}) {
 
 async function buildDailyProjectReviewContext(project = 'VuriumBook') {
   const projectSlug = safeWorkflowSlug(project, 'VuriumBook');
-  const [localProjectBrain, localCurrentState, localExecutionChecklist, localDailyReview, localCodebaseSnapshot, topicNotes, recentTasks, recentResearch, recentThreads] = await Promise.all([
+  const [localProjectBrain, localCurrentState, localExecutionChecklist, localDailyReview, localCodebaseSnapshot, localLibraryIndex, topicNotes, recentTasks, recentResearch, recentThreads] = await Promise.all([
     readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Project-Brain.md`, 2200),
     readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Current-State.md`, 2200),
     readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Execution-Checklist.md`, 2200),
     readLatestWorkspaceBrainDailyReview(projectSlug),
     ensureWorkspaceBrainProjectCodebaseSnapshot(projectSlug),
+    ensureWorkspaceBrainProjectLibraryIndex(projectSlug),
     listWorkspaceBrainMarkdownNotes(`Projects/${projectSlug}/Topics`, 8, 1800),
     listRecentAdvisoryNotes('04-Tasks', 6),
     listRecentAdvisoryNotes('07-Research', 5),
@@ -7091,6 +7254,7 @@ async function buildDailyProjectReviewContext(project = 'VuriumBook') {
       local_execution_checklist: localExecutionChecklist,
       local_daily_review: localDailyReview,
       local_codebase_snapshot: localCodebaseSnapshot,
+      local_library_index: localLibraryIndex,
       topic_notes: topicNotes,
       recent_task_notes: recentTasks,
       recent_research_notes: recentResearch,
@@ -7141,6 +7305,7 @@ async function buildExecutionBridgeContext(input, frontmatter = {}) {
     `Projects/${projectSlug}/Project-Brain.md`,
     `Projects/${projectSlug}/Current-State.md`,
     `Projects/${projectSlug}/Execution-Checklist.md`,
+    buildProjectLibraryIndexRelativePath(project),
     buildProjectCodebaseSnapshotRelativePath(project),
     safeStr(frontmatter.bridge_note_relative_path || '').trim(),
     contractPath,
@@ -7158,12 +7323,14 @@ async function buildExecutionBridgeContext(input, frontmatter = {}) {
     localExecutionChecklist,
     localDailyReview,
     localCodebaseSnapshot,
+    localLibraryIndex,
   ] = await Promise.all([
     readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Project-Brain.md`, 2200),
     readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Current-State.md`, 2200),
     readWorkspaceBrainMarkdownNote(`Projects/${projectSlug}/Execution-Checklist.md`, 2200),
     readLatestWorkspaceBrainDailyReview(project),
     ensureWorkspaceBrainProjectCodebaseSnapshot(project),
+    ensureWorkspaceBrainProjectLibraryIndex(project),
   ]);
 
   return {
@@ -7173,6 +7340,7 @@ async function buildExecutionBridgeContext(input, frontmatter = {}) {
       local_execution_checklist: localExecutionChecklist,
       local_daily_review: localDailyReview,
       local_codebase_snapshot: localCodebaseSnapshot,
+      local_library_index: localLibraryIndex,
     },
     bridge_reference_notes: noteExcerpts,
     execution_bridge: {
@@ -7649,6 +7817,7 @@ function buildExecutionBridgeRequestTemplate(packet, executionBridge = {}) {
     '- source-of-truth confirmation',
     '- exact next step',
     '- supporting AI lane recommendation',
+    '- where a relevant file, note, contract, or checklist is located',
     'Context:',
     '- optional short note about what you just checked or why you are blocked',
     'END_EXECUTION_BRIDGE_REQUEST',
@@ -7712,6 +7881,7 @@ function buildExecutionBridgeFallback(input, context = {}, reason = '') {
     safeStr(context?.project_snapshot?.local_current_state?.path || ''),
     safeStr(context?.project_snapshot?.local_daily_review?.path || ''),
     safeStr(context?.project_snapshot?.local_codebase_snapshot?.path || ''),
+    safeStr(context?.project_snapshot?.local_library_index?.path || ''),
     ...((Array.isArray(context?.bridge_reference_notes) ? context.bridge_reference_notes : [])
       .map((entry) => safeStr(entry?.path).trim())),
   ]).filter(Boolean).slice(0, 10);
@@ -7736,6 +7906,7 @@ function buildExecutionBridgeFallback(input, context = {}, reason = '') {
 function buildImplementationMemoryReadPaths(packet) {
   const handoffRelativePath = safeStr(packet.writeback?.relative_path || '').trim() || buildImplementationHandoffRelativePath(packet);
   return uniqueList([
+    buildProjectLibraryIndexRelativePath('VuriumBook'),
     buildImplementationContractRelativePath(packet),
     handoffRelativePath,
     ...(Array.isArray(packet.source_of_truth_stack) ? packet.source_of_truth_stack : []),
@@ -7851,10 +8022,11 @@ function buildImplementationStarterPrompt(packet, executionContract) {
     '',
     'Use that contract as the memory protocol:',
     '- Read context only from the notes listed under "Read From".',
+    '- Treat the Library Index in "Read From" as the project librarian map for where important memory, contracts, bridges, and repo hotspots live.',
     '- Write short work-log updates into the execution contract note under "Work Log".',
     '- When coding is done, use the "Return-to-System" block from the contract note and report back into Owner Copilot.',
     '- If another AI lane is needed, record the exact lane and reason under "Work Log" and in the final return.',
-    ...(bridgePath ? [`- If you need the system to answer a blocker question, write an EXECUTION_BRIDGE_REQUEST into: ${bridgePath}`] : []),
+    ...(bridgePath ? [`- If you need the system to answer a blocker question or tell you where something lives, write an EXECUTION_BRIDGE_REQUEST into: ${bridgePath}`] : []),
     '',
     'Do not restart planning. Stay inside the owned implementation scope and preserve unrelated changes.',
     '',
@@ -7870,9 +8042,10 @@ function buildImplementationQuickStartPrompt(packet, executionContract) {
     `You are ${targetAi} for VuriumBook.`,
     `Use ${preferredProviderLabel} as your executor.`,
     `Read this file first: ${safeStr(executionContract.contract_note_absolute_path)}`,
+    'The system has a built-in librarian. The Library Index in your contract tells you where the important memory and repo hotspots live.',
     'Follow the execution contract, write progress back into that note, and then report the result to Owner Copilot.',
     'If you need another AI lane, name the exact AI and reason in the work log instead of asking the Owner to figure it out manually.',
-    ...(bridgePath ? [`If you need a direct system answer, write an EXECUTION_BRIDGE_REQUEST block into: ${bridgePath}`] : []),
+    ...(bridgePath ? [`If you need a direct system answer or need the librarian to tell you where something lives, write an EXECUTION_BRIDGE_REQUEST block into: ${bridgePath}`] : []),
   ].join('\n');
 }
 
@@ -8065,6 +8238,7 @@ async function attachImplementationExecutionContract(packet) {
     '',
     '## System Bridge',
     `- Bridge note: ${bridgeAbsolutePath}`,
+    '- This bridge acts like the project librarian: it can answer blocker questions and tell you where the important notes, contracts, checklists, and repo hotspots live.',
     '- If you need the system to answer a blocker question, write an EXECUTION_BRIDGE_REQUEST block into that note and run the execution bridge from Owner Copilot.',
     '',
     '## Execution Bridge Request Template',
@@ -10252,6 +10426,7 @@ async function executeGrowthAssetFlow(meta, context, input) {
 async function executePlanningIntakeWorkflow(meta, context, input, { notifyOwner = true } = {}) {
   const latestDailyReview = await readLatestWorkspaceBrainDailyReview('VuriumBook');
   const latestCodebaseSnapshot = await ensureWorkspaceBrainProjectCodebaseSnapshot('VuriumBook');
+  const latestLibraryIndex = await ensureWorkspaceBrainProjectLibraryIndex('VuriumBook');
   const planningContext = {
     ...context,
     project_snapshot: {
@@ -10260,6 +10435,7 @@ async function executePlanningIntakeWorkflow(meta, context, input, { notifyOwner
         : {}),
       local_daily_review: latestDailyReview,
       local_codebase_snapshot: latestCodebaseSnapshot,
+      local_library_index: latestLibraryIndex,
     },
   };
   const result = await runStructuredWorkflowAI({
@@ -10292,6 +10468,7 @@ async function executePlanningIntakeWorkflow(meta, context, input, { notifyOwner
 async function executeSingleImplementationPacketWorkflow(meta, context, input, { notifyOwner = true } = {}) {
   const latestDailyReview = await readLatestWorkspaceBrainDailyReview('VuriumBook');
   const latestCodebaseSnapshot = await ensureWorkspaceBrainProjectCodebaseSnapshot('VuriumBook');
+  const latestLibraryIndex = await ensureWorkspaceBrainProjectLibraryIndex('VuriumBook');
   const executionContext = {
     ...context,
     project_snapshot: {
@@ -10300,6 +10477,7 @@ async function executeSingleImplementationPacketWorkflow(meta, context, input, {
         : {}),
       local_daily_review: latestDailyReview,
       local_codebase_snapshot: latestCodebaseSnapshot,
+      local_library_index: latestLibraryIndex,
     },
   };
   const result = await runStructuredWorkflowAI({
@@ -10322,6 +10500,7 @@ async function executeSingleImplementationPacketWorkflow(meta, context, input, {
         Array.isArray(result.source_of_truth_stack) ? result.source_of_truth_stack : [],
         latestDailyReview
       ),
+      safeStr(latestLibraryIndex?.path || '').trim(),
       safeStr(latestCodebaseSnapshot?.path || '').trim(),
     ]).filter(Boolean),
     file_targets: normalizeImplementationFileTargets(
@@ -10493,6 +10672,7 @@ async function executeDailyProjectReviewWorkflow(meta, context, input) {
     safeStr(reviewContext?.project_snapshot?.local_execution_checklist?.path || ''),
     safeStr(reviewContext?.project_snapshot?.local_daily_review?.path || ''),
     safeStr(reviewContext?.project_snapshot?.local_codebase_snapshot?.path || ''),
+    safeStr(reviewContext?.project_snapshot?.local_library_index?.path || ''),
     ...((Array.isArray(reviewContext?.project_snapshot?.topic_notes) ? reviewContext.project_snapshot.topic_notes : [])
       .map((entry) => safeStr(entry?.path || '').trim())),
     ...((Array.isArray(reviewContext?.thread_memory?.recent_thread_summaries) ? reviewContext.thread_memory.recent_thread_summaries : [])
@@ -10559,6 +10739,7 @@ async function executeOwnerAdvisory(meta, context, input) {
     safeStr(advisoryContext?.project_snapshot?.local_current_state?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.local_daily_review?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.local_codebase_snapshot?.path || ''),
+    safeStr(advisoryContext?.project_snapshot?.local_library_index?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.local_execution_checklist?.path || ''),
     safeStr(advisoryContext?.thread_memory?.summary_note?.path || ''),
     safeStr(advisoryContext?.project_snapshot?.brain_note?.path || ''),

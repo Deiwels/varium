@@ -2661,10 +2661,10 @@ function OwnerIntakePageInner() {
                                         gap: 10,
                                       }}>
                                         <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(120,170,255,.92)' }}>
-                                          System bridge
+                                          System bridge librarian
                                         </div>
                                         <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.76)', lineHeight: 1.65 }}>
-                                          {`If ${routeTargetLabel(lane.targetAi)} gets blocked or needs the system to answer a direct question, it can write an EXECUTION_BRIDGE_REQUEST into this note and the system will answer back into the same note.`}
+                                          {`If ${routeTargetLabel(lane.targetAi)} gets blocked or needs the system to answer a direct question, find where something lives, or confirm the canonical note or file, it can write an EXECUTION_BRIDGE_REQUEST into this note and the system librarian will answer back into the same note.`}
                                         </div>
                                         {bridge.bridge_note_absolute_path && (
                                           <div style={{ fontSize: 12, color: 'rgba(255,255,255,.54)', wordBreak: 'break-word' }}>
